@@ -14,7 +14,7 @@ are non-negative continuous `good_lp` variables.
 `Layout::new(Direction, Vec<Option<Child>>)` arranges existing child nodes.
 `Minimize`, `Child::fill`, adjacency objectives, alignment, and `Space`
 determine size. Space values are logical units: for example,
-`Space::inline(child, 2.0, Space_goal::Maximize, priority)` caps each inline
+`Space::inline(child, 2.0, Objective::Maximize, priority)` caps each inline
 gap at two logical units and maximizes it at the given priority. Priorities
 range from `0` through `9`; higher numbers are optimized before lower
 priorities, and each achieved priority objective is preserved exactly while

@@ -1,50 +1,48 @@
 # Vizual
 
-It's time to make simple UI even more computationally expensive so that even basic programs require hardware a million times more capable than of the landing computer of Apollo 11.
-
-Vizual is an asynchronous GUI framework rendered by Vello, with Winit window
-and input handling and Parley text layout. It provides a solver-backed
-component tree, focus traversal, event propagation, shared state, and reusable
-desktop widgets.
-
-It should be possible to use Vizual to provide chatbots with a nice UI.
-
-All layout and pointer geometry uses floating-point logical pixels. Winit's
-display scale factor is applied only when the completed logical Vello scene is
-presented to the physical surface. Text uses one private system sans-serif
-font configuration throughout the framework.
+Vizual is a reactive all Rust UI framework.
 
 ## Features
-
-- A single resizable desktop window
-- Continuous `good_lp` layout with explicit spacing and fill objectives
-- Async widgets, handlers, command output, and shared state on Tokio
-- Keyboard focus traversal and reverse-order pointer hit testing
-- Vello borders, colors, focus, validation, disabled, and selection states
-- ANSI-aware Parley text for static and streamed command output
-- Explicit scrolling in `Paragraph` and `Screen`; other widgets do not scroll
+- State system heavily inspired by React
+- MILP powered layouting system inspired by iOS Auto Layout
 
 ## Quick start
+
+Vizual currently requires a nightly Rust toolchain because it uses
+`async_fn_track_caller` for caller locations on asynchronous layout methods.
+Stable Rust rejects the crate's feature declaration before compiling an
+application. `cargo +nightly` selects the nightly Cargo and compiler together;
+Vizual does not otherwise require a special version of Cargo.
+
+Create a new binary crate and add these dependencies:
+
+```toml
+[dependencies]
+color-eyre = "0.6"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+vizual = { git = "https://github.com/ElectricPulse/vizual" }
+```
+
+Then replace `src/main.rs` with:
 
 ```rust
 use color_eyre::eyre::Result;
 use vizual::{
     Rerender,
-    renderable::Renderable as _,
     state::State,
     theme::dark_theme,
+    widget::{Renderable as _, widgets::paragraph::Paragraph},
 };
-use vizual::renderable::paragraph::Paragraph;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
+
     let (rerender, render_signal) = Rerender::new();
     let theme = State::new_with(rerender, dark_theme());
     let mut paragraph = Paragraph::new();
-    paragraph.set_content("Hello from Vizual".to_owned());
+    paragraph.set_content("Hello from Vizual".into());
 
-    // Winit owns the calling thread, so run is synchronous.
     vizual::run(
         "Vizual example",
         paragraph.into_shared(),
@@ -54,11 +52,18 @@ async fn main() -> Result<()> {
 }
 ```
 
-The Tokio runtime must remain active while `run` owns the main thread. The
+Run it with:
+
+```sh
+cargo +nightly run
+```
+
+`vizual::run` is synchronous because Winit owns the calling thread. The Tokio
+runtime remains active for asynchronous widget and background work. The
 default global controls are `Tab`, `Shift+Tab`, `Esc`, and `Ctrl+C`.
 
 ## TODO
-
+- It should be possible to use Vizual to provide chatbots with a nice UI.
 - Film the cool grid component as a GIF for GitHub.
 - Investigate why `display!()` can be called infinitely on a value that is
   already `Renderable`, which is weird.
@@ -82,11 +87,15 @@ default global controls are `Tab`, `Shift+Tab`, `Esc`, and `Ctrl+C`.
 - Crystallize the relational-delta layout system. It should probably support
   weights for adjusting how relationships scale, while an absolute-difference
   system likely has a place alongside it.
+  
+## Technologies used
+- winit for window managment
+- vello for graphics
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md)
-- [Core concepts](docs/core-concepts.md)
-- [Components](docs/components.md)
-- [Creating custom components](docs/custom-components.md)
-- [Current limitations](docs/limitations.md)
+- [Getting started](vizual/docs/getting-started.md)
+- [Core concepts](vizual/docs/core-concepts.md)
+- [Components](vizual/docs/components.md)
+- [Creating custom components](vizual/docs/custom-components.md)
+- [Current limitations](vizual/docs/limitations.md)

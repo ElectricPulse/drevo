@@ -5,9 +5,9 @@ text measurement. Their sizes come from solver constraints, existing spacing,
 and explicit `fill()` calls; the backend does not assign fixed menu, tab,
 tree, selector, or pane dimensions.
 
-Constraint and painting primitives are exposed under `vizual::renderable`.
-Higher-order compositions using the flattened `Widget` adapter are exposed
-under `vizual::widgets`.
+Constraint and painting primitives are exposed under `vizual::layouter` and
+`vizual::backend::graphics`. The rendering contracts are under
+`vizual::widget`, and built-in widgets are under `vizual::widget::widgets`.
 
 ## Structural widgets
 
@@ -47,8 +47,7 @@ content, and paints vertical/horizontal scrollbars.
 
 Arrow keys scroll by a text line metric, PageUp/PageDown use the viewport,
 Home/End jump vertically, and wheel input scrolls in logical units. Supply a
-`Block_style` with `Paragraph::block` when a titled or colored border is
-needed.
+Wrap a `Paragraph` in `Block` when a titled or colored border is needed.
 
 ## Screen
 

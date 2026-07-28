@@ -1,16 +1,23 @@
 # Getting started
 
-Vizual requires a Rust 2024 toolchain, an active multi-thread Tokio runtime,
-and a desktop environment supported by Winit and Vello. Vello also requires a
-GPU adapter with its compute-rendering requirements.
+Vizual requires the nightly Rust toolchain with Rust 2024 edition support, an
+active multi-thread Tokio runtime, and a desktop environment supported by Winit
+and Vello. Vello also requires a GPU adapter with its compute-rendering
+requirements.
 
-Add the workspace crate and runtime:
+Install the toolchain if necessary:
+
+```sh
+rustup toolchain install nightly
+```
+
+Add Vizual and its runtime dependencies:
 
 ```toml
 [dependencies]
 color-eyre = "0.6"
-tokio = { version = "1", features = ["full"] }
-vizual = { path = "../vizual" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+vizual = { git = "https://github.com/ElectricPulse/vizual" }
 ```
 
 Create a shared root widget and a rerender channel:
@@ -19,19 +26,19 @@ Create a shared root widget and a rerender channel:
 use color_eyre::eyre::Result;
 use vizual::{
     Rerender,
-    renderable::Renderable as _,
     state::State,
     theme::dark_theme,
+    widget::{Renderable as _, widgets::paragraph::Paragraph},
 };
-use vizual::renderable::paragraph::Paragraph;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
+
     let (rerender, render_signal) = Rerender::new();
     let theme = State::new_with(rerender, dark_theme());
     let mut paragraph = Paragraph::new();
-    paragraph.set_content("Hello from Vizual".to_owned());
+    paragraph.set_content("Hello from Vizual".into());
 
     vizual::run(
         "Vizual example",
@@ -41,6 +48,23 @@ async fn main() -> Result<()> {
     )
 }
 ```
+
+Run the application with the nightly toolchain:
+
+```sh
+cargo +nightly run
+```
+
+`cargo +nightly` tells Rustup to use nightly Cargo and `rustc` for the command.
+Cargo itself does not need unstable functionality. Running with stable Rust
+currently stops before building the application:
+
+```text
+error[E0554]: #![feature] may not be used on the stable release channel
+```
+
+Vizual uses `#![feature(async_fn_track_caller)]` because several asynchronous
+layout methods preserve their caller locations for diagnostics.
 
 `vizual::run` is synchronous because Winit owns the calling thread. Existing
 widget logic and background work remain async on the active Tokio runtime.

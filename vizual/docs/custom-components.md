@@ -6,13 +6,13 @@ uses framework events, logical geometry, and the Vello/Parley paint context:
 ```rust
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual::{Vizual_command, Vizual_msg};
+use vizual::{Vizual_command, Vizual_msg, backend::graphics::Paint_context};
 use vizual::event::{Key_code, Key_event};
 use vizual::geometry::Rect;
 use vizual::hitbox::Hitbox;
-use vizual::painting::Paint_context;
-use vizual::renderable::{Control, Focus_provider, Renderable};
 use vizual::style::Color;
+use vizual::widget::{Control, Focus_provider, Renderable};
+use vizual::widget::widgets::text::Text_style;
 
 struct Counter(i64);
 
@@ -36,9 +36,13 @@ impl Renderable for Counter {
         area: Rect,
         paint: &mut Paint_context<'_>,
     ) -> Result<Option<Hitbox>> {
-        let color = if focus.get() { vizual::FOCUS_COLOR } else { Color::White };
+        let color = if focus.get() { Color::Blue } else { Color::White };
         paint.stroke_rect(area.inset(0.5), color, 1.0);
-        let _ = paint.draw_text(&self.0.to_string(), area.origin, color);
+        let _ = paint.draw_text(
+            &self.0.to_string(),
+            area.origin,
+            Text_style { size: 16.0, color },
+        );
         Ok(None)
     }
 }
@@ -58,11 +62,10 @@ should use stable IDs with `Slots::set`. Preserve the existing child hierarchy
 and use `Child::fill` only where the component explicitly needs the solver
 maximize objective.
 
-Higher-order compositions implement `Widget`. Their layout method returns an
-`Any_renderable`, and the blanket `Renderable` implementation invokes that
-renderable's layout with the same area, problem, focus provider, and slots.
-This flattens the returned renderable rather than adding a component node, so
-its own render and event behavior is not part of the hierarchy.
+Compositions can return `Widget_type::Virtual` from `Renderable::layout` to
+lay out another renderable with the same hitbox, problem, focus provider, and
+slots. This flattens the returned renderable rather than adding a component
+node; the virtual renderable's own render callback is not invoked.
 
 ## Delegation derives
 
