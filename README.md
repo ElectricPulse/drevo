@@ -1,4 +1,4 @@
-# ![banner](/home/hackerman/Desktop/src/vizual/docs/banner.png)
+# ![banner](assets/banner.png)
 
 # Vizual
 
@@ -9,7 +9,7 @@ Vizual ( ˈvizuaːl) is a reactive all Rust UI framework
 - MILP powered layouting system inspired by [iOS Auto Layout](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html)
 - Structural navigation via ```Tab``` and ```Shift + Tab``` for accessibility
 ## Demo
-![demo](/home/hackerman/Desktop/src/vizual/docs/demo.gif)
+![demo](assets/demo.gif)
 
 ## Quick start
 
