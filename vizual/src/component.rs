@@ -1,0 +1,407 @@
+use async_recursion::async_recursion;
+use color_eyre::eyre::Result;
+use derive_new::new;
+use good_lp::{Expression, constraint};
+use std::{
+    panic::Location,
+    sync::{
+        Arc, Weak,
+        atomic::{AtomicU64, Ordering},
+    },
+};
+
+use crate::{
+    focus::Focus,
+    hitbox::{Direction, Hitbox},
+    layouter::{Problem_context, Solution, constraints::Objective},
+    slot_manager::{Slot_records, Slots},
+    sync::{Mutex, MutexGuard},
+    widget::{Any_renderable, Control, Focus_provider, Renderable, Widget_type},
+};
+
+pub type Id = u64;
+
+pub type Children = Vec<Child>;
+
+static NEXT_COMPONENT_NAME: AtomicU64 = AtomicU64::new(1);
+
+#[derive(Clone)]
+pub struct Child_slot {
+    reference: Child_reference,
+    name: String,
+    path: String,
+}
+
+impl Child_slot {
+    #[track_caller]
+    pub fn new() -> Self {
+        Self::new_at(Location::caller())
+    }
+
+    pub(crate) fn new_at(location: &'static Location<'static>) -> Self {
+        Self {
+            reference: Weak::new(),
+            name: format!("c{}", NEXT_COMPONENT_NAME.fetch_add(1, Ordering::Relaxed)),
+            path: format!("{}:{}", location.file(), location.line()),
+        }
+    }
+
+    pub fn get_reference(&self) -> Child_reference {
+        self.reference.clone()
+    }
+
+    pub async fn set(
+        &mut self,
+        widget: impl Renderable,
+        mut problem: Problem_context,
+    ) -> Result<Child> {
+        let widget = Box::new(widget);
+
+        problem.component_path.push(self.name.clone());
+        let component_path = problem.component_path.join(".");
+        let hitbox = {
+            let mut problem = problem.lock().await?;
+            // It is assumed that between two distinct calls of set on one child_slot the problem is gonna change
+            // in which case the Variables inside Hitbox need to be recreated
+            Hitbox::new(
+                &mut problem,
+                self.name.clone(),
+                component_path,
+                self.path.clone(),
+            )
+        };
+
+        let lock = if let Some(lock) = self.reference.upgrade() {
+            let mut reference = lock.lock().await?;
+            reference.name = self.name.clone();
+            reference.widget = widget;
+            reference.hitbox = hitbox;
+            reference.slot_manager.set_problem(problem);
+
+            Child(lock.clone())
+        } else {
+            let lock = Child(Arc::new(Mutex::new(Component {
+                name: self.name.clone(),
+                hitbox,
+                widget,
+                focusable: false,
+                children: Vec::new(),
+                parent: None,
+                slot_manager: Slot_records::new(problem),
+            })));
+
+            self.reference = lock.as_reference();
+            lock
+        };
+
+        Ok(lock)
+    }
+}
+
+impl Default for Child_slot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub type Parent = Option<Child_reference>;
+
+pub struct Component {
+    pub name: String,
+    pub hitbox: Hitbox,
+    pub widget: Any_renderable,
+    pub focusable: bool,
+    pub parent: Parent,
+    pub children: Children,
+    pub slot_manager: Slot_records,
+}
+
+pub type Shared_component = Mutex<Component>;
+
+#[derive(Clone, new)]
+pub struct Child(Arc<Shared_component>);
+
+#[derive(Clone, Copy)]
+pub enum Horizontal_anchor {
+    Left,
+    Right,
+}
+
+#[derive(Clone, Copy)]
+pub enum Vertical_anchor {
+    Top,
+    Bottom,
+}
+
+impl Control for Child {}
+
+#[async_trait::async_trait]
+impl Renderable for Child {
+    async fn layout(
+        &mut self,
+        _focus: &mut Focus_provider,
+        _hitbox: Hitbox,
+        _problem: Problem_context,
+        _slots: &mut Slots,
+    ) -> Result<Widget_type> {
+        Ok(Widget_type::Visual(vec![self.clone()]))
+    }
+}
+
+impl From<Child> for Parent {
+    fn from(value: Child) -> Self {
+        Some(value.as_reference())
+    }
+}
+
+impl Child {
+    pub async fn lock(&self) -> Result<MutexGuard<'_, Component>> {
+        self.0.lock().await
+    }
+
+    pub fn compare(&self, node: &Child) -> bool {
+        Arc::ptr_eq(&self.0, &node.0)
+    }
+
+    pub fn as_reference(&self) -> Child_reference {
+        Arc::downgrade(&self.0)
+    }
+
+    pub async fn get_hitbox(&self) -> Result<Hitbox> {
+        Ok(self.lock().await?.hitbox)
+    }
+
+    pub async fn fill(self, problem: Problem_context) -> Result<Self> {
+        let priority = 1;
+        let hitbox = self.get_hitbox().await?;
+
+        problem
+            .maximize(
+                Expression::from(hitbox.get_dimension(Direction::Horizontal)),
+                priority,
+            )
+            .await?;
+        problem
+            .maximize(
+                Expression::from(hitbox.get_dimension(Direction::Vertical)),
+                priority,
+            )
+            .await?;
+
+        Ok(self)
+    }
+
+    pub async fn anchor(
+        self,
+        horizontal: Horizontal_anchor,
+        vertical: Vertical_anchor,
+        objective: Objective,
+    ) -> Result<Self> {
+        let priority = 1;
+        let (hitbox, problem) = {
+            let child = self.lock().await?;
+            (child.hitbox, child.slot_manager.problem.clone())
+        };
+        let horizontal = match horizontal {
+            Horizontal_anchor::Left => Expression::from(hitbox.x),
+            Horizontal_anchor::Right => hitbox.get_end_position(Direction::Horizontal),
+        };
+        let vertical = match vertical {
+            Vertical_anchor::Top => Expression::from(hitbox.y),
+            Vertical_anchor::Bottom => hitbox.get_end_position(Direction::Vertical),
+        };
+        let vertex = horizontal + vertical;
+
+        match objective {
+            Objective::Maximize => problem.maximize(vertex, priority).await?,
+            Objective::Minimize | Objective::Minimize_difference => {
+                problem.minimize(vertex, priority).await?
+            }
+        }
+
+        Ok(self)
+    }
+
+    pub fn compare_with_reference(&self, node: &Child_reference) -> bool {
+        let Some(node) = node.upgrade() else {
+            return false;
+        };
+
+        self.compare(&Child(node))
+    }
+
+    pub async fn layout(
+        &mut self,
+        parent: Parent,
+        mut problem: Problem_context,
+    ) -> Result<Children> {
+        let mut this = self.lock().await?;
+
+        this.parent = parent;
+        problem.component_path.push(this.name.clone());
+        let children = {
+            let Component {
+                widget,
+                slot_manager,
+                hitbox,
+                focusable,
+                ..
+            } = &mut *this;
+
+            let mut focus = Focus_provider::new(false);
+
+            let children = {
+                let mut slots = slot_manager.slots();
+                let widget_type = widget
+                    .layout(&mut focus, *hitbox, problem.clone(), &mut slots)
+                    .await?;
+
+                match widget_type {
+                    Widget_type::Virtual(renderable) => {
+                        // TODO: This whole thing is such a bodge
+                        // it doesnt prevent the creation of four new variables in the solver
+                        // which shouldn't really be a problem in the future, presolve is suppose to remove the necessity of this
+                        // I wonder if a good presolve would also make it free to utilize the minimize hitbox but encompass children logic of the Widget_type::Visual
+                        let child = slots.set(9999, renderable).await?;
+                        let child_hitbox = child.get_hitbox().await?;
+
+                        // TODO: when I figure out if this is the way we wanna go - then one should implement a system where the variables are shared
+                        problem
+                            .constrain(constraint!(child_hitbox.x == hitbox.x))
+                            .await?;
+                        problem
+                            .constrain(constraint!(child_hitbox.y == hitbox.y))
+                            .await?;
+                        problem
+                            .constrain(constraint!(
+                                child_hitbox.dimensions.width == hitbox.dimensions.width
+                            ))
+                            .await?;
+                        problem
+                            .constrain(constraint!(
+                                child_hitbox.dimensions.height == hitbox.dimensions.height
+                            ))
+                            .await?;
+
+                        vec![child]
+                    }
+                    Widget_type::Visual(children) => children,
+                }
+            };
+            *focusable = focus.is_active();
+
+            for child in children.iter() {
+                let child_hitbox = child.get_hitbox().await?;
+                let hitbox = *hitbox;
+
+                for direction in [Direction::Horizontal, Direction::Vertical] {
+                    let (start_bound_name, end_bound_name) = match direction {
+                        Direction::Horizontal => {
+                            ("child_horizontal_start_bound", "child_horizontal_end_bound")
+                        }
+                        Direction::Vertical => {
+                            ("child_vertical_start_bound", "child_vertical_end_bound")
+                        }
+                    };
+
+                    problem
+                        .constrain(
+                            constraint!(
+                                hitbox.get_start_position(direction)
+                                    <= child_hitbox.get_start_position(direction)
+                            )
+                            .set_name(start_bound_name.to_string()),
+                        )
+                        .await?;
+                    problem
+                        .constrain(
+                            constraint!(
+                                hitbox.get_end_position(direction)
+                                    >= child_hitbox.get_end_position(direction)
+                            )
+                            .set_name(end_bound_name.to_string()),
+                        )
+                        .await?;
+                }
+            }
+
+            problem
+                .minimize(Expression::from(hitbox.dimensions.width), 0)
+                .await?;
+            problem
+                .minimize(Expression::from(hitbox.dimensions.height), 0)
+                .await?;
+
+            slot_manager.evaluate();
+            children
+        };
+
+        this.children = children.clone();
+
+        Ok(children)
+    }
+
+    #[async_recursion]
+    pub async fn layout_children(
+        &mut self,
+        children: Children,
+        mut problem: Problem_context,
+    ) -> Result<()> {
+        problem.component_path.push(self.lock().await?.name.clone());
+
+        for mut child in children {
+            let grandchildren = child
+                .clone()
+                .layout(self.clone().into(), problem.clone())
+                .await?;
+            child
+                .layout_children(grandchildren, problem.clone())
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn render(
+        &mut self,
+        focus: Focus,
+        paint: &mut crate::backend::graphics::Paint_context<'_>,
+        solution: &Solution,
+    ) -> Result<()> {
+        // TODO: I think the cloning of children is not necessary here
+        let children = {
+            let mut this = self.lock().await?;
+
+            let hitbox = this.hitbox.get_resolved(solution);
+            let focused = focus.compare(self);
+            let mut focus = Focus_provider::new(focused);
+            let maybe_hitbox = this.widget.render(&mut focus, hitbox, paint).await?;
+            this.focusable = focus.is_active();
+
+            if let Some(hitbox) = maybe_hitbox {
+                this.hitbox = hitbox;
+            };
+
+            this.children.clone()
+        };
+
+        self.render_children(children, focus, paint, solution).await
+    }
+
+    #[async_recursion]
+    pub async fn render_children(
+        &mut self,
+        children: Children,
+        focus: Focus,
+        paint: &mut crate::backend::graphics::Paint_context<'_>,
+        solution: &Solution,
+    ) -> Result<()> {
+        for mut child in children {
+            child.render(focus.clone(), paint, solution).await?;
+        }
+
+        Ok(())
+    }
+}
+
+pub type Child_reference = Weak<Shared_component>;

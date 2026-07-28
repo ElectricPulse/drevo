@@ -1,0 +1,227 @@
+pub mod text_input;
+
+use async_trait::async_trait;
+use color_eyre::eyre::Result;
+use std::future::Future;
+use std::pin::Pin;
+use vizual_macros::display;
+
+use super::super::{Control, Focus_provider, Renderable, Shared_renderable, Widget_type};
+use super::menu::Menu;
+use super::title_block::Title_block;
+use crate::{
+    backend::graphics::Paint_context,
+    event::{Key_code, Key_event},
+    geometry::Rect,
+    handlers::Retrieve_handler,
+    hitbox::Hitbox,
+    layouter::Problem_context,
+    slot_manager::Slots,
+    state::State,
+    sync::Thread_safe,
+    theme::Theme,
+    utils::get_next_index,
+};
+
+pub trait Field<Config>: Renderable {
+    fn get_name(&self) -> &str;
+    fn submit(&self, config: &mut Config) -> Result<()>;
+}
+
+#[async_trait]
+impl<Config: 'static> Renderable for Box<dyn Field<Config>> {
+    async fn layout(
+        &mut self,
+        focus: &mut Focus_provider,
+        hitbox: Hitbox,
+        problem: Problem_context,
+        slots: &mut Slots,
+    ) -> Result<Widget_type> {
+        (**self).layout(focus, hitbox, problem, slots).await
+    }
+
+    async fn render(
+        &mut self,
+        focus: &mut Focus_provider,
+        hitbox: Rect,
+        paint: &mut Paint_context<'_>,
+    ) -> Result<Option<Hitbox>> {
+        (**self).render(focus, hitbox, paint).await
+    }
+}
+
+pub type Shared_field<Config> = Shared_renderable<Box<dyn Field<Config>>>;
+
+pub struct Fields<Config: 'static> {
+    fields: Vec<Shared_field<Config>>,
+}
+
+impl<Config: 'static> Default for Fields<Config> {
+    fn default() -> Self {
+        Self { fields: Vec::new() }
+    }
+}
+
+impl<Config: 'static> Fields<Config> {
+    pub fn add<Generic_field>(&mut self, field: Shared_field<Config>) {
+        self.fields.push(field);
+    }
+}
+
+pub type Submit_future = Pin<Box<dyn Future<Output = Result<()>> + Send>>;
+pub type Submit_callback<Config> = Box<dyn Fn(Config) -> Submit_future + Send + Sync>;
+
+pub struct Form<Config: Clone + Thread_safe> {
+    field_index: usize,
+    field_active: bool,
+    fields: Fields<Config>,
+    config: Config,
+    exitting: bool,
+    exit_menu: Shared_renderable<Menu<bool>>,
+    on_submit: Submit_callback<Config>,
+    pub theme: State<Theme>,
+}
+
+#[async_trait]
+impl<Config: Clone + Thread_safe> Control for Form<Config> {
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
+        if self.exitting {
+            let (message, submitted, selected) = {
+                let mut exit_menu = self.exit_menu.lock().await?;
+                let message = exit_menu.on_key_press(key).await?;
+                //let submitted = exit_menu.submitted;
+                let submitted = false;
+                let selected = if submitted {
+                    exit_menu.on_retrieve().await?
+                } else {
+                    false
+                };
+                (message, submitted, selected)
+            };
+
+            if submitted {
+                if selected {
+                    self.submit().await?;
+                    return crate::Vizual_msg::new(crate::Vizual_command::Quit);
+                }
+
+                self.ensure_exit_menu_closed().await?;
+            }
+
+            return Ok(message);
+        }
+
+        match key.code {
+            Key_code::Enter => {
+                self.field_index = get_next_index(self.get_number_of_fields(), self.field_index);
+                self.field_active = false;
+                return crate::Vizual_msg::new(crate::Vizual_command::Layout);
+            }
+            Key_code::Arrow_right => {
+                if self.get_number_of_fields() - 1 == self.field_index {
+                    self.field_active = false;
+                    self.exitting = true;
+                    return crate::Vizual_msg::new(crate::Vizual_command::Layout);
+                }
+            }
+            _ => {}
+        }
+
+        crate::Vizual_msg::none()
+    }
+}
+
+impl<Config: Clone + Thread_safe> Form<Config> {
+    pub fn new<Submit_fn, Submit_future_impl>(
+        fields: Fields<Config>,
+        config: Config,
+        on_submit: Submit_fn,
+        theme: State<Theme>,
+    ) -> Self
+    where
+        Submit_fn: Fn(Config) -> Submit_future_impl + Thread_safe,
+        Submit_future_impl: Future<Output = Result<()>> + Send + 'static,
+    {
+        assert!(
+            !fields.fields.is_empty(),
+            "Form requires at least one field"
+        );
+
+        Self {
+            config,
+            field_index: 0,
+            field_active: false,
+            exitting: false,
+            exit_menu: Menu::boolean(false, theme.clone()).into_shared(),
+            fields,
+            on_submit: Box::new(move |config| Box::pin(on_submit(config))),
+            theme,
+        }
+    }
+}
+
+impl<Config: Clone + Thread_safe> Form<Config> {
+    async fn title(&mut self) -> Result<String> {
+        if self.exitting {
+            Ok("Do you want to exit and submit?".to_owned())
+        } else {
+            let name = self.get_current_field().lock().await?.get_name().to_owned();
+            Ok(format!(
+                "{}/{} - {}",
+                self.field_index + 1,
+                self.get_number_of_fields(),
+                name
+            ))
+        }
+    }
+
+    async fn ensure_exit_menu_closed(&mut self) -> Result<()> {
+        self.exit_menu.lock().await?.set_selected(false)?;
+        self.field_active = false;
+        self.exitting = false;
+        Ok(())
+    }
+
+    fn get_current_field(&mut self) -> &mut Shared_field<Config> {
+        self.fields
+            .fields
+            .get_mut(self.field_index)
+            .expect("Expected self.field_index to be in range")
+    }
+
+    fn get_number_of_fields(&self) -> usize {
+        self.fields.fields.len()
+    }
+
+    async fn submit(&mut self) -> Result<()> {
+        for field in self.fields.fields.iter_mut() {
+            field.lock().await?.submit(&mut self.config)?;
+        }
+
+        (self.on_submit)(self.config.clone()).await
+    }
+}
+
+#[async_trait]
+impl<Config: Clone + Thread_safe> Renderable for Form<Config> {
+    async fn layout(
+        &mut self,
+        focus: &mut Focus_provider,
+        _hitbox: Hitbox,
+        _problem: Problem_context,
+        slots: &mut Slots,
+    ) -> Result<Widget_type> {
+        focus.set_active(true);
+        let child = if self.exitting {
+            let exit_menu = self.exit_menu.clone();
+            display!(exit_menu)
+        } else {
+            let field = self.get_current_field().clone();
+            display!(field)
+        };
+
+        let block = Title_block::new(child, self.title().await?, self.theme.clone());
+
+        Ok(Widget_type::Virtual(Box::new(block)))
+    }
+}

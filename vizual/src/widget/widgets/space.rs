@@ -1,0 +1,168 @@
+use async_trait::async_trait;
+use color_eyre::eyre::Result;
+use good_lp::{Expression, constraint};
+
+use super::super::{Control, Focus_provider, Renderable, Widget_type};
+use crate::{
+    component::Child,
+    hitbox::{Direction, Hitbox},
+    layouter::{Problem_context, constraints::Objective},
+    slot_manager::Slots,
+};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Spaces {
+    pub left: Option<f64>,
+    pub right: Option<f64>,
+    pub top: Option<f64>,
+    pub bottom: Option<f64>,
+}
+
+impl Spaces {
+    fn start(self, direction: Direction) -> Option<f64> {
+        match direction {
+            Direction::Horizontal => self.left,
+            Direction::Vertical => self.top,
+        }
+    }
+
+    fn end(self, direction: Direction) -> Option<f64> {
+        match direction {
+            Direction::Horizontal => self.right,
+            Direction::Vertical => self.bottom,
+        }
+    }
+}
+
+pub struct Space {
+    child: Child,
+    spaces: Spaces,
+    objective: Objective,
+    // TODO: Keep priority manual until there is a way to set it automatically.
+    priority: usize,
+}
+
+impl Space {
+    pub fn new(
+        child: Child,
+        left: Option<f64>,
+        right: Option<f64>,
+        top: Option<f64>,
+        bottom: Option<f64>,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
+        Self {
+            child,
+            spaces: Spaces {
+                left,
+                right,
+                top,
+                bottom,
+            },
+            objective,
+            priority,
+        }
+    }
+
+    pub fn inline(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(
+            child,
+            Some(value),
+            Some(value),
+            None,
+            None,
+            objective,
+            priority,
+        )
+    }
+
+    pub fn left(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(child, Some(value), None, None, None, objective, priority)
+    }
+
+    pub fn right(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(child, None, Some(value), None, None, objective, priority)
+    }
+
+    pub fn top(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(child, None, None, Some(value), None, objective, priority)
+    }
+
+    pub fn bottom(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(child, None, None, None, Some(value), objective, priority)
+    }
+
+    pub fn uniform(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(
+            child,
+            Some(value),
+            Some(value),
+            Some(value),
+            Some(value),
+            objective,
+            priority,
+        )
+    }
+
+    pub fn full(child: Child, objective: Objective, priority: usize) -> Self {
+        Self::new(child, None, None, None, None, objective, priority)
+    }
+
+    async fn apply_objective(
+        &self,
+        problem: &Problem_context,
+        space: Expression,
+        target: Option<f64>,
+    ) -> Result<()> {
+        problem.constrain(constraint!(space.clone() >= 0)).await?;
+
+        match target {
+            Some(target) => {
+                // TODO: Using 16 as the proportion for zero-sized space is also a bodge.
+                let proportion = match target {
+                    0.0 => 16.0,
+                    target => target,
+                };
+                self.objective
+                    .apply(problem, space, target, proportion, self.priority)
+                    .await
+            }
+            None => Ok(()),
+        }
+    }
+}
+
+impl Control for Space {}
+
+#[async_trait]
+impl Renderable for Space {
+    async fn layout(
+        &mut self,
+        _focus: &mut Focus_provider,
+        hitbox: Hitbox,
+        problem: Problem_context,
+        _slots: &mut Slots,
+    ) -> Result<Widget_type> {
+        let child_hitbox = self.child.get_hitbox().await?;
+        let spaces = self.spaces;
+
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            let start_space = Expression::from(
+                child_hitbox.get_start_position(direction) - hitbox.get_start_position(direction),
+            );
+
+            self.apply_objective(&problem, start_space, spaces.start(direction))
+                .await?;
+
+            let end_space = Expression::from(
+                hitbox.get_end_position(direction) - child_hitbox.get_end_position(direction),
+            );
+
+            self.apply_objective(&problem, end_space, spaces.end(direction))
+                .await?;
+        }
+
+        Ok(Widget_type::Visual(vec![self.child.clone()]))
+    }
+}

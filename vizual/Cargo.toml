@@ -1,0 +1,32 @@
+[package]
+name = "vizual"
+version = "0.1.0"
+edition = "2024"
+readme = "README.md"
+
+[dependencies]
+ambassador = "0.5.0"
+async-trait = "0.1.89"
+auto_impl = "1"
+vizual-macros = { path = "../vizual-macros" }
+tokio = { version = "1.48.0", features = ["full"] }
+color-eyre = "0.6.5"
+arc-swap = "1.7.1"
+regex = "1.11.3"
+derive-new = "0.7.0"
+delegate = "0.13.5"
+async-recursion = "1.1.1"
+futures = "0.3.32"
+good_lp = { git = "https://github.com/rust-or/good_lp", rev = "e4a73e22ee0003c3c1f34c717b528ee8d18ab35d", default-features = false, features = ["microlp"] }
+log = "0.4.29"
+simplelog = "0.12.2"
+uuid = { version = "1.23.1", features = ["v4"] }
+unit-intervals = "0.1.0"
+uniqify = "0.1.0"
+parley = "0.11.0"
+pollster = "1.0.1"
+vello = "0.9.0"
+winit = "0.30.12"
+
+[lints]
+workspace = true
