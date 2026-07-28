@@ -63,6 +63,14 @@ cargo +nightly run
 `vizual::run` is synchronous because Winit owns the calling thread. The Tokio
 runtime remains active for asynchronous widget and background work.
 
+## Documentation
+
+- [Getting started](docs/getting-started.md)
+- [Core concepts](docs/core-concepts.md)
+- [Components](docs/components.md)
+- [Creating custom components](docs/custom-components.md)
+- [Current limitations](docs/limitations.md)
+
 ## Pre-release notes
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
@@ -95,11 +103,3 @@ runtime remains active for asynchronous widget and background work.
 ## Technologies used
 - [winit](https://github.com/rust-windowing/winit) for window managment
 - [vello](https://github.com/linebender/vello) for graphics
-
-## Documentation
-
-- [Getting started](docs/getting-started.md)
-- [Core concepts](docs/core-concepts.md)
-- [Components](docs/components.md)
-- [Creating custom components](docs/custom-components.md)
-- [Current limitations](docs/limitations.md)
