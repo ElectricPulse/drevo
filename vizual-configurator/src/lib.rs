@@ -1,3 +1,9 @@
+#![warn(rustdoc::broken_intra_doc_links)]
+//! Tree-based configuration editing for Vizual applications.
+//!
+//! Implement [`Tree`] to describe editable fields and produce a serializable
+//! configuration.
+
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, WrapErr, eyre};
@@ -42,6 +48,7 @@ use vizual::{
 use vizual_macros::display;
 
 #[async_trait]
+/// Supplies the fields displayed by a [`Configurator`].
 pub trait Tree: Thread_safe {
     type Configuration: Serialize;
 
@@ -50,6 +57,7 @@ pub trait Tree: Thread_safe {
 }
 
 #[async_trait]
+/// A renderable field that can return an optional configured value.
 pub trait Field<Value>: Renderable + Retrieve_handler<Option<Value>> {}
 
 #[async_trait]
@@ -152,6 +160,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Custom_leaf_value<Va
     }
 }
 
+/// Builds a menu for choosing a default value or editing a custom value.
 pub fn configuration_menu<Value: Thread_safe>(
     default_value: impl Into<String>,
     is_default: bool,
@@ -174,6 +183,7 @@ pub fn configuration_menu<Value: Thread_safe>(
     Menu::new(items, default_item, theme)
 }
 
+/// An ordered group of configuration nodes.
 pub struct Configuration_tree_branch(pub IndexMap<String, Configuration_tree>);
 
 impl Configuration_tree_branch {
@@ -206,12 +216,14 @@ impl Configuration_tree_branch {
     }
 }
 
+/// A single editable configuration field.
 pub struct Configuration_tree_leaf {
     pub widget: Any_renderable,
     pub description: String,
     pub name: String,
 }
 
+/// A branch or editable leaf in a configuration tree.
 pub enum Configuration_tree {
     Branch(Configuration_tree_branch),
     Leaf(Configuration_tree_leaf),
@@ -373,7 +385,7 @@ impl<T: Tree> Renderable for Tree_view<T> {
             buttons,
             Layout_style::default(),
             Objective::default(),
-            3,
+            2,
         );
 
         let block = Title_block::new(display!(layout), "Config", self.theme.clone());
@@ -466,6 +478,7 @@ struct Configurator_state {
     cursor: Vec<String>,
 }
 
+/// A renderable editor for a [`Tree`].
 pub struct Configurator<T: Tree> {
     tree: Arc<Mutex<T>>,
     configurator_state: Arc<Mutex<Configurator_state>>,
@@ -529,6 +542,7 @@ impl<T: Tree> Submit_handler<String> for Config_manager_handle<T> {
     }
 }
 
+/// Creates a configurator that optionally saves YAML to `configuration_path`.
 pub fn configurator<T: Tree>(
     configuration_path: impl AsRef<Path>,
     tree: T,

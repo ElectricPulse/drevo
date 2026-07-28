@@ -177,7 +177,7 @@ impl Renderable for Popup {
             vec![Some(display!(menu)), Some(display!(button))],
             Layout_style::default(),
             Objective::default(),
-            3,
+            2,
         );
         let block = Title_block::new(
             display!(layout),

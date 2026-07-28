@@ -1,3 +1,9 @@
+#![warn(rustdoc::broken_intra_doc_links)]
+//! Procedural macros for Vizual widgets.
+//!
+//! The derives delegate to a single field by default. Use
+//! `#[control(field = name)]` or `#[renderable(field = name)]` to select one.
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, Ident, Member, Type, parse_macro_input, parse_quote};
@@ -14,6 +20,7 @@ pub fn display(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_derive(Control, attributes(control))]
+/// Derives `vizual::widget::Control` by delegating to a field.
 pub fn derive_control(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
@@ -23,6 +30,7 @@ pub fn derive_control(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_derive(Renderable, attributes(renderable))]
+/// Derives `vizual::widget::Renderable` by delegating to a field.
 pub fn derive_renderable(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 

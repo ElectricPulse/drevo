@@ -154,7 +154,7 @@ impl Renderable for Tab_bar {
             buttons,
             Layout_style::default(),
             Objective::default(),
-            3,
+            2,
         );
 
         Ok(Widget_type::Virtual(Box::new(layout)))
@@ -198,7 +198,7 @@ impl Renderable for Tabs {
             vec![Some(display!(header)), tab],
             Layout_style::default(),
             Objective::default(),
-            3,
+            2,
         );
 
         Ok(Widget_type::Virtual(Box::new(layout)))

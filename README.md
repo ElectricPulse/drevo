@@ -1,18 +1,18 @@
+# ![banner](/home/hackerman/Desktop/src/vizual/docs/banner.png)
+
 # Vizual
 
-Vizual is a reactive all Rust UI framework.
+Vizual ( ˈvizuaːl) is a reactive all Rust UI framework.
 
 ## Features
-- State system heavily inspired by React
-- MILP powered layouting system inspired by iOS Auto Layout
+- State system heavily inspired by [React](https://react.dev/)
+- MILP powered layouting system inspired by [iOS Auto Layout](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html)
+- Structural navigation via ```Tab``` and ```Shift + Tab``` for accessibility
 
 ## Quick start
 
 Vizual currently requires a nightly Rust toolchain because it uses
-`async_fn_track_caller` for caller locations on asynchronous layout methods.
-Stable Rust rejects the crate's feature declaration before compiling an
-application. `cargo +nightly` selects the nightly Cargo and compiler together;
-Vizual does not otherwise require a special version of Cargo.
+`async_fn_track_caller`.
 
 Create a new binary crate and add these dependencies:
 
@@ -59,14 +59,16 @@ cargo +nightly run
 ```
 
 `vizual::run` is synchronous because Winit owns the calling thread. The Tokio
-runtime remains active for asynchronous widget and background work. The
-default global controls are `Tab`, `Shift+Tab`, `Esc`, and `Ctrl+C`.
+runtime remains active for asynchronous widget and background work.
 
-## TODO
-- It should be possible to use Vizual to provide chatbots with a nice UI.
-- Film the cool grid component as a GIF for GitHub.
-- Investigate why `display!()` can be called infinitely on a value that is
-  already `Renderable`, which is weird.
+## Pre-release notes
+- Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
+
+## To-Do list
+- remove the need for nightly
+- `display!()` can be called infinitely on a value that is
+  already `Renderable`
+- fix structural navigation
 - Solve text wrapping by representing the different possible text widths and
   their resulting heights as layout branches for the solver to choose between.
 - Implement scaling fonts down for constrained layouts, which is useful on
@@ -80,22 +82,22 @@ default global controls are `Tab`, `Shift+Tab`, `Esc`, and `Ctrl+C`.
   viewport clipping, scroll-offset input, and translated rendering and hit
   testing. Decide between cached child scenes and culled rerendering during
   implementation.
-- Make the Vizual Configurator popup work.
+- Make the Vizual Configurator save popup work.
 - Reconcile the different behavior of `Align` and `Space`. `Space` tries to
   push its child and can enlarge the surrounding area, while `Align` only
   positions its child inside an area that already exists.
 - Crystallize the relational-delta layout system. It should probably support
   weights for adjusting how relationships scale, while an absolute-difference
   system likely has a place alongside it.
-  
+
 ## Technologies used
-- winit for window managment
-- vello for graphics
+- [winit](https://github.com/rust-windowing/winit) for window managment
+- [vello](https://github.com/linebender/vello) for graphics
 
 ## Documentation
 
-- [Getting started](vizual/docs/getting-started.md)
-- [Core concepts](vizual/docs/core-concepts.md)
-- [Components](vizual/docs/components.md)
-- [Creating custom components](vizual/docs/custom-components.md)
-- [Current limitations](vizual/docs/limitations.md)
+- [Getting started](docs/getting-started.md)
+- [Core concepts](docs/core-concepts.md)
+- [Components](docs/components.md)
+- [Creating custom components](docs/custom-components.md)
+- [Current limitations](docs/limitations.md)

@@ -1,4 +1,10 @@
 #![feature(async_fn_track_caller)]
+#![warn(rustdoc::broken_intra_doc_links)]
+//! An async, solver-driven desktop UI framework.
+//!
+//! Interfaces are [`widget::Renderable`] trees laid out through solver
+//! constraints and painted with Vello. Vizual currently requires nightly Rust.
+
 pub mod backend;
 pub mod component;
 mod config;
@@ -58,6 +64,7 @@ use state::State;
 use sync::Mutex;
 use theme::Theme;
 use widget::{Renderable, Shared_renderable, widgets::root::Root};
+
 pub fn init_logging(path: impl AsRef<Path>) -> Result<()> {
     let file = OpenOptions::new()
         .create(true)
@@ -1075,6 +1082,10 @@ fn map_pointer_button(button: MouseButton) -> Pointer_button {
     }
 }
 
+/// Runs a Vizual application on the calling thread.
+///
+/// A Tokio runtime must already be active. Winit owns the calling thread until
+/// the window closes; widget tasks continue on the runtime.
 pub fn run<T: Renderable>(
     title: impl Into<String>,
     root: Shared_renderable<T>,

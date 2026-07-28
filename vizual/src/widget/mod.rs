@@ -69,6 +69,7 @@ pub trait Shared_widget: Thread_safe {
 // TODO: Add a Themeable subtrait of Renderable that receives the theme in layout and render,
 // just as Slots is passed to layout now.
 #[async_trait]
+/// A widget that participates in layout and painting.
 pub trait Renderable: Control + Thread_safe {
     async fn layout(
         &mut self,
@@ -229,6 +230,7 @@ impl<T: Renderable> Control for Shared_renderable<T> {
 
 #[async_trait]
 #[auto_impl(Box)]
+/// Handles normalized UI events.
 pub trait Control {
     // If needed, Focus_provider, the hitbox, or any other field from Child can be passed into these methods.
     async fn on_all_events(&mut self, _event: &Event) -> Result<Vizual_msg> {

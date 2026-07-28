@@ -2,6 +2,9 @@
 name = "vizual"
 version = "0.1.0"
 edition = "2024"
+description = "An async, solver-driven desktop UI framework rendered with Vello"
+repository = "https://github.com/ElectricPulse/vizual"
+license = "Apache-2.0"
 readme = "README.md"
 
 [dependencies]

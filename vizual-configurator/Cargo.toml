@@ -2,6 +2,9 @@
 name = "vizual-configurator"
 version = "0.1.0"
 edition = "2024"
+description = "A tree-based configuration editor for Vizual applications"
+repository = "https://github.com/ElectricPulse/vizual"
+license = "Apache-2.0"
 
 [dependencies]
 async-recursion = "1.1.1"

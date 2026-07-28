@@ -231,7 +231,7 @@ impl<Value: Thread_safe> Renderable for Menu<Value> {
             rows,
             Layout_style::default(),
             Objective::default(),
-            3,
+            2,
         );
         let space = Space::uniform(display!(layout), 3.0, Objective::default(), 2);
 

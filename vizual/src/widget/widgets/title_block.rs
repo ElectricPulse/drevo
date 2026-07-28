@@ -52,7 +52,7 @@ impl Renderable for Title_block {
             vec![Some(display!(title)), Some(self.child.clone())],
             Layout_style::Gap(self.theme.load().units.em * 0.45),
             Objective::default(),
-            3,
+            2,
         );
 
         let paper = Paper::new(display!(layout), self.theme.clone());
