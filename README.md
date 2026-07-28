@@ -2,12 +2,14 @@
 
 # Vizual
 
-Vizual ( ˈvizuaːl) is a reactive all Rust UI framework.
+Vizual ( ˈvizuaːl) is a reactive all Rust UI framework
 
 ## Features
 - State system heavily inspired by [React](https://react.dev/)
 - MILP powered layouting system inspired by [iOS Auto Layout](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html)
 - Structural navigation via ```Tab``` and ```Shift + Tab``` for accessibility
+## Demo
+![demo](/home/hackerman/Desktop/src/vizual/docs/demo.gif)
 
 ## Quick start
 
