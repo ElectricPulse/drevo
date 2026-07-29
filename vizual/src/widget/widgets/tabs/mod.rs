@@ -26,6 +26,7 @@ use self::tab::{Tab, Tab_specification};
 use crate::utils;
 
 pub struct Tabs {
+    theme: State<Theme>,
     header: Shared_renderable<Tab_bar>,
 }
 
@@ -41,10 +42,11 @@ impl Tabs {
             selected_page.store(initial_page);
         }
 
-        let header = Tab_bar::new(selected_page.clone(), pages);
+        let header = Tab_bar::new(selected_page.clone(), pages, theme.clone());
 
         Self {
             header: header.into_shared(),
+            theme,
         }
     }
 }
@@ -57,6 +59,7 @@ struct Page {
 struct Tab_bar {
     selected_page: State<Uuid>,
     pages: Vec<Page>,
+    theme: State<Theme>,
 }
 
 #[async_trait]
@@ -90,7 +93,7 @@ impl Control for Tab_bar {
 }
 
 impl Tab_bar {
-    fn new(selected_page: State<Uuid>, tabs: Vec<Tab>) -> Self {
+    fn new(selected_page: State<Uuid>, tabs: Vec<Tab>, theme: State<Theme>) -> Self {
         Self {
             pages: tabs
                 .into_iter()
@@ -100,6 +103,7 @@ impl Tab_bar {
                 })
                 .collect(),
             selected_page,
+            theme,
         }
     }
 }
@@ -152,7 +156,7 @@ impl Renderable for Tab_bar {
         let layout = Layout::new(
             Direction::Horizontal,
             buttons,
-            Layout_style::default(),
+            Layout_style::default(self.theme.clone()),
             Objective::default(),
             2,
         );
@@ -196,7 +200,7 @@ impl Renderable for Tabs {
         let layout = Layout::new(
             Direction::Vertical,
             vec![Some(display!(header)), tab],
-            Layout_style::default(),
+            Layout_style::default(self.theme.clone()),
             Objective::default(),
             2,
         );

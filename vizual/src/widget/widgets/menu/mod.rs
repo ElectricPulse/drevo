@@ -229,7 +229,7 @@ impl<Value: Thread_safe> Renderable for Menu<Value> {
         let layout = Layout::new(
             Direction::Vertical,
             rows,
-            Layout_style::default(),
+            Layout_style::default(self.theme.clone()),
             Objective::default(),
             2,
         );

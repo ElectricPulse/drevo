@@ -1,10 +1,20 @@
 use color_eyre::eyre::Result;
 use vizual_macros::display;
 
-use super::super::{Control, Focus_provider, Renderable, Shared_renderable, Widget_type};
+use super::{
+    super::{Control, Focus_provider, Renderable, Shared_renderable, Widget_type},
+    space::Space,
+};
 use crate::{
-    backend::graphics::Paint_context, event::Key_event, geometry::Rect, hitbox::Hitbox,
-    layouter::Problem_context, slot_manager::Slots, state::State, style::Color, theme::Theme,
+    backend::graphics::Paint_context,
+    event::Key_event,
+    geometry::Rect,
+    hitbox::Hitbox,
+    layouter::{Problem_context, constraints::Objective},
+    slot_manager::Slots,
+    state::State,
+    style::Color,
+    theme::{Layout_theme, Theme},
 };
 
 #[derive(Clone)]
@@ -15,6 +25,7 @@ pub struct Root_style {
 pub struct Root<T: Renderable> {
     widget: Shared_renderable<T>,
     pub theme: State<Root_style>,
+    layout_theme: State<Layout_theme>,
 }
 
 impl<T: Renderable> Root<T> {
@@ -22,6 +33,7 @@ impl<T: Renderable> Root<T> {
         Self {
             widget,
             theme: theme.project(|theme| &theme.specific.root),
+            layout_theme: theme.project(|theme| &theme.semantic.layout),
         }
     }
 }
@@ -47,9 +59,11 @@ impl<T: Renderable> Renderable for Root<T> {
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         let widget = self.widget.clone();
+        let gap = self.layout_theme.load().gap;
+        let space = Space::uniform(display!(widget), gap, Objective::default(), 2);
 
         Ok(Widget_type::Visual(vec![
-            display!(widget).fill(problem).await?,
+            display!(space).fill(problem).await?,
         ]))
     }
 

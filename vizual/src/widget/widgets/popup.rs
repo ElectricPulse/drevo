@@ -175,7 +175,7 @@ impl Renderable for Popup {
         let layout = Layout::new(
             Direction::Vertical,
             vec![Some(display!(menu)), Some(display!(button))],
-            Layout_style::default(),
+            Layout_style::default(self.theme.clone()),
             Objective::default(),
             2,
         );

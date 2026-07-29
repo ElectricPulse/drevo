@@ -22,8 +22,14 @@ pub struct Semantic_tokens {
     pub background: Color,
     pub surface: Color,
     pub border: Color,
+    pub layout: Layout_theme,
     pub text: Text_theme,
     pub focus: Color,
+}
+
+#[derive(Clone, Copy)]
+pub struct Layout_theme {
+    pub gap: f64,
 }
 
 #[derive(Clone, Copy)]
@@ -84,6 +90,9 @@ pub fn dark_theme() -> Theme {
         background: Color::Rgb(30, 31, 34),
         surface: Color::Rgb(49, 51, 56),
         border: Color::Rgb(78, 80, 88),
+        layout: Layout_theme {
+            gap: units.em * 0.625,
+        },
         text: Text_theme {
             sizes: Text_sizes {
                 title: units.em as f32 * 1.25,

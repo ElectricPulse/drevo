@@ -7,6 +7,8 @@ use crate::{
     hitbox::{Direction, Hitbox},
     layouter::{Problem_context, constraints::Objective},
     slot_manager::Slots,
+    state::State,
+    theme::Theme,
     widget::{Control, Focus_provider, Renderable, Widget_type},
 };
 
@@ -16,9 +18,9 @@ pub enum Style {
     // TODO: Implement Start, Center, End, Space_between, Space_around, and Space_evenly.
 }
 
-impl Default for Style {
-    fn default() -> Self {
-        Self::Gap(10.0)
+impl Style {
+    pub fn default(theme: State<Theme>) -> Self {
+        Self::Gap(theme.load().semantic.layout.gap)
     }
 }
 

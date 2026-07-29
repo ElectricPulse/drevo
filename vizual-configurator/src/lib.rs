@@ -151,7 +151,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Custom_leaf_value<Va
         let layout = Layout::new(
             Direction::Vertical,
             contents,
-            Layout_style::default(),
+            Layout_style::default(self.theme.clone()),
             Objective::default(),
             1,
         );
@@ -383,7 +383,7 @@ impl<T: Tree> Renderable for Tree_view<T> {
         let layout = Layout::new(
             Direction::Vertical,
             buttons,
-            Layout_style::default(),
+            Layout_style::default(self.theme.clone()),
             Objective::default(),
             2,
         );
@@ -612,7 +612,7 @@ impl<T: Tree> Renderable for Configurator<T> {
                         Some(display!(linebreak)),
                         Some(display!(widget)),
                     ],
-                    Layout_style::Gap(10.0),
+                    Layout_style::default(self.theme.clone()),
                     Objective::default(),
                     1,
                 );
@@ -629,7 +629,7 @@ impl<T: Tree> Renderable for Configurator<T> {
             }
         };
 
-        let Layout_style::Gap(gap) = Layout_style::default();
+        let Layout_style::Gap(gap) = Layout_style::default(self.theme.clone());
         let tree_view = display!(tree_view);
 
         let button = Button::new(
@@ -671,7 +671,6 @@ impl<T: Tree> Renderable for Configurator<T> {
         );
 
         let grid = Grid::new(items, gap);
-        let grid = Space::uniform(display!(grid), gap, Objective::default(), 2);
         let mut children = vec![display!(grid)];
 
         if self.submitting {

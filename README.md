@@ -99,6 +99,7 @@ runtime remains active for asynchronous widget and background work.
 - Crystallize the relational-delta layout system. It should probably support
   weights for adjusting how relationships scale, while an absolute-difference
   system likely has a place alongside it.
+- Crystalize the mess of Child, Shared_renderable, Shared_compoent &c
 
 ## Technologies used
 - [winit](https://github.com/rust-windowing/winit) for window managment
