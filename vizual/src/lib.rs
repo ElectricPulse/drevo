@@ -56,7 +56,7 @@ use event::{
 };
 use focus::{Focus, Focus_search_direction};
 use geometry::{Point, Size};
-use layouter::{Expression, Problem, Solution, hitbox::Hitbox, variable::Variables};
+use layouter::{Problem, Solution, expression::Expression, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
 use slot::Component_slot;
 use state::State;

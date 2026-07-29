@@ -3,7 +3,7 @@ use crate::{
     component::{Shared_component, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{Expression, constraints::Objective, hitbox::Hitbox},
+    layouter::{constraints::Objective, expression::Expression, hitbox::Hitbox},
     slot::manager::Slots,
 };
 use async_trait::async_trait;

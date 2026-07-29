@@ -1,4 +1,4 @@
-use super::{Expression, hitbox::Hitbox};
+use super::{expression::Expression, hitbox::Hitbox};
 use crate::{
     component::context::Component_context, config::MAXIMUM_LAYOUT_VALUE, constraint,
     geometry::Direction,

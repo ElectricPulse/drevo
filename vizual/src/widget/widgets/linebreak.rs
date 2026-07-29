@@ -4,7 +4,7 @@ use crate::{
     constraint,
     display::Display,
     geometry::{Direction, Rect},
-    layouter::{Expression, hitbox::Hitbox},
+    layouter::{expression::Expression, hitbox::Hitbox},
     slot::manager::Slots,
     state::State,
     theme::Theme,

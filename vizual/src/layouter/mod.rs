@@ -1,11 +1,13 @@
+pub mod constraint;
 pub mod constraints;
+pub mod expression;
 pub mod hitbox;
 pub mod screen;
 pub mod variable;
+pub mod variables;
 
 use std::{
     collections::{HashMap, HashSet},
-    ops::{Add, AddAssign, Div, Mul, Neg, Sub},
     panic::Location,
     sync::Arc,
 };
@@ -13,18 +15,17 @@ use std::{
 use color_eyre::eyre::{Result, eyre};
 use futures::future::BoxFuture;
 use good_lp::{
-    Expression as Solver_expression, Solution as Good_lp_solution, SolverModel as _,
-    constraint as solver_constraint, microlp,
+    Solution as Good_lp_solution, SolverModel as _, microlp,
     solvers::{ObjectiveDirection, ResolutionError},
 };
 
 use self::{
-    hitbox::Hitbox,
-    screen::SCREEN,
-    variable::{Solver_variables, Variable, Variables},
+    constraint::Constraint, expression::Expression, hitbox::Hitbox, screen::SCREEN,
+    variable::Variable, variables::Variables,
 };
 use crate::{
     component::context::Component_context,
+    constraint,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
 };
@@ -48,330 +49,6 @@ impl Field for f64 {
     fn solver_value(&self) -> f64 {
         *self
     }
-}
-
-/// A symbolic affine expression over stable [`Variable`] indices.
-#[derive(Clone, Debug, Default)]
-pub struct Expression {
-    coefficients: HashMap<Variable, f64>,
-    constant: f64,
-}
-
-impl Expression {
-    fn referenced_variables(&self) -> impl Iterator<Item = Variable> + '_ {
-        self.coefficients.keys().copied()
-    }
-
-    fn eval_with(&self, values: &HashMap<Variable, f64>) -> f64 {
-        self.constant
-            + self
-                .coefficients
-                .iter()
-                .map(|(variable, coefficient)| {
-                    coefficient * values.get(variable).copied().unwrap_or_default()
-                })
-                .sum::<f64>()
-    }
-
-    fn into_solver(
-        &self,
-        solver_variables: &Solver_variables,
-        screen: Option<Size>,
-    ) -> Result<Solver_expression> {
-        let mut expression = Solver_expression::from(self.constant);
-
-        for (variable, coefficient) in &self.coefficients {
-            let constant = match (*variable, screen) {
-                (variable, Some(screen)) if variable == SCREEN.width => Some(screen.width),
-                (variable, Some(screen)) if variable == SCREEN.height => Some(screen.height),
-                _ => None,
-            };
-
-            match constant {
-                Some(constant) => expression += *coefficient * constant,
-                None => {
-                    let solver_variable = solver_variables
-                        .get(&variable.index())
-                        .copied()
-                        .ok_or_else(|| {
-                            eyre!(
-                                "Layout variable {} has no solve-time variable",
-                                variable.index()
-                            )
-                        })?;
-                    expression += *coefficient * solver_variable;
-                }
-            }
-        }
-
-        Ok(expression)
-    }
-}
-
-impl From<Variable> for Expression {
-    fn from(variable: Variable) -> Self {
-        Self {
-            coefficients: HashMap::from([(variable, 1.0)]),
-            constant: 0.0,
-        }
-    }
-}
-
-impl From<f64> for Expression {
-    fn from(constant: f64) -> Self {
-        Self {
-            coefficients: HashMap::new(),
-            constant,
-        }
-    }
-}
-
-impl From<f32> for Expression {
-    fn from(constant: f32) -> Self {
-        Self::from(f64::from(constant))
-    }
-}
-
-impl From<i32> for Expression {
-    fn from(constant: i32) -> Self {
-        Self::from(f64::from(constant))
-    }
-}
-
-impl<T: Into<Expression>> Add<T> for Expression {
-    type Output = Expression;
-
-    fn add(mut self, rhs: T) -> Self::Output {
-        let rhs = rhs.into();
-        self.constant += rhs.constant;
-        for (variable, coefficient) in rhs.coefficients {
-            let remove = {
-                let stored = self.coefficients.entry(variable).or_default();
-                *stored += coefficient;
-                *stored == 0.0
-            };
-            if remove {
-                let _ = self.coefficients.remove(&variable);
-            }
-        }
-        self
-    }
-}
-
-impl<T: Into<Expression>> Sub<T> for Expression {
-    type Output = Expression;
-
-    fn sub(self, rhs: T) -> Self::Output {
-        self + -rhs.into()
-    }
-}
-
-impl Mul<f64> for Expression {
-    type Output = Expression;
-
-    fn mul(mut self, rhs: f64) -> Self::Output {
-        self.constant *= rhs;
-        for coefficient in self.coefficients.values_mut() {
-            *coefficient *= rhs;
-        }
-        self
-    }
-}
-
-impl Div<f64> for Expression {
-    type Output = Expression;
-
-    fn div(self, rhs: f64) -> Self::Output {
-        self * (1.0 / rhs)
-    }
-}
-
-impl Neg for Expression {
-    type Output = Expression;
-
-    fn neg(self) -> Self::Output {
-        self * -1.0
-    }
-}
-
-impl AddAssign<Expression> for Expression {
-    fn add_assign(&mut self, rhs: Expression) {
-        *self = self.clone() + rhs;
-    }
-}
-
-impl<T: Into<Expression>> Add<T> for Variable {
-    type Output = Expression;
-
-    fn add(self, rhs: T) -> Self::Output {
-        Expression::from(self) + rhs
-    }
-}
-
-impl<T: Into<Expression>> Sub<T> for Variable {
-    type Output = Expression;
-
-    fn sub(self, rhs: T) -> Self::Output {
-        Expression::from(self) - rhs
-    }
-}
-
-impl Mul<f64> for Variable {
-    type Output = Expression;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        Expression::from(self) * rhs
-    }
-}
-
-impl Div<f64> for Variable {
-    type Output = Expression;
-
-    fn div(self, rhs: f64) -> Self::Output {
-        Expression::from(self) / rhs
-    }
-}
-
-macro_rules! implement_number_expression_operations {
-    ($number:ty) => {
-        impl Add<Variable> for $number {
-            type Output = Expression;
-
-            fn add(self, rhs: Variable) -> Self::Output {
-                Expression::from(self) + rhs
-            }
-        }
-
-        impl Sub<Variable> for $number {
-            type Output = Expression;
-
-            fn sub(self, rhs: Variable) -> Self::Output {
-                Expression::from(self) - rhs
-            }
-        }
-
-        impl Mul<Variable> for $number {
-            type Output = Expression;
-
-            fn mul(self, rhs: Variable) -> Self::Output {
-                Expression::from(rhs) * f64::from(self)
-            }
-        }
-
-        impl Add<Expression> for $number {
-            type Output = Expression;
-
-            fn add(self, rhs: Expression) -> Self::Output {
-                Expression::from(self) + rhs
-            }
-        }
-
-        impl Sub<Expression> for $number {
-            type Output = Expression;
-
-            fn sub(self, rhs: Expression) -> Self::Output {
-                Expression::from(self) - rhs
-            }
-        }
-
-        impl Mul<Expression> for $number {
-            type Output = Expression;
-
-            fn mul(self, rhs: Expression) -> Self::Output {
-                rhs * f64::from(self)
-            }
-        }
-    };
-}
-
-implement_number_expression_operations!(f64);
-implement_number_expression_operations!(f32);
-implement_number_expression_operations!(i32);
-
-/// A symbolic equality or inequality over stable layout variables.
-#[derive(Clone, Debug)]
-pub struct Constraint {
-    expression: Expression,
-    equality: bool,
-    name: Option<String>,
-}
-
-impl Constraint {
-    pub fn equal(left: impl Into<Expression>, right: impl Into<Expression>) -> Self {
-        Self {
-            expression: left.into() - right,
-            equality: true,
-            name: None,
-        }
-    }
-
-    pub fn less_or_equal(left: impl Into<Expression>, right: impl Into<Expression>) -> Self {
-        Self {
-            expression: left.into() - right,
-            equality: false,
-            name: None,
-        }
-    }
-
-    pub fn greater_or_equal(left: impl Into<Expression>, right: impl Into<Expression>) -> Self {
-        Self::less_or_equal(right, left)
-    }
-
-    pub fn set_name(mut self, name: String) -> Self {
-        self.name = Some(name);
-        self
-    }
-
-    pub fn expression(&self) -> &Expression {
-        &self.expression
-    }
-
-    pub fn is_equality(&self) -> bool {
-        self.equality
-    }
-
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
-
-    fn into_solver(
-        &self,
-        solver_variables: &Solver_variables,
-        screen: Option<Size>,
-    ) -> Result<good_lp::Constraint> {
-        let expression = self.expression.into_solver(solver_variables, screen)?;
-        let constraint = match self.equality {
-            true => solver_constraint::eq(expression, 0),
-            false => solver_constraint::leq(expression, 0),
-        };
-
-        Ok(match &self.name {
-            Some(name) => constraint.set_name(name.clone()),
-            None => constraint,
-        })
-    }
-}
-
-#[macro_export]
-macro_rules! constraint {
-    ([$($left:tt)*] <= $($right:tt)*) => {
-        $crate::layouter::Constraint::less_or_equal($($left)*, $($right)*)
-    };
-    ([$($left:tt)*] >= $($right:tt)*) => {
-        $crate::layouter::Constraint::greater_or_equal($($left)*, $($right)*)
-    };
-    ([$($left:tt)*] == $($right:tt)*) => {
-        $crate::layouter::Constraint::equal($($left)*, $($right)*)
-    };
-    ([$($left:tt)*]) => {
-        $($left)*
-    };
-    ([$($left:tt)*] $next:tt $($right:tt)*) => {
-        $crate::constraint!([$($left)* $next] $($right)*)
-    };
-    ($($all:tt)*) => {
-        $crate::constraint!([] $($all)*)
-    };
 }
 
 #[derive(Clone)]

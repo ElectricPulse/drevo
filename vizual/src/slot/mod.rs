@@ -57,42 +57,39 @@ impl Component_slot {
     pub async fn set(
         &mut self,
         widget: impl Widget_trait,
+        problem: Component_context,
+    ) -> Result<Shared_component> {
+        self.set_init(widget, problem, None).await
+    }
+
+    pub async fn set_init(
+        &mut self,
+        widget: impl Widget_trait,
         mut problem: Component_context,
+        init_hitbox: Option<Hitbox>,
     ) -> Result<Shared_component> {
         let widget = Box::new(widget);
 
         problem.component_path.push(self.name.clone());
         let component_path = problem.component_path.join(".");
         let variables = problem.lock().await?.variables();
-        /*let hitbox = {
-            let mut problem = problem.lock().await?;
-            // It is assumed that between two distinct calls of set on one component slot the
-            // problem is going to change, in which case the variables inside Hitbox need to be
-            // recreated.
-            Hitbox::new(
-                &mut problem,
-                self.name.clone(),
-                component_path,
-                self.path.clone(),
-            )
-        };*/
 
         let lock = if let Some(lock) = self.reference.upgrade() {
             let mut reference = lock.lock().await?;
             reference.name = self.name.clone();
             reference.widget = widget;
-            //reference.hitbox = hitbox;
             reference.slot_manager.set_problem(problem);
 
             Shared_component::new(lock.clone())
         } else {
-            let hitbox = {
-                Hitbox::new(
+            let hitbox = match init_hitbox {
+                Some(hitbox) => hitbox,
+                None => Hitbox::new(
                     &variables,
                     self.name.clone(),
                     component_path,
                     self.path.clone(),
-                )
+                ),
             };
 
             let lock = Shared_component::new(Arc::new(Mutex::new(Component {
@@ -103,6 +100,7 @@ impl Component_slot {
                 children: Vec::new(),
                 parent: None,
                 slot_manager: Slot_records::new(problem),
+                virtual_child: Component_slot::new(),
                 variables,
             })));
 

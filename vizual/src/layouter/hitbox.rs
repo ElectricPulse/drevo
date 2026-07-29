@@ -1,9 +1,6 @@
 use crate::geometry::{Direction, Point, Rect};
 
-use super::{
-    Expression, Solution,
-    variable::{Variable, Variables},
-};
+use super::{Solution, expression::Expression, variable::Variable, variables::Variables};
 
 // Extra performance is wasted in layouter for components that have static dimensions
 // creating a variable and then assigning a static value is not yet free in the micro_lp solver as it lacks a presolve step

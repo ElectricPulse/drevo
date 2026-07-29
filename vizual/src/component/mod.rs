@@ -9,8 +9,14 @@ use crate::{
     constraint,
     focus::Focus,
     geometry::Direction,
-    layouter::{Expression, Solution, constraints::Objective, hitbox::Hitbox, variable::Variables},
-    slot::manager::{Slot_records, Slots},
+    layouter::{
+        Solution, constraints::Objective, expression::Expression, hitbox::Hitbox,
+        variables::Variables,
+    },
+    slot::{
+        Component_slot,
+        manager::{Slot_records, Slots},
+    },
     sync::{Mutex, MutexGuard},
     text::Text_context,
     widget::{Control, Focus_provider, Widget, Widget_trait, Widget_type},
@@ -32,6 +38,7 @@ pub struct Component {
     pub parent: Parent,
     pub children: Children,
     pub slot_manager: Slot_records,
+    pub virtual_child: Component_slot,
     pub(crate) variables: Arc<Variables>,
 }
 
@@ -181,6 +188,7 @@ impl Shared_component {
             let Component {
                 widget,
                 slot_manager,
+                virtual_child,
                 hitbox,
                 focusable,
                 ..
@@ -202,31 +210,9 @@ impl Shared_component {
 
                 match widget_type {
                     Widget_type::Virtual(widget) => {
-                        // TODO: This whole thing is such a bodge
-                        // it doesnt prevent the creation of four new variables in the solver
-                        // which shouldn't really be a problem in the future, presolve is suppose to remove the necessity of this
-                        // I wonder if a good presolve would also make it free to utilize the minimize hitbox but encompass children logic of the Widget_type::Visual
-                        let child = slots.set(9999, widget).await?;
-                        let child_hitbox = child.get_hitbox().await?;
-
-                        // TODO: when I figure out if this is the way we wanna go - then one should implement a system where the variables are shared
-                        problem
-                            .constrain(constraint!(child_hitbox.x == hitbox.x))
+                        let child = virtual_child
+                            .set_init(widget, problem.clone(), Some(*hitbox))
                             .await?;
-                        problem
-                            .constrain(constraint!(child_hitbox.y == hitbox.y))
-                            .await?;
-                        problem
-                            .constrain(constraint!(
-                                child_hitbox.dimensions.width == hitbox.dimensions.width
-                            ))
-                            .await?;
-                        problem
-                            .constrain(constraint!(
-                                child_hitbox.dimensions.height == hitbox.dimensions.height
-                            ))
-                            .await?;
-
                         vec![child]
                     }
                     Widget_type::Visual(children) => children,

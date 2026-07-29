@@ -4,7 +4,7 @@ use color_eyre::eyre::{Result, ensure};
 
 use crate::{
     constraint,
-    layouter::{Constraint, Expression, Problem, variable::Variable},
+    layouter::{Problem, constraint::Constraint, expression::Expression, variable::Variable},
     sync::{Mutex, MutexGuard},
 };
 
