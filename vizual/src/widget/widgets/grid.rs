@@ -2,20 +2,19 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use crate::{
-    component::Child,
-    hitbox::Hitbox,
-    layouter::{Problem_context, constraints::prohibit_overlap},
-    slot_manager::Slots,
-    widget::{Control, Focus_provider, Renderable, Widget_type},
+    component::Shared_component,
+    layouter::{Problem_context, constraints::prohibit_overlap, hitbox::Hitbox},
+    slot::manager::Slots,
+    widget::{Control, Focus_provider, Widget_trait, Widget_type},
 };
 
 pub struct Grid {
-    items: Vec<Child>,
+    items: Vec<Shared_component>,
     gap: f64,
 }
 
 impl Grid {
-    pub fn new(items: Vec<Child>, gap: f64) -> Self {
+    pub fn new(items: Vec<Shared_component>, gap: f64) -> Self {
         Self { items, gap }
     }
 }
@@ -23,7 +22,7 @@ impl Grid {
 impl Control for Grid {}
 
 #[async_trait]
-impl Renderable for Grid {
+impl Widget_trait for Grid {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,

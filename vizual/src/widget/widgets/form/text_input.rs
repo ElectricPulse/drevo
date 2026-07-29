@@ -8,7 +8,7 @@ use color_eyre::eyre::Result;
 use regex::Regex;
 use vizual_macros::display;
 
-use super::super::super::{Control, Focus_provider, Renderable, Widget_type};
+use super::super::super::{Control, Focus_provider, Widget_trait, Widget_type};
 use super::super::title_block::Title_block;
 use crate::{
     Vizual_command, Vizual_msg,
@@ -16,9 +16,8 @@ use crate::{
     event::{Event, Key_code, Key_event},
     geometry::{Point, Rect, Size},
     handlers::Submit_handler,
-    hitbox::Hitbox,
-    layouter::Problem_context,
-    slot_manager::Slots,
+    layouter::{Problem_context, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     style::Color,
     sync::Mutex,
@@ -140,7 +139,7 @@ impl Text_input {
 }
 
 #[async_trait]
-impl Renderable for Text_input_content {
+impl Widget_trait for Text_input_content {
     async fn render(
         &mut self,
         _focus: &mut Focus_provider,
@@ -189,7 +188,7 @@ impl Renderable for Text_input_content {
 impl Control for Text_input_content {}
 
 #[async_trait]
-impl Renderable for Text_input {
+impl Widget_trait for Text_input {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,

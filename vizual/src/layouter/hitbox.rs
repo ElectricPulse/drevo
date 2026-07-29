@@ -1,31 +1,12 @@
 use good_lp::{Expression, Variable};
 
-use crate::{
-    geometry::{Point, Rect},
-    layouter::{Problem, Solution},
-};
+use crate::geometry::{Direction, Point, Rect};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Direction {
-    Horizontal,
-    Vertical,
-}
+use super::{Problem, Solution};
 
-impl Direction {
-    pub fn flip(self) -> Self {
-        match self {
-            Self::Horizontal => Self::Vertical,
-            Self::Vertical => Self::Horizontal,
-        }
-    }
-}
-
-// These are gonna be Variables in the solver even though one might
-// imagine that even though they should be avoided that atleast static widths, heights will appear in components
-// there it's easy to just add a lower/upper constraint
-// This simplifies the architecture of the code by about a million percent as if a enum of Constant/Variable was implemented instead
-// then the parent would have to point to a Arc<> of this enum as the parent often uses the values before the layout of the child is called
-// It probably does waste performance though because of extra constraints
+// Extra performance is wasted in layouter for components that have static dimensions
+// creating a variable and then assigning a static value is not yet free in the micro_lp solver as it lacks a presolve step
+// as there aren't any components with static dimensions yet I don't see reason to implement static dimensions
 #[derive(Clone, Copy)]
 pub struct Dimensions {
     pub width: Variable,

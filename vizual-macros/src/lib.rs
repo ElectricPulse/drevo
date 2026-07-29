@@ -2,7 +2,7 @@
 //! Procedural macros for Vizual widgets.
 //!
 //! The derives delegate to a single field by default. Use
-//! `#[control(field = name)]` or `#[renderable(field = name)]` to select one.
+//! `#[control(field = name)]` or `#[widget_trait(field = name)]` to select one.
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -29,12 +29,12 @@ pub fn derive_control(input: TokenStream) -> TokenStream {
         .into()
 }
 
-#[proc_macro_derive(Renderable, attributes(renderable))]
-/// Derives `vizual::widget::Renderable` by delegating to a field.
-pub fn derive_renderable(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(Widget_trait, attributes(widget_trait))]
+/// Derives `vizual::widget::Widget_trait` by delegating to a field.
+pub fn derive_widget_trait(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    expand_renderable(input)
+    expand_widget_trait(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -114,31 +114,31 @@ fn expand_control(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     })
 }
 
-fn expand_renderable(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    let (field, field_type) = delegated_field(&input, "renderable", "Renderable")?;
+fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+    let (field, field_type) = delegated_field(&input, "widget_trait", "Widget_trait")?;
     let name = input.ident;
     let mut generics = input.generics;
 
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#field_type: ::vizual::widget::Renderable));
+        .push(parse_quote!(#field_type: ::vizual::widget::Widget_trait));
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     Ok(quote! {
         #[::async_trait::async_trait]
-        impl #impl_generics ::vizual::widget::Renderable
+        impl #impl_generics ::vizual::widget::Widget_trait
             for #name #ty_generics #where_clause
         {
             async fn layout(
                 &mut self,
                 focus: &mut ::vizual::widget::Focus_provider,
-                hitbox: ::vizual::hitbox::Hitbox,
+                hitbox: ::vizual::layouter::hitbox::Hitbox,
                 problem: ::vizual::layouter::Problem_context,
-                slots: &mut ::vizual::slot_manager::Slot_manager,
+                slots: &mut ::vizual::slot::manager::Slot_manager,
             ) -> ::color_eyre::eyre::Result<::vizual::widget::Widget_type> {
-                ::vizual::widget::Renderable::layout(
+                ::vizual::widget::Widget_trait::layout(
                     &mut self.#field,
                     focus,
                     hitbox,
@@ -153,8 +153,8 @@ fn expand_renderable(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream
                 focus: &mut ::vizual::widget::Focus_provider,
                 hitbox: ::vizual::geometry::Rect,
                 paint: &mut ::vizual::backend::graphics::Paint_context<'_>,
-            ) -> ::color_eyre::eyre::Result<::std::option::Option<::vizual::hitbox::Hitbox>> {
-                ::vizual::widget::Renderable::render(
+            ) -> ::color_eyre::eyre::Result<::std::option::Option<::vizual::layouter::hitbox::Hitbox>> {
+                ::vizual::widget::Widget_trait::render(
                     &mut self.#field,
                     focus,
                     hitbox,

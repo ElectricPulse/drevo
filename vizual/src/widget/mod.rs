@@ -8,28 +8,27 @@ use tokio::sync::mpsc;
 
 use crate::{
     backend::graphics::Paint_context,
-    component::{Child_slot, Children},
+    component::Children,
     event::{Event, Key_event, Pointer_event},
     geometry::Rect,
     handlers::Retrieve_handler,
-    hitbox::Hitbox,
-    layouter::Problem_context,
-    slot_manager::Slots,
+    layouter::{Problem_context, hitbox::Hitbox},
+    slot::{Component_slot, manager::Slots},
     sync::{Mutex, MutexGuard, Thread_safe},
 };
 
 use super::{Rerender, Vizual_msg};
 
-pub type Any_renderable = Box<dyn Renderable>;
+pub type Widget = Box<dyn Widget_trait>;
 
 /// Describes whether a widget introduces a visual component or only another widget layer.
 pub enum Widget_type {
     /// A virtual widget has no visual children of its own. The consumer immediately lays out the
-    /// inner renderable with the same focus, hitbox, problem, and slots. Reusing the hitbox this way is
+    /// inner widget with the same focus, hitbox, problem, and slots. Reusing the hitbox this way is
     /// a fragile way to implement hierarchy because virtual layers do not receive distinct hitboxes.
-    /// TODO: A renderable returned through `Virtual` is only used for layout, so its `render`
+    /// TODO: A widget returned through `Virtual` is only used for layout, so its `render`
     /// callback will not be called.
-    Virtual(Box<dyn Renderable>),
+    Virtual(Widget),
     /// A visual widget owns the current component and returns the children laid out beneath it.
     Visual(Children),
 }
@@ -37,6 +36,11 @@ pub enum Widget_type {
 pub struct Focus_provider {
     focused: bool,
     active: bool,
+}
+
+#[async_trait]
+pub trait Shared_widget_trait: Thread_safe {
+    async fn get(&mut self) -> Widget;
 }
 
 impl Focus_provider {
@@ -61,16 +65,11 @@ impl Focus_provider {
     }
 }
 
-#[async_trait]
-pub trait Shared_widget: Thread_safe {
-    async fn get(&mut self) -> Any_renderable;
-}
-
-// TODO: Add a Themeable subtrait of Renderable that receives the theme in layout and render,
+// TODO: Add a Themeable subtrait of Widget_trait that receives the theme in layout and render,
 // just as Slots is passed to layout now.
 #[async_trait]
 /// A widget that participates in layout and painting.
-pub trait Renderable: Control + Thread_safe {
+pub trait Widget_trait: Control + Thread_safe {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -91,16 +90,16 @@ pub trait Renderable: Control + Thread_safe {
         Ok(None)
     }
 
-    fn into_shared(self) -> Shared_renderable<Self>
+    fn into_shared(self) -> Shared_widget<Self>
     where
         Self: Sized,
     {
-        Shared_renderable::new(self)
+        Shared_widget::new(self)
     }
 
     async fn into_children(
         self,
-        slot: &mut Child_slot,
+        slot: &mut Component_slot,
         problem: Problem_context,
     ) -> Result<Children>
     where
@@ -110,10 +109,10 @@ pub trait Renderable: Control + Thread_safe {
     }
 }
 
-pub struct Shared_renderable<T: Renderable>(Arc<Mutex<T>>);
+pub struct Shared_widget<T: Widget_trait>(Arc<Mutex<T>>);
 
 #[async_trait]
-impl Renderable for Any_renderable {
+impl Widget_trait for Widget {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -134,16 +133,16 @@ impl Renderable for Any_renderable {
     }
 }
 
-impl<T: Renderable> Clone for Shared_renderable<T> {
+impl<T: Widget_trait> Clone for Shared_widget<T> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
 }
 
 #[async_trait]
-impl<T, Value> Retrieve_handler<Value> for Shared_renderable<T>
+impl<T, Value> Retrieve_handler<Value> for Shared_widget<T>
 where
-    T: Renderable + Retrieve_handler<Value>,
+    T: Widget_trait + Retrieve_handler<Value>,
     Value: Thread_safe,
 {
     async fn on_retrieve(&mut self) -> Result<Value> {
@@ -151,7 +150,7 @@ where
     }
 }
 
-impl<T: Renderable> Shared_renderable<T> {
+impl<T: Widget_trait> Shared_widget<T> {
     pub(crate) fn new(value: T) -> Self {
         Self(Arc::new(Mutex::new(value)))
     }
@@ -162,14 +161,14 @@ impl<T: Renderable> Shared_renderable<T> {
 }
 
 #[async_trait]
-impl<T: Renderable> Shared_widget for Shared_renderable<T> {
-    async fn get(&mut self) -> Any_renderable {
+impl<T: Widget_trait> Shared_widget_trait for Shared_widget<T> {
+    async fn get(&mut self) -> Widget {
         Box::new(self.clone())
     }
 }
 
 #[async_trait]
-impl<T: Renderable> Renderable for Shared_renderable<T> {
+impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -194,14 +193,14 @@ impl<T: Renderable> Renderable for Shared_renderable<T> {
     }
 }
 
-impl<T: Renderable> From<Shared_renderable<T>> for Any_renderable {
-    fn from(value: Shared_renderable<T>) -> Self {
+impl<T: Widget_trait> From<Shared_widget<T>> for Widget {
+    fn from(value: Shared_widget<T>) -> Self {
         Box::new(value)
     }
 }
 
 #[async_trait]
-impl<T: Renderable> Control for Shared_renderable<T> {
+impl<T: Widget_trait> Control for Shared_widget<T> {
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
         let mut inner = self.0.lock().await?;
         inner.on_all_events(event).await
@@ -232,7 +231,7 @@ impl<T: Renderable> Control for Shared_renderable<T> {
 #[auto_impl(Box)]
 /// Handles normalized UI events.
 pub trait Control {
-    // If needed, Focus_provider, the hitbox, or any other field from Child can be passed into these methods.
+    // If needed, Focus_provider, the hitbox, or any other field from Shared_component can be passed into these methods.
     async fn on_all_events(&mut self, _event: &Event) -> Result<Vizual_msg> {
         Vizual_msg::none()
     }
@@ -268,19 +267,19 @@ pub trait Control {
     }
 }
 
-pub type View_receiver = Renderable_receiver;
-pub type View_sender = Renderable_sender;
+pub type View_receiver = Widget_receiver;
+pub type View_sender = Widget_sender;
 
-type Message = Option<Any_renderable>;
+type Message = Option<Widget>;
 
 #[derive(Clone)]
-pub struct Renderable_sender {
+pub struct Widget_sender {
     pub channel: mpsc::Sender<Message>,
     pub rerender: Rerender,
 }
 
-impl Renderable_sender {
-    pub async fn set(&self, widget: impl Renderable) {
+impl Widget_sender {
+    pub async fn set(&self, widget: impl Widget_trait) {
         let _ = self.channel.send(Some(Box::new(widget))).await;
         self.rerender.send();
     }
@@ -290,11 +289,11 @@ impl Renderable_sender {
     }
 }
 
-pub struct Renderable_receiver {
+pub struct Widget_receiver {
     pub channel: mpsc::Receiver<Message>,
 }
 
-impl Renderable_receiver {
+impl Widget_receiver {
     pub fn get(&mut self) -> Message {
         match self.channel.try_recv() {
             Err(err) => match err {
@@ -306,12 +305,12 @@ impl Renderable_receiver {
     }
 }
 
-pub fn new_view(rerender: Rerender) -> (Renderable_receiver, Renderable_sender) {
+pub fn new_view(rerender: Rerender) -> (Widget_receiver, Widget_sender) {
     let (tx, rx) = mpsc::channel(1);
-    let sender = Renderable_sender {
+    let sender = Widget_sender {
         channel: tx,
         rerender,
     };
-    let receiver = Renderable_receiver { channel: rx };
+    let receiver = Widget_receiver { channel: rx };
     (receiver, sender)
 }

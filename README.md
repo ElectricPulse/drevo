@@ -33,7 +33,7 @@ use vizual::{
     Rerender,
     state::State,
     theme::dark_theme,
-    widget::{Renderable as _, widgets::paragraph::Paragraph},
+    widget::{Widget_trait as _, widgets::paragraph::Paragraph},
 };
 
 #[tokio::main]
@@ -77,7 +77,7 @@ runtime remains active for asynchronous widget and background work.
 ## To-Do list
 - remove the need for nightly
 - `display!()` can be called infinitely on a value that is
-  already `Renderable`
+  already implements `Widget_trait`
 - fix structural navigation
 - Solve text wrapping by representing the different possible text widths and
   their resulting heights as layout branches for the solver to choose between.
@@ -99,7 +99,8 @@ runtime remains active for asynchronous widget and background work.
 - Crystallize the relational-delta layout system. It should probably support
   weights for adjusting how relationships scale, while an absolute-difference
   system likely has a place alongside it.
-- Crystalize the mess of Child, Shared_renderable, Shared_compoent &c
+- Crystalize the relationships between `Widget`, `Shared_widget`, and `Shared_component`
+- for no focus components I don't think they need to have stable known lifetime in between layout() calls
 
 ## Technologies used
 - [winit](https://github.com/rust-windowing/winit) for window managment

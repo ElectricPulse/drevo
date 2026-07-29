@@ -3,7 +3,7 @@ use crate::{
     widget::widgets::{block::Block_style, paper::Paper_style, root::Root_style, text::Text_style},
 };
 
-// TODO: Pass the theme into `layout` and `render` through `Renderable_custom_state<Theme>`
+// TODO: Pass the theme into `layout` and `render` through `Widget_custom_state<Theme>`
 // instead of storing it on widgets; see the linked TODO by `Menu_item_trait`.
 #[derive(Clone)]
 pub struct Theme {

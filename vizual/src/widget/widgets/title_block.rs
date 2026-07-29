@@ -3,28 +3,28 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Renderable, Widget_type},
+    super::{Control, Focus_provider, Widget_trait, Widget_type},
     layout::{Layout, Style as Layout_style},
     paper::Paper,
     text::Text,
 };
 use crate::{
-    component::Child,
-    hitbox::{Direction, Hitbox},
-    layouter::{Problem_context, constraints::Objective},
-    slot_manager::Slots,
+    component::Shared_component,
+    geometry::Direction,
+    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     theme::Theme,
 };
 
 pub struct Title_block {
-    child: Child,
+    child: Shared_component,
     pub title: String,
     pub theme: State<Theme>,
 }
 
 impl Title_block {
-    pub fn new(child: Child, title: impl Into<String>, theme: State<Theme>) -> Self {
+    pub fn new(child: Shared_component, title: impl Into<String>, theme: State<Theme>) -> Self {
         Self {
             child,
             title: title.into(),
@@ -36,7 +36,7 @@ impl Title_block {
 impl Control for Title_block {}
 
 #[async_trait]
-impl Renderable for Title_block {
+impl Widget_trait for Title_block {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,

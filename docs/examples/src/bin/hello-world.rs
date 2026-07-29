@@ -3,7 +3,7 @@ use vizual::{
     Rerender,
     state::State,
     theme::dark_theme,
-    widget::{Renderable as _, widgets::paragraph::Paragraph},
+    widget::{Widget_trait as _, widgets::paragraph::Paragraph},
 };
 
 #[tokio::main]

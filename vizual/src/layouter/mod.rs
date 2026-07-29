@@ -1,4 +1,5 @@
 pub mod constraints;
+pub mod hitbox;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -6,10 +7,10 @@ use std::{
     sync::Arc,
 };
 
+use self::hitbox::{Dimensions, Hitbox};
 use crate::{
     backend::graphics::Text_resources,
-    geometry::Size,
-    hitbox::{Dimensions, Direction, Hitbox},
+    geometry::{Direction, Size},
     log::{log_duration, log_info},
     sync::{Mutex, MutexGuard},
 };
@@ -79,11 +80,11 @@ impl Default for Problem {
         let width = variable_builder.add(variable().name("screen width"));
         let height = variable_builder.add(variable().name("screen height"));
 
-        let screen = Dimensions {
-            // The variable will be constrained later via Constraint
-            width,
-            height,
-        };
+        // Screen is created so that it can be used by the components in the layout step
+        // it's real dimensions will be constrained later
+        // this wastes performance as the screen dimensions are in reality static
+        // micro_lp doesn't yet make equality constraints free as it lacks a presolve step
+        let screen = Dimensions { width, height };
 
         let path = Problem_context::path(Location::caller());
 

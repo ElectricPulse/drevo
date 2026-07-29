@@ -3,12 +3,12 @@ use color_eyre::eyre::Result;
 use vizual::{
     Rerender, Vizual_command, Vizual_msg,
     event::{Key_code, Key_event},
-    hitbox::Hitbox,
+    layouter::hitbox::Hitbox,
     layouter::Problem_context,
-    slot_manager::Slots,
+    slot::manager::Slots,
     state::State,
     theme::dark_theme,
-    widget::{Control, Focus_provider, Renderable, Widget_type, widgets::text::Text},
+    widget::{Control, Focus_provider, Widget_trait, Widget_type, widgets::text::Text},
 };
 
 struct Counter(i64);
@@ -27,7 +27,7 @@ impl Control for Counter {
 }
 
 #[async_trait]
-impl Renderable for Counter {
+impl Widget_trait for Counter {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,

@@ -3,16 +3,16 @@ use color_eyre::eyre::Result;
 use uuid::Uuid;
 
 use super::super::button::Button;
-use crate::widget::{Renderable as _, Shared_renderable, Shared_widget};
+use crate::widget::{Shared_widget, Shared_widget_trait, Widget_trait as _};
 use crate::{Vizual_command, Vizual_msg, handlers::Submit_handler, state::State, theme::Theme};
 
 pub struct Tab_specification {
-    pub widget: Box<dyn Shared_widget>,
+    pub widget: Box<dyn Shared_widget_trait>,
     pub name: String,
 }
 
 impl Tab_specification {
-    pub fn new(name: impl Into<String>, widget: impl Shared_widget + 'static) -> Self {
+    pub fn new(name: impl Into<String>, widget: impl Shared_widget_trait + 'static) -> Self {
         Self {
             widget: Box::new(widget),
             name: name.into(),
@@ -22,7 +22,7 @@ impl Tab_specification {
 
 pub struct Tab {
     pub specification: Tab_specification,
-    pub button: Shared_renderable<Button>,
+    pub button: Shared_widget<Button>,
     pub id: Uuid,
 }
 

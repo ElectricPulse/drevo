@@ -2,15 +2,14 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use good_lp::constraint;
 
-use super::super::{Control, Focus_provider, Renderable, Widget_type};
+use super::super::{Control, Focus_provider, Widget, Widget_trait, Widget_type};
 use crate::{
     backend::graphics::Paint_context,
-    component::Child,
+    component::Shared_component,
     config::BORDER_SIZE,
-    geometry::Rect,
-    hitbox::{Direction, Hitbox},
-    layouter::Problem_context,
-    slot_manager::Slots,
+    geometry::{Direction, Rect},
+    layouter::{Problem_context, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     style::Color,
     theme::Theme,
@@ -25,13 +24,13 @@ pub struct Block_style {
 }
 
 pub struct Block {
-    child: Child,
+    child: Shared_component,
     pub theme: State<Block_style>,
     pub highlighted: bool,
 }
 
 impl Block {
-    pub fn new(child: Child, theme: State<Theme>) -> Self {
+    pub fn new(child: Shared_component, theme: State<Theme>) -> Self {
         let theme = theme.project(|theme| &theme.specific.block);
         Self {
             child,
@@ -44,7 +43,7 @@ impl Block {
 impl Control for Block {}
 
 #[async_trait]
-impl Renderable for Block {
+impl Widget_trait for Block {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -70,7 +69,8 @@ impl Renderable for Block {
                 .await?;
         }
 
-        Ok(Widget_type::Virtual(Box::new(self.child.clone())))
+        let child: Widget = Box::new(self.child.clone());
+        Ok(Widget_type::Virtual(child))
     }
 
     async fn render(

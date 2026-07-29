@@ -2,14 +2,13 @@ use async_trait::async_trait;
 use color_eyre::Result;
 use good_lp::constraint;
 
-use super::super::{Control, Focus_provider, Renderable, Widget_type};
+use super::super::{Control, Focus_provider, Widget_trait, Widget_type};
 use crate::{
     backend::graphics::Paint_context,
     config::DEFAULT_FONT_SIZE,
-    geometry::Rect,
-    hitbox::{Direction, Hitbox},
-    layouter::Problem_context,
-    slot_manager::Slots,
+    geometry::{Direction, Rect},
+    layouter::{Problem_context, hitbox::Hitbox},
+    slot::manager::Slots,
     style::Color,
 };
 
@@ -55,7 +54,7 @@ impl Text {
 impl Control for Text {}
 
 #[async_trait]
-impl Renderable for Text {
+impl Widget_trait for Text {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,

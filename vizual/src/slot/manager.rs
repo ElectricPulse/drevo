@@ -3,14 +3,12 @@ use std::panic::Location;
 
 use color_eyre::eyre::{Result, eyre};
 
-use crate::{
-    component::{Child, Child_slot},
-    layouter::Problem_context,
-    widget::Renderable,
-};
+use crate::{component::Shared_component, layouter::Problem_context, widget::Widget_trait};
+
+use super::Component_slot;
 
 pub struct Record {
-    pub id: Child_slot,
+    pub id: Component_slot,
     pub mounted: bool,
 }
 
@@ -27,7 +25,7 @@ pub struct Slots<'a> {
     used_at: HashMap<u64, &'static Location<'static>>,
 }
 
-// Compatibility for Renderable derive output.
+// Compatibility for Widget_trait derive output.
 pub type Slot_manager<'a> = Slots<'a>;
 
 impl Slot_records {
@@ -50,11 +48,11 @@ impl Slot_records {
         }
     }
 
-    fn get_at(&mut self, id: u64, location: &'static Location<'static>) -> &mut Child_slot {
+    fn get_at(&mut self, id: u64, location: &'static Location<'static>) -> &mut Component_slot {
         let record = self.records.entry(id).or_insert_with(|| {
-            // This is where on_mount could be implemented for renderable.
+            // This is where on_mount could be implemented for a widget.
             Record {
-                id: Child_slot::new_at(location),
+                id: Component_slot::new_at(location),
                 mounted: true,
             }
         });
@@ -98,7 +96,7 @@ impl Slots<'_> {
     }
 
     #[track_caller]
-    pub async fn set(&mut self, id: u64, widget: impl Renderable) -> Result<Child> {
+    pub async fn set(&mut self, id: u64, widget: impl Widget_trait) -> Result<Shared_component> {
         let location = Location::caller();
         self.mark_used(id, location)?;
         let problem = self.slot_manager.problem.clone();

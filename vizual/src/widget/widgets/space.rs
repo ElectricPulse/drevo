@@ -2,12 +2,12 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use good_lp::{Expression, constraint};
 
-use super::super::{Control, Focus_provider, Renderable, Widget_type};
+use super::super::{Control, Focus_provider, Widget_trait, Widget_type};
 use crate::{
-    component::Child,
-    hitbox::{Direction, Hitbox},
-    layouter::{Problem_context, constraints::Objective},
-    slot_manager::Slots,
+    component::Shared_component,
+    geometry::Direction,
+    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    slot::manager::Slots,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -35,7 +35,7 @@ impl Spaces {
 }
 
 pub struct Space {
-    child: Child,
+    child: Shared_component,
     spaces: Spaces,
     objective: Objective,
     // TODO: Keep priority manual until there is a way to set it automatically.
@@ -44,7 +44,7 @@ pub struct Space {
 
 impl Space {
     pub fn new(
-        child: Child,
+        child: Shared_component,
         left: Option<f64>,
         right: Option<f64>,
         top: Option<f64>,
@@ -65,7 +65,12 @@ impl Space {
         }
     }
 
-    pub fn inline(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn inline(
+        child: Shared_component,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(
             child,
             Some(value),
@@ -77,23 +82,43 @@ impl Space {
         )
     }
 
-    pub fn left(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn left(
+        child: Shared_component,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(child, Some(value), None, None, None, objective, priority)
     }
 
-    pub fn right(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn right(
+        child: Shared_component,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(child, None, Some(value), None, None, objective, priority)
     }
 
-    pub fn top(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn top(child: Shared_component, value: f64, objective: Objective, priority: usize) -> Self {
         Self::new(child, None, None, Some(value), None, objective, priority)
     }
 
-    pub fn bottom(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn bottom(
+        child: Shared_component,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(child, None, None, None, Some(value), objective, priority)
     }
 
-    pub fn uniform(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn uniform(
+        child: Shared_component,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(
             child,
             Some(value),
@@ -105,7 +130,7 @@ impl Space {
         )
     }
 
-    pub fn full(child: Child, objective: Objective, priority: usize) -> Self {
+    pub fn full(child: Shared_component, objective: Objective, priority: usize) -> Self {
         Self::new(child, None, None, None, None, objective, priority)
     }
 
@@ -136,7 +161,7 @@ impl Space {
 impl Control for Space {}
 
 #[async_trait]
-impl Renderable for Space {
+impl Widget_trait for Space {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,

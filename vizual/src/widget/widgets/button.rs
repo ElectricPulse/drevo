@@ -3,26 +3,25 @@ use color_eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Renderable, Widget_type},
+    super::{Control, Focus_provider, Widget_trait, Widget_type},
     block::Block,
     space::Space,
     text::Text,
 };
 use crate::{
     Vizual_msg,
-    component::Child,
+    component::Shared_component,
     event::Pointer_event,
     handlers::Submit_handler,
-    hitbox::Hitbox,
-    layouter::{Problem_context, constraints::Objective},
-    slot_manager::Slots,
+    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     theme::Theme,
 };
 
 enum Button_content {
     Label(String),
-    Child(Child),
+    Shared_component(Shared_component),
 }
 
 pub struct Button {
@@ -48,9 +47,9 @@ impl Button {
         }
     }
 
-    pub fn around(content: Child, theme: State<Theme>) -> Self {
+    pub fn around(content: Shared_component, theme: State<Theme>) -> Self {
         Self {
-            content: Button_content::Child(content),
+            content: Button_content::Shared_component(content),
             click_handler: None,
             active: true,
             highlighted: false,
@@ -60,7 +59,7 @@ impl Button {
 }
 
 #[async_trait]
-impl Renderable for Button {
+impl Widget_trait for Button {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -74,7 +73,7 @@ impl Renderable for Button {
                     .set_style(self.theme.load().semantic.text.subtitle(self.active));
                 display!(text)
             }
-            Button_content::Child(content) => content.clone(),
+            Button_content::Shared_component(content) => content.clone(),
         };
 
         let space = Space::uniform(

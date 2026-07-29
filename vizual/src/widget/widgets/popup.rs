@@ -5,7 +5,7 @@ use color_eyre::eyre::Result;
 use vizual_macros::{Control, display};
 
 use super::{
-    super::{Focus_provider, Renderable, Shared_renderable, Widget_type},
+    super::{Focus_provider, Shared_widget, Widget_trait, Widget_type},
     align::{Align, Alignments},
     button::Button,
     layout::{Layout, Style as Layout_style},
@@ -15,11 +15,11 @@ use super::{
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    component::Child,
+    component::Shared_component,
+    geometry::Direction,
     handlers::{Retrieve_handler, Submit_handler},
-    hitbox::{Direction, Hitbox},
-    layouter::{Problem_context, constraints::Objective},
-    slot_manager::Slots,
+    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     sync::Mutex,
     theme::Theme,
@@ -73,7 +73,7 @@ impl Menu_item_trait<Popup_options> for Popup_menu_item {
         _hitbox: Hitbox,
         _problem: Problem_context,
         slots: &mut Slots,
-    ) -> Result<Child> {
+    ) -> Result<Shared_component> {
         let text = Text::new(self.option.label())
             .set_style(self.theme.load().semantic.text.subtitle(selected));
 
@@ -104,7 +104,7 @@ impl<Subhandler: Submit_handler<bool>> Submit_handler<Popup_options>
 type Shared_popup_submit_handler = Arc<Mutex<dyn Submit_handler<Popup_options>>>;
 
 struct Popup_button_handler {
-    menu: Shared_renderable<Menu<Popup_options>>,
+    menu: Shared_widget<Menu<Popup_options>>,
     submit_handler: Shared_popup_submit_handler,
 }
 
@@ -123,7 +123,7 @@ impl Submit_handler<String> for Popup_button_handler {
 #[derive(Control)]
 #[control(field = menu)]
 pub struct Popup {
-    menu: Shared_renderable<Menu<Popup_options>>,
+    menu: Shared_widget<Menu<Popup_options>>,
     submit_handler: Shared_popup_submit_handler,
     theme: State<Theme>,
 }
@@ -155,7 +155,7 @@ impl Popup {
 }
 
 #[async_trait]
-impl Renderable for Popup {
+impl Widget_trait for Popup {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,

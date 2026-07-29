@@ -1,3 +1,18 @@
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Direction {
+    Horizontal,
+    Vertical,
+}
+
+impl Direction {
+    pub fn flip(self) -> Self {
+        match self {
+            Self::Horizontal => Self::Vertical,
+            Self::Vertical => Self::Horizontal,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Point {
     pub x: f64,

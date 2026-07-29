@@ -9,8 +9,13 @@ use super::{
     get_selector,
 };
 use crate::{
-    component::Child, handlers::Retrieve_handler, hitbox::Hitbox, layouter::Problem_context,
-    slot_manager::Slots, state::State, sync::Mutex, theme::Theme,
+    component::Shared_component,
+    handlers::Retrieve_handler,
+    layouter::{Problem_context, hitbox::Hitbox},
+    slot::manager::Slots,
+    state::State,
+    sync::Mutex,
+    theme::Theme,
 };
 
 struct Boolean_menu_item {
@@ -40,7 +45,7 @@ impl Menu_item_trait<bool> for Boolean_menu_item {
         _hitbox: Hitbox,
         _problem: Problem_context,
         slots: &mut Slots,
-    ) -> Result<Child> {
+    ) -> Result<Shared_component> {
         let text =
             Text::new(self.label()).set_style(self.theme.load().semantic.text.subtitle(selected));
 

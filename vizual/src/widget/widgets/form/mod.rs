@@ -6,7 +6,7 @@ use std::future::Future;
 use std::pin::Pin;
 use vizual_macros::display;
 
-use super::super::{Control, Focus_provider, Renderable, Shared_renderable, Widget_type};
+use super::super::{Control, Focus_provider, Shared_widget, Widget_trait, Widget_type};
 use super::menu::Menu;
 use super::title_block::Title_block;
 use crate::{
@@ -14,22 +14,21 @@ use crate::{
     event::{Key_code, Key_event},
     geometry::Rect,
     handlers::Retrieve_handler,
-    hitbox::Hitbox,
-    layouter::Problem_context,
-    slot_manager::Slots,
+    layouter::{Problem_context, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     sync::Thread_safe,
     theme::Theme,
     utils::get_next_index,
 };
 
-pub trait Field<Config>: Renderable {
+pub trait Field<Config>: Widget_trait {
     fn get_name(&self) -> &str;
     fn submit(&self, config: &mut Config) -> Result<()>;
 }
 
 #[async_trait]
-impl<Config: 'static> Renderable for Box<dyn Field<Config>> {
+impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -50,7 +49,7 @@ impl<Config: 'static> Renderable for Box<dyn Field<Config>> {
     }
 }
 
-pub type Shared_field<Config> = Shared_renderable<Box<dyn Field<Config>>>;
+pub type Shared_field<Config> = Shared_widget<Box<dyn Field<Config>>>;
 
 pub struct Fields<Config: 'static> {
     fields: Vec<Shared_field<Config>>,
@@ -77,7 +76,7 @@ pub struct Form<Config: Clone + Thread_safe> {
     fields: Fields<Config>,
     config: Config,
     exitting: bool,
-    exit_menu: Shared_renderable<Menu<bool>>,
+    exit_menu: Shared_widget<Menu<bool>>,
     on_submit: Submit_callback<Config>,
     pub theme: State<Theme>,
 }
@@ -203,7 +202,7 @@ impl<Config: Clone + Thread_safe> Form<Config> {
 }
 
 #[async_trait]
-impl<Config: Clone + Thread_safe> Renderable for Form<Config> {
+impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,

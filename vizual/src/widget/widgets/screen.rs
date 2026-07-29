@@ -9,7 +9,7 @@ use color_eyre::eyre::{Result, WrapErr, bail};
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Renderable, Shared_renderable, Widget_type},
+    super::{Control, Focus_provider, Shared_widget, Widget_trait, Widget_type},
     text_viewport::Text_viewport,
     title_block::Title_block,
 };
@@ -19,9 +19,8 @@ use crate::{
     config::COMMAND_WAIT_TIMEOUT,
     event::{Event, Key_code, Key_event, Wheel_delta},
     geometry::Rect,
-    hitbox::Hitbox,
-    layouter::Problem_context,
-    slot_manager::Slots,
+    layouter::{Problem_context, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     sync::Mutex,
     theme::Theme,
@@ -40,7 +39,7 @@ struct Screen_content {
 pub struct Screen {
     command: String,
     text: Text,
-    content: Shared_renderable<Screen_content>,
+    content: Shared_widget<Screen_content>,
     rerender: Rerender,
     pub theme: State<Theme>,
 }
@@ -288,7 +287,7 @@ impl Screen_content {
 }
 
 #[async_trait]
-impl Renderable for Screen_content {
+impl Widget_trait for Screen_content {
     async fn render(
         &mut self,
         _focus: &mut Focus_provider,
@@ -313,7 +312,7 @@ impl Renderable for Screen_content {
 impl Control for Screen_content {}
 
 #[async_trait]
-impl Renderable for Screen {
+impl Widget_trait for Screen {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,

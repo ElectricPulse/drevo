@@ -3,15 +3,14 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Renderable, Widget_type},
+    super::{Control, Focus_provider, Widget_trait, Widget_type},
     block::Block,
     space::Space,
 };
 use crate::{
-    component::Child,
-    hitbox::Hitbox,
-    layouter::{Problem_context, constraints::Objective},
-    slot_manager::Slots,
+    component::Shared_component,
+    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     theme::Theme,
 };
@@ -22,12 +21,12 @@ pub struct Paper_style {
 }
 
 pub struct Paper {
-    child: Child,
+    child: Shared_component,
     theme: State<Theme>,
 }
 
 impl Paper {
-    pub fn new(child: Child, theme: State<Theme>) -> Self {
+    pub fn new(child: Shared_component, theme: State<Theme>) -> Self {
         Self { child, theme }
     }
 }
@@ -35,7 +34,7 @@ impl Paper {
 impl Control for Paper {}
 
 #[async_trait]
-impl Renderable for Paper {
+impl Widget_trait for Paper {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,

@@ -2,14 +2,14 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use super::{
-    super::{Control, Focus_provider, Renderable},
+    super::{Control, Focus_provider, Widget_trait},
     text::Text_style,
 };
 use crate::{
     backend::graphics::Paint_context,
     event::{Key_code, Key_event},
     geometry::{Point, Rect},
-    hitbox::Hitbox,
+    layouter::hitbox::Hitbox,
     utils::{bind_index, get_next_index, get_previous_index},
 };
 
@@ -49,7 +49,7 @@ impl List {
 }
 
 #[async_trait]
-impl Renderable for List {
+impl Widget_trait for List {
     async fn render(
         &mut self,
         focus: &mut Focus_provider,

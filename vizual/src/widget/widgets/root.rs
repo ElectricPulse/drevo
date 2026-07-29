@@ -2,16 +2,15 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Renderable, Shared_renderable, Widget_type},
+    super::{Control, Focus_provider, Shared_widget, Widget_trait, Widget_type},
     space::Space,
 };
 use crate::{
     backend::graphics::Paint_context,
     event::Key_event,
     geometry::Rect,
-    hitbox::Hitbox,
-    layouter::{Problem_context, constraints::Objective},
-    slot_manager::Slots,
+    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     style::Color,
     theme::{Layout_theme, Theme},
@@ -22,14 +21,14 @@ pub struct Root_style {
     pub background: Color,
 }
 
-pub struct Root<T: Renderable> {
-    widget: Shared_renderable<T>,
+pub struct Root<T: Widget_trait> {
+    widget: Shared_widget<T>,
     pub theme: State<Root_style>,
     layout_theme: State<Layout_theme>,
 }
 
-impl<T: Renderable> Root<T> {
-    pub fn new(widget: Shared_renderable<T>, theme: State<Theme>) -> Self {
+impl<T: Widget_trait> Root<T> {
+    pub fn new(widget: Shared_widget<T>, theme: State<Theme>) -> Self {
         Self {
             widget,
             theme: theme.project(|theme| &theme.specific.root),
@@ -39,7 +38,7 @@ impl<T: Renderable> Root<T> {
 }
 
 #[async_trait::async_trait]
-impl<T: Renderable> Control for Root<T> {
+impl<T: Widget_trait> Control for Root<T> {
     async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
         if crate::check_quit_event(key) {
             return crate::Vizual_msg::new(crate::Vizual_command::Quit);
@@ -50,7 +49,7 @@ impl<T: Renderable> Control for Root<T> {
 }
 
 #[async_trait::async_trait]
-impl<T: Renderable> Renderable for Root<T> {
+impl<T: Widget_trait> Widget_trait for Root<T> {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,

@@ -5,13 +5,12 @@ use good_lp::{Expression, constraint};
 use crate::{
     backend::graphics::Paint_context,
     config::BORDER_SIZE,
-    geometry::Rect,
-    hitbox::{Direction, Hitbox},
-    layouter::Problem_context,
-    slot_manager::Slots,
+    geometry::{Direction, Rect},
+    layouter::{Problem_context, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     theme::Theme,
-    widget::{Control, Focus_provider, Renderable, Widget_type},
+    widget::{Control, Focus_provider, Widget_trait, Widget_type},
 };
 
 pub struct Linebreak_component {
@@ -29,7 +28,7 @@ impl Linebreak {
 impl Control for Linebreak_component {}
 
 #[async_trait]
-impl Renderable for Linebreak_component {
+impl Widget_trait for Linebreak_component {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,

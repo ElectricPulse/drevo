@@ -1,11 +1,8 @@
 use color_eyre::eyre::Result;
 use good_lp::{Expression, constraint};
 
-use super::Problem_context;
-use crate::{
-    config::MAXIMUM_LAYOUT_VALUE,
-    hitbox::{Direction, Hitbox},
-};
+use super::{Problem_context, hitbox::Hitbox};
+use crate::{config::MAXIMUM_LAYOUT_VALUE, geometry::Direction};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Objective {

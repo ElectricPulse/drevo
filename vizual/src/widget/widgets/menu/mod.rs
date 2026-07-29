@@ -8,7 +8,7 @@ use color_eyre::eyre::{Result, eyre};
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Renderable, Widget_type},
+    super::{Control, Focus_provider, Widget_trait, Widget_type},
     button::Button,
     layout::{Layout, Style as Layout_style},
     space::Space,
@@ -16,13 +16,12 @@ use super::{
 use crate::{
     Vizual_command, Vizual_msg,
     backend::graphics::Paint_context,
-    component::Child,
+    component::Shared_component,
     event::{Key_code, Key_event, Pointer_event},
-    geometry::Rect,
+    geometry::{Direction, Rect},
     handlers::Retrieve_handler,
-    hitbox::{Direction, Hitbox},
-    layouter::{Problem_context, constraints::Objective},
-    slot_manager::Slots,
+    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     sync::{Mutex, Thread_safe},
     theme::Theme,
@@ -42,7 +41,7 @@ pub trait Menu_item_trait<Value>: Retrieve_handler<Value> {
         hitbox: Hitbox,
         problem: Problem_context,
         slots: &mut Slots,
-    ) -> Result<Child>;
+    ) -> Result<Shared_component>;
 
     async fn render(
         &mut self,
@@ -78,7 +77,7 @@ impl<Value: Thread_safe> Control for Menu_item<Value> {
 }
 
 #[async_trait]
-impl<Value: Thread_safe> Renderable for Menu_item<Value> {
+impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -193,7 +192,7 @@ impl<Value: Thread_safe> Retrieve_handler<Value> for Menu<Value> {
 }
 
 #[async_trait]
-impl<Value: Thread_safe> Renderable for Menu<Value> {
+impl<Value: Thread_safe> Widget_trait for Menu<Value> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,

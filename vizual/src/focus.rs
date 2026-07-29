@@ -1,6 +1,6 @@
 use std::sync::Weak;
 
-use crate::component::{Child, Child_reference};
+use crate::component::{Child_reference, Shared_component};
 
 #[derive(Clone)]
 pub struct Focus(pub Child_reference);
@@ -16,11 +16,11 @@ impl Focus {
         Self(Weak::new())
     }
 
-    pub fn upgrade(&self) -> Option<Child> {
-        self.0.upgrade().map(Child::new)
+    pub fn upgrade(&self) -> Option<Shared_component> {
+        self.0.upgrade().map(Shared_component::new)
     }
 
-    pub fn compare(&self, node: &Child) -> bool {
+    pub fn compare(&self, node: &Shared_component) -> bool {
         if let Some(this) = self.upgrade() {
             return this.compare(node);
         }
@@ -36,7 +36,7 @@ impl Focus {
         self.0 = focus.clone()
     }
 
-    pub fn set(&mut self, focus: &Child) {
+    pub fn set(&mut self, focus: &Shared_component) {
         self.set_with_reference(&focus.as_reference());
     }
 }

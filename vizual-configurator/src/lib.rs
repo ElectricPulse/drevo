@@ -19,19 +19,18 @@ use vizual::{
     Vizual_command, Vizual_msg,
     backend::graphics::Paint_context,
     check_quit_event,
-    component::{Child, Child_slot, Horizontal_anchor, Vertical_anchor},
+    component::{Horizontal_anchor, Shared_component, Vertical_anchor},
     event::{Key_code, Key_event},
-    geometry::Rect,
+    geometry::{Direction, Rect},
     handlers::{Retrieve_handler, Submit_handler},
-    hitbox::{Direction, Hitbox},
-    layouter::{Problem_context, constraints::Objective},
-    slot_manager::Slots,
+    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    slot::{Component_slot, manager::Slots},
     state::State,
     sync::{Mutex, Thread_safe},
     theme::Theme,
     utils::get_strings_id,
     widget::{
-        Any_renderable, Control, Focus_provider, Renderable, Shared_renderable, Widget_type,
+        Control, Focus_provider, Shared_widget, Widget, Widget_trait, Widget_type,
         widgets::{
             button::Button,
             grid::Grid,
@@ -57,11 +56,11 @@ pub trait Tree: Thread_safe {
 }
 
 #[async_trait]
-/// A renderable field that can return an optional configured value.
-pub trait Field<Value>: Renderable + Retrieve_handler<Option<Value>> {}
+/// A widget field that can return an optional configured value.
+pub trait Field<Value>: Widget_trait + Retrieve_handler<Option<Value>> {}
 
 #[async_trait]
-impl<Value: 'static> Renderable for Box<dyn Field<Value>> {
+impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -104,7 +103,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Default_leaf_value<V
         _hitbox: Hitbox,
         _problem: Problem_context,
         slots: &mut Slots,
-    ) -> Result<Child> {
+    ) -> Result<Shared_component> {
         let text = Text::new(format!("Default - {}", self.label))
             .set_style(self.theme.load().semantic.text.subtitle(selected));
 
@@ -113,7 +112,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Default_leaf_value<V
 }
 
 struct Custom_leaf_value<Value: Thread_safe> {
-    field: Shared_renderable<Box<dyn Field<Value>>>,
+    field: Shared_widget<Box<dyn Field<Value>>>,
     theme: State<Theme>,
 }
 
@@ -140,7 +139,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Custom_leaf_value<Va
         _hitbox: Hitbox,
         _problem: Problem_context,
         slots: &mut Slots,
-    ) -> Result<Child> {
+    ) -> Result<Shared_component> {
         let title =
             Text::new("Custom").set_style(self.theme.load().semantic.text.subtitle(selected));
         let field = self.field.clone();
@@ -218,7 +217,7 @@ impl Configuration_tree_branch {
 
 /// A single editable configuration field.
 pub struct Configuration_tree_leaf {
-    pub widget: Any_renderable,
+    pub widget: Widget,
     pub description: String,
     pub name: String,
 }
@@ -230,8 +229,8 @@ pub enum Configuration_tree {
 }
 
 impl Configuration_tree {
-    pub fn new_leaf<T: Renderable>(
-        field: &Shared_renderable<T>,
+    pub fn new_leaf<T: Widget_trait>(
+        field: &Shared_widget<T>,
         name: impl Into<String>,
         description: impl Into<String>,
     ) -> Self {
@@ -289,10 +288,10 @@ impl<T: Tree> Tree_view<T> {
         selected_cursor: &[String],
         cursor: &[String],
         problem: &Problem_context,
-    ) -> Result<Vec<Option<Child>>> {
+    ) -> Result<Vec<Option<Shared_component>>> {
         const INDENT: usize = 20;
 
-        let mut buttons: Vec<Option<Child>> = vec![];
+        let mut buttons: Vec<Option<Shared_component>> = vec![];
 
         for (name, child) in &node.0 {
             let mut child_cursor = cursor.to_vec();
@@ -364,7 +363,7 @@ impl<T: Tree> Tree_view<T> {
 }
 
 #[async_trait]
-impl<T: Tree> Renderable for Tree_view<T> {
+impl<T: Tree> Widget_trait for Tree_view<T> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -478,15 +477,15 @@ struct Configurator_state {
     cursor: Vec<String>,
 }
 
-/// A renderable editor for a [`Tree`].
+/// A widget editor for a [`Tree`].
 pub struct Configurator<T: Tree> {
     tree: Arc<Mutex<T>>,
     configurator_state: Arc<Mutex<Configurator_state>>,
     config_manager: Config_manager_handle<T>,
     theme: State<Theme>,
-    submit: Shared_renderable<Popup>,
+    submit: Shared_widget<Popup>,
     submitting: bool,
-    popup_slot: Child_slot,
+    popup_slot: Component_slot,
 }
 
 #[async_trait]
@@ -576,12 +575,12 @@ pub fn configurator<T: Tree>(
         theme: theme.clone(),
         submit: Popup::new(config_manager, theme).into_shared(),
         submitting: false,
-        popup_slot: Child_slot::new(),
+        popup_slot: Component_slot::new(),
     })
 }
 
 #[async_trait]
-impl<T: Tree> Renderable for Configurator<T> {
+impl<T: Tree> Widget_trait for Configurator<T> {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -597,7 +596,7 @@ impl<T: Tree> Renderable for Configurator<T> {
         let cursor = self.configurator_state.lock().await?.cursor.clone();
 
         //TODO: this menu could later be moved into the menu item of the tree to make it clearer
-        let field: Option<Child> = {
+        let field: Option<Shared_component> = {
             let tree = self.tree.lock().await?;
 
             if let Ok(leaf) = tree.get_tree().get_leaf(&cursor) {

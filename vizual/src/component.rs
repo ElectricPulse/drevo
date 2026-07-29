@@ -2,124 +2,35 @@ use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
 use derive_new::new;
 use good_lp::{Expression, constraint};
-use std::{
-    panic::Location,
-    sync::{
-        Arc, Weak,
-        atomic::{AtomicU64, Ordering},
-    },
-};
+use std::sync::{Arc, Weak};
 
 use crate::{
     focus::Focus,
-    hitbox::{Direction, Hitbox},
-    layouter::{Problem_context, Solution, constraints::Objective},
-    slot_manager::{Slot_records, Slots},
+    geometry::Direction,
+    layouter::{Problem_context, Solution, constraints::Objective, hitbox::Hitbox},
+    slot::manager::{Slot_records, Slots},
     sync::{Mutex, MutexGuard},
-    widget::{Any_renderable, Control, Focus_provider, Renderable, Widget_type},
+    widget::{Control, Focus_provider, Widget, Widget_trait, Widget_type},
 };
 
 pub type Id = u64;
 
-pub type Children = Vec<Child>;
-
-static NEXT_COMPONENT_NAME: AtomicU64 = AtomicU64::new(1);
-
-#[derive(Clone)]
-pub struct Child_slot {
-    reference: Child_reference,
-    name: String,
-    path: String,
-}
-
-impl Child_slot {
-    #[track_caller]
-    pub fn new() -> Self {
-        Self::new_at(Location::caller())
-    }
-
-    pub(crate) fn new_at(location: &'static Location<'static>) -> Self {
-        Self {
-            reference: Weak::new(),
-            name: format!("c{}", NEXT_COMPONENT_NAME.fetch_add(1, Ordering::Relaxed)),
-            path: format!("{}:{}", location.file(), location.line()),
-        }
-    }
-
-    pub fn get_reference(&self) -> Child_reference {
-        self.reference.clone()
-    }
-
-    pub async fn set(
-        &mut self,
-        widget: impl Renderable,
-        mut problem: Problem_context,
-    ) -> Result<Child> {
-        let widget = Box::new(widget);
-
-        problem.component_path.push(self.name.clone());
-        let component_path = problem.component_path.join(".");
-        let hitbox = {
-            let mut problem = problem.lock().await?;
-            // It is assumed that between two distinct calls of set on one child_slot the problem is gonna change
-            // in which case the Variables inside Hitbox need to be recreated
-            Hitbox::new(
-                &mut problem,
-                self.name.clone(),
-                component_path,
-                self.path.clone(),
-            )
-        };
-
-        let lock = if let Some(lock) = self.reference.upgrade() {
-            let mut reference = lock.lock().await?;
-            reference.name = self.name.clone();
-            reference.widget = widget;
-            reference.hitbox = hitbox;
-            reference.slot_manager.set_problem(problem);
-
-            Child(lock.clone())
-        } else {
-            let lock = Child(Arc::new(Mutex::new(Component {
-                name: self.name.clone(),
-                hitbox,
-                widget,
-                focusable: false,
-                children: Vec::new(),
-                parent: None,
-                slot_manager: Slot_records::new(problem),
-            })));
-
-            self.reference = lock.as_reference();
-            lock
-        };
-
-        Ok(lock)
-    }
-}
-
-impl Default for Child_slot {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+pub type Children = Vec<Shared_component>;
 
 pub type Parent = Option<Child_reference>;
 
 pub struct Component {
     pub name: String,
     pub hitbox: Hitbox,
-    pub widget: Any_renderable,
+    pub widget: Widget,
     pub focusable: bool,
     pub parent: Parent,
     pub children: Children,
     pub slot_manager: Slot_records,
 }
 
-pub type Shared_component = Mutex<Component>;
-
 #[derive(Clone, new)]
-pub struct Child(Arc<Shared_component>);
+pub struct Shared_component(Arc<Mutex<Component>>);
 
 #[derive(Clone, Copy)]
 pub enum Horizontal_anchor {
@@ -133,10 +44,10 @@ pub enum Vertical_anchor {
     Bottom,
 }
 
-impl Control for Child {}
+impl Control for Shared_component {}
 
 #[async_trait::async_trait]
-impl Renderable for Child {
+impl Widget_trait for Shared_component {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -148,18 +59,18 @@ impl Renderable for Child {
     }
 }
 
-impl From<Child> for Parent {
-    fn from(value: Child) -> Self {
+impl From<Shared_component> for Parent {
+    fn from(value: Shared_component) -> Self {
         Some(value.as_reference())
     }
 }
 
-impl Child {
+impl Shared_component {
     pub async fn lock(&self) -> Result<MutexGuard<'_, Component>> {
         self.0.lock().await
     }
 
-    pub fn compare(&self, node: &Child) -> bool {
+    pub fn compare(&self, node: &Shared_component) -> bool {
         Arc::ptr_eq(&self.0, &node.0)
     }
 
@@ -227,7 +138,7 @@ impl Child {
             return false;
         };
 
-        self.compare(&Child(node))
+        self.compare(&Shared_component(node))
     }
 
     pub async fn layout(
@@ -257,12 +168,12 @@ impl Child {
                     .await?;
 
                 match widget_type {
-                    Widget_type::Virtual(renderable) => {
+                    Widget_type::Virtual(widget) => {
                         // TODO: This whole thing is such a bodge
                         // it doesnt prevent the creation of four new variables in the solver
                         // which shouldn't really be a problem in the future, presolve is suppose to remove the necessity of this
                         // I wonder if a good presolve would also make it free to utilize the minimize hitbox but encompass children logic of the Widget_type::Visual
-                        let child = slots.set(9999, renderable).await?;
+                        let child = slots.set(9999, widget).await?;
                         let child_hitbox = child.get_hitbox().await?;
 
                         // TODO: when I figure out if this is the way we wanna go - then one should implement a system where the variables are shared
@@ -404,4 +315,4 @@ impl Child {
     }
 }
 
-pub type Child_reference = Weak<Shared_component>;
+pub type Child_reference = Weak<Mutex<Component>>;

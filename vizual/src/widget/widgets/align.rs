@@ -3,11 +3,11 @@ use color_eyre::Result;
 use good_lp::constraint;
 
 use crate::{
-    component::Child,
-    hitbox::{Direction, Hitbox},
-    layouter::Problem_context,
-    slot_manager::Slots,
-    widget::{Control, Focus_provider, Renderable, Widget_type},
+    component::Shared_component,
+    geometry::Direction,
+    layouter::{Problem_context, hitbox::Hitbox},
+    slot::manager::Slots,
+    widget::{Control, Focus_provider, Widget_trait, Widget_type},
 };
 
 #[derive(Clone, Copy)]
@@ -32,12 +32,12 @@ impl Alignments {
 }
 
 pub struct Align {
-    child: Child,
+    child: Shared_component,
     alignments: Alignments,
 }
 
 impl Align {
-    pub fn new(child: Child, alignments: Alignments) -> Self {
+    pub fn new(child: Shared_component, alignments: Alignments) -> Self {
         Self { child, alignments }
     }
 
@@ -90,7 +90,7 @@ impl Align {
 impl Control for Align {}
 
 #[async_trait]
-impl Renderable for Align {
+impl Widget_trait for Align {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,

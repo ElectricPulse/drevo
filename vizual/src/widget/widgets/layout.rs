@@ -3,13 +3,13 @@ use color_eyre::eyre::Result;
 use good_lp::{Expression, constraint};
 
 use crate::{
-    component::Child,
-    hitbox::{Direction, Hitbox},
-    layouter::{Problem_context, constraints::Objective},
-    slot_manager::Slots,
+    component::Shared_component,
+    geometry::Direction,
+    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    slot::manager::Slots,
     state::State,
     theme::Theme,
-    widget::{Control, Focus_provider, Renderable, Widget_type},
+    widget::{Control, Focus_provider, Widget_trait, Widget_type},
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -26,7 +26,7 @@ impl Style {
 
 pub struct Layout {
     direction: Direction,
-    elements: Vec<Option<Child>>,
+    elements: Vec<Option<Shared_component>>,
     pub style: Style,
     objective: Objective,
     // TODO: Keep priority manual until there is a way to set it automatically.
@@ -36,13 +36,13 @@ pub struct Layout {
 impl Control for Layout {}
 
 impl Layout {
-    fn get_elements(&self) -> Vec<&Child> {
+    fn get_elements(&self) -> Vec<&Shared_component> {
         self.elements.iter().flatten().collect()
     }
 
     pub fn new(
         direction: Direction,
-        elements: Vec<Option<Child>>,
+        elements: Vec<Option<Shared_component>>,
         style: Style,
         objective: Objective,
         priority: usize,
@@ -58,7 +58,7 @@ impl Layout {
 }
 
 #[async_trait]
-impl Renderable for Layout {
+impl Widget_trait for Layout {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,

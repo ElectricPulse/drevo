@@ -2,7 +2,7 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 //! An async, solver-driven desktop UI framework.
 //!
-//! Interfaces are [`widget::Renderable`] trees laid out through solver
+//! Interfaces are [`widget::Widget_trait`] trees laid out through solver
 //! constraints and painted with Vello. Vizual currently requires nightly Rust.
 
 pub mod backend;
@@ -12,10 +12,9 @@ pub mod event;
 pub mod focus;
 pub mod geometry;
 pub mod handlers;
-pub mod hitbox;
 pub mod layouter;
 pub mod log;
-pub mod slot_manager;
+pub mod slot;
 pub mod state;
 pub mod style;
 pub mod sync;
@@ -50,20 +49,20 @@ use winit::{
 };
 
 use backend::graphics::{Paint_context, Text_resources};
-use component::{Child, Child_reference, Child_slot};
+use component::{Child_reference, Shared_component};
 use config::DEFAULT_SCREEN_SIZE;
 use event::{
     Event, Key_code, Key_event, Modifiers, Pointer_button, Pointer_event, Wheel_delta, Wheel_event,
 };
 use focus::{Focus, Focus_search_direction};
 use geometry::{Point, Size};
-use hitbox::Hitbox;
-use layouter::{Problem, Problem_context, Solution};
+use layouter::{Problem, Problem_context, Solution, hitbox::Hitbox};
 use log::{log_duration, log_info};
+use slot::Component_slot;
 use state::State;
 use sync::Mutex;
 use theme::Theme;
-use widget::{Renderable, Shared_renderable, widgets::root::Root};
+use widget::{Shared_widget, Widget_trait, widgets::root::Root};
 
 pub fn init_logging(path: impl AsRef<Path>) -> Result<()> {
     let file = OpenOptions::new()
@@ -162,15 +161,15 @@ pub fn check_quit_event(event: &Key_event) -> bool {
 }
 
 struct App_problem {
-    root: Child,
+    root: Shared_component,
     root_hitbox: Hitbox,
     problem_context: Problem_context,
 }
 
 impl App_problem {
-    async fn new<T: Renderable>(
-        root: Shared_renderable<T>,
-        root_slot: &mut Child_slot,
+    async fn new<T: Widget_trait>(
+        root: Shared_widget<T>,
+        root_slot: &mut Component_slot,
         text_resources: Arc<Mutex<Text_resources>>,
     ) -> Result<Self> {
         let shared_problem = Arc::new(Mutex::new(Problem::new()));
@@ -247,7 +246,7 @@ impl App_problem {
     #[async_recursion]
     async fn handle_pointer_press(
         &mut self,
-        node: Child,
+        node: Shared_component,
         position: Point,
         event: &Event,
         solution: &Solution,
@@ -303,7 +302,7 @@ impl App_problem {
             };
             let parent = parent?;
             drop(node);
-            current_node = Child::new(parent);
+            current_node = Shared_component::new(parent);
         }
 
         if !self.root.compare(&current_node) {
@@ -346,7 +345,7 @@ impl App_problem {
     async fn find_focus(
         &mut self,
         origin: Option<usize>,
-        node: Child,
+        node: Shared_component,
         mut skip_count: usize,
         direction: Focus_search_direction,
         up: bool,
@@ -410,7 +409,7 @@ impl App_problem {
 
         self.find_focus(
             Some(new_origin),
-            Child::new(parent),
+            Shared_component::new(parent),
             skip_count,
             direction,
             true,
@@ -473,9 +472,9 @@ enum User_event {
     Error(String),
 }
 
-async fn layout_problem<T: Renderable>(
-    root: Shared_renderable<T>,
-    root_slot: &mut Child_slot,
+async fn layout_problem<T: Widget_trait>(
+    root: Shared_widget<T>,
+    root_slot: &mut Component_slot,
     text_resources: Arc<Mutex<Text_resources>>,
 ) -> Result<(App_problem, Size)> {
     let mut problem = App_problem::new(root, root_slot, text_resources).await?;
@@ -484,14 +483,14 @@ async fn layout_problem<T: Renderable>(
     Ok((problem, minimum_size))
 }
 
-async fn ui_loop<T: Renderable>(
-    root: Shared_renderable<T>,
+async fn ui_loop<T: Widget_trait>(
+    root: Shared_widget<T>,
     mut render_signal: mpsc::UnboundedReceiver<()>,
     mut input_receiver: mpsc::UnboundedReceiver<Ui_input>,
     proxy: EventLoopProxy<User_event>,
 ) -> Result<()> {
     let mut focus = Focus::new();
-    let mut root_slot = Child_slot::new();
+    let mut root_slot = Component_slot::new();
     let text_resources = Arc::new(Mutex::new(Text_resources::new()));
     let mut app_problem: Option<App_problem> = None;
     let mut solution = None;
@@ -1086,9 +1085,9 @@ fn map_pointer_button(button: MouseButton) -> Pointer_button {
 ///
 /// A Tokio runtime must already be active. Winit owns the calling thread until
 /// the window closes; widget tasks continue on the runtime.
-pub fn run<T: Renderable>(
+pub fn run<T: Widget_trait>(
     title: impl Into<String>,
-    root: Shared_renderable<T>,
+    root: Shared_widget<T>,
     theme: State<Theme>,
     render_signal: mpsc::UnboundedReceiver<()>,
 ) -> Result<()> {

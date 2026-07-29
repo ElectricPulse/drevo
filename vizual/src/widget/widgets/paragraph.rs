@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use super::{
-    super::{Control, Focus_provider, Renderable},
+    super::{Control, Focus_provider, Widget_trait},
     text_viewport::Text_viewport,
 };
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
     config::SCROLLBAR_SIZE,
     event::{Event, Key_code, Key_event, Wheel_delta},
     geometry::{Point, Rect, Size},
-    hitbox::Hitbox,
+    layouter::hitbox::Hitbox,
     style::Color,
 };
 
@@ -38,7 +38,7 @@ impl Paragraph {
 }
 
 #[async_trait]
-impl Renderable for Paragraph {
+impl Widget_trait for Paragraph {
     async fn render(
         &mut self,
         focus: &mut Focus_provider,

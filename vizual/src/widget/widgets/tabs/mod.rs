@@ -6,18 +6,16 @@ use uuid::Uuid;
 use vizual_macros::display;
 
 use super::{
-    super::{Any_renderable, Control, Focus_provider, Renderable, Shared_renderable, Widget_type},
+    super::{Control, Focus_provider, Shared_widget, Widget, Widget_trait, Widget_type},
     layout::{Layout, Style as Layout_style},
 };
 use crate::{
     Rerender,
     backend::graphics::Paint_context,
-    component::Child_slot,
     event::{Key_code, Key_event},
-    geometry::Rect,
-    hitbox::{Direction, Hitbox},
-    layouter::{Problem_context, constraints::Objective},
-    slot_manager::Slots,
+    geometry::{Direction, Rect},
+    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    slot::{Component_slot, manager::Slots},
     state::State,
     theme::Theme,
 };
@@ -27,7 +25,7 @@ use crate::utils;
 
 pub struct Tabs {
     theme: State<Theme>,
-    header: Shared_renderable<Tab_bar>,
+    header: Shared_widget<Tab_bar>,
 }
 
 impl Tabs {
@@ -52,7 +50,7 @@ impl Tabs {
 }
 
 struct Page {
-    slot: Child_slot,
+    slot: Component_slot,
     tab: Tab,
 }
 
@@ -99,7 +97,7 @@ impl Tab_bar {
                 .into_iter()
                 .map(|tab| Page {
                     tab,
-                    slot: Child_slot::new(),
+                    slot: Component_slot::new(),
                 })
                 .collect(),
             selected_page,
@@ -123,7 +121,7 @@ impl Tab_bar {
         }
     }
 
-    async fn get_selected(&mut self) -> Option<Any_renderable> {
+    async fn get_selected(&mut self) -> Option<Widget> {
         let index = self.find_id(*self.selected_page.load())?;
 
         Some(self.pages[index].tab.specification.widget.get().await)
@@ -131,7 +129,7 @@ impl Tab_bar {
 }
 
 #[async_trait]
-impl Renderable for Tab_bar {
+impl Widget_trait for Tab_bar {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -178,7 +176,7 @@ impl Renderable for Tab_bar {
 impl Control for Tabs {}
 
 #[async_trait]
-impl Renderable for Tabs {
+impl Widget_trait for Tabs {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
