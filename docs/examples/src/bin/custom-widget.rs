@@ -4,7 +4,7 @@ use vizual::{
     Rerender, Vizual_command, Vizual_msg,
     event::{Key_code, Key_event},
     layouter::hitbox::Hitbox,
-    layouter::Problem_context,
+    component::context::Component_context,
     slot::manager::Slots,
     state::State,
     theme::dark_theme,
@@ -32,7 +32,8 @@ impl Widget_trait for Counter {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut vizual::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
         focus.set_active(true);

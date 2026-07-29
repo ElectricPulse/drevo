@@ -12,15 +12,17 @@ use super::super::super::{Control, Focus_provider, Widget_trait, Widget_type};
 use super::super::title_block::Title_block;
 use crate::{
     Vizual_command, Vizual_msg,
-    backend::graphics::{Paint_context, Styled_text, Text_window},
+    component::context::Component_context,
+    display::Display,
     event::{Event, Key_code, Key_event},
     geometry::{Point, Rect, Size},
     handlers::Submit_handler,
-    layouter::{Problem_context, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     style::Color,
     sync::Mutex,
+    text::{Styled_text, Text_window},
     theme::Theme,
 };
 
@@ -144,14 +146,14 @@ impl Widget_trait for Text_input_content {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         let color = match (self.input.is_empty(), self.valid) {
             (true, _) => Color::White,
             (false, true) => Color::Light_green,
             (false, false) => Color::Light_red,
         };
-        let cursor_x = paint.measure_text(&self.input[..self.cursor]).width;
+        let cursor_x = display.measure_text(&self.input[..self.cursor]).width;
         let mut scroll_x = self.scroll_x.lock().await?;
         if cursor_x < *scroll_x {
             *scroll_x = cursor_x;
@@ -160,8 +162,8 @@ impl Widget_trait for Text_input_content {
         }
 
         let styled = Styled_text::plain(&self.input, color);
-        let layout = paint.build_layout(&styled);
-        paint.paint_layout(
+        let layout = display.build_layout(&styled);
+        display.paint_layout(
             &layout,
             hitbox.origin,
             Some(Text_window {
@@ -171,8 +173,8 @@ impl Widget_trait for Text_input_content {
         );
 
         if self.focused.load(Ordering::Relaxed) {
-            let height = paint.measure_text(" ").height.min(hitbox.size.height);
-            paint.fill_rect(
+            let height = display.measure_text(" ").height.min(hitbox.size.height);
+            display.fill_rect(
                 Rect {
                     origin: Point::new(hitbox.origin.x + cursor_x - *scroll_x, hitbox.origin.y),
                     size: Size::new(1.0, height),
@@ -193,7 +195,8 @@ impl Widget_trait for Text_input {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         focus.set_active(true);
@@ -214,7 +217,7 @@ impl Widget_trait for Text_input {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Rect,
-        _paint: &mut Paint_context<'_>,
+        _display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         self.focused.store(focus.get(), Ordering::Relaxed);
         Ok(None)

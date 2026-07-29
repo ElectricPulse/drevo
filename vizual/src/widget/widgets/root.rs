@@ -6,10 +6,11 @@ use super::{
     space::Space,
 };
 use crate::{
-    backend::graphics::Paint_context,
+    component::context::Component_context,
+    display::Display,
     event::Key_event,
     geometry::Rect,
-    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    layouter::{constraints::Objective, hitbox::Hitbox},
     slot::manager::Slots,
     state::State,
     style::Color,
@@ -54,7 +55,8 @@ impl<T: Widget_trait> Widget_trait for Root<T> {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         let widget = self.widget.clone();
@@ -70,9 +72,9 @@ impl<T: Widget_trait> Widget_trait for Root<T> {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        paint.fill_rect(hitbox, self.theme.load().background);
+        display.fill_rect(hitbox, self.theme.load().background);
         Ok(None)
     }
 }

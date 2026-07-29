@@ -4,9 +4,9 @@ use good_lp::{Expression, constraint};
 
 use super::super::{Control, Focus_provider, Widget_trait, Widget_type};
 use crate::{
-    component::Shared_component,
+    component::{Shared_component, context::Component_context},
     geometry::Direction,
-    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    layouter::{constraints::Objective, hitbox::Hitbox},
     slot::manager::Slots,
 };
 
@@ -136,7 +136,7 @@ impl Space {
 
     async fn apply_objective(
         &self,
-        problem: &Problem_context,
+        problem: &Component_context,
         space: Expression,
         target: Option<f64>,
     ) -> Result<()> {
@@ -166,7 +166,8 @@ impl Widget_trait for Space {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
         let child_hitbox = self.child.get_hitbox().await?;

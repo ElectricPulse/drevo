@@ -16,14 +16,13 @@ use std::{
     sync::Arc,
 };
 use vizual::{
-    Vizual_command, Vizual_msg,
-    backend::graphics::Paint_context,
-    check_quit_event,
-    component::{Horizontal_anchor, Shared_component, Vertical_anchor},
+    Vizual_command, Vizual_msg, check_quit_event,
+    component::{Horizontal_anchor, Shared_component, Vertical_anchor, context::Component_context},
+    display::Display,
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
     handlers::{Retrieve_handler, Submit_handler},
-    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    layouter::{constraints::Objective, hitbox::Hitbox},
     slot::{Component_slot, manager::Slots},
     state::State,
     sync::{Mutex, Thread_safe},
@@ -65,19 +64,22 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
-        (**self).layout(focus, hitbox, problem, slots).await
+        (**self)
+            .layout(focus, hitbox, problem, text_context, slots)
+            .await
     }
 
     async fn render(
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        (**self).render(focus, hitbox, paint).await
+        (**self).render(focus, hitbox, display).await
     }
 }
 
@@ -101,7 +103,8 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Default_leaf_value<V
         selected: bool,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Shared_component> {
         let text = Text::new(format!("Default - {}", self.label))
@@ -137,7 +140,8 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Custom_leaf_value<Va
         selected: bool,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Shared_component> {
         let title =
@@ -287,7 +291,7 @@ impl<T: Tree> Tree_view<T> {
         node: &Configuration_tree_branch,
         selected_cursor: &[String],
         cursor: &[String],
-        problem: &Problem_context,
+        problem: &Component_context,
     ) -> Result<Vec<Option<Shared_component>>> {
         const INDENT: usize = 20;
 
@@ -368,7 +372,8 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         focus.set_active(true);
@@ -396,7 +401,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Rect,
-        _paint: &mut Paint_context<'_>,
+        _display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         Ok(None)
@@ -585,7 +590,8 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         let tree_view = Tree_view {

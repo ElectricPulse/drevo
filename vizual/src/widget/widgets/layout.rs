@@ -3,9 +3,9 @@ use color_eyre::eyre::Result;
 use good_lp::{Expression, constraint};
 
 use crate::{
-    component::Shared_component,
+    component::{Shared_component, context::Component_context},
     geometry::Direction,
-    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    layouter::{constraints::Objective, hitbox::Hitbox},
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -63,7 +63,8 @@ impl Widget_trait for Layout {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
         let elements = self.get_elements();

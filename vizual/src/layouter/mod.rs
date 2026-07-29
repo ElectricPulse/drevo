@@ -4,17 +4,15 @@ pub mod hitbox;
 use std::{
     collections::{HashMap, HashSet},
     panic::Location,
-    sync::Arc,
 };
 
 use self::hitbox::{Dimensions, Hitbox};
 use crate::{
-    backend::graphics::Text_resources,
+    component::context::Component_context,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
-    sync::{Mutex, MutexGuard},
 };
-use color_eyre::eyre::{Result, ensure, eyre};
+use color_eyre::eyre::{Result, eyre};
 use futures::future::BoxFuture;
 use good_lp::{
     Constraint, Expression, IntoAffineExpression, ProblemVariables, Solution as Good_lp_solution,
@@ -71,6 +69,7 @@ pub struct Problem {
     // Used for later underconstraint checking
     variables: Vec<Problem_variable>,
     pub screen: Dimensions,
+    pub(crate) delta: Variable,
 }
 
 impl Default for Problem {
@@ -79,6 +78,7 @@ impl Default for Problem {
 
         let width = variable_builder.add(variable().name("screen width"));
         let height = variable_builder.add(variable().name("screen height"));
+        let delta = variable_builder.add(variable().min(0).name("delta"));
 
         // Screen is created so that it can be used by the components in the layout step
         // it's real dimensions will be constrained later
@@ -86,11 +86,13 @@ impl Default for Problem {
         // micro_lp doesn't yet make equality constraints free as it lacks a presolve step
         let screen = Dimensions { width, height };
 
-        let path = Problem_context::path(Location::caller());
+        let path = Component_context::path(Location::caller());
+        let mut goals = std::array::from_fn(|_| None);
+        goals[1] = Some(Expression::from(delta) * -1.0);
 
         Self {
             constraints: Vec::new(),
-            goals: std::array::from_fn(|_| None),
+            goals,
             variable_builder,
             variables: vec![
                 Problem_variable {
@@ -100,11 +102,17 @@ impl Default for Problem {
                 },
                 Problem_variable {
                     variable: height,
+                    path: path.clone(),
+                    component_path: String::new(),
+                },
+                Problem_variable {
+                    variable: delta,
                     path,
                     component_path: String::new(),
                 },
             ],
             screen,
+            delta,
         }
     }
 }
@@ -165,14 +173,14 @@ impl Problem {
 
     pub(crate) fn constrain_root_to_screen(&mut self, root: Hitbox) {
         for direction in [Direction::Horizontal, Direction::Vertical] {
-            self.constrain(Problem_context::name_constraint(
+            self.constrain(Component_context::name_constraint(
                 constraint!(root.get_start_position(direction) == 0),
                 match direction {
                     Direction::Horizontal => "root_horizontal_start",
                     Direction::Vertical => "root_vertical_start",
                 },
             ));
-            self.constrain(Problem_context::name_constraint(
+            self.constrain(Component_context::name_constraint(
                 constraint!(root.get_dimension(direction) == self.screen.get(direction)),
                 match direction {
                     Direction::Horizontal => "root_width",
@@ -184,11 +192,11 @@ impl Problem {
 
     fn screen_constraints(&self, screen: Size) -> Vec<Constraint> {
         vec![
-            Problem_context::name_constraint(
+            Component_context::name_constraint(
                 constraint!(self.screen.get(Direction::Horizontal) == screen.width),
                 "screen_width",
             ),
-            Problem_context::name_constraint(
+            Component_context::name_constraint(
                 constraint!(self.screen.get(Direction::Vertical) == screen.height),
                 "screen_height",
             ),
@@ -437,7 +445,7 @@ impl Problem {
                     return Ok(solved);
                 };
                 let optimal_value = solved.eval(objective);
-                constraints.push(Problem_context::name_constraint(
+                constraints.push(Component_context::name_constraint(
                     constraint!(objective.clone() == optimal_value),
                     format!("priority_{priority}_optimum"),
                 ));
@@ -457,135 +465,5 @@ impl Problem {
 
     pub async fn solve_minimum(&self) -> Result<Solution> {
         self.solve_constraints(self.constraints.clone()).await
-    }
-}
-
-#[derive(Clone)]
-pub struct Problem_context {
-    pub problem: Arc<Mutex<Problem>>,
-    text_resources: Arc<Mutex<Text_resources>>,
-    delta: Variable,
-    pub component_path: Vec<String>,
-}
-
-// TODO: there are so many excesive bridges here
-// delegating would be nice
-impl Problem_context {
-    fn path(location: &'static Location<'static>) -> String {
-        format!("{}:{}", location.file(), location.line())
-    }
-
-    pub(crate) fn name_constraint(constraint: Constraint, name: impl Into<String>) -> Constraint {
-        constraint.set_name(name.into())
-    }
-
-    pub async fn new(
-        problem: Arc<Mutex<Problem>>,
-        text_resources: Arc<Mutex<Text_resources>>,
-    ) -> Result<Self> {
-        let delta = {
-            let mut problem = problem.lock().await?;
-            let delta = problem.add_non_negative_variable(
-                "delta".to_string(),
-                Self::path(Location::caller()),
-                String::new(),
-            );
-
-            problem.maximize(Expression::from(delta) * -1.0, 1)?;
-            delta
-        };
-
-        Ok(Self {
-            problem,
-            text_resources,
-            delta,
-            component_path: Vec::new(),
-        })
-    }
-
-    pub async fn lock(&self) -> Result<MutexGuard<'_, Problem>> {
-        self.problem.lock().await
-    }
-
-    #[track_caller]
-    pub async fn add_non_negative_variable(&self, name: impl Into<String>) -> Result<Variable> {
-        let path = Self::path(Location::caller());
-        let component_path = self.component_path.join(".");
-        Ok(self
-            .lock()
-            .await?
-            .add_non_negative_variable(name.into(), path, component_path))
-    }
-
-    #[track_caller]
-    pub async fn add_binary_variable(&self, name: impl Into<String>) -> Result<Variable> {
-        let path = Self::path(Location::caller());
-        let component_path = self.component_path.join(".");
-        Ok(self
-            .lock()
-            .await?
-            .add_binary_variable(name.into(), path, component_path))
-    }
-
-    #[track_caller]
-    pub async fn constrain(&self, constraint: Constraint) -> Result<()> {
-        let constraint = match constraint.name() {
-            Some(_) => constraint,
-            None => Self::name_constraint(constraint, Self::path(Location::caller())),
-        };
-        let mut problem = self.lock().await?;
-        problem.constrain(constraint);
-        Ok(())
-    }
-
-    pub async fn maximize(&self, expression: Expression, priority: usize) -> Result<()> {
-        let mut problem = self.lock().await?;
-        problem.maximize(expression, priority)
-    }
-
-    pub async fn minimize(&self, expression: Expression, priority: usize) -> Result<()> {
-        self.maximize(expression * -1.0, priority).await
-    }
-
-    #[track_caller]
-    /// Minimizes a normalized difference from the requested target through a shared `delta`.
-    ///
-    /// Sharing `delta` makes gaps, margins, and padding change together. Independently minimizing
-    /// absolute values leaves allocations such as `x + y < screen; maximize x + y` free to
-    /// resolve to an extreme like `x = screen` and `y = 0`, giving one button no padding while
-    /// another receives all the available padding.
-    pub async fn minimize_difference(
-        &self,
-        expression: impl IntoAffineExpression,
-        target: f64,
-        proportion: f64,
-        priority: usize,
-    ) -> Result<()> {
-        ensure!(
-            proportion > 0.0,
-            "minimize-difference proportion must be greater than zero"
-        );
-
-        let difference = expression.into_expression() - target;
-        let inverse_difference = difference.clone() * -1.0;
-        let absolute_difference = self
-            .add_non_negative_variable("minimize-difference")
-            .await?;
-
-        self.constrain(constraint!(absolute_difference >= difference))
-            .await?;
-        self.constrain(constraint!(absolute_difference >= inverse_difference))
-            .await?;
-        self.constrain(constraint!(absolute_difference / proportion == self.delta))
-            .await?;
-        self.minimize(Expression::from(self.delta), priority).await
-    }
-
-    pub async fn measure_text(&self, content: &str, font_size: f32) -> Result<Size> {
-        Ok(self
-            .text_resources
-            .lock()
-            .await?
-            .measure(content, font_size))
     }
 }

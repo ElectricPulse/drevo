@@ -5,9 +5,9 @@
 //! Interfaces are [`widget::Widget_trait`] trees laid out through solver
 //! constraints and painted with Vello. Vizual currently requires nightly Rust.
 
-pub mod backend;
 pub mod component;
 mod config;
+pub mod display;
 pub mod event;
 pub mod focus;
 pub mod geometry;
@@ -18,6 +18,7 @@ pub mod slot;
 pub mod state;
 pub mod style;
 pub mod sync;
+pub mod text;
 pub mod theme;
 pub mod unicode;
 pub mod utils;
@@ -48,19 +49,20 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use backend::graphics::{Paint_context, Text_resources};
-use component::{Child_reference, Shared_component};
+use component::{Child_reference, Shared_component, context::Component_context};
 use config::DEFAULT_SCREEN_SIZE;
+use display::Display;
 use event::{
     Event, Key_code, Key_event, Modifiers, Pointer_button, Pointer_event, Wheel_delta, Wheel_event,
 };
 use focus::{Focus, Focus_search_direction};
 use geometry::{Point, Size};
-use layouter::{Problem, Problem_context, Solution, hitbox::Hitbox};
+use layouter::{Problem, Solution, hitbox::Hitbox};
 use log::{log_duration, log_info};
 use slot::Component_slot;
 use state::State;
 use sync::Mutex;
+use text::Text_context;
 use theme::Theme;
 use widget::{Shared_widget, Widget_trait, widgets::root::Root};
 
@@ -163,20 +165,19 @@ pub fn check_quit_event(event: &Key_event) -> bool {
 struct App_problem {
     root: Shared_component,
     root_hitbox: Hitbox,
-    problem_context: Problem_context,
+    component_context: Component_context,
 }
 
 impl App_problem {
     async fn new<T: Widget_trait>(
         root: Shared_widget<T>,
         root_slot: &mut Component_slot,
-        text_resources: Arc<Mutex<Text_resources>>,
     ) -> Result<Self> {
         let shared_problem = Arc::new(Mutex::new(Problem::new()));
-        let problem_context = Problem_context::new(shared_problem, text_resources).await?;
-        let root = root_slot.set(root, problem_context.clone()).await?;
+        let component_context = Component_context::new(shared_problem);
+        let root = root_slot.set(root, component_context.clone()).await?;
         let root_hitbox = root.get_hitbox().await?;
-        problem_context
+        component_context
             .lock()
             .await?
             .constrain_root_to_screen(root_hitbox);
@@ -184,14 +185,17 @@ impl App_problem {
         Ok(Self {
             root,
             root_hitbox,
-            problem_context,
+            component_context,
         })
     }
 
-    async fn layout(&mut self) -> Result<()> {
-        let children = self.root.layout(None, self.problem_context.clone()).await?;
+    async fn layout(&mut self, text_context: &mut Text_context) -> Result<()> {
+        let children = self
+            .root
+            .layout(None, self.component_context.clone(), text_context)
+            .await?;
         self.root
-            .layout_children(children, self.problem_context.clone())
+            .layout_children(children, self.component_context.clone(), text_context)
             .await?;
 
         // TODO: this is all very confusing
@@ -203,7 +207,7 @@ impl App_problem {
             self.root_hitbox.dimensions.width,
             self.root_hitbox.dimensions.height,
         ] {
-            self.problem_context
+            self.component_context
                 .minimize(Expression::from(dimension), 5)
                 .await?;
         }
@@ -219,7 +223,7 @@ impl App_problem {
     }
 
     async fn minimum_size(&self) -> Result<Size> {
-        let solution = self.problem_context.lock().await?.solve_minimum().await?;
+        let solution = self.component_context.lock().await?.solve_minimum().await?;
         let minimum_size = self.root_size(&solution);
         // TODO: Without this padding the user can still push the screen below the required size somehow, causing the layout to crash.
         Ok(Size::new(
@@ -232,13 +236,12 @@ impl App_problem {
         &mut self,
         solution: &Solution,
         focus: &mut Focus,
-        text_resources: &Arc<Mutex<Text_resources>>,
+        text_context: &mut Text_context,
     ) -> Result<Scene> {
         let mut scene = Scene::new();
-        let mut resources = text_resources.lock().await?;
-        let mut paint = Paint_context::new(&mut scene, &mut resources);
+        let mut display = Display::new(&mut scene, text_context);
         self.root
-            .render(focus.clone(), &mut paint, solution)
+            .render(focus.clone(), &mut display, solution)
             .await?;
         Ok(scene)
     }
@@ -475,10 +478,10 @@ enum User_event {
 async fn layout_problem<T: Widget_trait>(
     root: Shared_widget<T>,
     root_slot: &mut Component_slot,
-    text_resources: Arc<Mutex<Text_resources>>,
+    text_context: &mut Text_context,
 ) -> Result<(App_problem, Size)> {
-    let mut problem = App_problem::new(root, root_slot, text_resources).await?;
-    log_duration(0, "app problem layout", || problem.layout()).await?;
+    let mut problem = App_problem::new(root, root_slot).await?;
+    log_duration(0, "app problem layout", || problem.layout(text_context)).await?;
     let minimum_size = problem.minimum_size().await?;
     Ok((problem, minimum_size))
 }
@@ -491,7 +494,7 @@ async fn ui_loop<T: Widget_trait>(
 ) -> Result<()> {
     let mut focus = Focus::new();
     let mut root_slot = Component_slot::new();
-    let text_resources = Arc::new(Mutex::new(Text_resources::new()));
+    let mut text_context = Text_context::new();
     let mut app_problem: Option<App_problem> = None;
     let mut solution = None;
     let mut window_size = None;
@@ -548,7 +551,7 @@ async fn ui_loop<T: Widget_trait>(
             Ui_input::Initialize(maximum_size) => {
                 // This technically performs one extra layout call before the window-driven layout loop starts.
                 let (_, minimum_size) =
-                    layout_problem(root.clone(), &mut root_slot, text_resources.clone()).await?;
+                    layout_problem(root.clone(), &mut root_slot, &mut text_context).await?;
                 let default_size = Size::new(
                     DEFAULT_SCREEN_SIZE.width.min(maximum_size.width),
                     DEFAULT_SCREEN_SIZE.height.min(maximum_size.height),
@@ -626,7 +629,7 @@ async fn ui_loop<T: Widget_trait>(
 
         if matches!(command, Vizual_command::Layout) {
             let (problem, minimum) =
-                layout_problem(root.clone(), &mut root_slot, text_resources.clone()).await?;
+                layout_problem(root.clone(), &mut root_slot, &mut text_context).await?;
             app_problem = Some(problem);
             pending_minimum_size = Some(minimum);
             if proxy.send_event(User_event::Minimum_size(minimum)).is_err() {
@@ -635,7 +638,7 @@ async fn ui_loop<T: Widget_trait>(
             continue;
         } else if matches!(command, Vizual_command::Resolve) {
             if let Some(problem) = &app_problem {
-                solution = Some(problem.problem_context.lock().await?.solve(size).await?);
+                solution = Some(problem.component_context.lock().await?.solve(size).await?);
                 command = Vizual_command::Render;
             }
         } else if let Vizual_command::Focus(reference) = &command {
@@ -647,7 +650,7 @@ async fn ui_loop<T: Widget_trait>(
             && let (Some(problem), Some(solution)) = (&mut app_problem, &solution)
         {
             let scene = problem
-                .render(solution, &mut focus, &text_resources)
+                .render(solution, &mut focus, &mut text_context)
                 .await?;
             if proxy.send_event(User_event::Scene(scene)).is_err() {
                 break;
@@ -661,7 +664,7 @@ async fn ui_loop<T: Widget_trait>(
 // TODO:
 // DISCLAIMER:
 // Originally this was a tui library, but later I let codex convert it to wgpu
-// almost all of the resulting slop is here and in backend
+// almost all of the resulting slop is here and in text
 
 struct Render_state {
     surface: RenderSurface<'static>,

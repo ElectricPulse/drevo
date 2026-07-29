@@ -6,7 +6,7 @@ use super::{
     text::Text_style,
 };
 use crate::{
-    backend::graphics::Paint_context,
+    display::Display,
     event::{Key_code, Key_event},
     geometry::{Point, Rect},
     layouter::hitbox::Hitbox,
@@ -54,7 +54,7 @@ impl Widget_trait for List {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         let mut y = hitbox.origin.y;
@@ -66,7 +66,7 @@ impl Widget_trait for List {
             };
             let line = format!("{marker}{item}");
             let size =
-                paint.draw_text(&line, Point::new(hitbox.origin.x, y), Text_style::default());
+                display.draw_text(&line, Point::new(hitbox.origin.x, y), Text_style::default());
             y += size.height;
         }
 

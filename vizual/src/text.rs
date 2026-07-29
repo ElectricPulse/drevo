@@ -6,13 +6,14 @@ use parley::{
 };
 use vello::{
     Glyph, Scene,
-    kurbo::{Affine, Line, Rect as Kurbo_rect, RoundedRect, Stroke},
+    kurbo::{Affine, Line, Rect as Kurbo_rect, Stroke},
     peniko::{Brush, Fill},
 };
 
 use crate::{
     config::DEFAULT_FONT_SIZE,
-    geometry::{Point, Rect, Size},
+    display::Display,
+    geometry::{Point, Size},
     style::Color,
     widget::widgets::text::Text_style,
 };
@@ -37,12 +38,12 @@ impl Default for Text_brush {
     }
 }
 
-pub struct Text_resources {
-    pub font_context: FontContext,
-    pub layout_context: LayoutContext<Text_brush>,
+pub struct Text_context {
+    font_context: FontContext,
+    layout_context: LayoutContext<Text_brush>,
 }
 
-impl Text_resources {
+impl Text_context {
     pub fn new() -> Self {
         Self {
             font_context: FontContext::new(),
@@ -54,7 +55,7 @@ impl Text_resources {
         build_layout(&mut self.font_context, &mut self.layout_context, text)
     }
 
-    pub(crate) fn measure(&mut self, content: &str, font_size: f32) -> Size {
+    pub fn measure(&mut self, content: &str, font_size: f32) -> Size {
         let layout = self.build_layout(&Styled_text::styled(
             content,
             Text_style {
@@ -66,86 +67,20 @@ impl Text_resources {
     }
 }
 
-impl Default for Text_resources {
+impl Default for Text_context {
     fn default() -> Self {
         Self::new()
     }
 }
 
-pub struct Paint_context<'a> {
-    pub scene: &'a mut Scene,
-    pub font_context: &'a mut FontContext,
-    pub layout_context: &'a mut LayoutContext<Text_brush>,
-}
-
-impl<'a> Paint_context<'a> {
-    pub(crate) fn new(scene: &'a mut Scene, resources: &'a mut Text_resources) -> Self {
-        Self {
-            scene,
-            font_context: &mut resources.font_context,
-            layout_context: &mut resources.layout_context,
-        }
-    }
-
-    pub fn fill_rect(&mut self, rect: Rect, color: Color) {
-        if rect.size.is_empty() {
-            return;
-        }
-
-        self.scene.fill(
-            Fill::NonZero,
-            Affine::IDENTITY,
-            color.to_peniko(),
-            None,
-            &to_kurbo_rect(rect),
-        );
-    }
-
-    pub fn stroke_rect(&mut self, rect: Rect, color: Color, width: f64) {
-        if rect.size.is_empty() || width <= 0.0 {
-            return;
-        }
-
-        self.scene.stroke(
-            &Stroke::new(width),
-            Affine::IDENTITY,
-            color.to_peniko(),
-            None,
-            &to_kurbo_rect(rect),
-        );
-    }
-
-    pub fn fill_rounded_rect(&mut self, rect: Rect, color: Color, radius: f64) {
-        if rect.size.is_empty() {
-            return;
-        }
-
-        self.scene.fill(
-            Fill::NonZero,
-            Affine::IDENTITY,
-            color.to_peniko(),
-            None,
-            &RoundedRect::from_rect(to_kurbo_rect(rect), radius),
-        );
-    }
-
-    pub fn stroke_rounded_rect(&mut self, rect: Rect, color: Color, width: f64, radius: f64) {
-        if rect.size.is_empty() || width <= 0.0 {
-            return;
-        }
-
-        self.scene.stroke(
-            &Stroke::new(width),
-            Affine::IDENTITY,
-            color.to_peniko(),
-            None,
-            &RoundedRect::from_rect(to_kurbo_rect(rect), radius),
-        );
-    }
-
+impl Display<'_> {
     pub fn draw_text(&mut self, content: &str, origin: Point, style: Text_style) -> Size {
         let styled = Styled_text::styled(content, style);
-        let layout = build_layout(self.font_context, self.layout_context, &styled);
+        let layout = build_layout(
+            &mut self.text_context.font_context,
+            &mut self.text_context.layout_context,
+            &styled,
+        );
         let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
         self.paint_layout(&layout, origin, None);
         size
@@ -153,12 +88,20 @@ impl<'a> Paint_context<'a> {
 
     pub fn measure_text(&mut self, content: &str) -> Size {
         let styled = Styled_text::plain(content, Color::White);
-        let layout = build_layout(self.font_context, self.layout_context, &styled);
+        let layout = build_layout(
+            &mut self.text_context.font_context,
+            &mut self.text_context.layout_context,
+            &styled,
+        );
         Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
     }
 
     pub(crate) fn build_layout(&mut self, text: &Styled_text) -> Layout<Text_brush> {
-        build_layout(self.font_context, self.layout_context, text)
+        build_layout(
+            &mut self.text_context.font_context,
+            &mut self.text_context.layout_context,
+            text,
+        )
     }
 
     pub(crate) fn paint_layout(
@@ -580,8 +523,4 @@ fn paint_decoration(
         None,
         &Line::new((start, f64::from(y)), (end, f64::from(y))),
     );
-}
-
-fn to_kurbo_rect(rect: Rect) -> Kurbo_rect {
-    Kurbo_rect::new(rect.origin.x, rect.origin.y, rect.right(), rect.bottom())
 }

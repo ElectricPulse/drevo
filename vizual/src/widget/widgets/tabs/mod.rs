@@ -11,10 +11,11 @@ use super::{
 };
 use crate::{
     Rerender,
-    backend::graphics::Paint_context,
+    component::context::Component_context,
+    display::Display,
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
-    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    layouter::{constraints::Objective, hitbox::Hitbox},
     slot::{Component_slot, manager::Slots},
     state::State,
     theme::Theme,
@@ -134,7 +135,8 @@ impl Widget_trait for Tab_bar {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
         focus.set_active(true);
@@ -166,7 +168,7 @@ impl Widget_trait for Tab_bar {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Rect,
-        _paint: &mut Paint_context<'_>,
+        _display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         Ok(None)
@@ -181,7 +183,8 @@ impl Widget_trait for Tabs {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         let tab = {

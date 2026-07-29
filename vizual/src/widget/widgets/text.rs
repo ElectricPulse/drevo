@@ -4,10 +4,11 @@ use good_lp::constraint;
 
 use super::super::{Control, Focus_provider, Widget_trait, Widget_type};
 use crate::{
-    backend::graphics::Paint_context,
+    component::context::Component_context,
     config::DEFAULT_FONT_SIZE,
+    display::Display,
     geometry::{Direction, Rect},
-    layouter::{Problem_context, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     style::Color,
 };
@@ -59,10 +60,11 @@ impl Widget_trait for Text {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
-        let size = problem.measure_text(&self.content, self.style.size).await?;
+        let size = text_context.measure(&self.content, self.style.size);
         problem
             .constrain(constraint!(
                 hitbox.get_dimension(Direction::Horizontal) == size.width
@@ -81,9 +83,9 @@ impl Widget_trait for Text {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        let _ = paint.draw_text(&self.content, hitbox.origin, self.style);
+        let _ = display.draw_text(&self.content, hitbox.origin, self.style);
         Ok(None)
     }
 }

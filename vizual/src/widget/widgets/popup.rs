@@ -15,10 +15,10 @@ use super::{
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    component::Shared_component,
+    component::{Shared_component, context::Component_context},
     geometry::Direction,
     handlers::{Retrieve_handler, Submit_handler},
-    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    layouter::{constraints::Objective, hitbox::Hitbox},
     slot::manager::Slots,
     state::State,
     sync::Mutex,
@@ -71,7 +71,8 @@ impl Menu_item_trait<Popup_options> for Popup_menu_item {
         selected: bool,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Shared_component> {
         let text = Text::new(self.option.label())
@@ -160,7 +161,8 @@ impl Widget_trait for Popup {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         let button = Button::new(

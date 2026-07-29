@@ -3,10 +3,11 @@ use color_eyre::eyre::Result;
 use good_lp::{Expression, constraint};
 
 use crate::{
-    backend::graphics::Paint_context,
+    component::context::Component_context,
     config::BORDER_SIZE,
+    display::Display,
     geometry::{Direction, Rect},
-    layouter::{Problem_context, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -33,7 +34,8 @@ impl Widget_trait for Linebreak_component {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
         let horizontal_length = Expression::from(hitbox.get_dimension(Direction::Horizontal));
@@ -52,9 +54,9 @@ impl Widget_trait for Linebreak_component {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        paint.fill_rect(hitbox, self.theme.load().semantic.border);
+        display.fill_rect(hitbox, self.theme.load().semantic.border);
         Ok(None)
     }
 }

@@ -4,11 +4,11 @@ use good_lp::constraint;
 
 use super::super::{Control, Focus_provider, Widget, Widget_trait, Widget_type};
 use crate::{
-    backend::graphics::Paint_context,
-    component::Shared_component,
+    component::{Shared_component, context::Component_context},
     config::BORDER_SIZE,
+    display::Display,
     geometry::{Direction, Rect},
-    layouter::{Problem_context, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     style::Color,
@@ -48,7 +48,8 @@ impl Widget_trait for Block {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
         let child_hitbox = self.child.get_hitbox().await?;
@@ -77,19 +78,19 @@ impl Widget_trait for Block {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        paint_block(paint, hitbox, &self.theme.load(), self.highlighted);
+        paint_block(display, hitbox, &self.theme.load(), self.highlighted);
         Ok(None)
     }
 }
 
-fn paint_block(paint: &mut Paint_context<'_>, hitbox: Rect, style: &Block_style, focused: bool) {
-    paint.fill_rounded_rect(hitbox, style.background, style.border_radius);
+fn paint_block(display: &mut Display<'_>, hitbox: Rect, style: &Block_style, focused: bool) {
+    display.fill_rounded_rect(hitbox, style.background, style.border_radius);
     let color = match focused {
         true => style.focused_color,
         false => style.color,
     };
     let radius = (style.border_radius - BORDER_SIZE / 2.0).max(0.0);
-    paint.stroke_rounded_rect(hitbox.inset(BORDER_SIZE / 2.0), color, BORDER_SIZE, radius);
+    display.stroke_rounded_rect(hitbox.inset(BORDER_SIZE / 2.0), color, BORDER_SIZE, radius);
 }

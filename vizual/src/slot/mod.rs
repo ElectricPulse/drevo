@@ -11,8 +11,8 @@ use std::{
 use color_eyre::eyre::Result;
 
 use crate::{
-    component::{Child_reference, Component, Shared_component},
-    layouter::{Problem_context, hitbox::Hitbox},
+    component::{Child_reference, Component, Shared_component, context::Component_context},
+    layouter::hitbox::Hitbox,
     sync::Mutex,
     widget::Widget_trait,
 };
@@ -49,7 +49,7 @@ impl Component_slot {
     pub async fn set(
         &mut self,
         widget: impl Widget_trait,
-        mut problem: Problem_context,
+        mut problem: Component_context,
     ) -> Result<Shared_component> {
         let widget = Box::new(widget);
 

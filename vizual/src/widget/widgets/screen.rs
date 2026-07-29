@@ -15,11 +15,12 @@ use super::{
 };
 use crate::{
     Rerender, Vizual_command, Vizual_msg,
-    backend::graphics::Paint_context,
+    component::context::Component_context,
     config::COMMAND_WAIT_TIMEOUT,
+    display::Display,
     event::{Event, Key_code, Key_event, Wheel_delta},
     geometry::Rect,
-    layouter::{Problem_context, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     sync::Mutex,
@@ -292,7 +293,7 @@ impl Widget_trait for Screen_content {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         let text = self.text.load();
         if text.len() != self.last_text_len {
@@ -300,11 +301,11 @@ impl Widget_trait for Screen_content {
             self.last_text_len = text.len();
         }
 
-        self.viewport.prepare(paint, hitbox.size);
+        self.viewport.prepare(display, hitbox.size);
         if self.following {
             self.viewport.jump_to_bottom();
         }
-        self.viewport.paint(paint, hitbox.origin);
+        self.viewport.paint(display, hitbox.origin);
         Ok(None)
     }
 }
@@ -317,7 +318,8 @@ impl Widget_trait for Screen {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         focus.set_active(true);

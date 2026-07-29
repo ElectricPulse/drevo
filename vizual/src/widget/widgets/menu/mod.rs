@@ -15,12 +15,12 @@ use super::{
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    backend::graphics::Paint_context,
-    component::Shared_component,
+    component::{Shared_component, context::Component_context},
+    display::Display,
     event::{Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
     handlers::Retrieve_handler,
-    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    layouter::{constraints::Objective, hitbox::Hitbox},
     slot::manager::Slots,
     state::State,
     sync::{Mutex, Thread_safe},
@@ -39,7 +39,8 @@ pub trait Menu_item_trait<Value>: Retrieve_handler<Value> {
         selected: bool,
         focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Shared_component>;
 
@@ -48,7 +49,7 @@ pub trait Menu_item_trait<Value>: Retrieve_handler<Value> {
         _selected: bool,
         _focus: &mut Focus_provider,
         _hitbox: Rect,
-        _paint: &mut Paint_context<'_>,
+        _display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         Ok(None)
     }
@@ -82,14 +83,15 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         let content = self
             .widget
             .lock()
             .await?
-            .layout(self.selected, focus, hitbox, problem, slots)
+            .layout(self.selected, focus, hitbox, problem, text_context, slots)
             .await?;
         let mut button = Button::around(content, self.theme.clone());
         button.highlighted = self.selected;
@@ -101,12 +103,12 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         self.widget
             .lock()
             .await?
-            .render(self.selected, focus, hitbox, paint)
+            .render(self.selected, focus, hitbox, display)
             .await
     }
 }
@@ -197,7 +199,8 @@ impl<Value: Thread_safe> Widget_trait for Menu<Value> {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         focus.set_active(true);
@@ -241,7 +244,7 @@ impl<Value: Thread_safe> Widget_trait for Menu<Value> {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Rect,
-        _paint: &mut Paint_context<'_>,
+        _display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         Ok(None)

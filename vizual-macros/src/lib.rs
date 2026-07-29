@@ -135,14 +135,16 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 &mut self,
                 focus: &mut ::vizual::widget::Focus_provider,
                 hitbox: ::vizual::layouter::hitbox::Hitbox,
-                problem: ::vizual::layouter::Problem_context,
-                slots: &mut ::vizual::slot::manager::Slot_manager,
+                problem: ::vizual::component::context::Component_context,
+                text_context: &mut ::vizual::text::Text_context,
+                slots: &mut ::vizual::slot::manager::Slots,
             ) -> ::color_eyre::eyre::Result<::vizual::widget::Widget_type> {
                 ::vizual::widget::Widget_trait::layout(
                     &mut self.#field,
                     focus,
                     hitbox,
                     problem,
+                    text_context,
                     slots,
                 )
                 .await
@@ -152,13 +154,13 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 &mut self,
                 focus: &mut ::vizual::widget::Focus_provider,
                 hitbox: ::vizual::geometry::Rect,
-                paint: &mut ::vizual::backend::graphics::Paint_context<'_>,
+                display: &mut ::vizual::display::Display<'_>,
             ) -> ::color_eyre::eyre::Result<::std::option::Option<::vizual::layouter::hitbox::Hitbox>> {
                 ::vizual::widget::Widget_trait::render(
                     &mut self.#field,
                     focus,
                     hitbox,
-                    paint,
+                    display,
                 )
                 .await
             }

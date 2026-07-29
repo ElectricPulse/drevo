@@ -3,9 +3,9 @@ use color_eyre::Result;
 use good_lp::constraint;
 
 use crate::{
-    component::Shared_component,
+    component::{Shared_component, context::Component_context},
     geometry::Direction,
-    layouter::{Problem_context, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     widget::{Control, Focus_provider, Widget_trait, Widget_type},
 };
@@ -42,7 +42,7 @@ impl Align {
     }
 
     async fn constrain(
-        problem: &Problem_context,
+        problem: &Component_context,
         hitbox: Hitbox,
         child_hitbox: Hitbox,
         alignment: Alignment,
@@ -95,7 +95,8 @@ impl Widget_trait for Align {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
         let child_hitbox = self.child.get_hitbox().await?;

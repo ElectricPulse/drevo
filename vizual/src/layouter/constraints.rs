@@ -1,8 +1,10 @@
 use color_eyre::eyre::Result;
 use good_lp::{Expression, constraint};
 
-use super::{Problem_context, hitbox::Hitbox};
-use crate::{config::MAXIMUM_LAYOUT_VALUE, geometry::Direction};
+use super::hitbox::Hitbox;
+use crate::{
+    component::context::Component_context, config::MAXIMUM_LAYOUT_VALUE, geometry::Direction,
+};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Objective {
@@ -15,7 +17,7 @@ pub enum Objective {
 impl Objective {
     pub async fn apply(
         self,
-        problem: &Problem_context,
+        problem: &Component_context,
         expression: Expression,
         target: f64,
         proportion: f64,
@@ -44,7 +46,7 @@ impl Objective {
 }
 
 pub async fn prohibit_overlap(
-    problem: &Problem_context,
+    problem: &Component_context,
     first: Hitbox,
     second: Hitbox,
     gap: f64,

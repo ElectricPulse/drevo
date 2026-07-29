@@ -10,11 +10,12 @@ use super::super::{Control, Focus_provider, Shared_widget, Widget_trait, Widget_
 use super::menu::Menu;
 use super::title_block::Title_block;
 use crate::{
-    backend::graphics::Paint_context,
+    component::context::Component_context,
+    display::Display,
     event::{Key_code, Key_event},
     geometry::Rect,
     handlers::Retrieve_handler,
-    layouter::{Problem_context, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     sync::Thread_safe,
@@ -33,19 +34,22 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
-        (**self).layout(focus, hitbox, problem, slots).await
+        (**self)
+            .layout(focus, hitbox, problem, text_context, slots)
+            .await
     }
 
     async fn render(
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        (**self).render(focus, hitbox, paint).await
+        (**self).render(focus, hitbox, display).await
     }
 }
 
@@ -207,7 +211,8 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         focus.set_active(true);

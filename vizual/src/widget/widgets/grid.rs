@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use crate::{
-    component::Shared_component,
-    layouter::{Problem_context, constraints::prohibit_overlap, hitbox::Hitbox},
+    component::{Shared_component, context::Component_context},
+    layouter::{constraints::prohibit_overlap, hitbox::Hitbox},
     slot::manager::Slots,
     widget::{Control, Focus_provider, Widget_trait, Widget_type},
 };
@@ -27,7 +27,8 @@ impl Widget_trait for Grid {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
         for (index, first) in self.items.iter().enumerate() {

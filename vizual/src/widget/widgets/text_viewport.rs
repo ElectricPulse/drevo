@@ -1,8 +1,9 @@
 use parley::Layout;
 
 use crate::{
-    backend::graphics::{Paint_context, Styled_text, Text_brush, Text_window},
+    display::Display,
     geometry::{Point, Size},
+    text::{Styled_text, Text_brush, Text_window},
 };
 
 pub(crate) struct Text_viewport {
@@ -27,19 +28,19 @@ impl Text_viewport {
         self.layout = None;
     }
 
-    pub fn prepare(&mut self, paint: &mut Paint_context<'_>, viewport: Size) {
+    pub fn prepare(&mut self, display: &mut Display<'_>, viewport: Size) {
         if self.layout.is_none() {
-            self.layout = Some(paint.build_layout(&self.styled));
+            self.layout = Some(display.build_layout(&self.styled));
         }
         self.viewport = viewport;
         self.clamp_offset();
     }
 
-    pub fn paint(&self, paint: &mut Paint_context<'_>, origin: Point) {
+    pub fn paint(&self, display: &mut Display<'_>, origin: Point) {
         let Some(layout) = &self.layout else {
             return;
         };
-        paint.paint_layout(
+        display.paint_layout(
             layout,
             origin,
             Some(Text_window {

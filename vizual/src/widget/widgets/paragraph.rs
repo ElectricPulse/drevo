@@ -7,8 +7,8 @@ use super::{
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    backend::graphics::Paint_context,
     config::SCROLLBAR_SIZE,
+    display::Display,
     event::{Event, Key_code, Key_event, Wheel_delta},
     geometry::{Point, Rect, Size},
     layouter::hitbox::Hitbox,
@@ -43,11 +43,11 @@ impl Widget_trait for Paragraph {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         let inner = hitbox;
-        self.viewport.prepare(paint, inner.size);
+        self.viewport.prepare(display, inner.size);
         let content_size = self.viewport.content_size();
         let mut vertical = false;
         let mut horizontal = false;
@@ -73,12 +73,12 @@ impl Widget_trait for Paragraph {
                 (inner.size.height - f64::from(horizontal) * SCROLLBAR_SIZE).max(0.0),
             ),
         };
-        self.viewport.prepare(paint, content_hitbox.size);
-        self.viewport.paint(paint, content_hitbox.origin);
+        self.viewport.prepare(display, content_hitbox.size);
+        self.viewport.paint(display, content_hitbox.origin);
 
         if vertical {
             paint_scrollbar(
-                paint,
+                display,
                 Rect::new(
                     inner.right() - SCROLLBAR_SIZE,
                     inner.origin.y,
@@ -94,7 +94,7 @@ impl Widget_trait for Paragraph {
         }
         if horizontal {
             paint_scrollbar(
-                paint,
+                display,
                 Rect::new(
                     inner.origin.x,
                     inner.bottom() - SCROLLBAR_SIZE,
@@ -154,7 +154,7 @@ impl Control for Paragraph {
 
 #[allow(clippy::too_many_arguments)]
 fn paint_scrollbar(
-    paint: &mut Paint_context<'_>,
+    display: &mut Display<'_>,
     track: Rect,
     position: f64,
     maximum: f64,
@@ -162,7 +162,7 @@ fn paint_scrollbar(
     content_length: f64,
     vertical: bool,
 ) {
-    paint.fill_rect(track, Color::Dark_gray);
+    display.fill_rect(track, Color::Dark_gray);
     let track_length = match vertical {
         true => track.size.height,
         false => track.size.width,
@@ -184,5 +184,5 @@ fn paint_scrollbar(
             size: Size::new(thumb_length, track.size.height),
         },
     };
-    paint.fill_rect(thumb, Color::White);
+    display.fill_rect(thumb, Color::White);
 }

@@ -10,10 +10,10 @@ use super::{
 };
 use crate::{
     Vizual_msg,
-    component::Shared_component,
+    component::{Shared_component, context::Component_context},
     event::Pointer_event,
     handlers::Submit_handler,
-    layouter::{Problem_context, constraints::Objective, hitbox::Hitbox},
+    layouter::{constraints::Objective, hitbox::Hitbox},
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -64,7 +64,8 @@ impl Widget_trait for Button {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         let content = match &self.content {

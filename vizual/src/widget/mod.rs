@@ -7,14 +7,15 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use crate::{
-    backend::graphics::Paint_context,
-    component::Children,
+    component::{Children, context::Component_context},
+    display::Display,
     event::{Event, Key_event, Pointer_event},
     geometry::Rect,
     handlers::Retrieve_handler,
-    layouter::{Problem_context, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::{Component_slot, manager::Slots},
     sync::{Mutex, MutexGuard, Thread_safe},
+    text::Text_context,
 };
 
 use super::{Rerender, Vizual_msg};
@@ -74,7 +75,8 @@ pub trait Widget_trait: Control + Thread_safe {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
         Ok(Widget_type::Visual(Vec::new()))
@@ -85,7 +87,7 @@ pub trait Widget_trait: Control + Thread_safe {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Rect,
-        _paint: &mut Paint_context<'_>,
+        _display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         Ok(None)
     }
@@ -100,7 +102,7 @@ pub trait Widget_trait: Control + Thread_safe {
     async fn into_children(
         self,
         slot: &mut Component_slot,
-        problem: Problem_context,
+        problem: Component_context,
     ) -> Result<Children>
     where
         Self: Sized,
@@ -117,19 +119,22 @@ impl Widget_trait for Widget {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        text_context: &mut Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
-        (**self).layout(focus, hitbox, problem, slots).await
+        (**self)
+            .layout(focus, hitbox, problem, text_context, slots)
+            .await
     }
 
     async fn render(
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        (**self).render(focus, hitbox, paint).await
+        (**self).render(focus, hitbox, display).await
     }
 }
 
@@ -173,13 +178,14 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
         &mut self,
         focus: &mut Focus_provider,
         component: Hitbox,
-        problem: Problem_context,
+        problem: Component_context,
+        text_context: &mut Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         self.0
             .lock()
             .await?
-            .layout(focus, component, problem, slots)
+            .layout(focus, component, problem, text_context, slots)
             .await
     }
 
@@ -187,9 +193,9 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        paint: &mut Paint_context<'_>,
+        display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        self.0.lock().await?.render(focus, hitbox, paint).await
+        self.0.lock().await?.render(focus, hitbox, display).await
     }
 }
 

@@ -3,7 +3,10 @@ use std::panic::Location;
 
 use color_eyre::eyre::{Result, eyre};
 
-use crate::{component::Shared_component, layouter::Problem_context, widget::Widget_trait};
+use crate::{
+    component::{Shared_component, context::Component_context},
+    widget::Widget_trait,
+};
 
 use super::Component_slot;
 
@@ -14,8 +17,8 @@ pub struct Record {
 
 // In the future this could also be passed into Control methods to allow things like Focus to work.
 pub struct Slot_records {
-    // We store a reference to Problem_context so that one doesn't have to pass it in set()
-    pub(crate) problem: Problem_context,
+    // We store a reference to Component_context so that one doesn't have to pass it in set()
+    pub(crate) problem: Component_context,
     records: HashMap<u64, Record>,
 }
 
@@ -29,14 +32,14 @@ pub struct Slots<'a> {
 pub type Slot_manager<'a> = Slots<'a>;
 
 impl Slot_records {
-    pub fn new(problem: Problem_context) -> Self {
+    pub fn new(problem: Component_context) -> Self {
         Self {
             records: HashMap::<u64, Record>::default(),
             problem,
         }
     }
 
-    pub(crate) fn set_problem(&mut self, problem: Problem_context) {
+    pub(crate) fn set_problem(&mut self, problem: Component_context) {
         self.problem = problem;
     }
 

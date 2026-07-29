@@ -1,3 +1,5 @@
+pub mod context;
+
 use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
 use derive_new::new;
@@ -7,11 +9,14 @@ use std::sync::{Arc, Weak};
 use crate::{
     focus::Focus,
     geometry::Direction,
-    layouter::{Problem_context, Solution, constraints::Objective, hitbox::Hitbox},
+    layouter::{Solution, constraints::Objective, hitbox::Hitbox},
     slot::manager::{Slot_records, Slots},
     sync::{Mutex, MutexGuard},
+    text::Text_context,
     widget::{Control, Focus_provider, Widget, Widget_trait, Widget_type},
 };
+
+use self::context::Component_context;
 
 pub type Id = u64;
 
@@ -52,7 +57,8 @@ impl Widget_trait for Shared_component {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        _problem: Problem_context,
+        _problem: Component_context,
+        _text_context: &mut Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
         Ok(Widget_type::Visual(vec![self.clone()]))
@@ -82,7 +88,7 @@ impl Shared_component {
         Ok(self.lock().await?.hitbox)
     }
 
-    pub async fn fill(self, problem: Problem_context) -> Result<Self> {
+    pub async fn fill(self, problem: Component_context) -> Result<Self> {
         let priority = 1;
         let hitbox = self.get_hitbox().await?;
 
@@ -144,7 +150,8 @@ impl Shared_component {
     pub async fn layout(
         &mut self,
         parent: Parent,
-        mut problem: Problem_context,
+        mut problem: Component_context,
+        text_context: &mut Text_context,
     ) -> Result<Children> {
         let mut this = self.lock().await?;
 
@@ -164,7 +171,13 @@ impl Shared_component {
             let children = {
                 let mut slots = slot_manager.slots();
                 let widget_type = widget
-                    .layout(&mut focus, *hitbox, problem.clone(), &mut slots)
+                    .layout(
+                        &mut focus,
+                        *hitbox,
+                        problem.clone(),
+                        text_context,
+                        &mut slots,
+                    )
                     .await?;
 
                 match widget_type {
@@ -256,17 +269,18 @@ impl Shared_component {
     pub async fn layout_children(
         &mut self,
         children: Children,
-        mut problem: Problem_context,
+        mut problem: Component_context,
+        text_context: &mut Text_context,
     ) -> Result<()> {
         problem.component_path.push(self.lock().await?.name.clone());
 
         for mut child in children {
             let grandchildren = child
                 .clone()
-                .layout(self.clone().into(), problem.clone())
+                .layout(self.clone().into(), problem.clone(), text_context)
                 .await?;
             child
-                .layout_children(grandchildren, problem.clone())
+                .layout_children(grandchildren, problem.clone(), text_context)
                 .await?;
         }
 
@@ -276,7 +290,7 @@ impl Shared_component {
     pub async fn render(
         &mut self,
         focus: Focus,
-        paint: &mut crate::backend::graphics::Paint_context<'_>,
+        display: &mut crate::display::Display<'_>,
         solution: &Solution,
     ) -> Result<()> {
         // TODO: I think the cloning of children is not necessary here
@@ -286,7 +300,7 @@ impl Shared_component {
             let hitbox = this.hitbox.get_resolved(solution);
             let focused = focus.compare(self);
             let mut focus = Focus_provider::new(focused);
-            let maybe_hitbox = this.widget.render(&mut focus, hitbox, paint).await?;
+            let maybe_hitbox = this.widget.render(&mut focus, hitbox, display).await?;
             this.focusable = focus.is_active();
 
             if let Some(hitbox) = maybe_hitbox {
@@ -296,7 +310,8 @@ impl Shared_component {
             this.children.clone()
         };
 
-        self.render_children(children, focus, paint, solution).await
+        self.render_children(children, focus, display, solution)
+            .await
     }
 
     #[async_recursion]
@@ -304,11 +319,11 @@ impl Shared_component {
         &mut self,
         children: Children,
         focus: Focus,
-        paint: &mut crate::backend::graphics::Paint_context<'_>,
+        display: &mut crate::display::Display<'_>,
         solution: &Solution,
     ) -> Result<()> {
         for mut child in children {
-            child.render(focus.clone(), paint, solution).await?;
+            child.render(focus.clone(), display, solution).await?;
         }
 
         Ok(())
