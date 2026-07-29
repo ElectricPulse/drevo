@@ -1,14 +1,13 @@
-use async_trait::async_trait;
-use color_eyre::eyre::Result;
-use good_lp::{Expression, constraint};
-
 use super::super::{Control, Focus_provider, Widget_trait, Widget_type};
 use crate::{
     component::{Shared_component, context::Component_context},
+    constraint,
     geometry::Direction,
-    layouter::{constraints::Objective, hitbox::Hitbox},
+    layouter::{Expression, constraints::Objective, hitbox::Hitbox},
     slot::manager::Slots,
 };
+use async_trait::async_trait;
+use color_eyre::eyre::Result;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Spaces {

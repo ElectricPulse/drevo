@@ -3,13 +3,13 @@ pub mod context;
 use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
 use derive_new::new;
-use good_lp::{Expression, constraint};
 use std::sync::{Arc, Weak};
 
 use crate::{
+    constraint,
     focus::Focus,
     geometry::Direction,
-    layouter::{Solution, constraints::Objective, hitbox::Hitbox},
+    layouter::{Expression, Solution, constraints::Objective, hitbox::Hitbox, variable::Variables},
     slot::manager::{Slot_records, Slots},
     sync::{Mutex, MutexGuard},
     text::Text_context,
@@ -32,6 +32,7 @@ pub struct Component {
     pub parent: Parent,
     pub children: Children,
     pub slot_manager: Slot_records,
+    pub(crate) variables: Arc<Variables>,
 }
 
 #[derive(Clone, new)]
@@ -86,6 +87,25 @@ impl Shared_component {
 
     pub async fn get_hitbox(&self) -> Result<Hitbox> {
         Ok(self.lock().await?.hitbox)
+    }
+
+    #[async_recursion]
+    pub(crate) async fn dismount(&mut self) -> Result<()> {
+        let (children, hitbox, variables) = {
+            let component = self.lock().await?;
+            (
+                component.children.clone(),
+                component.hitbox,
+                Arc::clone(&component.variables),
+            )
+        };
+
+        hitbox.remove_variables(&variables);
+        for mut child in children {
+            child.dismount().await?;
+        }
+
+        Ok(())
     }
 
     pub async fn fill(self, problem: Component_context) -> Result<Self> {
@@ -256,7 +276,7 @@ impl Shared_component {
                 .minimize(Expression::from(hitbox.dimensions.height), 0)
                 .await?;
 
-            slot_manager.evaluate();
+            slot_manager.evaluate().await?;
             children
         };
 

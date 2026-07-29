@@ -1,10 +1,10 @@
 use std::{panic::Location, sync::Arc};
 
 use color_eyre::eyre::{Result, ensure};
-use good_lp::{Constraint, Expression, IntoAffineExpression, Variable, constraint};
 
 use crate::{
-    layouter::Problem,
+    constraint,
+    layouter::{Constraint, Expression, Problem, variable::Variable},
     sync::{Mutex, MutexGuard},
 };
 
@@ -77,7 +77,7 @@ impl Component_context {
     /// `delta`.
     pub async fn minimize_difference(
         &self,
-        expression: impl IntoAffineExpression,
+        expression: impl Into<Expression>,
         target: f64,
         proportion: f64,
         priority: usize,
@@ -87,7 +87,7 @@ impl Component_context {
             "minimize-difference proportion must be greater than zero"
         );
 
-        let difference = expression.into_expression() - target;
+        let difference = expression.into() - target;
         let inverse_difference = difference.clone() * -1.0;
         let absolute_difference = self
             .add_non_negative_variable("minimize-difference")

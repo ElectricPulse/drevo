@@ -30,7 +30,6 @@ use std::{fs::OpenOptions, path::Path, sync::Arc};
 
 use async_recursion::async_recursion;
 use color_eyre::eyre::{ContextCompat, Result, WrapErr, eyre};
-use good_lp::Expression;
 use simplelog::{CombinedLogger, Config as Log_config, LevelFilter, WriteLogger};
 use tokio::sync::mpsc;
 use vello::{
@@ -57,7 +56,7 @@ use event::{
 };
 use focus::{Focus, Focus_search_direction};
 use geometry::{Point, Size};
-use layouter::{Problem, Solution, hitbox::Hitbox};
+use layouter::{Expression, Problem, Solution, hitbox::Hitbox, variable::Variables};
 use log::{log_duration, log_info};
 use slot::Component_slot;
 use state::State;
@@ -172,8 +171,9 @@ impl App_problem {
     async fn new<T: Widget_trait>(
         root: Shared_widget<T>,
         root_slot: &mut Component_slot,
+        variables: Arc<Variables>,
     ) -> Result<Self> {
-        let shared_problem = Arc::new(Mutex::new(Problem::new()));
+        let shared_problem = Arc::new(Mutex::new(Problem::new(variables)));
         let component_context = Component_context::new(shared_problem);
         let root = root_slot.set(root, component_context.clone()).await?;
         let root_hitbox = root.get_hitbox().await?;
@@ -198,11 +198,8 @@ impl App_problem {
             .layout_children(children, self.component_context.clone(), text_context)
             .await?;
 
-        // TODO: this is all very confusing
-        // Since solve_minimal gets added before root is constrained to screen
-        // it makes sense to minimize the root - which makes the solve_minimal function
-        // and then without having to recreate the problem constrain root to a fixed size of the window
-        // and solve again normally
+        // Minimum sizing keeps the reserved screen indices symbolic and minimizes the root.
+        // A normal solve later substitutes those same indices with the concrete window size.
         for dimension in [
             self.root_hitbox.dimensions.width,
             self.root_hitbox.dimensions.height,
@@ -479,8 +476,9 @@ async fn layout_problem<T: Widget_trait>(
     root: Shared_widget<T>,
     root_slot: &mut Component_slot,
     text_context: &mut Text_context,
+    variables: Arc<Variables>,
 ) -> Result<(App_problem, Size)> {
-    let mut problem = App_problem::new(root, root_slot).await?;
+    let mut problem = App_problem::new(root, root_slot, variables).await?;
     log_duration(0, "app problem layout", || problem.layout(text_context)).await?;
     let minimum_size = problem.minimum_size().await?;
     Ok((problem, minimum_size))
@@ -495,6 +493,7 @@ async fn ui_loop<T: Widget_trait>(
     let mut focus = Focus::new();
     let mut root_slot = Component_slot::new();
     let mut text_context = Text_context::new();
+    let variables = Arc::new(Variables::new());
     let mut app_problem: Option<App_problem> = None;
     let mut solution = None;
     let mut window_size = None;
@@ -550,8 +549,13 @@ async fn ui_loop<T: Widget_trait>(
         let mut command = match input {
             Ui_input::Initialize(maximum_size) => {
                 // This technically performs one extra layout call before the window-driven layout loop starts.
-                let (_, minimum_size) =
-                    layout_problem(root.clone(), &mut root_slot, &mut text_context).await?;
+                let (_, minimum_size) = layout_problem(
+                    root.clone(),
+                    &mut root_slot,
+                    &mut text_context,
+                    Arc::clone(&variables),
+                )
+                .await?;
                 let default_size = Size::new(
                     DEFAULT_SCREEN_SIZE.width.min(maximum_size.width),
                     DEFAULT_SCREEN_SIZE.height.min(maximum_size.height),
@@ -628,8 +632,13 @@ async fn ui_loop<T: Widget_trait>(
         };
 
         if matches!(command, Vizual_command::Layout) {
-            let (problem, minimum) =
-                layout_problem(root.clone(), &mut root_slot, &mut text_context).await?;
+            let (problem, minimum) = layout_problem(
+                root.clone(),
+                &mut root_slot,
+                &mut text_context,
+                Arc::clone(&variables),
+            )
+            .await?;
             app_problem = Some(problem);
             pending_minimum_size = Some(minimum);
             if proxy.send_event(User_event::Minimum_size(minimum)).is_err() {

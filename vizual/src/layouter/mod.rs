@@ -1,27 +1,36 @@
 pub mod constraints;
 pub mod hitbox;
+pub mod screen;
+pub mod variable;
 
 use std::{
     collections::{HashMap, HashSet},
+    ops::{Add, AddAssign, Div, Mul, Neg, Sub},
     panic::Location,
+    sync::Arc,
 };
 
-use self::hitbox::{Dimensions, Hitbox};
+use color_eyre::eyre::{Result, eyre};
+use futures::future::BoxFuture;
+use good_lp::{
+    Expression as Solver_expression, Solution as Good_lp_solution, SolverModel as _,
+    constraint as solver_constraint, microlp,
+    solvers::{ObjectiveDirection, ResolutionError},
+};
+
+use self::{
+    hitbox::Hitbox,
+    screen::SCREEN,
+    variable::{Solver_variables, Variable, Variables},
+};
 use crate::{
     component::context::Component_context,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
 };
-use color_eyre::eyre::{Result, eyre};
-use futures::future::BoxFuture;
-use good_lp::{
-    Constraint, Expression, IntoAffineExpression, ProblemVariables, Solution as Good_lp_solution,
-    SolverModel as _, Variable, constraint, microlp,
-    solvers::{ObjectiveDirection, ResolutionError},
-    variable,
-};
 
-// This is an async callback for the sake of being generic and allowing for more than x, y, width, height setting on child
+// This is an async callback for the sake of being generic and allowing for more than x, y, width,
+// height setting on child.
 pub type Setter = Box<dyn Fn(f64) -> BoxFuture<'static, ()> + Send + Sync>;
 
 const PRIORITY_LEVELS: usize = 6;
@@ -41,6 +50,330 @@ impl Field for f64 {
     }
 }
 
+/// A symbolic affine expression over stable [`Variable`] indices.
+#[derive(Clone, Debug, Default)]
+pub struct Expression {
+    coefficients: HashMap<Variable, f64>,
+    constant: f64,
+}
+
+impl Expression {
+    fn referenced_variables(&self) -> impl Iterator<Item = Variable> + '_ {
+        self.coefficients.keys().copied()
+    }
+
+    fn eval_with(&self, values: &HashMap<Variable, f64>) -> f64 {
+        self.constant
+            + self
+                .coefficients
+                .iter()
+                .map(|(variable, coefficient)| {
+                    coefficient * values.get(variable).copied().unwrap_or_default()
+                })
+                .sum::<f64>()
+    }
+
+    fn into_solver(
+        &self,
+        solver_variables: &Solver_variables,
+        screen: Option<Size>,
+    ) -> Result<Solver_expression> {
+        let mut expression = Solver_expression::from(self.constant);
+
+        for (variable, coefficient) in &self.coefficients {
+            let constant = match (*variable, screen) {
+                (variable, Some(screen)) if variable == SCREEN.width => Some(screen.width),
+                (variable, Some(screen)) if variable == SCREEN.height => Some(screen.height),
+                _ => None,
+            };
+
+            match constant {
+                Some(constant) => expression += *coefficient * constant,
+                None => {
+                    let solver_variable = solver_variables
+                        .get(&variable.index())
+                        .copied()
+                        .ok_or_else(|| {
+                            eyre!(
+                                "Layout variable {} has no solve-time variable",
+                                variable.index()
+                            )
+                        })?;
+                    expression += *coefficient * solver_variable;
+                }
+            }
+        }
+
+        Ok(expression)
+    }
+}
+
+impl From<Variable> for Expression {
+    fn from(variable: Variable) -> Self {
+        Self {
+            coefficients: HashMap::from([(variable, 1.0)]),
+            constant: 0.0,
+        }
+    }
+}
+
+impl From<f64> for Expression {
+    fn from(constant: f64) -> Self {
+        Self {
+            coefficients: HashMap::new(),
+            constant,
+        }
+    }
+}
+
+impl From<f32> for Expression {
+    fn from(constant: f32) -> Self {
+        Self::from(f64::from(constant))
+    }
+}
+
+impl From<i32> for Expression {
+    fn from(constant: i32) -> Self {
+        Self::from(f64::from(constant))
+    }
+}
+
+impl<T: Into<Expression>> Add<T> for Expression {
+    type Output = Expression;
+
+    fn add(mut self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
+        self.constant += rhs.constant;
+        for (variable, coefficient) in rhs.coefficients {
+            let remove = {
+                let stored = self.coefficients.entry(variable).or_default();
+                *stored += coefficient;
+                *stored == 0.0
+            };
+            if remove {
+                let _ = self.coefficients.remove(&variable);
+            }
+        }
+        self
+    }
+}
+
+impl<T: Into<Expression>> Sub<T> for Expression {
+    type Output = Expression;
+
+    fn sub(self, rhs: T) -> Self::Output {
+        self + -rhs.into()
+    }
+}
+
+impl Mul<f64> for Expression {
+    type Output = Expression;
+
+    fn mul(mut self, rhs: f64) -> Self::Output {
+        self.constant *= rhs;
+        for coefficient in self.coefficients.values_mut() {
+            *coefficient *= rhs;
+        }
+        self
+    }
+}
+
+impl Div<f64> for Expression {
+    type Output = Expression;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        self * (1.0 / rhs)
+    }
+}
+
+impl Neg for Expression {
+    type Output = Expression;
+
+    fn neg(self) -> Self::Output {
+        self * -1.0
+    }
+}
+
+impl AddAssign<Expression> for Expression {
+    fn add_assign(&mut self, rhs: Expression) {
+        *self = self.clone() + rhs;
+    }
+}
+
+impl<T: Into<Expression>> Add<T> for Variable {
+    type Output = Expression;
+
+    fn add(self, rhs: T) -> Self::Output {
+        Expression::from(self) + rhs
+    }
+}
+
+impl<T: Into<Expression>> Sub<T> for Variable {
+    type Output = Expression;
+
+    fn sub(self, rhs: T) -> Self::Output {
+        Expression::from(self) - rhs
+    }
+}
+
+impl Mul<f64> for Variable {
+    type Output = Expression;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Expression::from(self) * rhs
+    }
+}
+
+impl Div<f64> for Variable {
+    type Output = Expression;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        Expression::from(self) / rhs
+    }
+}
+
+macro_rules! implement_number_expression_operations {
+    ($number:ty) => {
+        impl Add<Variable> for $number {
+            type Output = Expression;
+
+            fn add(self, rhs: Variable) -> Self::Output {
+                Expression::from(self) + rhs
+            }
+        }
+
+        impl Sub<Variable> for $number {
+            type Output = Expression;
+
+            fn sub(self, rhs: Variable) -> Self::Output {
+                Expression::from(self) - rhs
+            }
+        }
+
+        impl Mul<Variable> for $number {
+            type Output = Expression;
+
+            fn mul(self, rhs: Variable) -> Self::Output {
+                Expression::from(rhs) * f64::from(self)
+            }
+        }
+
+        impl Add<Expression> for $number {
+            type Output = Expression;
+
+            fn add(self, rhs: Expression) -> Self::Output {
+                Expression::from(self) + rhs
+            }
+        }
+
+        impl Sub<Expression> for $number {
+            type Output = Expression;
+
+            fn sub(self, rhs: Expression) -> Self::Output {
+                Expression::from(self) - rhs
+            }
+        }
+
+        impl Mul<Expression> for $number {
+            type Output = Expression;
+
+            fn mul(self, rhs: Expression) -> Self::Output {
+                rhs * f64::from(self)
+            }
+        }
+    };
+}
+
+implement_number_expression_operations!(f64);
+implement_number_expression_operations!(f32);
+implement_number_expression_operations!(i32);
+
+/// A symbolic equality or inequality over stable layout variables.
+#[derive(Clone, Debug)]
+pub struct Constraint {
+    expression: Expression,
+    equality: bool,
+    name: Option<String>,
+}
+
+impl Constraint {
+    pub fn equal(left: impl Into<Expression>, right: impl Into<Expression>) -> Self {
+        Self {
+            expression: left.into() - right,
+            equality: true,
+            name: None,
+        }
+    }
+
+    pub fn less_or_equal(left: impl Into<Expression>, right: impl Into<Expression>) -> Self {
+        Self {
+            expression: left.into() - right,
+            equality: false,
+            name: None,
+        }
+    }
+
+    pub fn greater_or_equal(left: impl Into<Expression>, right: impl Into<Expression>) -> Self {
+        Self::less_or_equal(right, left)
+    }
+
+    pub fn set_name(mut self, name: String) -> Self {
+        self.name = Some(name);
+        self
+    }
+
+    pub fn expression(&self) -> &Expression {
+        &self.expression
+    }
+
+    pub fn is_equality(&self) -> bool {
+        self.equality
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    fn into_solver(
+        &self,
+        solver_variables: &Solver_variables,
+        screen: Option<Size>,
+    ) -> Result<good_lp::Constraint> {
+        let expression = self.expression.into_solver(solver_variables, screen)?;
+        let constraint = match self.equality {
+            true => solver_constraint::eq(expression, 0),
+            false => solver_constraint::leq(expression, 0),
+        };
+
+        Ok(match &self.name {
+            Some(name) => constraint.set_name(name.clone()),
+            None => constraint,
+        })
+    }
+}
+
+#[macro_export]
+macro_rules! constraint {
+    ([$($left:tt)*] <= $($right:tt)*) => {
+        $crate::layouter::Constraint::less_or_equal($($left)*, $($right)*)
+    };
+    ([$($left:tt)*] >= $($right:tt)*) => {
+        $crate::layouter::Constraint::greater_or_equal($($left)*, $($right)*)
+    };
+    ([$($left:tt)*] == $($right:tt)*) => {
+        $crate::layouter::Constraint::equal($($left)*, $($right)*)
+    };
+    ([$($left:tt)*]) => {
+        $($left)*
+    };
+    ([$($left:tt)*] $next:tt $($right:tt)*) => {
+        $crate::constraint!([$($left)* $next] $($right)*)
+    };
+    ($($all:tt)*) => {
+        $crate::constraint!([] $($all)*)
+    };
+}
+
 #[derive(Clone)]
 pub struct Solution {
     values: HashMap<Variable, f64>,
@@ -56,70 +389,32 @@ impl Solution {
     }
 }
 
-struct Problem_variable {
-    variable: Variable,
-    path: String,
-    component_path: String,
-}
-
 pub struct Problem {
     constraints: Vec<Constraint>,
-    pub goals: [Option<Expression>; PRIORITY_LEVELS],
-    variable_builder: ProblemVariables,
-    // Used for later underconstraint checking
-    variables: Vec<Problem_variable>,
-    pub screen: Dimensions,
+    goals: [Option<Expression>; PRIORITY_LEVELS],
+    variables: Arc<Variables>,
+    owned_variables: Vec<Variable>,
     pub(crate) delta: Variable,
 }
 
-impl Default for Problem {
-    fn default() -> Self {
-        let mut variable_builder = ProblemVariables::new();
-
-        let width = variable_builder.add(variable().name("screen width"));
-        let height = variable_builder.add(variable().name("screen height"));
-        let delta = variable_builder.add(variable().min(0).name("delta"));
-
-        // Screen is created so that it can be used by the components in the layout step
-        // it's real dimensions will be constrained later
-        // this wastes performance as the screen dimensions are in reality static
-        // micro_lp doesn't yet make equality constraints free as it lacks a presolve step
-        let screen = Dimensions { width, height };
-
+impl Problem {
+    pub fn new(variables: Arc<Variables>) -> Self {
         let path = Component_context::path(Location::caller());
+        let delta = variables.add_non_negative("delta", path, String::new());
         let mut goals = std::array::from_fn(|_| None);
         goals[1] = Some(Expression::from(delta) * -1.0);
 
         Self {
             constraints: Vec::new(),
             goals,
-            variable_builder,
-            variables: vec![
-                Problem_variable {
-                    variable: width,
-                    path: path.clone(),
-                    component_path: String::new(),
-                },
-                Problem_variable {
-                    variable: height,
-                    path: path.clone(),
-                    component_path: String::new(),
-                },
-                Problem_variable {
-                    variable: delta,
-                    path,
-                    component_path: String::new(),
-                },
-            ],
-            screen,
+            variables,
+            owned_variables: vec![delta],
             delta,
         }
     }
-}
 
-impl Problem {
-    pub fn new() -> Self {
-        Self::default()
+    pub(crate) fn variables(&self) -> Arc<Variables> {
+        Arc::clone(&self.variables)
     }
 
     pub fn add_non_negative_variable(
@@ -128,12 +423,8 @@ impl Problem {
         path: String,
         component_path: String,
     ) -> Variable {
-        let variable = self.variable_builder.add(variable().min(0).name(name));
-        self.variables.push(Problem_variable {
-            variable,
-            path,
-            component_path,
-        });
+        let variable = self.variables.add_non_negative(name, path, component_path);
+        self.owned_variables.push(variable);
         variable
     }
 
@@ -143,12 +434,8 @@ impl Problem {
         path: String,
         component_path: String,
     ) -> Variable {
-        let variable = self.variable_builder.add(variable().binary().name(name));
-        self.variables.push(Problem_variable {
-            variable,
-            path,
-            component_path,
-        });
+        let variable = self.variables.add_binary(name, path, component_path);
+        self.owned_variables.push(variable);
         variable
     }
 
@@ -181,7 +468,13 @@ impl Problem {
                 },
             ));
             self.constrain(Component_context::name_constraint(
-                constraint!(root.get_dimension(direction) == self.screen.get(direction)),
+                constraint!(
+                    root.get_dimension(direction)
+                        == match direction {
+                            Direction::Horizontal => SCREEN.width,
+                            Direction::Vertical => SCREEN.height,
+                        }
+                ),
                 match direction {
                     Direction::Horizontal => "root_width",
                     Direction::Vertical => "root_height",
@@ -190,73 +483,68 @@ impl Problem {
         }
     }
 
-    fn screen_constraints(&self, screen: Size) -> Vec<Constraint> {
-        vec![
-            Component_context::name_constraint(
-                constraint!(self.screen.get(Direction::Horizontal) == screen.width),
-                "screen_width",
-            ),
-            Component_context::name_constraint(
-                constraint!(self.screen.get(Direction::Vertical) == screen.height),
-                "screen_height",
-            ),
-        ]
-    }
-
-    fn rebuild_variables(&self) -> ProblemVariables {
-        let mut variables = ProblemVariables::new();
-
-        for (expected, definition) in self.variable_builder.iter_variables_with_def() {
-            let actual = variables.add(definition.clone());
-            debug_assert_eq!(actual, expected);
-        }
-
-        variables
-    }
-
-    async fn solve_model(
+    /// Performs one priority solve with a fresh set of `good_lp` variables and a fresh model.
+    async fn priority_solve(
         &self,
         constraints: &[Constraint],
         direction: ObjectiveDirection,
         objective: Expression,
+        screen: Option<Size>,
     ) -> std::result::Result<Solution, ResolutionError> {
+        let referenced = constraints
+            .iter()
+            .flat_map(|constraint| constraint.expression.referenced_variables())
+            .chain(objective.referenced_variables())
+            .collect::<HashSet<_>>();
+        let (problem_variables, solver_variables) = self
+            .variables
+            .create_solver_variables(&referenced, screen)
+            .map_err(|error| ResolutionError::Str(error.to_string()))?;
+        let solver_objective = objective
+            .into_solver(&solver_variables, screen)
+            .map_err(|error| ResolutionError::Str(error.to_string()))?;
+        let solver_constraints = constraints
+            .iter()
+            .map(|constraint| constraint.into_solver(&solver_variables, screen))
+            .collect::<Result<Vec<_>>>()
+            .map_err(|error| ResolutionError::Str(error.to_string()))?;
+
         log_info(
             4,
             format_args!(
-                "model: {} variables, {} constraints",
-                self.variables.len(),
+                "priority model: {} referenced variables, {} constraints",
+                solver_variables.len(),
                 constraints.len(),
             ),
         );
 
-        let model = log_duration(4, "model recreation", || async {
-            self.rebuild_variables()
-                .optimise(direction, objective)
+        let model = log_duration(4, "priority model recreation", || async {
+            problem_variables
+                .optimise(direction, solver_objective)
                 .using(microlp)
-                .with_all(constraints.iter().cloned())
+                .with_all(solver_constraints)
         })
         .await;
-        let solved = log_duration(4, "model solve", || async { model.solve() }).await?;
-        let solution = self.solution(&solved);
+        let solved = log_duration(4, "priority solve", || async { model.solve() }).await?;
+        let mut values = solver_variables
+            .iter()
+            .map(|(index, variable)| (Variable::new(*index), solved.value(*variable)))
+            .collect::<HashMap<_, _>>();
+
+        if let Some(screen) = screen {
+            let _ = values.insert(SCREEN.width, screen.width);
+            let _ = values.insert(SCREEN.height, screen.height);
+        }
 
         log_info(4, format_args!("stats: {:?}", solved.into_inner().stats()));
 
-        Ok(solution)
-    }
-
-    fn solution(&self, solved: &impl Good_lp_solution) -> Solution {
-        Solution {
-            values: self
-                .variables
-                .iter()
-                .map(|variable| (variable.variable, solved.value(variable.variable)))
-                .collect(),
-        }
+        Ok(Solution { values })
     }
 
     async fn find_conflicting_constraints(
         &self,
         constraints: &[Constraint],
+        screen: Option<Size>,
     ) -> Result<Vec<Constraint>> {
         let mut conflict = constraints.to_vec();
         let mut index = 0;
@@ -266,10 +554,11 @@ impl Problem {
             let _ = candidate.remove(index);
 
             match self
-                .solve_model(
+                .priority_solve(
                     &candidate,
                     ObjectiveDirection::Maximisation,
                     Expression::from(0),
+                    screen,
                 )
                 .await
             {
@@ -294,10 +583,10 @@ impl Problem {
         let mut terms = coefficients
             .into_iter()
             .map(|(variable, coefficient)| {
-                let variable = self.variable_builder.display(&variable);
+                let variable = self.variables.name(variable);
 
                 match coefficient {
-                    1.0 => variable.to_string(),
+                    1.0 => variable,
                     _ => format!("{coefficient} {variable}"),
                 }
             })
@@ -317,15 +606,15 @@ impl Problem {
         let mut left = Vec::new();
         let mut right = Vec::new();
 
-        for (variable, coefficient) in constraint.expression().linear_coefficients() {
+        for (variable, coefficient) in &constraint.expression.coefficients {
             match coefficient {
-                coefficient if coefficient > 0.0 => left.push((variable, coefficient)),
-                coefficient if coefficient < 0.0 => right.push((variable, -coefficient)),
+                coefficient if *coefficient > 0.0 => left.push((*variable, *coefficient)),
+                coefficient if *coefficient < 0.0 => right.push((*variable, -*coefficient)),
                 _ => {}
             }
         }
 
-        let (left_constant, right_constant) = match constraint.expression().constant() {
+        let (left_constant, right_constant) = match constraint.expression.constant {
             constant if constant > 0.0 => (constant, 0.0),
             constant if constant < 0.0 => (0.0, -constant),
             _ => (0.0, 0.0),
@@ -363,18 +652,13 @@ impl Problem {
         let mut components = HashSet::new();
         let paths = self
             .variables
-            .iter()
-            .filter_map(|variable| {
-                match (
-                    variable.component_path.is_empty(),
-                    variables.contains(&variable.variable),
-                ) {
-                    (false, true) if components.insert(variable.component_path.clone()) => {
-                        Some(format!("{}: {}", variable.component_path, variable.path))
-                    }
-                    _ => None,
-                }
-            })
+            .component_paths(&variables)
+            .filter_map(
+                |(component_path, path)| match components.insert(component_path.clone()) {
+                    true => Some(format!("{component_path}: {path}")),
+                    false => None,
+                },
+            )
             .collect::<Vec<_>>()
             .join("\n");
 
@@ -384,27 +668,32 @@ impl Problem {
         }
     }
 
-    async fn solve_model_with_diagnostics(
+    async fn priority_solve_with_diagnostics(
         &self,
         constraints: &[Constraint],
         objective: Expression,
+        screen: Option<Size>,
     ) -> Result<Solution> {
         match self
-            .solve_model(constraints, ObjectiveDirection::Maximisation, objective)
+            .priority_solve(
+                constraints,
+                ObjectiveDirection::Maximisation,
+                objective,
+                screen,
+            )
             .await
         {
             Ok(solution) => Ok(solution),
             Err(ResolutionError::Infeasible) => {
-                let conflict = self.find_conflicting_constraints(constraints).await?;
+                let conflict = self
+                    .find_conflicting_constraints(constraints, screen)
+                    .await?;
                 let constraints = self.display_constraints(&conflict);
                 let conflict = self.with_component_paths(
                     constraints,
-                    conflict.iter().flat_map(|constraint| {
-                        constraint
-                            .expression()
-                            .linear_coefficients()
-                            .map(|(variable, _)| variable)
-                    }),
+                    conflict
+                        .iter()
+                        .flat_map(|constraint| constraint.expression.referenced_variables()),
                 );
 
                 log::error!("layout conflicting constraints:\n{conflict}");
@@ -419,8 +708,13 @@ impl Problem {
         }
     }
 
-    async fn solve_constraints(&self, mut constraints: Vec<Constraint>) -> Result<Solution> {
-        log_duration(0, "layout solve", || async {
+    /// Performs the complete sequence of populated priority solves.
+    async fn full_solve(
+        &self,
+        mut constraints: Vec<Constraint>,
+        screen: Option<Size>,
+    ) -> Result<Solution> {
+        log_duration(0, "layout full solve", || async {
             let mut goals =
                 self.goals
                     .iter()
@@ -430,16 +724,16 @@ impl Problem {
                         objective.as_ref().map(|objective| (priority, objective))
                     });
             let Some((mut priority, mut objective)) = goals.next() else {
-                log_info(2, "feasibility");
+                log_info(2, "feasibility priority solve");
                 return self
-                    .solve_model_with_diagnostics(&constraints, Expression::from(0))
+                    .priority_solve_with_diagnostics(&constraints, Expression::from(0), screen)
                     .await;
             };
 
             loop {
-                log_info(2, format_args!("priority {priority}"));
+                log_info(2, format_args!("priority solve {priority}"));
                 let solved = self
-                    .solve_model_with_diagnostics(&constraints, objective.clone())
+                    .priority_solve_with_diagnostics(&constraints, objective.clone(), screen)
                     .await?;
                 let Some((next_priority, next_objective)) = goals.next() else {
                     return Ok(solved);
@@ -458,12 +752,19 @@ impl Problem {
     }
 
     pub async fn solve(&self, screen: Size) -> Result<Solution> {
-        let mut constraints = self.constraints.clone();
-        constraints.extend(self.screen_constraints(screen));
-        self.solve_constraints(constraints).await
+        self.full_solve(self.constraints.clone(), Some(screen))
+            .await
     }
 
     pub async fn solve_minimum(&self) -> Result<Solution> {
-        self.solve_constraints(self.constraints.clone()).await
+        self.full_solve(self.constraints.clone(), None).await
+    }
+}
+
+impl Drop for Problem {
+    fn drop(&mut self) {
+        for variable in self.owned_variables.drain(..) {
+            self.variables.remove(variable);
+        }
     }
 }

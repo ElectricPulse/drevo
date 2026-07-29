@@ -1,11 +1,8 @@
-use async_trait::async_trait;
-use color_eyre::eyre::Result;
-use good_lp::constraint;
-
 use super::super::{Control, Focus_provider, Widget, Widget_trait, Widget_type};
 use crate::{
     component::{Shared_component, context::Component_context},
     config::BORDER_SIZE,
+    constraint,
     display::Display,
     geometry::{Direction, Rect},
     layouter::hitbox::Hitbox,
@@ -14,6 +11,8 @@ use crate::{
     style::Color,
     theme::Theme,
 };
+use async_trait::async_trait;
+use color_eyre::eyre::Result;
 
 #[derive(Clone)]
 pub struct Block_style {

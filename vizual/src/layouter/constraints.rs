@@ -1,10 +1,9 @@
-use color_eyre::eyre::Result;
-use good_lp::{Expression, constraint};
-
-use super::hitbox::Hitbox;
+use super::{Expression, hitbox::Hitbox};
 use crate::{
-    component::context::Component_context, config::MAXIMUM_LAYOUT_VALUE, geometry::Direction,
+    component::context::Component_context, config::MAXIMUM_LAYOUT_VALUE, constraint,
+    geometry::Direction,
 };
+use color_eyre::eyre::Result;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Objective {

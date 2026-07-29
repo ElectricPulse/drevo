@@ -1,18 +1,17 @@
-use async_trait::async_trait;
-use color_eyre::eyre::Result;
-use good_lp::{Expression, constraint};
-
 use crate::{
     component::context::Component_context,
     config::BORDER_SIZE,
+    constraint,
     display::Display,
     geometry::{Direction, Rect},
-    layouter::hitbox::Hitbox,
+    layouter::{Expression, hitbox::Hitbox},
     slot::manager::Slots,
     state::State,
     theme::Theme,
     widget::{Control, Focus_provider, Widget_trait, Widget_type},
 };
+use async_trait::async_trait;
+use color_eyre::eyre::Result;
 
 pub struct Linebreak_component {
     pub theme: State<Theme>,

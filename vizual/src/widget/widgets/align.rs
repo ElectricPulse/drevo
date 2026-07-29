@@ -1,14 +1,13 @@
-use async_trait::async_trait;
-use color_eyre::Result;
-use good_lp::constraint;
-
 use crate::{
     component::{Shared_component, context::Component_context},
+    constraint,
     geometry::Direction,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     widget::{Control, Focus_provider, Widget_trait, Widget_type},
 };
+use async_trait::async_trait;
+use color_eyre::Result;
 
 #[derive(Clone, Copy)]
 pub enum Alignment {

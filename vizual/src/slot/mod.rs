@@ -46,6 +46,14 @@ impl Component_slot {
         self.reference.clone()
     }
 
+    pub(crate) async fn dismount(&mut self) -> Result<()> {
+        if let Some(component) = self.reference.upgrade() {
+            Shared_component::new(component).dismount().await?;
+        }
+        self.reference = Weak::new();
+        Ok(())
+    }
+
     pub async fn set(
         &mut self,
         widget: impl Widget_trait,
@@ -55,6 +63,7 @@ impl Component_slot {
 
         problem.component_path.push(self.name.clone());
         let component_path = problem.component_path.join(".");
+        let variables = problem.lock().await?.variables();
         /*let hitbox = {
             let mut problem = problem.lock().await?;
             // It is assumed that between two distinct calls of set on one component slot the
@@ -78,12 +87,8 @@ impl Component_slot {
             Shared_component::new(lock.clone())
         } else {
             let hitbox = {
-                let mut problem = problem.lock().await?;
-                // It is assumed that between two distinct calls of set on one component slot the
-                // problem is going to change, in which case the variables inside Hitbox need to be
-                // recreated.
                 Hitbox::new(
-                    &mut problem,
+                    &variables,
                     self.name.clone(),
                     component_path,
                     self.path.clone(),
@@ -98,6 +103,7 @@ impl Component_slot {
                 children: Vec::new(),
                 parent: None,
                 slot_manager: Slot_records::new(problem),
+                variables,
             })));
 
             self.reference = lock.as_reference();

@@ -1,17 +1,16 @@
-use async_trait::async_trait;
-use color_eyre::Result;
-use good_lp::constraint;
-
 use super::super::{Control, Focus_provider, Widget_trait, Widget_type};
 use crate::{
     component::context::Component_context,
     config::DEFAULT_FONT_SIZE,
+    constraint,
     display::Display,
     geometry::{Direction, Rect},
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     style::Color,
 };
+use async_trait::async_trait;
+use color_eyre::Result;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Text_style {

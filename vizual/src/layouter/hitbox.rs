@@ -1,8 +1,9 @@
-use good_lp::{Expression, Variable};
-
 use crate::geometry::{Direction, Point, Rect};
 
-use super::{Problem, Solution};
+use super::{
+    Expression, Solution,
+    variable::{Variable, Variables},
+};
 
 // Extra performance is wasted in layouter for components that have static dimensions
 // creating a variable and then assigning a static value is not yet free in the micro_lp solver as it lacks a presolve step
@@ -32,29 +33,28 @@ pub struct Hitbox {
 }
 
 impl Hitbox {
-    pub fn new(problem: &mut Problem, name: String, component_path: String, path: String) -> Self {
+    pub fn new(variables: &Variables, name: String, component_path: String, path: String) -> Self {
         Self {
-            x: problem.add_non_negative_variable(
+            x: add_variable(
+                variables,
                 format!("{}.x", name),
                 path.clone(),
                 component_path.clone(),
             ),
-            y: problem.add_non_negative_variable(
+            y: add_variable(
+                variables,
                 format!("{}.y", name),
                 path.clone(),
                 component_path.clone(),
             ),
             dimensions: Dimensions {
-                width: problem.add_non_negative_variable(
+                width: add_variable(
+                    variables,
                     format!("{}.width", name),
                     path.clone(),
                     component_path.clone(),
                 ),
-                height: problem.add_non_negative_variable(
-                    format!("{}.height", name),
-                    path,
-                    component_path,
-                ),
+                height: add_variable(variables, format!("{}.height", name), path, component_path),
             },
         }
     }
@@ -87,10 +87,26 @@ impl Hitbox {
         )
     }
 
+    pub(crate) fn remove_variables(self, variables: &Variables) {
+        variables.remove(self.x);
+        variables.remove(self.y);
+        variables.remove(self.dimensions.width);
+        variables.remove(self.dimensions.height);
+    }
+
     // It is questionable to access solution every time we want to get the value - maybe just rip it out of there
     pub fn hits(&self, solution: &Solution, position: Point) -> bool {
         let hitbox = self.get_resolved(solution);
 
         hitbox.contains(position)
     }
+}
+
+fn add_variable(
+    variables: &Variables,
+    name: String,
+    path: String,
+    component_path: String,
+) -> Variable {
+    variables.add_non_negative(name, path, component_path)
 }

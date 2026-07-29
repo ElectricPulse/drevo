@@ -65,16 +65,27 @@ impl Slot_records {
         &mut record.id
     }
 
-    pub fn evaluate(&mut self) {
-        self.records.retain(|_, record| {
-            if !record.mounted {
-                // This is where on_unmount() could happen.
-                return false;
-            }
+    pub async fn evaluate(&mut self) -> Result<()> {
+        let dismounted = self
+            .records
+            .iter()
+            .filter_map(|(id, record)| match record.mounted {
+                true => None,
+                false => Some(*id),
+            })
+            .collect::<Vec<_>>();
 
+        for id in dismounted {
+            if let Some(mut record) = self.records.remove(&id) {
+                record.id.dismount().await?;
+            }
+        }
+
+        for record in self.records.values_mut() {
             record.mounted = false;
-            true
-        });
+        }
+
+        Ok(())
     }
 }
 
