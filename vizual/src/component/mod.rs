@@ -255,6 +255,10 @@ impl Shared_component {
                 }
             }
 
+            // TODO: Ordered containers such as `Layout` can shrink-wrap their main axis exactly
+            // by constraining it from the first visible child's start to the last visible child's
+            // end. Once components provide exact bounds for an axis, remove its generic
+            // shrink-wrap objective here; if priority 0 becomes empty, its solve can be skipped.
             problem
                 .minimize(Expression::from(hitbox.dimensions.width), 0)
                 .await?;
