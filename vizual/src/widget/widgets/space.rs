@@ -146,6 +146,7 @@ impl Widget_trait for Space {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
+        _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,

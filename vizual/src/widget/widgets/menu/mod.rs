@@ -39,6 +39,7 @@ pub trait Menu_item_trait<Value>: Retrieve_handler<Value> {
         selected: bool,
         focus: &mut Focus_provider,
         hitbox: Hitbox,
+        parent: Hitbox,
         problem: Component_context,
         text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
@@ -83,6 +84,7 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Hitbox,
+        parent: Hitbox,
         problem: Component_context,
         text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
@@ -91,7 +93,15 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
             .widget
             .lock()
             .await?
-            .layout(self.selected, focus, hitbox, problem, text_context, slots)
+            .layout(
+                self.selected,
+                focus,
+                hitbox,
+                parent,
+                problem,
+                text_context,
+                slots,
+            )
             .await?;
         let mut button = Button::around(content, self.theme.clone());
         button.highlighted = self.selected;
@@ -199,6 +209,7 @@ impl<Value: Thread_safe> Widget_trait for Menu<Value> {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Hitbox,
+        _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,

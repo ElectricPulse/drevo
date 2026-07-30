@@ -39,6 +39,7 @@ impl Widget_trait for Paper {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
+        _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,

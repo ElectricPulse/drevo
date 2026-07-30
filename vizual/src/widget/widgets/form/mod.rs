@@ -34,12 +34,13 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Hitbox,
+        parent: Hitbox,
         problem: Component_context,
         text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         (**self)
-            .layout(focus, hitbox, problem, text_context, slots)
+            .layout(focus, hitbox, parent, problem, text_context, slots)
             .await
     }
 
@@ -211,6 +212,7 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Hitbox,
+        _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,

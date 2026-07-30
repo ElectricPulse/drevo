@@ -2,7 +2,8 @@ use async_trait::async_trait;
 use color_eyre::Result;
 
 use crate::{
-    component::{Child, Component, context::Component_context},
+    component::{Child, context::Component_context},
+    constraint,
     geometry::Direction,
     layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
@@ -20,64 +21,29 @@ pub struct Align {
 }
 
 impl Align {
-    pub async fn new(
-        child: Child,
-        alignments: Alignments,
-        hitbox: Hitbox,
-        problem: &Component_context,
-    ) -> Result<Widget_type> {
-        let horizontal = alignments.horizontal;
-        let vertical = alignments.vertical;
-        let align = Self { child, alignments };
-        let align = Component::new(align, problem.clone()).await?.into_child();
-        let align_hitbox = align.get_hitbox().await?;
-
-        for direction in [Direction::Horizontal, Direction::Vertical] {
-            problem
-                .constrain(crate::constraint!(
-                    align_hitbox.get_start_position(direction)
-                        >= hitbox.get_start_position(direction)
-                ))
-                .await?;
-            problem
-                .constrain(crate::constraint!(
-                    align_hitbox.get_end_position(direction) <= hitbox.get_end_position(direction)
-                ))
-                .await?;
-        }
-
-        if let Some(horizontal) = horizontal {
-            Self::align(problem, align_hitbox, horizontal, Direction::Horizontal).await?;
-        }
-        if let Some(vertical) = vertical {
-            Self::align(problem, align_hitbox, vertical, Direction::Vertical).await?;
-        }
-
-        Ok(Widget_type::Visual {
-            children: vec![align],
-        })
+    pub fn new(child: Child, alignments: Alignments) -> Self {
+        Self { child, alignments }
     }
 
     async fn align(
         problem: &Component_context,
-        child_hitbox: Hitbox,
+        parent: Hitbox,
+        hitbox: Hitbox,
         objective: Objective,
         direction: Direction,
     ) -> Result<()> {
         let priority = 2;
         match objective {
             Objective::Minimize => {
-                problem
-                    .minimize(
-                        Expression::from(child_hitbox.get_start_position(direction)),
-                        priority,
-                    )
-                    .await
+                let start_margin = Expression::from(
+                    hitbox.get_start_position(direction) - parent.get_start_position(direction),
+                );
+                problem.minimize(start_margin, priority).await
             }
             Objective::Maximize => {
-                problem
-                    .maximize(child_hitbox.get_end_position(direction), priority)
-                    .await
+                let end_margin =
+                    parent.get_end_position(direction) - hitbox.get_end_position(direction);
+                problem.minimize(end_margin, priority).await
             }
             Objective::Minimize_difference => Ok(()),
         }
@@ -92,19 +58,31 @@ impl Widget_trait for Align {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
+        parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
-        let child_hitbox = self.child.get_hitbox().await?;
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            problem
+                .constrain(constraint!(
+                    hitbox.get_start_position(direction) >= parent.get_start_position(direction)
+                ))
+                .await?;
+            problem
+                .constrain(constraint!(
+                    hitbox.get_end_position(direction) <= parent.get_end_position(direction)
+                ))
+                .await?;
+        }
 
         if let Some(horizontal) = self.alignments.horizontal {
-            Self::align(&problem, child_hitbox, horizontal, Direction::Horizontal).await?;
+            Self::align(&problem, parent, hitbox, horizontal, Direction::Horizontal).await?;
         }
         if let Some(vertical) = self.alignments.vertical {
-            Self::align(&problem, child_hitbox, vertical, Direction::Vertical).await?;
+            Self::align(&problem, parent, hitbox, vertical, Direction::Vertical).await?;
         }
 
-        Widget_type::wrap(vec![self.child.clone()], hitbox, &problem, true, true).await
+        Ok(Widget_type::Virtual(Box::new(self.child.clone())))
     }
 }

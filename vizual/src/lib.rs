@@ -56,7 +56,12 @@ use event::{
 };
 use focus::{Focus, Focus_search_direction};
 use geometry::{Point, Size};
-use layouter::{Problem, Solution, hitbox::Hitbox, variables::Variables};
+use layouter::{
+    Problem, Solution,
+    hitbox::{Dimensions, Hitbox},
+    variable::Variable,
+    variables::Variables,
+};
 use log::{log_duration, log_info};
 use slot::Component_slot;
 use state::State;
@@ -190,9 +195,23 @@ impl App_problem {
     }
 
     async fn layout(&mut self, text_context: &mut Text_context) -> Result<()> {
+        let empty = Variable::new(0);
+        let empty_parent = Hitbox {
+            x: empty,
+            y: empty,
+            dimensions: Dimensions {
+                width: empty,
+                height: empty,
+            },
+        };
         let children = self
             .root
-            .layout(None, self.component_context.clone(), text_context)
+            .layout(
+                None,
+                empty_parent,
+                self.component_context.clone(),
+                text_context,
+            )
             .await?;
         self.root
             .layout_children(children, self.component_context.clone(), text_context)

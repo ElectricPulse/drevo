@@ -71,6 +71,7 @@ impl Menu_item_trait<Popup_options> for Popup_menu_item {
         selected: bool,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
+        _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
@@ -160,8 +161,9 @@ impl Widget_trait for Popup {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        hitbox: Hitbox,
-        problem: Component_context,
+        _hitbox: Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
@@ -186,6 +188,8 @@ impl Widget_trait for Popup {
             "Are you sure you want to quit?",
             self.theme.clone(),
         );
-        Anchor::new(display!(block), Anchors::middle(), hitbox, &problem).await
+        let anchor = Anchor::new(display!(block), Anchors::middle());
+
+        Ok(Widget_type::Virtual(Box::new(anchor)))
     }
 }

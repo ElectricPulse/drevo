@@ -119,6 +119,7 @@ pub trait Widget_trait: Control + Thread_safe {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
+        _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut Text_context,
         _slots: &mut Slots,
@@ -163,12 +164,13 @@ impl Widget_trait for Widget {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Hitbox,
+        parent: Hitbox,
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         (**self)
-            .layout(focus, hitbox, problem, text_context, slots)
+            .layout(focus, hitbox, parent, problem, text_context, slots)
             .await
     }
 
@@ -222,6 +224,7 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
         &mut self,
         focus: &mut Focus_provider,
         component: Hitbox,
+        parent: Hitbox,
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
@@ -229,7 +232,7 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
         self.0
             .lock()
             .await?
-            .layout(focus, component, problem, text_context, slots)
+            .layout(focus, component, parent, problem, text_context, slots)
             .await
     }
 

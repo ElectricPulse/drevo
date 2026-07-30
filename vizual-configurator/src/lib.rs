@@ -66,12 +66,13 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
         &mut self,
         focus: &mut Focus_provider,
         hitbox: Hitbox,
+        parent: Hitbox,
         problem: Component_context,
         text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
         (**self)
-            .layout(focus, hitbox, problem, text_context, slots)
+            .layout(focus, hitbox, parent, problem, text_context, slots)
             .await
     }
 
@@ -105,6 +106,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Default_leaf_value<V
         selected: bool,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
+        _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
@@ -142,6 +144,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Custom_leaf_value<Va
         selected: bool,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
+        _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
@@ -383,6 +386,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: Hitbox,
+        _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
@@ -604,6 +608,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
+        _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
@@ -663,24 +668,25 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 horizontal: Some(Anchor_position::Start),
                 vertical: Some(Anchor_position::End),
             },
-            hitbox,
-            &problem,
-        )
-        .await?;
-        let mut children = vec![tree_view];
+        );
+        let mut children = vec![display!(tree_view)];
 
         if let Some(field) = field {
-            let field = Align::new(
+            let field = Anchor::new(
                 field,
+                Anchors {
+                    horizontal: None,
+                    vertical: Some(Anchor_position::Start),
+                },
+            );
+            let field = Align::new(
+                display!(field),
                 Alignments {
                     horizontal: Some(Objective::Minimize),
-                    vertical: Some(Objective::Minimize),
+                    vertical: None,
                 },
-                hitbox,
-                &problem,
-            )
-            .await?;
-            children.push(field);
+            );
+            children.push(display!(field));
         }
 
         let button = Anchor::new(
@@ -689,12 +695,9 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 horizontal: Some(Anchor_position::End),
                 vertical: Some(Anchor_position::End),
             },
-            hitbox,
-            &problem,
-        )
-        .await?;
+        );
 
-        children.push(button);
+        children.push(display!(button));
 
         let grid = Grid::new(children, gap);
 

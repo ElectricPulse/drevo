@@ -55,6 +55,7 @@ impl<T: Widget_trait> Widget_trait for Root<T> {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
+        _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,

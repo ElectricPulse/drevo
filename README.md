@@ -90,11 +90,6 @@ runtime remains active for asynchronous widget and background work.
 - Reconcile the different behavior of `Align` and `Space`. `Space` tries to
   push its child and can enlarge the surrounding area, while `Align` only
   positions its child inside an area that already exists.
-- Treat the `Align::new` and `Anchor::new` APIs as experimental. They create a
-  fresh `Child` and return `Widget_type` so `Grid` can consume the resulting
-  children without adding another wrapping constraint, which saves solver time.
-  This is probably specific to grids; in the future, `Grid` may accept anchored,
-  aligned, or free children, with free children wrapping on both axes.
 - Crystallize the relational-delta layout system. It should probably support
   weights for adjusting how relationships scale, while an absolute-difference
   system likely has a place alongside it.

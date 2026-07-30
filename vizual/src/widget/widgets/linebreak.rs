@@ -4,7 +4,7 @@ use crate::{
     constraint,
     display::Display,
     geometry::{Direction, Rect},
-    layouter::{expression::Expression, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -33,13 +33,17 @@ impl Widget_trait for Linebreak_component {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
+        parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
-        let horizontal_length = Expression::from(hitbox.get_dimension(Direction::Horizontal));
-
-        problem.maximize(horizontal_length, 0).await?;
+        problem
+            .constrain(constraint!(
+                hitbox.get_dimension(Direction::Horizontal)
+                    == parent.get_dimension(Direction::Horizontal)
+            ))
+            .await?;
         problem
             .constrain(constraint!(
                 hitbox.get_dimension(Direction::Vertical) == BORDER_SIZE

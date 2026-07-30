@@ -3,13 +3,7 @@ pub mod context;
 use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
 use derive_new::new;
-use std::{
-    panic::Location,
-    sync::{
-        Arc, Weak,
-        atomic::{AtomicU64, Ordering},
-    },
-};
+use std::sync::{Arc, Weak};
 
 use crate::{
     focus::Focus,
@@ -34,8 +28,6 @@ pub type Children = Vec<Child>;
 
 pub type Parent = Option<Child_reference>;
 
-static NEXT_UNMANAGED_COMPONENT_NAME: AtomicU64 = AtomicU64::new(1);
-
 pub struct Component {
     pub name: String,
     pub hitbox: Hitbox,
@@ -46,38 +38,6 @@ pub struct Component {
     pub slot_manager: Slot_records,
     pub virtual_child: Component_slot,
     pub(crate) variables: Arc<Variables>,
-}
-
-impl Component {
-    #[track_caller]
-    pub async fn new(widget: impl Widget_trait, mut problem: Component_context) -> Result<Self> {
-        let location = Location::caller();
-        let name = format!(
-            "u{}",
-            NEXT_UNMANAGED_COMPONENT_NAME.fetch_add(1, Ordering::Relaxed)
-        );
-        let path = format!("{}:{}", location.file(), location.line());
-        problem.component_path.push(name.clone());
-        let component_path = problem.component_path.join(".");
-        let variables = problem.lock().await?.variables();
-        let hitbox = Hitbox::new(&variables, name.clone(), component_path, path);
-
-        Ok(Self {
-            name,
-            hitbox,
-            widget: Box::new(widget),
-            focusable: false,
-            parent: None,
-            children: Children::new(),
-            slot_manager: Slot_records::new(problem),
-            virtual_child: Component_slot::new(),
-            variables,
-        })
-    }
-
-    pub fn into_child(self) -> Child {
-        Shared_component::new(Arc::new(Mutex::new(self)))
-    }
 }
 
 #[derive(Clone, new)]
@@ -91,6 +51,7 @@ impl Widget_trait for Shared_component {
         &mut self,
         _focus: &mut Focus_provider,
         hitbox: Hitbox,
+        _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut Text_context,
         _slots: &mut Slots,
@@ -171,13 +132,14 @@ impl Shared_component {
 
     pub async fn layout(
         &mut self,
-        parent: Parent,
+        parent_reference: Parent,
+        parent: Hitbox,
         mut problem: Component_context,
         text_context: &mut Text_context,
     ) -> Result<Children> {
         let mut this = self.lock().await?;
 
-        this.parent = parent;
+        this.parent = parent_reference;
         problem.component_path.push(this.name.clone());
         let children = {
             let Component {
@@ -197,6 +159,7 @@ impl Shared_component {
                     .layout(
                         &mut focus,
                         *hitbox,
+                        parent,
                         problem.clone(),
                         text_context,
                         &mut slots,
@@ -232,12 +195,16 @@ impl Shared_component {
         mut problem: Component_context,
         text_context: &mut Text_context,
     ) -> Result<()> {
-        problem.component_path.push(self.lock().await?.name.clone());
+        let parent = {
+            let component = self.lock().await?;
+            problem.component_path.push(component.name.clone());
+            component.hitbox
+        };
 
         for mut child in children {
             let grandchildren = child
                 .clone()
-                .layout(self.clone().into(), problem.clone(), text_context)
+                .layout(self.clone().into(), parent, problem.clone(), text_context)
                 .await?;
             child
                 .layout_children(grandchildren, problem.clone(), text_context)
