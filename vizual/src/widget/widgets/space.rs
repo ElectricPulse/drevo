@@ -3,7 +3,7 @@ use crate::{
     component::{Shared_component, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{constraints::Objective, expression::Expression, hitbox::Hitbox},
+    layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
 };
 use async_trait::async_trait;
@@ -143,13 +143,13 @@ impl Space {
 
         match target {
             Some(target) => {
-                // TODO: Using 16 as the proportion for zero-sized space is also a bodge.
-                let proportion = match target {
+                // TODO: Using 16 as the target for zero-sized space is also a bodge.
+                let target = match target {
                     0.0 => 16.0,
                     target => target,
                 };
                 self.objective
-                    .apply(problem, space, target, proportion, self.priority)
+                    .apply(problem, space, target, self.priority)
                     .await
             }
             None => Ok(()),

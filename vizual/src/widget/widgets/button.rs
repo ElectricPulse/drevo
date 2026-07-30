@@ -13,7 +13,7 @@ use crate::{
     component::{Shared_component, context::Component_context},
     event::Pointer_event,
     handlers::Submit_handler,
-    layouter::{constraints::Objective, hitbox::Hitbox},
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     theme::Theme,

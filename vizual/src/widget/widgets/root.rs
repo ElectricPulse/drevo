@@ -10,7 +10,7 @@ use crate::{
     display::Display,
     event::Key_event,
     geometry::Rect,
-    layouter::{constraints::Objective, hitbox::Hitbox},
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     style::Color,

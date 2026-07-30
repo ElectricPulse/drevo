@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     component::{Shared_component, context::Component_context},
-    layouter::{constraints::Objective, hitbox::Hitbox},
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     theme::Theme,

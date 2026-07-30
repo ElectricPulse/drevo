@@ -15,7 +15,7 @@ use crate::{
     display::Display,
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
-    layouter::{constraints::Objective, hitbox::Hitbox},
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::{Component_slot, manager::Slots},
     state::State,
     theme::Theme,

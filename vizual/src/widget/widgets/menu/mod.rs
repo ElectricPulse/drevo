@@ -20,7 +20,7 @@ use crate::{
     event::{Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
     handlers::Retrieve_handler,
-    layouter::{constraints::Objective, hitbox::Hitbox},
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     sync::{Mutex, Thread_safe},

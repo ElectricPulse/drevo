@@ -11,7 +11,7 @@ use super::{
 use crate::{
     component::{Shared_component, context::Component_context},
     geometry::Direction,
-    layouter::{constraints::Objective, hitbox::Hitbox},
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     theme::Theme,

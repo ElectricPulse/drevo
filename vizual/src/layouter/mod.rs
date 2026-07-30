@@ -2,6 +2,7 @@ pub mod constraint;
 pub mod constraints;
 pub mod expression;
 pub mod hitbox;
+pub mod objective;
 pub mod screen;
 pub mod variable;
 pub mod variables;
@@ -15,7 +16,7 @@ use std::{
 use color_eyre::eyre::{Result, eyre};
 use futures::future::BoxFuture;
 use good_lp::{
-    Solution as Good_lp_solution, SolverModel as _, microlp,
+    Solution as Good_lp_solution, SolverModel as _, VariableDefinition, microlp,
     solvers::{ObjectiveDirection, ResolutionError},
 };
 
@@ -68,52 +69,34 @@ impl Solution {
 
 pub struct Problem {
     constraints: Vec<Constraint>,
-    goals: [Option<Expression>; PRIORITY_LEVELS],
-    variables: Arc<Variables>,
-    owned_variables: Vec<Variable>,
+    objectives: [Option<Expression>; PRIORITY_LEVELS],
+    pub(crate) variables: Arc<Variables>,
+    /// Shared relative deviation from intended ui look
+    /// it's created so that all gaps, spaces scale at the same time
     pub(crate) delta: Variable,
 }
 
 impl Problem {
     pub fn new(variables: Arc<Variables>) -> Self {
         let path = Component_context::path(Location::caller());
-        let delta = variables.add_non_negative("delta", path, String::new());
-        let mut goals = std::array::from_fn(|_| None);
-        goals[1] = Some(Expression::from(delta) * -1.0);
+        let delta = variables.add(VariableDefinition::new().min(0), "delta", &path, String::new());
 
-        Self {
+        let mut problem = Self {
             constraints: Vec::new(),
-            goals,
+            objectives: std::array::from_fn(|_| None),
             variables,
-            owned_variables: vec![delta],
             delta,
-        }
+        };
+
+        problem
+            .maximize(Expression::from(delta * -1.0), 2)
+            .expect("priority 2 is valid");
+
+        problem
     }
 
     pub(crate) fn variables(&self) -> Arc<Variables> {
         Arc::clone(&self.variables)
-    }
-
-    pub fn add_non_negative_variable(
-        &mut self,
-        name: String,
-        path: String,
-        component_path: String,
-    ) -> Variable {
-        let variable = self.variables.add_non_negative(name, path, component_path);
-        self.owned_variables.push(variable);
-        variable
-    }
-
-    pub fn add_binary_variable(
-        &mut self,
-        name: String,
-        path: String,
-        component_path: String,
-    ) -> Variable {
-        let variable = self.variables.add_binary(name, path, component_path);
-        self.owned_variables.push(variable);
-        variable
     }
 
     pub(crate) fn constrain(&mut self, constraint: Constraint) {
@@ -128,9 +111,9 @@ impl Problem {
             ));
         }
 
-        match &mut self.goals[priority] {
-            Some(goal) => *goal += expression,
-            goal => *goal = Some(expression),
+        match &mut self.objectives[priority] {
+            Some(objective) => *objective += expression,
+            objective => *objective = Some(expression),
         }
         Ok(())
     }
@@ -390,24 +373,25 @@ impl Problem {
         &self,
         mut constraints: Vec<Constraint>,
         screen: Option<Size>,
-        minimum_size_goal: Option<Expression>,
+        minimum_size_objective: Option<Expression>,
     ) -> Result<Solution> {
         log_duration(0, "layout full solve", || async {
-            let mut goals = self.goals.clone();
-            if let Some(minimum_size_goal) = minimum_size_goal {
-                match &mut goals[PRIORITY_LEVELS - 1] {
-                    Some(goal) => *goal += minimum_size_goal,
-                    goal => *goal = Some(minimum_size_goal),
+            let mut objectives = self.objectives.clone();
+            if let Some(minimum_size_objective) = minimum_size_objective {
+                match &mut objectives[PRIORITY_LEVELS - 1] {
+                    Some(objective) => *objective += minimum_size_objective,
+                    objective => *objective = Some(minimum_size_objective),
                 }
             }
-            let mut goals = goals
-                .iter()
-                .enumerate()
-                .rev()
-                .filter_map(|(priority, objective)| {
-                    objective.as_ref().map(|objective| (priority, objective))
-                });
-            let Some((mut priority, mut objective)) = goals.next() else {
+            let mut objectives =
+                objectives
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .filter_map(|(priority, objective)| {
+                        objective.as_ref().map(|objective| (priority, objective))
+                    });
+            let Some((mut priority, mut objective)) = objectives.next() else {
                 log_info(2, "feasibility priority solve");
                 return self
                     .priority_solve_with_diagnostics(&constraints, Expression::from(0), screen)
@@ -419,7 +403,7 @@ impl Problem {
                 let solved = self
                     .priority_solve_with_diagnostics(&constraints, objective.clone(), screen)
                     .await?;
-                let Some((next_priority, next_objective)) = goals.next() else {
+                let Some((next_priority, next_objective)) = objectives.next() else {
                     return Ok(solved);
                 };
                 let optimal_value = solved.eval(objective);
@@ -444,13 +428,5 @@ impl Problem {
         let root_size = Expression::from(root.dimensions.width) + root.dimensions.height;
         self.full_solve(self.constraints.clone(), None, Some(root_size * -1.0))
             .await
-    }
-}
-
-impl Drop for Problem {
-    fn drop(&mut self) {
-        for variable in self.owned_variables.drain(..) {
-            self.variables.remove(variable);
-        }
     }
 }

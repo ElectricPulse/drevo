@@ -1,4 +1,5 @@
 use crate::geometry::{Direction, Point, Rect};
+use good_lp::VariableDefinition;
 
 use super::{Solution, expression::Expression, variable::Variable, variables::Variables};
 
@@ -105,5 +106,10 @@ fn add_variable(
     path: String,
     component_path: String,
 ) -> Variable {
-    variables.add_non_negative(name, path, component_path)
+    variables.add(
+        VariableDefinition::new().min(0).name(name.clone()),
+        name,
+        path,
+        component_path,
+    )
 }

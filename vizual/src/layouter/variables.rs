@@ -4,10 +4,7 @@ use std::{
 };
 
 use color_eyre::eyre::{Result, eyre};
-use good_lp::{
-    ProblemVariables, Variable as Solver_variable, VariableDefinition,
-    variable as solver_variable_definition,
-};
+use good_lp::{ProblemVariables, Variable as Solver_variable, VariableDefinition};
 
 use super::{screen::SCREEN, variable::Variable};
 use crate::geometry::Size;
@@ -59,36 +56,6 @@ impl Variables {
             },
         );
         Variable::new(index)
-    }
-
-    pub fn add_non_negative(
-        &self,
-        name: impl Into<String>,
-        path: impl Into<String>,
-        component_path: impl Into<String>,
-    ) -> Variable {
-        let name = name.into();
-        self.add(
-            solver_variable_definition().min(0).name(name.clone()),
-            name,
-            path,
-            component_path,
-        )
-    }
-
-    pub fn add_binary(
-        &self,
-        name: impl Into<String>,
-        path: impl Into<String>,
-        component_path: impl Into<String>,
-    ) -> Variable {
-        let name = name.into();
-        self.add(
-            solver_variable_definition().binary().name(name.clone()),
-            name,
-            path,
-            component_path,
-        )
     }
 
     pub fn remove(&self, variable: Variable) {
@@ -164,10 +131,10 @@ impl Variables {
                 variable if variable == SCREEN.width && screen.is_some() => continue,
                 variable if variable == SCREEN.height && screen.is_some() => continue,
                 variable if variable == SCREEN.width => {
-                    solver_variable_definition().min(0).name("screen width")
+                    VariableDefinition::new().min(0).name("screen width")
                 }
                 variable if variable == SCREEN.height => {
-                    solver_variable_definition().min(0).name("screen height")
+                    VariableDefinition::new().min(0).name("screen height")
                 }
                 variable => definitions
                     .get(&variable.index())

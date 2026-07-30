@@ -9,7 +9,7 @@ use crate::{
     focus::Focus,
     geometry::Direction,
     layouter::{
-        Solution, constraints::Objective, expression::Expression, hitbox::Hitbox,
+        Solution, expression::Expression, hitbox::Hitbox, objective::Objective,
         variables::Variables,
     },
     slot::{

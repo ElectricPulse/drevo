@@ -2,7 +2,7 @@ use crate::{
     component::{Shared_component, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{constraints::Objective, expression::Expression, hitbox::Hitbox},
+    layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -127,7 +127,7 @@ impl Widget_trait for Layout {
                 );
                 problem.constrain(constraint!(space.clone() >= 0)).await?;
                 self.objective
-                    .apply(&problem, space, gap, gap, self.priority)
+                    .apply(&problem, space, gap, self.priority)
                     .await?;
             }
         }

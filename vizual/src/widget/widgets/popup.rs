@@ -18,7 +18,7 @@ use crate::{
     component::{Shared_component, context::Component_context},
     geometry::Direction,
     handlers::{Retrieve_handler, Submit_handler},
-    layouter::{constraints::Objective, hitbox::Hitbox},
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     sync::Mutex,

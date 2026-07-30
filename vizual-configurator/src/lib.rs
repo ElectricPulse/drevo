@@ -22,7 +22,7 @@ use vizual::{
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
     handlers::{Retrieve_handler, Submit_handler},
-    layouter::{constraints::Objective, hitbox::Hitbox},
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::{Component_slot, manager::Slots},
     state::State,
     sync::{Mutex, Thread_safe},
