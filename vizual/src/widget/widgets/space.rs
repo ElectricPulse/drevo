@@ -3,7 +3,11 @@ use crate::{
     component::{Shared_component, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
+    layouter::{
+        expression::Expression,
+        hitbox::Hitbox,
+        objective::{Delta, Objective},
+    },
     slot::manager::Slots,
 };
 use async_trait::async_trait;
@@ -37,6 +41,7 @@ pub struct Space {
     child: Shared_component,
     spaces: Spaces,
     objective: Objective,
+    pub delta: Delta,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
 }
@@ -60,6 +65,7 @@ impl Space {
                 bottom,
             },
             objective,
+            delta: Delta::default(),
             priority,
         }
     }
@@ -149,7 +155,7 @@ impl Space {
                     target => target,
                 };
                 self.objective
-                    .apply(problem, space, target, self.priority)
+                    .apply(problem, space, target, self.delta, self.priority)
                     .await
             }
             None => Ok(()),

@@ -9,11 +9,10 @@ pub mod variables;
 
 use std::{
     collections::{HashMap, HashSet},
-    panic::Location,
     sync::Arc,
 };
 
-use color_eyre::eyre::{Result, eyre};
+use color_eyre::eyre::{Result, ensure, eyre};
 use futures::future::BoxFuture;
 use good_lp::{
     Solution as Good_lp_solution, SolverModel as _, VariableDefinition, microlp,
@@ -21,8 +20,8 @@ use good_lp::{
 };
 
 use self::{
-    constraint::Constraint, expression::Expression, hitbox::Hitbox, screen::SCREEN,
-    variable::Variable, variables::Variables,
+    constraint::Constraint, expression::Expression, hitbox::Hitbox, objective::Delta,
+    screen::SCREEN, variable::Variable, variables::Variables,
 };
 use crate::{
     component::context::Component_context,
@@ -71,28 +70,15 @@ pub struct Problem {
     constraints: Vec<Constraint>,
     objectives: [Option<Expression>; PRIORITY_LEVELS],
     pub(crate) variables: Arc<Variables>,
-    /// Shared relative deviation from intended ui look
-    /// it's created so that all gaps, spaces scale at the same time
-    pub(crate) delta: Variable,
 }
 
 impl Problem {
     pub fn new(variables: Arc<Variables>) -> Self {
-        let path = Component_context::path(Location::caller());
-        let delta = variables.add(VariableDefinition::new().min(0), "delta", &path, String::new());
-
-        let mut problem = Self {
+        Self {
             constraints: Vec::new(),
             objectives: std::array::from_fn(|_| None),
             variables,
-            delta,
-        };
-
-        problem
-            .maximize(Expression::from(delta * -1.0), 2)
-            .expect("priority 2 is valid");
-
-        problem
+        }
     }
 
     pub(crate) fn variables(&self) -> Arc<Variables> {
@@ -116,6 +102,51 @@ impl Problem {
             objective => *objective = Some(expression),
         }
         Ok(())
+    }
+
+    pub fn minimize(&mut self, expression: Expression, priority: usize) -> Result<()> {
+        self.maximize(expression * -1.0, priority)
+    }
+
+    pub fn minimize_difference(
+        &mut self,
+        expression: impl Into<Expression>,
+        target: f64,
+        delta: Delta,
+        priority: usize,
+    ) -> Result<()> {
+        ensure!(
+            target > 0.0,
+            "minimize-difference target must be greater than zero"
+        );
+
+        let difference = (Expression::from(target) - expression.into()) / target;
+        self.constrain(constraint!(difference.clone() >= 0));
+
+        match delta {
+            Some(delta) => {
+                self.constrain(constraint!(difference == delta));
+                Ok(())
+            }
+            None => self.minimize(difference, priority),
+        }
+    }
+
+    pub fn add_delta(
+        &mut self,
+        name: String,
+        path: String,
+        component_path: String,
+        priority: usize,
+    ) -> Result<Variable> {
+        let delta = self.variables.add(
+            VariableDefinition::new().min(0).name(name.clone()),
+            name,
+            path,
+            component_path,
+        );
+        self.minimize(Expression::from(delta), priority)?;
+        Ok(delta)
     }
 
     pub(crate) fn constrain_root_to_screen(&mut self, root: Hitbox) {

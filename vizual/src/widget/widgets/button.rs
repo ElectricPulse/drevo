@@ -13,7 +13,10 @@ use crate::{
     component::{Shared_component, context::Component_context},
     event::Pointer_event,
     handlers::Submit_handler,
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::{
+        hitbox::Hitbox,
+        objective::{Delta, Objective},
+    },
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -30,6 +33,7 @@ pub struct Button {
     pub active: bool,
     pub highlighted: bool,
     pub theme: State<Theme>,
+    pub delta: Delta,
 }
 
 impl Button {
@@ -44,6 +48,7 @@ impl Button {
             active: true,
             highlighted: false,
             theme,
+            delta: Delta::default(),
         }
     }
 
@@ -54,6 +59,7 @@ impl Button {
             active: true,
             highlighted: false,
             theme,
+            delta: Delta::default(),
         }
     }
 }
@@ -77,12 +83,13 @@ impl Widget_trait for Button {
             Button_content::Shared_component(content) => content.clone(),
         };
 
-        let space = Space::uniform(
+        let mut space = Space::uniform(
             content,
             self.theme.load().units.em * 0.75,
             Objective::default(),
             2,
         );
+        space.delta = self.delta;
 
         let mut block = Block::new(display!(space), self.theme.clone());
         block.highlighted = self.highlighted;

@@ -1,7 +1,9 @@
 use color_eyre::eyre::Result;
 
-use super::expression::Expression;
+use super::{expression::Expression, variable::Variable};
 use crate::{component::context::Component_context, constraint};
+
+pub type Delta = Option<Variable>;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Objective {
@@ -17,6 +19,7 @@ impl Objective {
         problem: &Component_context,
         expression: Expression,
         target: f64,
+        delta: Delta,
         priority: usize,
     ) -> Result<()> {
         match self {
@@ -34,7 +37,7 @@ impl Objective {
             }
             Self::Minimize_difference => {
                 problem
-                    .minimize_difference(expression, target, priority)
+                    .minimize_difference(expression, target, delta, priority)
                     .await
             }
         }

@@ -292,6 +292,7 @@ impl<T: Tree> Tree_view<T> {
         selected_cursor: &[String],
         cursor: &[String],
         problem: &Component_context,
+        button_delta: vizual::layouter::variable::Variable,
     ) -> Result<Vec<Option<Shared_component>>> {
         const INDENT: usize = 20;
 
@@ -312,6 +313,7 @@ impl<T: Tree> Tree_view<T> {
             );
 
             button.active = selected_cursor == child_cursor;
+            button.delta = Some(button_delta);
 
             let button = slots.set(get_strings_id(&child_cursor) + 1, button).await?;
             let button = Space::left(button, (INDENT * depth) as f64, Objective::default(), 1);
@@ -323,7 +325,14 @@ impl<T: Tree> Tree_view<T> {
 
             if let Configuration_tree::Branch(branch) = child {
                 let mut child_tree = self
-                    .render_tree(slots, branch, selected_cursor, &child_cursor, problem)
+                    .render_tree(
+                        slots,
+                        branch,
+                        selected_cursor,
+                        &child_cursor,
+                        problem,
+                        button_delta,
+                    )
                     .await?;
                 buttons.append(&mut child_tree);
             }
@@ -378,10 +387,13 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
     ) -> Result<Widget_type> {
         focus.set_active(true);
         let cursor = self.configurator_state.lock().await?.cursor.clone();
+        let button_delta = problem
+            .add_delta("configurator-tree-button-delta", 2)
+            .await?;
 
         let tree = self.tree.lock().await?.get_tree();
         let buttons = self
-            .render_tree(slots, &tree, &cursor, &[], &problem)
+            .render_tree(slots, &tree, &cursor, &[], &problem, button_delta)
             .await?;
 
         let layout = Layout::new(

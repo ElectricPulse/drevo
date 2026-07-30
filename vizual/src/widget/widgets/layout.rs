@@ -112,6 +112,12 @@ impl Widget_trait for Layout {
 
         if elements.len() >= 2 {
             let Style::Gap(gap) = self.style;
+            let gap_delta = match self.objective {
+                Objective::Minimize_difference => {
+                    Some(problem.add_delta("layout-gap-delta", self.priority).await?)
+                }
+                Objective::Maximize | Objective::Minimize => None,
+            };
 
             for pair in elements.windows(2) {
                 let [previous, current] = pair else {
@@ -127,7 +133,7 @@ impl Widget_trait for Layout {
                 );
                 problem.constrain(constraint!(space.clone() >= 0)).await?;
                 self.objective
-                    .apply(&problem, space, gap, self.priority)
+                    .apply(&problem, space, gap, gap_delta, self.priority)
                     .await?;
             }
         }

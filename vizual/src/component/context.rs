@@ -1,11 +1,13 @@
 use std::{panic::Location, sync::Arc};
 
-use color_eyre::eyre::{Result, ensure};
+use color_eyre::eyre::Result;
 use good_lp::VariableDefinition;
 
 use crate::{
-    constraint,
-    layouter::{Problem, constraint::Constraint, expression::Expression, variable::Variable},
+    layouter::{
+        Problem, constraint::Constraint, expression::Expression, objective::Delta,
+        variable::Variable,
+    },
     sync::{Mutex, MutexGuard},
 };
 
@@ -64,6 +66,16 @@ impl Component_context {
     }
 
     #[track_caller]
+    pub async fn add_delta(&self, name: impl Into<String>, priority: usize) -> Result<Variable> {
+        let name = name.into();
+        let path = Self::path(Location::caller());
+        let component_path = self.component_path.join(".");
+        self.lock()
+            .await?
+            .add_delta(name, path, component_path, priority)
+    }
+
+    #[track_caller]
     pub async fn constrain(&self, constraint: Constraint) -> Result<()> {
         let constraint = match constraint.name() {
             Some(_) => constraint,
@@ -78,7 +90,7 @@ impl Component_context {
     }
 
     pub async fn minimize(&self, expression: Expression, priority: usize) -> Result<()> {
-        self.maximize(expression * -1.0, priority).await
+        self.lock().await?.minimize(expression, priority)
     }
 
     #[track_caller]
@@ -86,16 +98,11 @@ impl Component_context {
         &self,
         expression: impl Into<Expression>,
         target: f64,
-        _priority: usize,
+        delta: Delta,
+        priority: usize,
     ) -> Result<()> {
-        ensure!(
-            target > 0.0,
-            "minimize-difference target must be greater than zero"
-        );
-
-        let delta = self.problem.lock().await?.delta;
-
-        self.constrain(constraint!((target - expression.into()) / target == delta))
-            .await
+        self.lock()
+            .await?
+            .minimize_difference(expression, target, delta, priority)
     }
 }
