@@ -1,5 +1,5 @@
 use crate::{
-    component::{Shared_component, context::Component_context},
+    component::{Child, context::Component_context},
     constraint,
     geometry::Direction,
     layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
@@ -25,7 +25,7 @@ impl Style {
 
 pub struct Layout {
     direction: Direction,
-    elements: Vec<Option<Shared_component>>,
+    elements: Vec<Option<Child>>,
     pub style: Style,
     objective: Objective,
     // TODO: Keep priority manual until there is a way to set it automatically.
@@ -35,13 +35,13 @@ pub struct Layout {
 impl Control for Layout {}
 
 impl Layout {
-    fn get_elements(&self) -> Vec<&Shared_component> {
+    fn get_elements(&self) -> Vec<&Child> {
         self.elements.iter().flatten().collect()
     }
 
     pub fn new(
         direction: Direction,
-        elements: Vec<Option<Shared_component>>,
+        elements: Vec<Option<Child>>,
         style: Style,
         objective: Objective,
         priority: usize,

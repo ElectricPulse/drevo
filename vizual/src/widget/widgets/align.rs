@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use color_eyre::Result;
 
 use crate::{
-    component::{Shared_component, context::Component_context},
+    component::{Child, Component, context::Component_context},
     geometry::Direction,
     layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
@@ -15,13 +15,47 @@ pub struct Alignments {
 }
 
 pub struct Align {
-    child: Shared_component,
+    child: Child,
     alignments: Alignments,
 }
 
 impl Align {
-    pub fn new(child: Shared_component, alignments: Alignments) -> Self {
-        Self { child, alignments }
+    pub async fn new(
+        child: Child,
+        alignments: Alignments,
+        hitbox: Hitbox,
+        problem: &Component_context,
+    ) -> Result<Widget_type> {
+        let horizontal = alignments.horizontal;
+        let vertical = alignments.vertical;
+        let align = Self { child, alignments };
+        let align = Component::new(align, problem.clone()).await?.into_child();
+        let align_hitbox = align.get_hitbox().await?;
+
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            problem
+                .constrain(crate::constraint!(
+                    align_hitbox.get_start_position(direction)
+                        >= hitbox.get_start_position(direction)
+                ))
+                .await?;
+            problem
+                .constrain(crate::constraint!(
+                    align_hitbox.get_end_position(direction) <= hitbox.get_end_position(direction)
+                ))
+                .await?;
+        }
+
+        if let Some(horizontal) = horizontal {
+            Self::align(problem, align_hitbox, horizontal, Direction::Horizontal).await?;
+        }
+        if let Some(vertical) = vertical {
+            Self::align(problem, align_hitbox, vertical, Direction::Vertical).await?;
+        }
+
+        Ok(Widget_type::Visual {
+            children: vec![align],
+        })
     }
 
     async fn align(

@@ -9,7 +9,7 @@ use super::{
     text::Text,
 };
 use crate::{
-    component::{Shared_component, context::Component_context},
+    component::{Child, context::Component_context},
     geometry::Direction,
     layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
@@ -18,13 +18,13 @@ use crate::{
 };
 
 pub struct Title_block {
-    child: Shared_component,
+    child: Child,
     pub title: String,
     pub theme: State<Theme>,
 }
 
 impl Title_block {
-    pub fn new(child: Shared_component, title: impl Into<String>, theme: State<Theme>) -> Self {
+    pub fn new(child: Child, title: impl Into<String>, theme: State<Theme>) -> Self {
         Self {
             child,
             title: title.into(),

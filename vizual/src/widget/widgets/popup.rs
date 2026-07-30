@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    component::{Shared_component, context::Component_context},
+    component::{Child, context::Component_context},
     geometry::Direction,
     handlers::{Retrieve_handler, Submit_handler},
     layouter::{hitbox::Hitbox, objective::Objective},
@@ -74,7 +74,7 @@ impl Menu_item_trait<Popup_options> for Popup_menu_item {
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Shared_component> {
+    ) -> Result<Child> {
         let text = Text::new(self.option.label())
             .set_style(self.theme.load().semantic.text.subtitle(selected));
 
@@ -160,8 +160,8 @@ impl Widget_trait for Popup {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
-        _problem: Component_context,
+        hitbox: Hitbox,
+        problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
@@ -186,8 +186,6 @@ impl Widget_trait for Popup {
             "Are you sure you want to quit?",
             self.theme.clone(),
         );
-        let anchor = Anchor::new(display!(block), Anchors::middle());
-
-        Ok(Widget_type::Virtual(Box::new(anchor)))
+        Anchor::new(display!(block), Anchors::middle(), hitbox, &problem).await
     }
 }

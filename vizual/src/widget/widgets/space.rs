@@ -1,6 +1,6 @@
 use super::super::{Control, Focus_provider, Widget_trait, Widget_type};
 use crate::{
-    component::{Shared_component, context::Component_context},
+    component::{Child, context::Component_context},
     constraint,
     geometry::Direction,
     layouter::{
@@ -38,7 +38,7 @@ impl Spaces {
 }
 
 pub struct Space {
-    child: Shared_component,
+    child: Child,
     spaces: Spaces,
     objective: Objective,
     pub delta: Delta,
@@ -48,7 +48,7 @@ pub struct Space {
 
 impl Space {
     pub fn new(
-        child: Shared_component,
+        child: Child,
         left: Option<f64>,
         right: Option<f64>,
         top: Option<f64>,
@@ -70,12 +70,7 @@ impl Space {
         }
     }
 
-    pub fn inline(
-        child: Shared_component,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
+    pub fn inline(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
         Self::new(
             child,
             Some(value),
@@ -87,43 +82,23 @@ impl Space {
         )
     }
 
-    pub fn left(
-        child: Shared_component,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
+    pub fn left(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
         Self::new(child, Some(value), None, None, None, objective, priority)
     }
 
-    pub fn right(
-        child: Shared_component,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
+    pub fn right(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
         Self::new(child, None, Some(value), None, None, objective, priority)
     }
 
-    pub fn top(child: Shared_component, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn top(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
         Self::new(child, None, None, Some(value), None, objective, priority)
     }
 
-    pub fn bottom(
-        child: Shared_component,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
+    pub fn bottom(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
         Self::new(child, None, None, None, Some(value), objective, priority)
     }
 
-    pub fn uniform(
-        child: Shared_component,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
+    pub fn uniform(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
         Self::new(
             child,
             Some(value),
@@ -135,7 +110,7 @@ impl Space {
         )
     }
 
-    pub fn full(child: Shared_component, objective: Objective, priority: usize) -> Self {
+    pub fn full(child: Child, objective: Objective, priority: usize) -> Self {
         Self::new(child, None, None, None, None, objective, priority)
     }
 

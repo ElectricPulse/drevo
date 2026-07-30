@@ -1,5 +1,5 @@
 use crate::{
-    component::{Shared_component, context::Component_context},
+    component::{Child, Component, context::Component_context},
     constraint,
     geometry::Direction,
     layouter::{expression::Expression, hitbox::Hitbox},
@@ -31,13 +31,43 @@ impl Anchors {
 }
 
 pub struct Anchor {
-    child: Shared_component,
+    child: Child,
     anchors: Anchors,
 }
 
 impl Anchor {
-    pub fn new(child: Shared_component, anchors: Anchors) -> Self {
-        Self { child, anchors }
+    pub async fn new(
+        child: Child,
+        anchors: Anchors,
+        hitbox: Hitbox,
+        problem: &Component_context,
+    ) -> Result<Widget_type> {
+        let horizontal = anchors.horizontal;
+        let vertical = anchors.vertical;
+        let anchor = Self { child, anchors };
+        let anchor = Component::new(anchor, problem.clone()).await?.into_child();
+        let anchor_hitbox = anchor.get_hitbox().await?;
+
+        Self::anchor(
+            problem,
+            hitbox,
+            anchor_hitbox,
+            horizontal,
+            Direction::Horizontal,
+        )
+        .await?;
+        Self::anchor(
+            problem,
+            hitbox,
+            anchor_hitbox,
+            vertical,
+            Direction::Vertical,
+        )
+        .await?;
+
+        Ok(Widget_type::Visual {
+            children: vec![anchor],
+        })
     }
 
     /// Constrains one axis directly so the anchor does not need a separate shrink-wrap pass.

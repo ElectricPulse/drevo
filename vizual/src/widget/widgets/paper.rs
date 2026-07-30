@@ -8,7 +8,7 @@ use super::{
     space::Space,
 };
 use crate::{
-    component::{Shared_component, context::Component_context},
+    component::{Child, context::Component_context},
     layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
@@ -21,12 +21,12 @@ pub struct Paper_style {
 }
 
 pub struct Paper {
-    child: Shared_component,
+    child: Child,
     theme: State<Theme>,
 }
 
 impl Paper {
-    pub fn new(child: Shared_component, theme: State<Theme>) -> Self {
+    pub fn new(child: Child, theme: State<Theme>) -> Self {
         Self { child, theme }
     }
 }

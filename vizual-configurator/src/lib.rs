@@ -17,7 +17,7 @@ use std::{
 };
 use vizual::{
     Vizual_command, Vizual_msg, check_quit_event,
-    component::{Shared_component, context::Component_context},
+    component::{Child, context::Component_context},
     display::Display,
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
@@ -108,7 +108,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Default_leaf_value<V
         _problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Shared_component> {
+    ) -> Result<Child> {
         let text = Text::new(format!("Default - {}", self.label))
             .set_style(self.theme.load().semantic.text.subtitle(selected));
 
@@ -145,7 +145,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Custom_leaf_value<Va
         _problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Shared_component> {
+    ) -> Result<Child> {
         let title =
             Text::new("Custom").set_style(self.theme.load().semantic.text.subtitle(selected));
         let field = self.field.clone();
@@ -158,7 +158,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Custom_leaf_value<Va
             contents,
             Layout_style::default(self.theme.clone()),
             Objective::default(),
-            1,
+            2,
         );
 
         Ok(display!(layout))
@@ -295,10 +295,10 @@ impl<T: Tree> Tree_view<T> {
         cursor: &[String],
         problem: &Component_context,
         button_delta: vizual::layouter::variable::Variable,
-    ) -> Result<Vec<Option<Shared_component>>> {
+    ) -> Result<Vec<Option<Child>>> {
         const INDENT: usize = 20;
 
-        let mut buttons: Vec<Option<Shared_component>> = vec![];
+        let mut buttons: Vec<Option<Child>> = vec![];
 
         for (name, child) in &node.0 {
             let mut child_cursor = cursor.to_vec();
@@ -318,7 +318,7 @@ impl<T: Tree> Tree_view<T> {
             button.delta = Some(button_delta);
 
             let button = slots.set(get_strings_id(&child_cursor) + 1, button).await?;
-            let button = Space::left(button, (INDENT * depth) as f64, Objective::default(), 1);
+            let button = Space::left(button, (INDENT * depth) as f64, Objective::default(), 2);
 
             // Since cursor should be unique for every button we can use it to generate id
             let button = slots.set(get_strings_id(&child_cursor), button).await?;
@@ -616,7 +616,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         let cursor = self.configurator_state.lock().await?.cursor.clone();
 
         //TODO: this menu could later be moved into the menu item of the tree to make it clearer
-        let field: Option<Shared_component> = {
+        let field: Option<Child> = {
             let tree = self.tree.lock().await?;
 
             if let Ok(leaf) = tree.get_tree().get_leaf(&cursor) {
@@ -633,7 +633,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                     ],
                     Layout_style::default(self.theme.clone()),
                     Objective::default(),
-                    1,
+                    2,
                 );
 
                 let leaf = Title_block::new(
@@ -663,25 +663,24 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 horizontal: Some(Anchor_position::Start),
                 vertical: Some(Anchor_position::End),
             },
-        );
-        let mut items = vec![display!(tree_view)];
+            hitbox,
+            &problem,
+        )
+        .await?;
+        let mut children = vec![tree_view];
 
         if let Some(field) = field {
-            let field = Anchor::new(
-                field,
-                Anchors {
-                    horizontal: None,
-                    vertical: Some(Anchor_position::Start),
-                },
-            );
             let field = Align::new(
-                display!(field),
+                field,
                 Alignments {
                     horizontal: Some(Objective::Minimize),
-                    vertical: None,
+                    vertical: Some(Objective::Minimize),
                 },
-            );
-            items.push(display!(field));
+                hitbox,
+                &problem,
+            )
+            .await?;
+            children.push(field);
         }
 
         let button = Anchor::new(
@@ -690,11 +689,14 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 horizontal: Some(Anchor_position::End),
                 vertical: Some(Anchor_position::End),
             },
-        );
+            hitbox,
+            &problem,
+        )
+        .await?;
 
-        items.push(display!(button));
+        children.push(button);
 
-        let grid = Grid::new(items, gap);
+        let grid = Grid::new(children, gap);
 
         if self.submitting {
             let popup = self

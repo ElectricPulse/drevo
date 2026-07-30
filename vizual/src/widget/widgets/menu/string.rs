@@ -9,7 +9,7 @@ use super::{
     get_selector,
 };
 use crate::{
-    component::{Shared_component, context::Component_context},
+    component::{Child, context::Component_context},
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
@@ -40,7 +40,7 @@ impl Menu_item_trait<String> for String_menu_item {
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Shared_component> {
+    ) -> Result<Child> {
         let text = Text::new(self.value.clone())
             .set_style(self.theme.load().semantic.text.subtitle(selected));
 

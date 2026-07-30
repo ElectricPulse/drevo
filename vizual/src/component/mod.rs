@@ -3,7 +3,13 @@ pub mod context;
 use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
 use derive_new::new;
-use std::sync::{Arc, Weak};
+use std::{
+    panic::Location,
+    sync::{
+        Arc, Weak,
+        atomic::{AtomicU64, Ordering},
+    },
+};
 
 use crate::{
     focus::Focus,
@@ -22,9 +28,13 @@ use self::context::Component_context;
 
 pub type Id = u64;
 
-pub type Children = Vec<Shared_component>;
+pub type Child = Shared_component;
+
+pub type Children = Vec<Child>;
 
 pub type Parent = Option<Child_reference>;
+
+static NEXT_UNMANAGED_COMPONENT_NAME: AtomicU64 = AtomicU64::new(1);
 
 pub struct Component {
     pub name: String,
@@ -36,6 +46,38 @@ pub struct Component {
     pub slot_manager: Slot_records,
     pub virtual_child: Component_slot,
     pub(crate) variables: Arc<Variables>,
+}
+
+impl Component {
+    #[track_caller]
+    pub async fn new(widget: impl Widget_trait, mut problem: Component_context) -> Result<Self> {
+        let location = Location::caller();
+        let name = format!(
+            "u{}",
+            NEXT_UNMANAGED_COMPONENT_NAME.fetch_add(1, Ordering::Relaxed)
+        );
+        let path = format!("{}:{}", location.file(), location.line());
+        problem.component_path.push(name.clone());
+        let component_path = problem.component_path.join(".");
+        let variables = problem.lock().await?.variables();
+        let hitbox = Hitbox::new(&variables, name.clone(), component_path, path);
+
+        Ok(Self {
+            name,
+            hitbox,
+            widget: Box::new(widget),
+            focusable: false,
+            parent: None,
+            children: Children::new(),
+            slot_manager: Slot_records::new(problem),
+            virtual_child: Component_slot::new(),
+            variables,
+        })
+    }
+
+    pub fn into_child(self) -> Child {
+        Shared_component::new(Arc::new(Mutex::new(self)))
+    }
 }
 
 #[derive(Clone, new)]

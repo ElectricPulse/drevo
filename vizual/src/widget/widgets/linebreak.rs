@@ -39,7 +39,7 @@ impl Widget_trait for Linebreak_component {
     ) -> Result<Widget_type> {
         let horizontal_length = Expression::from(hitbox.get_dimension(Direction::Horizontal));
 
-        problem.maximize(horizontal_length, 1).await?;
+        problem.maximize(horizontal_length, 0).await?;
         problem
             .constrain(constraint!(
                 hitbox.get_dimension(Direction::Vertical) == BORDER_SIZE

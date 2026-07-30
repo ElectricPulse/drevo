@@ -1,6 +1,6 @@
 use super::super::{Control, Focus_provider, Widget, Widget_trait, Widget_type};
 use crate::{
-    component::{Shared_component, context::Component_context},
+    component::{Child, context::Component_context},
     config::BORDER_SIZE,
     constraint,
     display::Display,
@@ -23,13 +23,13 @@ pub struct Block_style {
 }
 
 pub struct Block {
-    child: Shared_component,
+    child: Child,
     pub theme: State<Block_style>,
     pub highlighted: bool,
 }
 
 impl Block {
-    pub fn new(child: Shared_component, theme: State<Theme>) -> Self {
+    pub fn new(child: Child, theme: State<Theme>) -> Self {
         let theme = theme.project(|theme| &theme.specific.block);
         Self {
             child,

@@ -10,7 +10,7 @@ use super::{
 };
 use crate::{
     Vizual_msg,
-    component::{Shared_component, context::Component_context},
+    component::{Child, context::Component_context},
     event::Pointer_event,
     handlers::Submit_handler,
     layouter::{
@@ -24,7 +24,7 @@ use crate::{
 
 enum Button_content {
     Label(String),
-    Shared_component(Shared_component),
+    Child(Child),
 }
 
 pub struct Button {
@@ -52,9 +52,9 @@ impl Button {
         }
     }
 
-    pub fn around(content: Shared_component, theme: State<Theme>) -> Self {
+    pub fn around(content: Child, theme: State<Theme>) -> Self {
         Self {
-            content: Button_content::Shared_component(content),
+            content: Button_content::Child(content),
             click_handler: None,
             active: true,
             highlighted: false,
@@ -80,7 +80,7 @@ impl Widget_trait for Button {
                     .set_style(self.theme.load().semantic.text.subtitle(self.active));
                 display!(text)
             }
-            Button_content::Shared_component(content) => content.clone(),
+            Button_content::Child(content) => content.clone(),
         };
 
         let mut space = Space::uniform(

@@ -1,7 +1,7 @@
 use super::{expression::Expression, hitbox::Hitbox};
 use crate::{
-    component::Shared_component, component::context::Component_context,
-    config::MAXIMUM_LAYOUT_VALUE, constraint, geometry::Direction,
+    component::Child, component::context::Component_context, config::MAXIMUM_LAYOUT_VALUE,
+    constraint, geometry::Direction,
 };
 use color_eyre::eyre::Result;
 
@@ -9,7 +9,7 @@ use color_eyre::eyre::Result;
 pub async fn shrink_wrap(
     problem: &Component_context,
     hitbox: Hitbox,
-    children: &[Shared_component],
+    children: &[Child],
     direction: Direction,
 ) -> Result<()> {
     let (start_bound_name, end_bound_name) = match direction {

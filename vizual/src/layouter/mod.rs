@@ -34,7 +34,12 @@ use crate::{
 // height setting on child.
 pub type Setter = Box<dyn Fn(f64) -> BoxFuture<'static, ()> + Send + Sync>;
 
-const PRIORITY_LEVELS: usize = 6;
+const PRIORITY_LEVELS: usize = 4;
+// As of this moment the usage of priorities has crystalized like this:
+// 3 is for calculating minimum screen size as that will just minimize root hitbox
+// 2 is for gaps, spaces, margins, paddings
+// 1 is for elements that just want to fill the surrounding space after content looks like it wants to look like
+// 0 is for shrink wrap of parents around their children
 
 pub trait Field: Send {
     fn set_from_solver(&mut self, value: f64);

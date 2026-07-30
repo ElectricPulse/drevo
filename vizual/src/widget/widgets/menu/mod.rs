@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    component::{Shared_component, context::Component_context},
+    component::{Child, context::Component_context},
     display::Display,
     event::{Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
@@ -42,7 +42,7 @@ pub trait Menu_item_trait<Value>: Retrieve_handler<Value> {
         problem: Component_context,
         text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Shared_component>;
+    ) -> Result<Child>;
 
     async fn render(
         &mut self,
