@@ -53,7 +53,7 @@ impl Widget_trait for Shared_component {
         _text_context: &mut Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
-        Widget_type::visual_with_shrink_wrap(vec![self.clone()], hitbox, &problem, true, true).await
+        Widget_type::wrap(vec![self.clone()], hitbox, &problem, true, true).await
     }
 }
 

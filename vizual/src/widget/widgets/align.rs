@@ -57,7 +57,7 @@ impl Widget_trait for Align {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        hitbox: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
@@ -71,8 +71,6 @@ impl Widget_trait for Align {
             Self::align(&problem, child_hitbox, vertical, Direction::Vertical).await?;
         }
 
-        Ok(Widget_type::Visual {
-            children: vec![self.child.clone()],
-        })
+        Widget_type::wrap(vec![self.child.clone()], hitbox, &problem, true, true).await
     }
 }

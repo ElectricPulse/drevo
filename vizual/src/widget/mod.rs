@@ -57,10 +57,10 @@ impl Widget_type {
             children.len() > 1,
             "Widget_type::visual expects multiple children; use Widget_type::Virtual for one child"
         );
-        Self::visual_with_shrink_wrap(children, hitbox, problem, true, true).await
+        Self::wrap(children, hitbox, problem, true, true).await
     }
 
-    pub(crate) async fn visual_with_shrink_wrap(
+    pub(crate) async fn wrap(
         children: Children,
         hitbox: Hitbox,
         problem: &Component_context,

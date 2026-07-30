@@ -667,18 +667,18 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         let mut items = vec![display!(tree_view)];
 
         if let Some(field) = field {
-            let field = Align::new(
-                field,
-                Alignments {
-                    horizontal: Some(Objective::Minimize),
-                    vertical: None,
-                },
-            );
             let field = Anchor::new(
-                display!(field),
+                field,
                 Anchors {
                     horizontal: None,
                     vertical: Some(Anchor_position::Start),
+                },
+            );
+            let field = Align::new(
+                display!(field),
+                Alignments {
+                    horizontal: Some(Objective::Minimize),
+                    vertical: None,
                 },
             );
             items.push(display!(field));

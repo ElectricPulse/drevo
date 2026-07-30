@@ -40,6 +40,6 @@ impl Widget_trait for Grid {
             }
         }
 
-        Widget_type::visual_with_shrink_wrap(self.items.clone(), hitbox, &problem, true, true).await
+        Widget_type::wrap(self.items.clone(), hitbox, &problem, true, true).await
     }
 }

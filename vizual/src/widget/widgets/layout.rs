@@ -142,7 +142,7 @@ impl Widget_trait for Layout {
             Direction::Horizontal => (true, false),
             Direction::Vertical => (false, true),
         };
-        Widget_type::visual_with_shrink_wrap(
+        Widget_type::wrap(
             elements.into_iter().cloned().collect(),
             hitbox,
             &problem,

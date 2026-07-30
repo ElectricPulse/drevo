@@ -40,15 +40,46 @@ impl Anchor {
         Self { child, anchors }
     }
 
+    /// Constrains one axis directly so the anchor does not need a separate shrink-wrap pass.
+    ///
+    /// A fixed edge is constrained by its anchor position. Each free edge is kept outside the
+    /// child and optimized toward it at priority zero. Middle anchoring instead keeps equal,
+    /// non-negative margins and minimizes one of them, which minimizes both.
     async fn anchor(
         problem: &Component_context,
         hitbox: Hitbox,
         child_hitbox: Hitbox,
-        position: Position,
+        position: Option<Position>,
         direction: Direction,
     ) -> Result<()> {
+        if !matches!(position, Some(Position::Middle)) {
+            if !matches!(position, Some(Position::Start)) {
+                problem
+                    .constrain(constraint!(
+                        child_hitbox.get_start_position(direction)
+                            >= hitbox.get_start_position(direction)
+                    ))
+                    .await?;
+                problem
+                    .maximize(Expression::from(hitbox.get_start_position(direction)), 0)
+                    .await?;
+            }
+
+            if !matches!(position, Some(Position::End)) {
+                problem
+                    .constrain(constraint!(
+                        child_hitbox.get_end_position(direction)
+                            <= hitbox.get_end_position(direction)
+                    ))
+                    .await?;
+                problem
+                    .minimize(hitbox.get_end_position(direction), 0)
+                    .await?;
+            }
+        }
+
         match position {
-            Position::Start => {
+            Some(Position::Start) => {
                 problem
                     .constrain(constraint!(
                         child_hitbox.get_start_position(direction)
@@ -56,7 +87,20 @@ impl Anchor {
                     ))
                     .await?;
             }
-            Position::Middle => {
+            Some(Position::Middle) => {
+                problem
+                    .constrain(constraint!(
+                        child_hitbox.get_start_position(direction)
+                            >= hitbox.get_start_position(direction)
+                    ))
+                    .await?;
+                problem
+                    .constrain(constraint!(
+                        child_hitbox.get_end_position(direction)
+                            <= hitbox.get_end_position(direction)
+                    ))
+                    .await?;
+
                 let start_margin = Expression::from(
                     child_hitbox.get_start_position(direction)
                         - hitbox.get_start_position(direction),
@@ -64,10 +108,11 @@ impl Anchor {
                 let end_margin =
                     hitbox.get_end_position(direction) - child_hitbox.get_end_position(direction);
                 problem
-                    .constrain(constraint!(start_margin == end_margin))
+                    .constrain(constraint!(start_margin.clone() == end_margin))
                     .await?;
+                problem.minimize(start_margin, 0).await?;
             }
-            Position::End => {
+            Some(Position::End) => {
                 problem
                     .constrain(constraint!(
                         child_hitbox.get_end_position(direction)
@@ -75,6 +120,7 @@ impl Anchor {
                     ))
                     .await?;
             }
+            None => {}
         }
 
         Ok(())
@@ -95,27 +141,23 @@ impl Widget_trait for Anchor {
     ) -> Result<Widget_type> {
         let child_hitbox = self.child.get_hitbox().await?;
 
-        if let Some(horizontal) = self.anchors.horizontal {
-            Self::anchor(
-                &problem,
-                hitbox,
-                child_hitbox,
-                horizontal,
-                Direction::Horizontal,
-            )
-            .await?;
-        }
+        Self::anchor(
+            &problem,
+            hitbox,
+            child_hitbox,
+            self.anchors.horizontal,
+            Direction::Horizontal,
+        )
+        .await?;
 
-        if let Some(vertical) = self.anchors.vertical {
-            Self::anchor(
-                &problem,
-                hitbox,
-                child_hitbox,
-                vertical,
-                Direction::Vertical,
-            )
-            .await?;
-        }
+        Self::anchor(
+            &problem,
+            hitbox,
+            child_hitbox,
+            self.anchors.vertical,
+            Direction::Vertical,
+        )
+        .await?;
 
         Ok(Widget_type::Visual {
             children: vec![self.child.clone()],
