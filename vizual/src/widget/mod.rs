@@ -74,11 +74,7 @@ impl Widget_type {
             shrink_wrap(problem, hitbox, &children, Direction::Horizontal).await?;
         }
 
-        Ok(Self::visual_without_shrink_wrap(children))
-    }
-
-    pub(crate) fn visual_without_shrink_wrap(children: Children) -> Self {
-        Self::Visual { children }
+        Ok(Self::Visual { children })
     }
 }
 

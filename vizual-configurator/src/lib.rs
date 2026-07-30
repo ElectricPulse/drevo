@@ -31,7 +31,8 @@ use vizual::{
     widget::{
         Control, Focus_provider, Shared_widget, Widget, Widget_trait, Widget_type,
         widgets::{
-            align::{Align, Alignment, Alignments},
+            align::{Align, Alignment as Align_alignment, Alignments as Align_alignments},
+            anchor::{Alignment as Anchor_alignment, Alignments as Anchor_alignments, Anchor},
             button::Button,
             grid::Grid,
             layout::{Layout, Style as Layout_style},
@@ -656,11 +657,11 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             self.theme.clone(),
         );
 
-        let tree_view = Align::new(
+        let tree_view = Anchor::new(
             tree_view,
-            Alignments {
-                horizontal: Alignment::Start,
-                vertical: Alignment::End,
+            Anchor_alignments {
+                horizontal: Some(Anchor_alignment::Start),
+                vertical: Some(Anchor_alignment::End),
             },
         );
         let mut items = vec![display!(tree_view)];
@@ -668,19 +669,26 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         if let Some(field) = field {
             let field = Align::new(
                 field,
-                Alignments {
-                    horizontal: Alignment::Start,
-                    vertical: Alignment::Start,
+                Align_alignments {
+                    horizontal: Some(Align_alignment::Minimize),
+                    vertical: None,
+                },
+            );
+            let field = Anchor::new(
+                display!(field),
+                Anchor_alignments {
+                    horizontal: None,
+                    vertical: Some(Anchor_alignment::Start),
                 },
             );
             items.push(display!(field));
         }
 
-        let button = Align::new(
+        let button = Anchor::new(
             display!(button),
-            Alignments {
-                horizontal: Alignment::End,
-                vertical: Alignment::End,
+            Anchor_alignments {
+                horizontal: Some(Anchor_alignment::End),
+                vertical: Some(Anchor_alignment::End),
             },
         );
 

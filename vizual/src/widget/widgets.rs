@@ -1,4 +1,5 @@
 pub mod align;
+pub mod anchor;
 pub mod block;
 pub mod button;
 pub mod form;

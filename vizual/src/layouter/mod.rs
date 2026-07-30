@@ -360,6 +360,72 @@ impl Problem {
         }
     }
 
+    async fn is_unbounded(
+        &self,
+        constraints: &[Constraint],
+        objective: Expression,
+        screen: Option<Size>,
+    ) -> Result<bool> {
+        match self
+            .priority_solve(
+                constraints,
+                ObjectiveDirection::Maximisation,
+                objective,
+                screen,
+            )
+            .await
+        {
+            Err(ResolutionError::Unbounded) => Ok(true),
+            Ok(_) => Ok(false),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    async fn describe_underconstrained(
+        &self,
+        constraints: &[Constraint],
+        objective: &Expression,
+        screen: Option<Size>,
+    ) -> Result<String> {
+        let mut variables = constraints
+            .iter()
+            .flat_map(|constraint| constraint.expression.referenced_variables())
+            .chain(objective.referenced_variables())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        variables.sort_unstable();
+
+        let mut underconstrained = Vec::new();
+        let mut details = Vec::new();
+        for variable in variables {
+            let has_no_upper_bound = self
+                .is_unbounded(constraints, Expression::from(variable), screen)
+                .await?;
+            let has_no_lower_bound = self
+                .is_unbounded(constraints, Expression::from(variable) * -1.0, screen)
+                .await?;
+            let range = match (has_no_lower_bound, has_no_upper_bound) {
+                (true, true) => "has neither a lower nor an upper bound",
+                (true, false) => "has no lower bound",
+                (false, true) => "has no upper bound",
+                (false, false) => continue,
+            };
+
+            underconstrained.push(variable);
+            details.push(format!("{} {range}", self.variables.name(variable)));
+        }
+
+        let details = match details.is_empty() {
+            true => "Layout is underconstrained; the objective is unbounded, but no individual unbounded variable range was identified".to_string(),
+            false => format!(
+                "Layout is underconstrained; unbounded variable ranges:\n{}",
+                details.join("\n")
+            ),
+        };
+        Ok(self.with_component_paths(details, underconstrained))
+    }
+
     async fn priority_solve_with_diagnostics(
         &self,
         constraints: &[Constraint],
@@ -370,7 +436,7 @@ impl Problem {
             .priority_solve(
                 constraints,
                 ObjectiveDirection::Maximisation,
-                objective,
+                objective.clone(),
                 screen,
             )
             .await
@@ -393,9 +459,11 @@ impl Problem {
                     "Layout is overconstrained; conflicting constraints:\n{conflict}"
                 ))
             }
-            Err(ResolutionError::Unbounded) => {
-                Err(eyre!("Layout is underconstrained; variable ranges",))
-            }
+            Err(ResolutionError::Unbounded) => Err(eyre!(
+                "{}",
+                self.describe_underconstrained(constraints, &objective, screen)
+                    .await?
+            )),
             Err(error) => Err(error.into()),
         }
     }
