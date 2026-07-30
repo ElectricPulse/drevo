@@ -8,14 +8,15 @@ use color_eyre::eyre::{Result, eyre};
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Widget_trait, Widget_type},
+    super::{Control, Focus_provider, Widget_trait},
     button::Button,
+    full::Full,
     layout::{Layout, Style as Layout_style},
     space::Space,
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     display::Display,
     event::{Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
@@ -38,7 +39,7 @@ pub trait Menu_item_trait<Value>: Retrieve_handler<Value> {
         &mut self,
         selected: bool,
         focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        hitbox: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
         text_context: &mut crate::text::Text_context,
@@ -83,12 +84,12 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        hitbox: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
         text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let content = self
             .widget
             .lock()
@@ -98,15 +99,16 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
                 focus,
                 hitbox,
                 parent,
-                problem,
+                problem.clone(),
                 text_context,
                 slots,
             )
             .await?;
         let mut button = Button::around(content, self.theme.clone());
         button.highlighted = self.selected;
+        let full = Full::new(display!(button));
 
-        Ok(Widget_type::Virtual(Box::new(button)))
+        Ok(vec![display!(full)])
     }
 
     async fn render(
@@ -208,12 +210,12 @@ impl<Value: Thread_safe> Widget_trait for Menu<Value> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         focus.set_active(true);
         let default_item = self
             .default_item
@@ -247,8 +249,9 @@ impl<Value: Thread_safe> Widget_trait for Menu<Value> {
             2,
         );
         let space = Space::uniform(display!(layout), 3.0, Objective::default(), 2);
+        let full = Full::new(display!(space));
 
-        Ok(Widget_type::Virtual(Box::new(space)))
+        Ok(vec![display!(full)])
     }
 
     async fn render(

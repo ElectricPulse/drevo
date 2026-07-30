@@ -101,8 +101,18 @@ impl Component_context {
         delta: Delta,
         priority: usize,
     ) -> Result<()> {
-        self.lock()
-            .await?
-            .minimize_difference(expression, target, delta, priority)
+        let path = Self::path(Location::caller());
+        let component_path = self.component_path.join(".");
+        let mut problem = self.lock().await?;
+        let delta = match delta {
+            Some(delta) => delta,
+            None => problem.add_delta(
+                "minimize-difference-delta".to_string(),
+                path,
+                component_path,
+                priority,
+            )?,
+        };
+        problem.minimize_difference(expression, target, delta, priority)
     }
 }

@@ -2,11 +2,12 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Shared_widget, Widget_trait, Widget_type},
+    super::{Control, Focus_provider, Shared_widget, Widget_trait},
+    full::Full,
     space::Space,
 };
 use crate::{
-    component::context::Component_context,
+    component::{Children, context::Component_context},
     display::Display,
     event::Key_event,
     geometry::Rect,
@@ -54,17 +55,18 @@ impl<T: Widget_trait> Widget_trait for Root<T> {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let widget = self.widget.clone();
         let gap = self.layout_theme.load().gap;
         let space = Space::uniform(display!(widget), gap, Objective::default(), 2);
+        let full = Full::new(display!(space));
 
-        Ok(Widget_type::Virtual(Box::new(space)))
+        Ok(vec![display!(full)])
     }
 
     async fn render(

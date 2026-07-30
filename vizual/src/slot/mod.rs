@@ -57,16 +57,7 @@ impl Component_slot {
     pub async fn set(
         &mut self,
         widget: impl Widget_trait,
-        problem: Component_context,
-    ) -> Result<Shared_component> {
-        self.set_init(widget, problem, None).await
-    }
-
-    pub async fn set_init(
-        &mut self,
-        widget: impl Widget_trait,
         mut problem: Component_context,
-        init_hitbox: Option<Hitbox>,
     ) -> Result<Shared_component> {
         let widget = Box::new(widget);
 
@@ -79,18 +70,18 @@ impl Component_slot {
             reference.name = self.name.clone();
             reference.widget = widget;
             reference.slot_manager.set_problem(problem);
+            reference
+                .hitbox
+                .make_independent(&variables, &self.name, &component_path, &self.path);
 
             Shared_component::new(lock.clone())
         } else {
-            let hitbox = match init_hitbox {
-                Some(hitbox) => hitbox,
-                None => Hitbox::new(
-                    &variables,
-                    self.name.clone(),
-                    component_path,
-                    self.path.clone(),
-                ),
-            };
+            let hitbox = Hitbox::new(
+                &variables,
+                self.name.clone(),
+                component_path,
+                self.path.clone(),
+            );
 
             let lock = Shared_component::new(Arc::new(Mutex::new(Component {
                 name: self.name.clone(),
@@ -100,7 +91,6 @@ impl Component_slot {
                 children: Vec::new(),
                 parent: None,
                 slot_manager: Slot_records::new(problem),
-                virtual_child: Component_slot::new(),
                 variables,
             })));
 

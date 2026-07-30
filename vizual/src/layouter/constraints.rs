@@ -5,42 +5,80 @@ use crate::{
 };
 use color_eyre::eyre::Result;
 
-/// Constrains a component to contain its visual children and minimizes its size on one axis
+/// Shrink-wraps each unshared edge of a component around its unshared child edges.
+///
+/// An edge needs no containment constraint or objective only when it directly reuses the
+/// corresponding parent edge variable. A child edge is skipped only when it directly reuses the
+/// corresponding component edge variable.
 pub async fn shrink_wrap(
     problem: &Component_context,
     hitbox: Hitbox,
+    _parent: Hitbox,
     children: &[Child],
     direction: Direction,
 ) -> Result<()> {
+    if children.is_empty() {
+        return Ok(());
+    }
+
     let (start_bound_name, end_bound_name) = match direction {
         Direction::Horizontal => ("child_horizontal_start_bound", "child_horizontal_end_bound"),
         Direction::Vertical => ("child_vertical_start_bound", "child_vertical_end_bound"),
     };
 
+    // TODO: this is broken and adds minimal performance when working
+    /*
+    let shrink_start = hitbox.get_start_position(direction) != parent.get_start_position(direction);
+    let shrink_end = hitbox.end.get(direction) != parent.end.get(direction);
+    */
+    let shrink_start = true;
+    let shrink_end = true;
+
+    let mut constrained_start = false;
+    let mut constrained_end = false;
+
     for child in children {
         let child_hitbox = child.get_hitbox().await?;
-        problem
-            .constrain(
-                constraint!(
-                    hitbox.get_start_position(direction)
-                        <= child_hitbox.get_start_position(direction)
+        if shrink_start
+            && child_hitbox.get_start_position(direction) != hitbox.get_start_position(direction)
+        {
+            problem
+                .constrain(
+                    constraint!(
+                        hitbox.get_start_position(direction)
+                            <= child_hitbox.get_start_position(direction)
+                    )
+                    .set_name(start_bound_name.to_string()),
                 )
-                .set_name(start_bound_name.to_string()),
-            )
+                .await?;
+            constrained_start = true;
+        }
+        if shrink_end && child_hitbox.end.get(direction) != hitbox.end.get(direction) {
+            problem
+                .constrain(
+                    constraint!(
+                        hitbox.get_end_position(direction)
+                            >= child_hitbox.get_end_position(direction)
+                    )
+                    .set_name(end_bound_name.to_string()),
+                )
+                .await?;
+            constrained_end = true;
+        }
+    }
+
+    if constrained_start {
+        problem
+            .maximize(Expression::from(hitbox.get_start_position(direction)), 0)
             .await?;
+    }
+    if constrained_end {
         problem
-            .constrain(
-                constraint!(
-                    hitbox.get_end_position(direction) >= child_hitbox.get_end_position(direction)
-                )
-                .set_name(end_bound_name.to_string()),
-            )
+            .minimize(hitbox.get_end_position(direction), 0)
             .await?;
     }
 
-    problem
-        .minimize(Expression::from(hitbox.get_dimension(direction)), 0)
-        .await
+    Ok(())
 }
 
 pub async fn prohibit_overlap(
@@ -97,4 +135,51 @@ pub async fn prohibit_overlap(
                     + MAXIMUM_LAYOUT_VALUE * (1 - second_above_first)
         ))
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::layouter::variables::Variables;
+
+    #[test]
+    fn only_corresponding_parent_edges_suppress_shrink_wrap() {
+        let variables = Variables::new();
+        let parent = Hitbox::new(
+            &variables,
+            "parent".to_string(),
+            "parent".to_string(),
+            "test".to_string(),
+        );
+        let mut child = Hitbox::new(
+            &variables,
+            "child".to_string(),
+            "child".to_string(),
+            "test".to_string(),
+        );
+        let direction = Direction::Horizontal;
+        assert_ne!(
+            child.get_start_position(direction),
+            parent.get_start_position(direction)
+        );
+        assert_ne!(child.end.get(direction), parent.end.get(direction));
+
+        child.start.x = parent.end.x;
+        assert_ne!(
+            child.get_start_position(direction),
+            parent.get_start_position(direction)
+        );
+
+        child.start.x = parent.start.x;
+        assert_eq!(
+            child.get_start_position(direction),
+            parent.get_start_position(direction)
+        );
+
+        child.end.x = parent.start.x;
+        assert_ne!(child.end.get(direction), parent.end.get(direction));
+
+        child.end.x = parent.end.x;
+        assert_eq!(child.end.get(direction), parent.end.get(direction));
+    }
 }

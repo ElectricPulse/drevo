@@ -8,11 +8,12 @@ use color_eyre::eyre::Result;
 use regex::Regex;
 use vizual_macros::display;
 
-use super::super::super::{Control, Focus_provider, Widget_trait, Widget_type};
+use super::super::super::{Control, Focus_provider, Widget_trait};
+use super::super::full::Full;
 use super::super::title_block::Title_block;
 use crate::{
     Vizual_command, Vizual_msg,
-    component::context::Component_context,
+    component::{Children, context::Component_context},
     display::Display,
     event::{Event, Key_code, Key_event},
     geometry::{Point, Rect, Size},
@@ -194,12 +195,12 @@ impl Widget_trait for Text_input {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         focus.set_active(true);
         let content = Text_input_content {
             input: self.input.clone(),
@@ -208,10 +209,11 @@ impl Widget_trait for Text_input {
             valid: self.valid,
             focused: self.focused.clone(),
         };
-        let content = display!(content).fill(problem).await?;
+        let content = display!(content).fill(problem.clone()).await?;
         let block = Title_block::new(content, self.title.clone(), self.theme.clone());
+        let full = Full::new(display!(block));
 
-        Ok(Widget_type::Virtual(Box::new(block)))
+        Ok(vec![display!(full)])
     }
 
     async fn render(

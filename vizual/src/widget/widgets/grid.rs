@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use crate::{
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     layouter::{constraints::prohibit_overlap, hitbox::Hitbox},
     slot::manager::Slots,
-    widget::{Control, Focus_provider, Widget_trait, Widget_type},
+    widget::{Control, Focus_provider, Widget_trait},
 };
 
 pub struct Grid {
@@ -26,12 +26,12 @@ impl Widget_trait for Grid {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         for (index, first) in self.children.iter().enumerate() {
             for second in self.children.iter().skip(index + 1) {
                 let first_hitbox = first.get_hitbox().await?;
@@ -41,8 +41,6 @@ impl Widget_trait for Grid {
             }
         }
 
-        Ok(Widget_type::Visual {
-            children: self.children.clone(),
-        })
+        Ok(self.children.clone())
     }
 }

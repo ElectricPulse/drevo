@@ -1,5 +1,6 @@
-use super::super::{Control, Focus_provider, Widget_trait, Widget_type};
+use super::super::{Control, Focus_provider, Widget_trait};
 use crate::{
+    component::Children,
     component::context::Component_context,
     config::DEFAULT_FONT_SIZE,
     constraint,
@@ -58,12 +59,12 @@ impl Widget_trait for Text {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let size = text_context.measure(&self.content, self.style.size);
         problem
             .constrain(constraint!(
@@ -76,7 +77,7 @@ impl Widget_trait for Text {
             ))
             .await?;
 
-        Ok(Widget_type::none())
+        Ok(Vec::new())
     }
 
     async fn render(

@@ -6,11 +6,12 @@ use std::future::Future;
 use std::pin::Pin;
 use vizual_macros::display;
 
-use super::super::{Control, Focus_provider, Shared_widget, Widget_trait, Widget_type};
+use super::super::{Control, Focus_provider, Shared_widget, Widget_trait};
+use super::full::Full;
 use super::menu::Menu;
 use super::title_block::Title_block;
 use crate::{
-    component::context::Component_context,
+    component::{Children, context::Component_context},
     display::Display,
     event::{Key_code, Key_event},
     geometry::Rect,
@@ -33,12 +34,12 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        hitbox: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
         text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         (**self)
             .layout(focus, hitbox, parent, problem, text_context, slots)
             .await
@@ -211,12 +212,12 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         focus.set_active(true);
         let child = if self.exitting {
             let exit_menu = self.exit_menu.clone();
@@ -227,7 +228,8 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
         };
 
         let block = Title_block::new(child, self.title().await?, self.theme.clone());
+        let full = Full::new(display!(block));
 
-        Ok(Widget_type::Virtual(Box::new(block)))
+        Ok(vec![display!(full)])
     }
 }

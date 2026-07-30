@@ -8,14 +8,14 @@ use std::sync::{Arc, Weak};
 use crate::{
     focus::Focus,
     geometry::Direction,
-    layouter::{Solution, expression::Expression, hitbox::Hitbox, variables::Variables},
-    slot::{
-        Component_slot,
-        manager::{Slot_records, Slots},
+    layouter::{
+        Solution, constraints::shrink_wrap, expression::Expression, hitbox::Hitbox,
+        variables::Variables,
     },
+    slot::manager::{Slot_records, Slots},
     sync::{Mutex, MutexGuard},
     text::Text_context,
-    widget::{Control, Focus_provider, Widget, Widget_trait, Widget_type},
+    widget::{Control, Focus_provider, Widget, Widget_trait},
 };
 
 use self::context::Component_context;
@@ -36,7 +36,6 @@ pub struct Component {
     pub parent: Parent,
     pub children: Children,
     pub slot_manager: Slot_records,
-    pub virtual_child: Component_slot,
     pub(crate) variables: Arc<Variables>,
 }
 
@@ -50,13 +49,13 @@ impl Widget_trait for Shared_component {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
-        problem: Component_context,
+        _problem: Component_context,
         _text_context: &mut Text_context,
         _slots: &mut Slots,
-    ) -> Result<Widget_type> {
-        Widget_type::wrap(vec![self.clone()], hitbox, &problem, true, true).await
+    ) -> Result<Children> {
+        Ok(vec![self.clone()])
     }
 }
 
@@ -81,6 +80,49 @@ impl Shared_component {
 
     pub async fn get_hitbox(&self) -> Result<Hitbox> {
         Ok(self.lock().await?.hitbox)
+    }
+
+    pub async fn full(&self, parent: Hitbox, problem: &Component_context) -> Result<()> {
+        self.lock().await?.hitbox.full(parent, problem).await
+    }
+
+    pub async fn share_start(
+        &self,
+        parent: Hitbox,
+        problem: &Component_context,
+        direction: Direction,
+    ) -> Result<()> {
+        self.lock()
+            .await?
+            .hitbox
+            .share_start(parent, problem, direction)
+            .await
+    }
+
+    pub async fn share_end(
+        &self,
+        parent: Hitbox,
+        problem: &Component_context,
+        direction: Direction,
+    ) -> Result<()> {
+        self.lock()
+            .await?
+            .hitbox
+            .share_end(parent, problem, direction)
+            .await
+    }
+
+    pub async fn share_dimension(
+        &self,
+        parent: Hitbox,
+        problem: &Component_context,
+        direction: Direction,
+    ) -> Result<()> {
+        self.lock()
+            .await?
+            .hitbox
+            .share_dimension(parent, problem, direction)
+            .await
     }
 
     #[async_recursion]
@@ -145,7 +187,6 @@ impl Shared_component {
             let Component {
                 widget,
                 slot_manager,
-                virtual_child,
                 hitbox,
                 focusable,
                 ..
@@ -155,10 +196,10 @@ impl Shared_component {
 
             let children = {
                 let mut slots = slot_manager.slots();
-                let widget_type = widget
+                let children = widget
                     .layout(
                         &mut focus,
-                        *hitbox,
+                        hitbox,
                         parent,
                         problem.clone(),
                         text_context,
@@ -166,16 +207,7 @@ impl Shared_component {
                     )
                     .await?;
 
-                match widget_type {
-                    Widget_type::None => Vec::new(),
-                    Widget_type::Virtual(widget) => {
-                        let child = virtual_child
-                            .set_init(widget, problem.clone(), Some(*hitbox))
-                            .await?;
-                        vec![child]
-                    }
-                    Widget_type::Visual { children } => children,
-                }
+                children
             };
             *focusable = focus.is_active();
 
@@ -192,23 +224,29 @@ impl Shared_component {
     pub async fn layout_children(
         &mut self,
         children: Children,
+        parent_hitbox: Hitbox,
         mut problem: Component_context,
         text_context: &mut Text_context,
     ) -> Result<()> {
-        let parent = {
+        let hitbox = {
             let component = self.lock().await?;
             problem.component_path.push(component.name.clone());
             component.hitbox
         };
 
-        for mut child in children {
+        for child in &children {
+            let mut child = child.clone();
             let grandchildren = child
                 .clone()
-                .layout(self.clone().into(), parent, problem.clone(), text_context)
+                .layout(self.clone().into(), hitbox, problem.clone(), text_context)
                 .await?;
             child
-                .layout_children(grandchildren, problem.clone(), text_context)
+                .layout_children(grandchildren, hitbox, problem.clone(), text_context)
                 .await?;
+        }
+
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            shrink_wrap(&problem, hitbox, parent_hitbox, &children, direction).await?;
         }
 
         Ok(())

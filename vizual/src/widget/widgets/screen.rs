@@ -9,13 +9,14 @@ use color_eyre::eyre::{Result, WrapErr, bail};
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Shared_widget, Widget_trait, Widget_type},
+    super::{Control, Focus_provider, Shared_widget, Widget_trait},
+    full::Full,
     text_viewport::Text_viewport,
     title_block::Title_block,
 };
 use crate::{
     Rerender, Vizual_command, Vizual_msg,
-    component::context::Component_context,
+    component::{Children, context::Component_context},
     config::COMMAND_WAIT_TIMEOUT,
     display::Display,
     event::{Event, Key_code, Key_event, Wheel_delta},
@@ -317,22 +318,23 @@ impl Widget_trait for Screen {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         focus.set_active(true);
         let title = {
             let content = self.content.lock().await?;
             format!("{}{}", self.command, content.status())
         };
         let content = self.content.clone();
-        let content = display!(content).fill(problem).await?;
+        let content = display!(content).fill(problem.clone()).await?;
         let block = Title_block::new(content, title, self.theme.clone());
+        let full = Full::new(display!(block));
 
-        Ok(Widget_type::Virtual(Box::new(block)))
+        Ok(vec![display!(full)])
     }
 }
 

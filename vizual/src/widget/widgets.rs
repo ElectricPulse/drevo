@@ -3,6 +3,7 @@ pub mod anchor;
 pub mod block;
 pub mod button;
 pub mod form;
+pub mod full;
 pub mod grid;
 pub mod layout;
 pub mod linebreak;

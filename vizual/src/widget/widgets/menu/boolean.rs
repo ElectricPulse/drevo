@@ -42,7 +42,7 @@ impl Menu_item_trait<bool> for Boolean_menu_item {
         &mut self,
         selected: bool,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,

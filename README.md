@@ -6,7 +6,7 @@ Vizual ( ˈvizuaːl) is a reactive all Rust UI framework
 
 ## Features
 - State system heavily inspired by [React](https://react.dev/)
-- MILP powered layouting system inspired by [iOS Auto Layout](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html)
+- MILP powered layouting system inspired by [iOS Auto Layout](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html) which is built on [Cassowary](https://constraints.cs.washington.edu/solvers/cassowary-tochi.pdf)
 - Structural navigation via ```Tab``` and ```Shift + Tab``` for accessibility
 ## Demo
 ![demo](assets/demo.gif)
@@ -70,6 +70,8 @@ runtime remains active for asynchronous widget and background work.
 
 ## To-Do list
 - remove the need for nightly
+- Implement static hitbox variables so known constant positions and dimensions do
+  not require solver variables and equality constraints.
 - `display!()` can be called infinitely on a value that is
   already implements `Widget_trait`
 - fix structural navigation

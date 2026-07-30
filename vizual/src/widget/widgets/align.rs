@@ -1,13 +1,14 @@
 use async_trait::async_trait;
 use color_eyre::Result;
+use vizual_macros::display;
 
 use crate::{
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     constraint,
     geometry::Direction,
     layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
-    widget::{Control, Focus_provider, Widget_trait, Widget_type},
+    widget::{Control, Focus_provider, Widget_trait, widgets::full::Full},
 };
 
 pub struct Alignments {
@@ -32,7 +33,7 @@ impl Align {
         objective: Objective,
         direction: Direction,
     ) -> Result<()> {
-        let priority = 2;
+        let priority = 1;
         match objective {
             Objective::Minimize => {
                 let start_margin = Expression::from(
@@ -57,12 +58,12 @@ impl Widget_trait for Align {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        hitbox: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
-        _slots: &mut Slots,
-    ) -> Result<Widget_type> {
+        slots: &mut Slots,
+    ) -> Result<Children> {
         for direction in [Direction::Horizontal, Direction::Vertical] {
             problem
                 .constrain(constraint!(
@@ -77,12 +78,13 @@ impl Widget_trait for Align {
         }
 
         if let Some(horizontal) = self.alignments.horizontal {
-            Self::align(&problem, parent, hitbox, horizontal, Direction::Horizontal).await?;
+            Self::align(&problem, parent, *hitbox, horizontal, Direction::Horizontal).await?;
         }
         if let Some(vertical) = self.alignments.vertical {
-            Self::align(&problem, parent, hitbox, vertical, Direction::Vertical).await?;
+            Self::align(&problem, parent, *hitbox, vertical, Direction::Vertical).await?;
         }
 
-        Ok(Widget_type::Virtual(Box::new(self.child.clone())))
+        let full = Full::new(self.child.clone());
+        Ok(vec![display!(full)])
     }
 }

@@ -1,6 +1,6 @@
-use super::super::{Control, Focus_provider, Widget, Widget_trait, Widget_type};
+use super::super::{Control, Focus_provider, Widget_trait};
 use crate::{
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     config::BORDER_SIZE,
     constraint,
     display::Display,
@@ -46,12 +46,12 @@ impl Widget_trait for Block {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let child_hitbox = self.child.get_hitbox().await?;
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
@@ -70,8 +70,7 @@ impl Widget_trait for Block {
                 .await?;
         }
 
-        let child: Widget = Box::new(self.child.clone());
-        Ok(Widget_type::Virtual(child))
+        Ok(vec![self.child.clone()])
     }
 
     async fn render(

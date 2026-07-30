@@ -1,12 +1,12 @@
 use crate::{
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     constraint,
     geometry::Direction,
     layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     theme::Theme,
-    widget::{Control, Focus_provider, Widget_trait, Widget_type},
+    widget::{Control, Focus_provider, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -61,12 +61,12 @@ impl Widget_trait for Layout {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let elements = self.get_elements();
 
         let direction = self.direction;
@@ -139,17 +139,6 @@ impl Widget_trait for Layout {
             }
         }
 
-        let (vertical_shrink, horizontal_shrink) = match direction {
-            Direction::Horizontal => (true, false),
-            Direction::Vertical => (false, true),
-        };
-        Widget_type::wrap(
-            elements.into_iter().cloned().collect(),
-            hitbox,
-            &problem,
-            vertical_shrink,
-            horizontal_shrink,
-        )
-        .await
+        Ok(elements.into_iter().cloned().collect())
     }
 }

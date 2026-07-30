@@ -3,12 +3,13 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Widget_trait, Widget_type},
+    super::{Control, Focus_provider, Widget_trait},
     block::Block,
+    full::Full,
     space::Space,
 };
 use crate::{
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
@@ -38,12 +39,12 @@ impl Widget_trait for Paper {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let space = Space::uniform(
             self.child.clone(),
             self.theme.load().specific.paper.frame_padding,
@@ -52,7 +53,8 @@ impl Widget_trait for Paper {
         );
 
         let block = Block::new(display!(space), self.theme.clone());
+        let full = Full::new(display!(block));
 
-        Ok(Widget_type::Virtual(Box::new(block)))
+        Ok(vec![display!(full)])
     }
 }

@@ -17,7 +17,7 @@ use std::{
 };
 use vizual::{
     Vizual_command, Vizual_msg, check_quit_event,
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     display::Display,
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
@@ -29,11 +29,12 @@ use vizual::{
     theme::Theme,
     utils::get_strings_id,
     widget::{
-        Control, Focus_provider, Shared_widget, Widget, Widget_trait, Widget_type,
+        Control, Focus_provider, Shared_widget, Widget, Widget_trait,
         widgets::{
             align::{Align, Alignments},
             anchor::{Anchor, Anchors, Position as Anchor_position},
             button::Button,
+            full::Full,
             grid::Grid,
             layout::{Layout, Style as Layout_style},
             linebreak::Linebreak,
@@ -65,12 +66,12 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        hitbox: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
         text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         (**self)
             .layout(focus, hitbox, parent, problem, text_context, slots)
             .await
@@ -105,7 +106,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Default_leaf_value<V
         &mut self,
         selected: bool,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
@@ -143,7 +144,7 @@ impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Custom_leaf_value<Va
         &mut self,
         selected: bool,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
@@ -385,12 +386,12 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         focus.set_active(true);
         let cursor = self.configurator_state.lock().await?.cursor.clone();
         let button_delta = problem
@@ -411,8 +412,9 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         );
 
         let block = Title_block::new(display!(layout), "Config", self.theme.clone());
+        let full = Full::new(display!(block));
 
-        Ok(Widget_type::Virtual(Box::new(block)))
+        Ok(vec![display!(full)])
     }
 
     async fn render(
@@ -607,12 +609,12 @@ impl<T: Tree> Widget_trait for Configurator<T> {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let tree_view = Tree_view {
             tree: self.tree.clone(),
             configurator_state: self.configurator_state.clone(),
@@ -708,10 +710,10 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 .await?;
 
             let popup = Space::full(popup, Objective::default(), 2);
-            return Widget_type::visual(vec![display!(grid), display!(popup)], hitbox, &problem)
-                .await;
+            return Ok(vec![display!(grid), display!(popup)]);
         }
 
-        Ok(Widget_type::Virtual(Box::new(grid)))
+        let full = Full::new(display!(grid));
+        Ok(vec![display!(full)])
     }
 }

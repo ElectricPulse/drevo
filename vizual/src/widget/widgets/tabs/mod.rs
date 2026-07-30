@@ -6,12 +6,13 @@ use uuid::Uuid;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Shared_widget, Widget, Widget_trait, Widget_type},
+    super::{Control, Focus_provider, Shared_widget, Widget, Widget_trait},
+    full::Full,
     layout::{Layout, Style as Layout_style},
 };
 use crate::{
     Rerender,
-    component::context::Component_context,
+    component::{Children, context::Component_context},
     display::Display,
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
@@ -134,12 +135,12 @@ impl Widget_trait for Tab_bar {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
-        _slots: &mut Slots,
-    ) -> Result<Widget_type> {
+        slots: &mut Slots,
+    ) -> Result<Children> {
         focus.set_active(true);
         let mut buttons = Vec::with_capacity(self.pages.len());
 
@@ -161,8 +162,9 @@ impl Widget_trait for Tab_bar {
             Objective::default(),
             2,
         );
+        let full = Full::new(display!(layout));
 
-        Ok(Widget_type::Virtual(Box::new(layout)))
+        Ok(vec![display!(full)])
     }
 
     async fn render(
@@ -183,12 +185,12 @@ impl Widget_trait for Tabs {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let tab = {
             let selected = self.header.lock().await?.get_selected().await;
             if let Some(widget) = selected {
@@ -207,7 +209,8 @@ impl Widget_trait for Tabs {
             Objective::default(),
             2,
         );
+        let full = Full::new(display!(layout));
 
-        Ok(Widget_type::Virtual(Box::new(layout)))
+        Ok(vec![display!(full)])
     }
 }

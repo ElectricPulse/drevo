@@ -5,9 +5,10 @@ use color_eyre::eyre::Result;
 use vizual_macros::{Control, display};
 
 use super::{
-    super::{Focus_provider, Shared_widget, Widget_trait, Widget_type},
+    super::{Focus_provider, Shared_widget, Widget_trait},
     anchor::{Anchor, Anchors},
     button::Button,
+    full::Full,
     layout::{Layout, Style as Layout_style},
     menu::{Menu, Menu_item_trait, Shared_menu_item, get_selector},
     text::Text,
@@ -15,7 +16,7 @@ use super::{
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     geometry::Direction,
     handlers::{Retrieve_handler, Submit_handler},
     layouter::{hitbox::Hitbox, objective::Objective},
@@ -70,7 +71,7 @@ impl Menu_item_trait<Popup_options> for Popup_menu_item {
         &mut self,
         selected: bool,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
@@ -161,12 +162,12 @@ impl Widget_trait for Popup {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let button = Button::new(
             "Submit",
             Box::new(Popup_button_handler {
@@ -189,7 +190,8 @@ impl Widget_trait for Popup {
             self.theme.clone(),
         );
         let anchor = Anchor::new(display!(block), Anchors::middle());
+        let full = Full::new(display!(anchor));
 
-        Ok(Widget_type::Virtual(Box::new(anchor)))
+        Ok(vec![display!(full)])
     }
 }

@@ -21,6 +21,23 @@ impl Expression {
         self.coefficients.keys().copied()
     }
 
+    pub(crate) fn replace_variable(&mut self, old: Variable, new: Variable) {
+        if old == new {
+            return;
+        }
+        let Some(coefficient) = self.coefficients.remove(&old) else {
+            return;
+        };
+        let remove = {
+            let stored = self.coefficients.entry(new).or_default();
+            *stored += coefficient;
+            *stored == 0.0
+        };
+        if remove {
+            let _ = self.coefficients.remove(&new);
+        }
+    }
+
     pub(crate) fn eval_with(&self, values: &HashMap<Variable, f64>) -> f64 {
         self.constant
             + self

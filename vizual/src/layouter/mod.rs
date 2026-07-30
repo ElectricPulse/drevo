@@ -20,8 +20,8 @@ use good_lp::{
 };
 
 use self::{
-    constraint::Constraint, expression::Expression, hitbox::Hitbox, objective::Delta,
-    screen::SCREEN, variable::Variable, variables::Variables,
+    constraint::Constraint, expression::Expression, hitbox::Hitbox, screen::SCREEN,
+    variable::Variable, variables::Variables,
 };
 use crate::{
     component::context::Component_context,
@@ -38,7 +38,7 @@ const PRIORITY_LEVELS: usize = 4;
 // As of this moment the usage of priorities has crystalized like this:
 // 3 is for calculating minimum screen size as that will just minimize root hitbox
 // 2 is for gaps, spaces, margins, paddings
-// 1 is for elements that just want to fill the surrounding space after content looks like it wants to look like
+// 1 is for elements that just want to fill the surrounding space after content looks like it wants to look like and for align
 // 0 is for shrink wrap of parents around their children
 
 pub trait Field: Send {
@@ -90,6 +90,21 @@ impl Problem {
         Arc::clone(&self.variables)
     }
 
+    pub(crate) fn replace_variable(&mut self, old: Variable, new: Variable, remove_old: bool) {
+        if old == new {
+            return;
+        }
+        for constraint in &mut self.constraints {
+            constraint.expression.replace_variable(old, new);
+        }
+        for objective in self.objectives.iter_mut().flatten() {
+            objective.replace_variable(old, new);
+        }
+        if remove_old {
+            self.variables.remove(old);
+        }
+    }
+
     pub(crate) fn constrain(&mut self, constraint: Constraint) {
         self.constraints.push(constraint);
     }
@@ -117,7 +132,7 @@ impl Problem {
         &mut self,
         expression: impl Into<Expression>,
         target: f64,
-        delta: Delta,
+        delta: Variable,
         priority: usize,
     ) -> Result<()> {
         ensure!(
@@ -127,14 +142,10 @@ impl Problem {
 
         let difference = (Expression::from(target) - expression.into()) / target;
         self.constrain(constraint!(difference.clone() >= 0));
-
-        match delta {
-            Some(delta) => {
-                self.constrain(constraint!(difference == delta));
-                Ok(())
-            }
-            None => self.minimize(difference, priority),
-        }
+        self.constrain(constraint!(difference == delta));
+        // Bodge: goals at the same priority are summed together at the end, so minimizing
+        // the same delta once for every use is equivalent to putting a weight on it.
+        self.minimize(Expression::from(delta), priority)
     }
 
     pub fn add_delta(
@@ -150,7 +161,6 @@ impl Problem {
             path,
             component_path,
         );
-        // TODO: Investigate a convex piecewise-linear objective that penalizes larger deltas more.
         self.minimize(Expression::from(delta), priority)?;
         Ok(delta)
     }
@@ -530,8 +540,42 @@ impl Problem {
     }
 
     pub async fn solve_minimum(&self, root: Hitbox) -> Result<Solution> {
-        let root_size = Expression::from(root.dimensions.width) + root.dimensions.height;
+        let root_size =
+            root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
         self.full_solve(self.constraints.clone(), None, Some(root_size * -1.0))
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn each_delta_use_adds_objective_weight() -> Result<()> {
+        let variables = Arc::new(Variables::new());
+        let mut problem = Problem::new(Arc::clone(&variables));
+        let delta = problem.add_delta(
+            "shared-delta".to_string(),
+            "test".to_string(),
+            "test".to_string(),
+            2,
+        )?;
+
+        assert_eq!(
+            problem.objectives[2]
+                .as_ref()
+                .and_then(|objective| objective.coefficients.get(&delta)),
+            Some(&-1.0)
+        );
+
+        problem.minimize_difference(Expression::from(0.0), 1.0, delta, 2)?;
+        problem.minimize_difference(Expression::from(0.0), 1.0, delta, 2)?;
+
+        let objective = problem.objectives[2]
+            .as_ref()
+            .expect("delta uses should create an objective");
+        assert_eq!(objective.coefficients.get(&delta), Some(&-3.0));
+        Ok(())
     }
 }

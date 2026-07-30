@@ -3,14 +3,15 @@ use color_eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Widget_trait, Widget_type},
+    super::{Control, Focus_provider, Widget_trait},
     block::Block,
+    full::Full,
     space::Space,
     text::Text,
 };
 use crate::{
     Vizual_msg,
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     event::Pointer_event,
     handlers::Submit_handler,
     layouter::{
@@ -69,12 +70,12 @@ impl Widget_trait for Button {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let content = match &self.content {
             Button_content::Label(label) => {
                 let text = Text::new(label.clone())
@@ -94,8 +95,9 @@ impl Widget_trait for Button {
 
         let mut block = Block::new(display!(space), self.theme.clone());
         block.highlighted = self.highlighted;
+        let full = Full::new(display!(block));
 
-        Ok(Widget_type::Virtual(Box::new(block)))
+        Ok(vec![display!(full)])
     }
 }
 

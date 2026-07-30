@@ -1,6 +1,6 @@
-use super::super::{Control, Focus_provider, Widget_trait, Widget_type};
+use super::super::{Control, Focus_provider, Widget_trait};
 use crate::{
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     constraint,
     geometry::Direction,
     layouter::{
@@ -119,6 +119,7 @@ impl Space {
         problem: &Component_context,
         space: Expression,
         target: Option<f64>,
+        delta: Delta,
     ) -> Result<()> {
         problem.constrain(constraint!(space.clone() >= 0)).await?;
 
@@ -130,7 +131,7 @@ impl Space {
                     target => target,
                 };
                 self.objective
-                    .apply(problem, space, target, self.delta, self.priority)
+                    .apply(problem, space, target, delta, self.priority)
                     .await
             }
             None => Ok(()),
@@ -145,31 +146,37 @@ impl Widget_trait for Space {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let child_hitbox = self.child.get_hitbox().await?;
         let spaces = self.spaces;
+        let delta = match (self.objective, self.delta, spaces == Spaces::default()) {
+            (Objective::Minimize_difference, None, false) => {
+                Some(problem.add_delta("space-delta", self.priority).await?)
+            }
+            (_, delta, _) => delta,
+        };
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
             let start_space = Expression::from(
                 child_hitbox.get_start_position(direction) - hitbox.get_start_position(direction),
             );
 
-            self.apply_objective(&problem, start_space, spaces.start(direction))
+            self.apply_objective(&problem, start_space, spaces.start(direction), delta)
                 .await?;
 
             let end_space = Expression::from(
                 hitbox.get_end_position(direction) - child_hitbox.get_end_position(direction),
             );
 
-            self.apply_objective(&problem, end_space, spaces.end(direction))
+            self.apply_objective(&problem, end_space, spaces.end(direction), delta)
                 .await?;
         }
 
-        Widget_type::wrap(vec![self.child.clone()], hitbox, &problem, true, true).await
+        Ok(vec![self.child.clone()])
     }
 }

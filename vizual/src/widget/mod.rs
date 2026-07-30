@@ -10,9 +10,9 @@ use crate::{
     component::{Children, context::Component_context},
     display::Display,
     event::{Event, Key_event, Pointer_event},
-    geometry::{Direction, Rect},
+    geometry::Rect,
     handlers::Retrieve_handler,
-    layouter::{constraints::shrink_wrap, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::{Component_slot, manager::Slots},
     sync::{Mutex, MutexGuard, Thread_safe},
     text::Text_context,
@@ -21,62 +21,6 @@ use crate::{
 use super::{Rerender, Vizual_msg};
 
 pub type Widget = Box<dyn Widget_trait>;
-
-/// Describes whether a widget introduces a visual component or only another widget layer.
-pub enum Widget_type {
-    /// A visual leaf whose dimensions are fully described by its own layout constraints.
-    None,
-    /// A virtual widget has no visual children of its own. The consumer immediately lays out the
-    /// inner widget with the same focus, hitbox, problem, and slots. Reusing the hitbox this way is
-    /// a fragile way to implement hierarchy because virtual layers do not receive distinct hitboxes.
-    /// TODO: A widget returned through `Virtual` is only used for layout, so its `render`
-    /// callback will not be called.
-    Virtual(Widget),
-    /// A visual widget owns the current component and returns the children laid out beneath it.
-    #[non_exhaustive]
-    Visual { children: Children },
-}
-
-impl Widget_type {
-    pub fn none() -> Self {
-        Self::None
-    }
-
-    /// Client-facing constructor for a component with multiple visual children.
-    ///
-    /// This applies containment constraints and shrink-wrap objectives on both axes so client
-    /// widgets receive safe, predictable bounds by default. A widget with only one child should
-    /// normally return that child through [`Widget_type::Virtual`] instead of introducing another
-    /// component and another pair of shrink-wrap objectives.
-    pub async fn visual(
-        children: Children,
-        hitbox: Hitbox,
-        problem: &Component_context,
-    ) -> Result<Self> {
-        debug_assert!(
-            children.len() > 1,
-            "Widget_type::visual expects multiple children; use Widget_type::Virtual for one child"
-        );
-        Self::wrap(children, hitbox, problem, true, true).await
-    }
-
-    pub(crate) async fn wrap(
-        children: Children,
-        hitbox: Hitbox,
-        problem: &Component_context,
-        vertical_shrink: bool,
-        horizontal_shrink: bool,
-    ) -> Result<Self> {
-        if vertical_shrink {
-            shrink_wrap(problem, hitbox, &children, Direction::Vertical).await?;
-        }
-        if horizontal_shrink {
-            shrink_wrap(problem, hitbox, &children, Direction::Horizontal).await?;
-        }
-
-        Ok(Self::Visual { children })
-    }
-}
 
 pub struct Focus_provider {
     focused: bool,
@@ -115,16 +59,21 @@ impl Focus_provider {
 #[async_trait]
 /// A widget that participates in layout and painting.
 pub trait Widget_trait: Control + Thread_safe {
+    /// Configures this widget's mutable hitbox and returns its visual children.
+    ///
+    /// A widget can reuse parent variables through [`Hitbox::share_start`],
+    /// [`Hitbox::share_end`], [`Hitbox::share_dimension`], or [`Hitbox::full`]. Returned children
+    /// are shrink-wrapped by default wherever neither side of an edge is shared.
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut Text_context,
         _slots: &mut Slots,
-    ) -> Result<Widget_type> {
-        Ok(Widget_type::none())
+    ) -> Result<Children> {
+        Ok(Vec::new())
     }
 
     // The hitbox must be a resolved hitbox returned by the layouter.
@@ -163,12 +112,12 @@ impl Widget_trait for Widget {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        hitbox: Hitbox,
+        hitbox: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         (**self)
             .layout(focus, hitbox, parent, problem, text_context, slots)
             .await
@@ -223,12 +172,12 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
-        component: Hitbox,
+        component: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         self.0
             .lock()
             .await?

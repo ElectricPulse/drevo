@@ -3,13 +3,14 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Widget_trait, Widget_type},
+    super::{Control, Focus_provider, Widget_trait},
+    full::Full,
     layout::{Layout, Style as Layout_style},
     paper::Paper,
     text::Text,
 };
 use crate::{
-    component::{Child, context::Component_context},
+    component::{Child, Children, context::Component_context},
     geometry::Direction,
     layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
@@ -40,12 +41,12 @@ impl Widget_trait for Title_block {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Widget_type> {
+    ) -> Result<Children> {
         let title =
             Text::new(self.title.clone()).set_style(self.theme.load().semantic.text.title());
 
@@ -58,7 +59,8 @@ impl Widget_trait for Title_block {
         );
 
         let paper = Paper::new(display!(layout), self.theme.clone());
+        let full = Full::new(display!(paper));
 
-        Ok(Widget_type::Virtual(Box::new(paper)))
+        Ok(vec![display!(full)])
     }
 }
