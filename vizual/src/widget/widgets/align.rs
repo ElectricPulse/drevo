@@ -4,20 +4,14 @@ use color_eyre::Result;
 use crate::{
     component::{Shared_component, context::Component_context},
     geometry::Direction,
-    layouter::{expression::Expression, hitbox::Hitbox},
+    layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     widget::{Control, Focus_provider, Widget_trait, Widget_type},
 };
 
-#[derive(Clone, Copy)]
-pub enum Alignment {
-    Minimize,
-    Maximize,
-}
-
 pub struct Alignments {
-    pub horizontal: Option<Alignment>,
-    pub vertical: Option<Alignment>,
+    pub horizontal: Option<Objective>,
+    pub vertical: Option<Objective>,
 }
 
 pub struct Align {
@@ -33,12 +27,12 @@ impl Align {
     async fn align(
         problem: &Component_context,
         child_hitbox: Hitbox,
-        alignment: Alignment,
+        objective: Objective,
         direction: Direction,
     ) -> Result<()> {
         let priority = 2;
-        match alignment {
-            Alignment::Minimize => {
+        match objective {
+            Objective::Minimize => {
                 problem
                     .minimize(
                         Expression::from(child_hitbox.get_start_position(direction)),
@@ -46,11 +40,12 @@ impl Align {
                     )
                     .await
             }
-            Alignment::Maximize => {
+            Objective::Maximize => {
                 problem
                     .maximize(child_hitbox.get_end_position(direction), priority)
                     .await
             }
+            Objective::Minimize_difference => Ok(()),
         }
     }
 }

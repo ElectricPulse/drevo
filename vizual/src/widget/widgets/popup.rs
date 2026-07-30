@@ -6,7 +6,7 @@ use vizual_macros::{Control, display};
 
 use super::{
     super::{Focus_provider, Shared_widget, Widget_trait, Widget_type},
-    anchor::{Alignments, Anchor},
+    anchor::{Anchor, Anchors},
     button::Button,
     layout::{Layout, Style as Layout_style},
     menu::{Menu, Menu_item_trait, Shared_menu_item, get_selector},
@@ -186,7 +186,7 @@ impl Widget_trait for Popup {
             "Are you sure you want to quit?",
             self.theme.clone(),
         );
-        let anchor = Anchor::new(display!(block), Alignments::middle());
+        let anchor = Anchor::new(display!(block), Anchors::middle());
 
         Ok(Widget_type::Virtual(Box::new(anchor)))
     }

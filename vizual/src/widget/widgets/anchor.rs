@@ -10,45 +10,45 @@ use async_trait::async_trait;
 use color_eyre::Result;
 
 #[derive(Clone, Copy)]
-pub enum Alignment {
+pub enum Position {
     Start,
     Middle,
     End,
 }
 
-pub struct Alignments {
-    pub horizontal: Option<Alignment>,
-    pub vertical: Option<Alignment>,
+pub struct Anchors {
+    pub horizontal: Option<Position>,
+    pub vertical: Option<Position>,
 }
 
-impl Alignments {
+impl Anchors {
     pub fn middle() -> Self {
         Self {
-            horizontal: Some(Alignment::Middle),
-            vertical: Some(Alignment::Middle),
+            horizontal: Some(Position::Middle),
+            vertical: Some(Position::Middle),
         }
     }
 }
 
 pub struct Anchor {
     child: Shared_component,
-    alignments: Alignments,
+    anchors: Anchors,
 }
 
 impl Anchor {
-    pub fn new(child: Shared_component, alignments: Alignments) -> Self {
-        Self { child, alignments }
+    pub fn new(child: Shared_component, anchors: Anchors) -> Self {
+        Self { child, anchors }
     }
 
     async fn anchor(
         problem: &Component_context,
         hitbox: Hitbox,
         child_hitbox: Hitbox,
-        alignment: Alignment,
+        position: Position,
         direction: Direction,
     ) -> Result<()> {
-        match alignment {
-            Alignment::Start => {
+        match position {
+            Position::Start => {
                 problem
                     .constrain(constraint!(
                         child_hitbox.get_start_position(direction)
@@ -56,7 +56,7 @@ impl Anchor {
                     ))
                     .await?;
             }
-            Alignment::Middle => {
+            Position::Middle => {
                 let start_margin = Expression::from(
                     child_hitbox.get_start_position(direction)
                         - hitbox.get_start_position(direction),
@@ -67,7 +67,7 @@ impl Anchor {
                     .constrain(constraint!(start_margin == end_margin))
                     .await?;
             }
-            Alignment::End => {
+            Position::End => {
                 problem
                     .constrain(constraint!(
                         child_hitbox.get_end_position(direction)
@@ -95,7 +95,7 @@ impl Widget_trait for Anchor {
     ) -> Result<Widget_type> {
         let child_hitbox = self.child.get_hitbox().await?;
 
-        if let Some(horizontal) = self.alignments.horizontal {
+        if let Some(horizontal) = self.anchors.horizontal {
             Self::anchor(
                 &problem,
                 hitbox,
@@ -106,7 +106,7 @@ impl Widget_trait for Anchor {
             .await?;
         }
 
-        if let Some(vertical) = self.alignments.vertical {
+        if let Some(vertical) = self.anchors.vertical {
             Self::anchor(
                 &problem,
                 hitbox,
