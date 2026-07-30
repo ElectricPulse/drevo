@@ -2,7 +2,7 @@ use crate::{
     component::{Shared_component, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::hitbox::Hitbox,
+    layouter::{expression::Expression, hitbox::Hitbox},
     slot::manager::Slots,
     widget::{Control, Focus_provider, Widget_trait, Widget_type},
 };
@@ -57,19 +57,14 @@ impl Align {
                     .await?;
             }
             Alignment::Middle => {
-                let margin = problem.add_non_negative_variable("align-margin").await?;
-
+                let start_margin = Expression::from(
+                    child_hitbox.get_start_position(direction)
+                        - hitbox.get_start_position(direction),
+                );
+                let end_margin =
+                    hitbox.get_end_position(direction) - child_hitbox.get_end_position(direction);
                 problem
-                    .constrain(constraint!(
-                        hitbox.get_dimension(direction)
-                            == child_hitbox.get_dimension(direction) + 2 * margin
-                    ))
-                    .await?;
-                problem
-                    .constrain(constraint!(
-                        child_hitbox.get_start_position(direction)
-                            == hitbox.get_start_position(direction) + margin
-                    ))
+                    .constrain(constraint!(start_margin == end_margin))
                     .await?;
             }
             Alignment::End => {

@@ -145,6 +145,7 @@ impl Problem {
             path,
             component_path,
         );
+        // TODO: Investigate a convex piecewise-linear objective that penalizes larger deltas more.
         self.minimize(Expression::from(delta), priority)?;
         Ok(delta)
     }

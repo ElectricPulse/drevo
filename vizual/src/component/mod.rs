@@ -8,10 +8,7 @@ use std::sync::{Arc, Weak};
 use crate::{
     focus::Focus,
     geometry::Direction,
-    layouter::{
-        Solution, expression::Expression, hitbox::Hitbox, objective::Objective,
-        variables::Variables,
-    },
+    layouter::{Solution, expression::Expression, hitbox::Hitbox, variables::Variables},
     slot::{
         Component_slot,
         manager::{Slot_records, Slots},
@@ -43,18 +40,6 @@ pub struct Component {
 
 #[derive(Clone, new)]
 pub struct Shared_component(Arc<Mutex<Component>>);
-
-#[derive(Clone, Copy)]
-pub enum Horizontal_anchor {
-    Left,
-    Right,
-}
-
-#[derive(Clone, Copy)]
-pub enum Vertical_anchor {
-    Top,
-    Bottom,
-}
 
 impl Control for Shared_component {}
 
@@ -130,37 +115,6 @@ impl Shared_component {
                 priority,
             )
             .await?;
-
-        Ok(self)
-    }
-
-    pub async fn anchor(
-        self,
-        horizontal: Horizontal_anchor,
-        vertical: Vertical_anchor,
-        objective: Objective,
-    ) -> Result<Self> {
-        let priority = 1;
-        let (hitbox, problem) = {
-            let child = self.lock().await?;
-            (child.hitbox, child.slot_manager.problem.clone())
-        };
-        let horizontal = match horizontal {
-            Horizontal_anchor::Left => Expression::from(hitbox.x),
-            Horizontal_anchor::Right => hitbox.get_end_position(Direction::Horizontal),
-        };
-        let vertical = match vertical {
-            Vertical_anchor::Top => Expression::from(hitbox.y),
-            Vertical_anchor::Bottom => hitbox.get_end_position(Direction::Vertical),
-        };
-        let vertex = horizontal + vertical;
-
-        match objective {
-            Objective::Maximize => problem.maximize(vertex, priority).await?,
-            Objective::Minimize | Objective::Minimize_difference => {
-                problem.minimize(vertex, priority).await?
-            }
-        }
 
         Ok(self)
     }

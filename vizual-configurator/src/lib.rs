@@ -17,7 +17,7 @@ use std::{
 };
 use vizual::{
     Vizual_command, Vizual_msg, check_quit_event,
-    component::{Horizontal_anchor, Shared_component, Vertical_anchor, context::Component_context},
+    component::{Shared_component, context::Component_context},
     display::Display,
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
@@ -31,6 +31,7 @@ use vizual::{
     widget::{
         Control, Focus_provider, Shared_widget, Widget, Widget_trait, Widget_type,
         widgets::{
+            align::{Align, Alignment, Alignments},
             button::Button,
             grid::Grid,
             layout::{Layout, Style as Layout_style},
@@ -655,37 +656,35 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             self.theme.clone(),
         );
 
-        let mut items = vec![
-            tree_view
-                .anchor(
-                    Horizontal_anchor::Left,
-                    Vertical_anchor::Top,
-                    Objective::Minimize,
-                )
-                .await?,
-        ];
+        let tree_view = Align::new(
+            tree_view,
+            Alignments {
+                horizontal: Alignment::Start,
+                vertical: Alignment::End,
+            },
+        );
+        let mut items = vec![display!(tree_view)];
 
         if let Some(field) = field {
-            items.push(
-                field
-                    .anchor(
-                        Horizontal_anchor::Left,
-                        Vertical_anchor::Top,
-                        Objective::Minimize,
-                    )
-                    .await?,
+            let field = Align::new(
+                field,
+                Alignments {
+                    horizontal: Alignment::Start,
+                    vertical: Alignment::Start,
+                },
             );
+            items.push(display!(field));
         }
 
-        items.push(
-            display!(button)
-                .anchor(
-                    Horizontal_anchor::Right,
-                    Vertical_anchor::Bottom,
-                    Objective::Maximize,
-                )
-                .await?,
+        let button = Align::new(
+            display!(button),
+            Alignments {
+                horizontal: Alignment::End,
+                vertical: Alignment::End,
+            },
         );
+
+        items.push(display!(button));
 
         let grid = Grid::new(items, gap);
 
