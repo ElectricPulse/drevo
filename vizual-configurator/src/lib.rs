@@ -589,7 +589,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        hitbox: Hitbox,
         problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
@@ -676,7 +676,6 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         );
 
         let grid = Grid::new(items, gap);
-        let mut children = vec![display!(grid)];
 
         if self.submitting {
             let popup = self
@@ -685,9 +684,10 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 .await?;
 
             let popup = Space::full(popup, Objective::default(), 2);
-            children.push(display!(popup));
+            return Widget_type::visual(vec![display!(grid), display!(popup)], hitbox, &problem)
+                .await;
         }
 
-        Ok(Widget_type::Visual(children))
+        Ok(Widget_type::Virtual(Box::new(grid)))
     }
 }

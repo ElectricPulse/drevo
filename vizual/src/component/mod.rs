@@ -6,7 +6,6 @@ use derive_new::new;
 use std::sync::{Arc, Weak};
 
 use crate::{
-    constraint,
     focus::Focus,
     geometry::Direction,
     layouter::{
@@ -64,12 +63,12 @@ impl Widget_trait for Shared_component {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
-        _problem: Component_context,
+        hitbox: Hitbox,
+        problem: Component_context,
         _text_context: &mut Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
-        Ok(Widget_type::Visual(vec![self.clone()]))
+        Widget_type::visual_with_shrink_wrap(vec![self.clone()], hitbox, &problem, true, true).await
     }
 }
 
@@ -209,62 +208,17 @@ impl Shared_component {
                     .await?;
 
                 match widget_type {
+                    Widget_type::None => Vec::new(),
                     Widget_type::Virtual(widget) => {
                         let child = virtual_child
                             .set_init(widget, problem.clone(), Some(*hitbox))
                             .await?;
                         vec![child]
                     }
-                    Widget_type::Visual(children) => children,
+                    Widget_type::Visual { children } => children,
                 }
             };
             *focusable = focus.is_active();
-
-            for child in children.iter() {
-                let child_hitbox = child.get_hitbox().await?;
-                let hitbox = *hitbox;
-
-                for direction in [Direction::Horizontal, Direction::Vertical] {
-                    let (start_bound_name, end_bound_name) = match direction {
-                        Direction::Horizontal => {
-                            ("child_horizontal_start_bound", "child_horizontal_end_bound")
-                        }
-                        Direction::Vertical => {
-                            ("child_vertical_start_bound", "child_vertical_end_bound")
-                        }
-                    };
-
-                    problem
-                        .constrain(
-                            constraint!(
-                                hitbox.get_start_position(direction)
-                                    <= child_hitbox.get_start_position(direction)
-                            )
-                            .set_name(start_bound_name.to_string()),
-                        )
-                        .await?;
-                    problem
-                        .constrain(
-                            constraint!(
-                                hitbox.get_end_position(direction)
-                                    >= child_hitbox.get_end_position(direction)
-                            )
-                            .set_name(end_bound_name.to_string()),
-                        )
-                        .await?;
-                }
-            }
-
-            // TODO: Ordered containers such as `Layout` can shrink-wrap their main axis exactly
-            // by constraining it from the first visible child's start to the last visible child's
-            // end. Once components provide exact bounds for an axis, remove its generic
-            // shrink-wrap objective here; if priority 0 becomes empty, its solve can be skipped.
-            problem
-                .minimize(Expression::from(hitbox.dimensions.width), 0)
-                .await?;
-            problem
-                .minimize(Expression::from(hitbox.dimensions.height), 0)
-                .await?;
 
             slot_manager.evaluate().await?;
             children

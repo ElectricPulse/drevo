@@ -26,7 +26,7 @@ impl Widget_trait for Grid {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
-        _hitbox: Hitbox,
+        hitbox: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
@@ -40,6 +40,6 @@ impl Widget_trait for Grid {
             }
         }
 
-        Ok(Widget_type::Visual(self.items.clone()))
+        Widget_type::visual_with_shrink_wrap(self.items.clone(), hitbox, &problem, true, true).await
     }
 }

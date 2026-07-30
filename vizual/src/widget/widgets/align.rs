@@ -118,6 +118,8 @@ impl Widget_trait for Align {
         )
         .await?;
 
-        Ok(Widget_type::Visual(vec![self.child.clone()]))
+        Ok(Widget_type::visual_without_shrink_wrap(vec![
+            self.child.clone(),
+        ]))
     }
 }

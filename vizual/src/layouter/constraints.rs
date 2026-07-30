@@ -1,7 +1,7 @@
 use super::{expression::Expression, hitbox::Hitbox};
 use crate::{
-    component::context::Component_context, config::MAXIMUM_LAYOUT_VALUE, constraint,
-    geometry::Direction,
+    component::Shared_component, component::context::Component_context,
+    config::MAXIMUM_LAYOUT_VALUE, constraint, geometry::Direction,
 };
 use color_eyre::eyre::Result;
 
@@ -42,6 +42,44 @@ impl Objective {
             }
         }
     }
+}
+
+/// Constrains a component to contain its visual children and minimizes its size on one axis.
+pub async fn shrink_wrap(
+    problem: &Component_context,
+    hitbox: Hitbox,
+    children: &[Shared_component],
+    direction: Direction,
+) -> Result<()> {
+    let (start_bound_name, end_bound_name) = match direction {
+        Direction::Horizontal => ("child_horizontal_start_bound", "child_horizontal_end_bound"),
+        Direction::Vertical => ("child_vertical_start_bound", "child_vertical_end_bound"),
+    };
+
+    for child in children {
+        let child_hitbox = child.get_hitbox().await?;
+        problem
+            .constrain(
+                constraint!(
+                    hitbox.get_start_position(direction)
+                        <= child_hitbox.get_start_position(direction)
+                )
+                .set_name(start_bound_name.to_string()),
+            )
+            .await?;
+        problem
+            .constrain(
+                constraint!(
+                    hitbox.get_end_position(direction) >= child_hitbox.get_end_position(direction)
+                )
+                .set_name(end_bound_name.to_string()),
+            )
+            .await?;
+    }
+
+    problem
+        .minimize(Expression::from(hitbox.get_dimension(direction)), 0)
+        .await
 }
 
 pub async fn prohibit_overlap(

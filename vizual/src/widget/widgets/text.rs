@@ -75,7 +75,7 @@ impl Widget_trait for Text {
             ))
             .await?;
 
-        Ok(Widget_type::Visual(Vec::new()))
+        Ok(Widget_type::none())
     }
 
     async fn render(

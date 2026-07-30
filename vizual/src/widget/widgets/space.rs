@@ -188,6 +188,7 @@ impl Widget_trait for Space {
                 .await?;
         }
 
-        Ok(Widget_type::Visual(vec![self.child.clone()]))
+        Widget_type::visual_with_shrink_wrap(vec![self.child.clone()], hitbox, &problem, true, true)
+            .await
     }
 }

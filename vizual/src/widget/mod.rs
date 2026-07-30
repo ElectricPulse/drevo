@@ -10,9 +10,9 @@ use crate::{
     component::{Children, context::Component_context},
     display::Display,
     event::{Event, Key_event, Pointer_event},
-    geometry::Rect,
+    geometry::{Direction, Rect},
     handlers::Retrieve_handler,
-    layouter::hitbox::Hitbox,
+    layouter::{constraints::shrink_wrap, hitbox::Hitbox},
     slot::{Component_slot, manager::Slots},
     sync::{Mutex, MutexGuard, Thread_safe},
     text::Text_context,
@@ -24,6 +24,8 @@ pub type Widget = Box<dyn Widget_trait>;
 
 /// Describes whether a widget introduces a visual component or only another widget layer.
 pub enum Widget_type {
+    /// A visual leaf whose dimensions are fully described by its own layout constraints.
+    None,
     /// A virtual widget has no visual children of its own. The consumer immediately lays out the
     /// inner widget with the same focus, hitbox, problem, and slots. Reusing the hitbox this way is
     /// a fragile way to implement hierarchy because virtual layers do not receive distinct hitboxes.
@@ -31,7 +33,53 @@ pub enum Widget_type {
     /// callback will not be called.
     Virtual(Widget),
     /// A visual widget owns the current component and returns the children laid out beneath it.
-    Visual(Children),
+    #[non_exhaustive]
+    Visual { children: Children },
+}
+
+impl Widget_type {
+    pub fn none() -> Self {
+        Self::None
+    }
+
+    /// Client-facing constructor for a component with multiple visual children.
+    ///
+    /// This applies containment constraints and shrink-wrap objectives on both axes so client
+    /// widgets receive safe, predictable bounds by default. A widget with only one child should
+    /// normally return that child through [`Widget_type::Virtual`] instead of introducing another
+    /// component and another pair of shrink-wrap objectives.
+    pub async fn visual(
+        children: Children,
+        hitbox: Hitbox,
+        problem: &Component_context,
+    ) -> Result<Self> {
+        debug_assert!(
+            children.len() > 1,
+            "Widget_type::visual expects multiple children; use Widget_type::Virtual for one child"
+        );
+        Self::visual_with_shrink_wrap(children, hitbox, problem, true, true).await
+    }
+
+    pub(crate) async fn visual_with_shrink_wrap(
+        children: Children,
+        hitbox: Hitbox,
+        problem: &Component_context,
+        vertical_shrink: bool,
+        horizontal_shrink: bool,
+    ) -> Result<Self> {
+        if vertical_shrink {
+            shrink_wrap(problem, hitbox, &children, Direction::Vertical).await?;
+        }
+        if horizontal_shrink {
+            shrink_wrap(problem, hitbox, &children, Direction::Horizontal).await?;
+        }
+
+        Ok(Self::visual_without_shrink_wrap(children))
+    }
+
+    pub(crate) fn visual_without_shrink_wrap(children: Children) -> Self {
+        Self::Visual { children }
+    }
 }
 
 pub struct Focus_provider {
@@ -79,7 +127,7 @@ pub trait Widget_trait: Control + Thread_safe {
         _text_context: &mut Text_context,
         _slots: &mut Slots,
     ) -> Result<Widget_type> {
-        Ok(Widget_type::Visual(Vec::new()))
+        Ok(Widget_type::none())
     }
 
     // The hitbox must be a resolved hitbox returned by the layouter.

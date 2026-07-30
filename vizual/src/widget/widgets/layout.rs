@@ -86,7 +86,31 @@ impl Widget_trait for Layout {
             }
         }
 
-        if self.elements.len() >= 2 {
+        match (elements.first(), elements.last()) {
+            (Some(first), Some(last)) => {
+                let first_hitbox = first.get_hitbox().await?;
+                let last_hitbox = last.get_hitbox().await?;
+                problem
+                    .constrain(constraint!(
+                        hitbox.get_start_position(direction)
+                            == first_hitbox.get_start_position(direction)
+                    ))
+                    .await?;
+                problem
+                    .constrain(constraint!(
+                        hitbox.get_end_position(direction)
+                            == last_hitbox.get_end_position(direction)
+                    ))
+                    .await?;
+            }
+            _ => {
+                problem
+                    .constrain(constraint!(hitbox.get_dimension(direction) == 0))
+                    .await?;
+            }
+        }
+
+        if elements.len() >= 2 {
             let Style::Gap(gap) = self.style;
 
             for pair in elements.windows(2) {
@@ -108,6 +132,17 @@ impl Widget_trait for Layout {
             }
         }
 
-        Ok(Widget_type::Visual(elements.into_iter().cloned().collect()))
+        let (vertical_shrink, horizontal_shrink) = match direction {
+            Direction::Horizontal => (true, false),
+            Direction::Vertical => (false, true),
+        };
+        Widget_type::visual_with_shrink_wrap(
+            elements.into_iter().cloned().collect(),
+            hitbox,
+            &problem,
+            vertical_shrink,
+            horizontal_shrink,
+        )
+        .await
     }
 }

@@ -56,7 +56,7 @@ use event::{
 };
 use focus::{Focus, Focus_search_direction};
 use geometry::{Point, Size};
-use layouter::{Problem, Solution, expression::Expression, hitbox::Hitbox, variables::Variables};
+use layouter::{Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
 use slot::Component_slot;
 use state::State;
@@ -198,17 +198,6 @@ impl App_problem {
             .layout_children(children, self.component_context.clone(), text_context)
             .await?;
 
-        // Minimum sizing keeps the reserved screen indices symbolic and minimizes the root.
-        // A normal solve later substitutes those same indices with the concrete window size.
-        for dimension in [
-            self.root_hitbox.dimensions.width,
-            self.root_hitbox.dimensions.height,
-        ] {
-            self.component_context
-                .minimize(Expression::from(dimension), 5)
-                .await?;
-        }
-
         Ok(())
     }
 
@@ -220,7 +209,12 @@ impl App_problem {
     }
 
     async fn minimum_size(&self) -> Result<Size> {
-        let solution = self.component_context.lock().await?.solve_minimum().await?;
+        let solution = self
+            .component_context
+            .lock()
+            .await?
+            .solve_minimum(self.root_hitbox)
+            .await?;
         let minimum_size = self.root_size(&solution);
         // TODO: Without this padding the user can still push the screen below the required size somehow, causing the layout to crash.
         Ok(Size::new(

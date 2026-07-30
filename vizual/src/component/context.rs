@@ -89,16 +89,12 @@ impl Component_context {
 
         let difference = expression.into() - target;
         let inverse_difference = difference.clone() * -1.0;
-        let absolute_difference = self
-            .add_non_negative_variable("minimize-difference")
-            .await?;
         let delta = self.lock().await?.delta;
+        let maximum_difference = Expression::from(delta) * proportion;
 
-        self.constrain(constraint!(absolute_difference >= difference))
+        self.constrain(constraint!(difference <= maximum_difference.clone()))
             .await?;
-        self.constrain(constraint!(absolute_difference >= inverse_difference))
-            .await?;
-        self.constrain(constraint!(absolute_difference / proportion == delta))
+        self.constrain(constraint!(inverse_difference <= maximum_difference))
             .await?;
         self.minimize(Expression::from(delta), priority).await
     }

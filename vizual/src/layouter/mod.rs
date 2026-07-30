@@ -390,16 +390,23 @@ impl Problem {
         &self,
         mut constraints: Vec<Constraint>,
         screen: Option<Size>,
+        minimum_size_goal: Option<Expression>,
     ) -> Result<Solution> {
         log_duration(0, "layout full solve", || async {
-            let mut goals =
-                self.goals
-                    .iter()
-                    .enumerate()
-                    .rev()
-                    .filter_map(|(priority, objective)| {
-                        objective.as_ref().map(|objective| (priority, objective))
-                    });
+            let mut goals = self.goals.clone();
+            if let Some(minimum_size_goal) = minimum_size_goal {
+                match &mut goals[PRIORITY_LEVELS - 1] {
+                    Some(goal) => *goal += minimum_size_goal,
+                    goal => *goal = Some(minimum_size_goal),
+                }
+            }
+            let mut goals = goals
+                .iter()
+                .enumerate()
+                .rev()
+                .filter_map(|(priority, objective)| {
+                    objective.as_ref().map(|objective| (priority, objective))
+                });
             let Some((mut priority, mut objective)) = goals.next() else {
                 log_info(2, "feasibility priority solve");
                 return self
@@ -429,12 +436,14 @@ impl Problem {
     }
 
     pub async fn solve(&self, screen: Size) -> Result<Solution> {
-        self.full_solve(self.constraints.clone(), Some(screen))
+        self.full_solve(self.constraints.clone(), Some(screen), None)
             .await
     }
 
-    pub async fn solve_minimum(&self) -> Result<Solution> {
-        self.full_solve(self.constraints.clone(), None).await
+    pub async fn solve_minimum(&self, root: Hitbox) -> Result<Solution> {
+        let root_size = Expression::from(root.dimensions.width) + root.dimensions.height;
+        self.full_solve(self.constraints.clone(), None, Some(root_size * -1.0))
+            .await
     }
 }
 

@@ -55,7 +55,7 @@ impl<T: Widget_trait> Widget_trait for Root<T> {
         &mut self,
         _focus: &mut Focus_provider,
         _hitbox: Hitbox,
-        problem: Component_context,
+        _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Widget_type> {
@@ -63,9 +63,7 @@ impl<T: Widget_trait> Widget_trait for Root<T> {
         let gap = self.layout_theme.load().gap;
         let space = Space::uniform(display!(widget), gap, Objective::default(), 2);
 
-        Ok(Widget_type::Visual(vec![
-            display!(space).fill(problem).await?,
-        ]))
+        Ok(Widget_type::Virtual(Box::new(space)))
     }
 
     async fn render(
