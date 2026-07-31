@@ -19,7 +19,7 @@ impl Grid {
     }
 }
 
-impl Control for Grid {}
+
 
 #[async_trait]
 impl Widget_trait for Grid {

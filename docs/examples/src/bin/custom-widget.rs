@@ -18,7 +18,7 @@ use vizual_macros::display;
 struct Counter(i64);
 
 #[async_trait]
-impl Control for Counter {
+
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
         match key.code {
             Key_code::Arrow_up => self.0 += 1,

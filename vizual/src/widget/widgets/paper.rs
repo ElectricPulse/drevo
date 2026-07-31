@@ -32,7 +32,7 @@ impl Paper {
     }
 }
 
-impl Control for Paper {}
+
 
 #[async_trait]
 impl Widget_trait for Paper {

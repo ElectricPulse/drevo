@@ -75,7 +75,7 @@ impl Widget_trait for List {
 }
 
 #[async_trait]
-impl Control for List {
+
     async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
         if self.items.is_empty() {
             return crate::Vizual_msg::none();

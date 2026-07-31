@@ -45,8 +45,6 @@ impl Full {
     }
 }
 
-impl Control for Full {}
-
 #[async_trait]
 impl Widget_trait for Full {
     async fn layout(

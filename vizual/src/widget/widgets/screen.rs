@@ -311,7 +311,7 @@ impl Widget_trait for Screen_content {
     }
 }
 
-impl Control for Screen_content {}
+
 
 #[async_trait]
 impl Widget_trait for Screen {
@@ -338,7 +338,7 @@ impl Widget_trait for Screen {
 }
 
 #[async_trait]
-impl Control for Screen {
+
     async fn on_key_press(&mut self, event: &Key_event) -> Result<Vizual_msg> {
         let mut content = self.content.lock().await?;
         let line = content.viewport.line_step();

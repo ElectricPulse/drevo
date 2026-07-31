@@ -39,8 +39,6 @@ impl Block {
     }
 }
 
-impl Control for Block {}
-
 #[async_trait]
 impl Widget_trait for Block {
     async fn layout(

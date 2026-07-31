@@ -86,7 +86,7 @@ impl Anchor {
     }
 }
 
-impl Control for Anchor {}
+
 
 #[async_trait]
 impl Widget_trait for Anchor {

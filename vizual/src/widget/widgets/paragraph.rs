@@ -114,7 +114,7 @@ impl Widget_trait for Paragraph {
 }
 
 #[async_trait]
-impl Control for Paragraph {
+
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
         let step = self.viewport.line_step();
         match key.code {

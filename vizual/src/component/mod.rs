@@ -42,7 +42,7 @@ pub struct Component {
 #[derive(Clone, new)]
 pub struct Shared_component(Arc<Mutex<Component>>);
 
-impl Control for Shared_component {}
+
 
 #[async_trait::async_trait]
 impl Widget_trait for Shared_component {

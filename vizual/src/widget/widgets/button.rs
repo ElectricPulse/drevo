@@ -102,7 +102,7 @@ impl Widget_trait for Button {
 }
 
 #[async_trait]
-impl Control for Button {
+
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
         match (&mut self.click_handler, &self.content) {
             (Some(click_handler), Button_content::Label(label)) => {

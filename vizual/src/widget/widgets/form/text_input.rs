@@ -188,7 +188,7 @@ impl Widget_trait for Text_input_content {
     }
 }
 
-impl Control for Text_input_content {}
+
 
 #[async_trait]
 impl Widget_trait for Text_input {
@@ -229,7 +229,7 @@ impl Widget_trait for Text_input {
 }
 
 #[async_trait]
-impl Control for Text_input {
+
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
         if matches!(key.code, Key_code::Escape) {
             return self

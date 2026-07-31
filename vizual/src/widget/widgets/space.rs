@@ -139,8 +139,6 @@ impl Space {
     }
 }
 
-impl Control for Space {}
-
 #[async_trait]
 impl Widget_trait for Space {
     async fn layout(

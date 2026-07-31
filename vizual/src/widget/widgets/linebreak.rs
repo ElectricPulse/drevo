@@ -25,8 +25,6 @@ impl Linebreak {
     }
 }
 
-impl Control for Linebreak {}
-
 #[async_trait]
 impl Widget_trait for Linebreak {
     async fn layout(
@@ -50,8 +48,6 @@ impl Widget_trait for Linebreak {
 struct Linebreak_component {
     theme: State<Theme>,
 }
-
-impl Control for Linebreak_component {}
 
 #[async_trait]
 impl Widget_trait for Linebreak_component {

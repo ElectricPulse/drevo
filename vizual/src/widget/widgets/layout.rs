@@ -32,7 +32,7 @@ pub struct Layout {
     priority: usize,
 }
 
-impl Control for Layout {}
+
 
 impl Layout {
     pub fn new(

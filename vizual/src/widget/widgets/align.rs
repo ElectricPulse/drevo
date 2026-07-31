@@ -51,7 +51,7 @@ impl Align {
     }
 }
 
-impl Control for Align {}
+
 
 #[async_trait]
 impl Widget_trait for Align {

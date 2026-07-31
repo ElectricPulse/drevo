@@ -63,7 +63,7 @@ struct Tab_bar {
 }
 
 #[async_trait]
-impl Control for Tab_bar {
+
     async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
         if let Key_code::Character(char) = key.code
             && let Some(digit) = char.to_digit(10)
@@ -178,7 +178,7 @@ impl Widget_trait for Tab_bar {
     }
 }
 
-impl Control for Tabs {}
+
 
 #[async_trait]
 impl Widget_trait for Tabs {

@@ -34,7 +34,7 @@ impl Title_block {
     }
 }
 
-impl Control for Title_block {}
+
 
 #[async_trait]
 impl Widget_trait for Title_block {

@@ -52,7 +52,7 @@ impl Text {
     }
 }
 
-impl Control for Text {}
+
 
 #[async_trait]
 impl Widget_trait for Text {
