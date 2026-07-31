@@ -329,9 +329,8 @@ impl Widget_trait for Screen {
             let content = self.content.lock().await?;
             format!("{}{}", self.command, content.status())
         };
-        let content = self.content.clone();
-        let content = display!(content).fill(problem.clone()).await?;
-        let block = Title_block::new(content, title, self.theme.clone());
+
+        let block = Title_block::new(display!(self.content.clone()), title, self.theme.clone());
         let full = Full::new(display!(block));
 
         Ok(vec![display!(full)])

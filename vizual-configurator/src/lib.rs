@@ -4,6 +4,8 @@
 //! Implement [`Tree`] to describe editable fields and produce a serializable
 //! configuration.
 
+pub mod widgets;
+
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, WrapErr, eyre};
@@ -11,7 +13,6 @@ use indexmap::IndexMap;
 use serde::Serialize;
 use std::{
     fs,
-    marker::PhantomData,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -38,7 +39,6 @@ use vizual::{
             grid::Grid,
             layout::{Layout, Style as Layout_style},
             linebreak::Linebreak,
-            menu::{Menu, Menu_item_trait, Shared_menu_item, get_selector},
             popup::Popup,
             space::Space,
             text::Text,
@@ -85,111 +85,6 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
     ) -> Result<Option<Hitbox>> {
         (**self).render(focus, hitbox, display).await
     }
-}
-
-struct Default_leaf_value<Value: Thread_safe> {
-    label: String,
-    theme: State<Theme>,
-    value: PhantomData<Value>,
-}
-
-#[async_trait]
-impl<Value: Thread_safe> Retrieve_handler<Option<Value>> for Default_leaf_value<Value> {
-    async fn on_retrieve(&mut self) -> Result<Option<Value>> {
-        Ok(None)
-    }
-}
-
-#[async_trait]
-impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Default_leaf_value<Value> {
-    async fn layout(
-        &mut self,
-        selected: bool,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut vizual::text::Text_context,
-        slots: &mut Slots,
-    ) -> Result<Child> {
-        let text = Text::new(format!("Default - {}", self.label))
-            .set_style(self.theme.load().semantic.text.subtitle(selected));
-
-        Ok(display!(text))
-    }
-}
-
-struct Custom_leaf_value<Value: Thread_safe> {
-    field: Shared_widget<Box<dyn Field<Value>>>,
-    theme: State<Theme>,
-}
-
-#[async_trait]
-impl<Value: Thread_safe> Retrieve_handler<Option<Value>> for Custom_leaf_value<Value> {
-    async fn on_retrieve(&mut self) -> Result<Option<Value>> {
-        let value = self
-            .field
-            .lock()
-            .await?
-            .on_retrieve()
-            .await?
-            .ok_or_else(|| eyre!("Expected to get value from custom field"))?;
-        Ok(Some(value))
-    }
-}
-
-#[async_trait]
-impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Custom_leaf_value<Value> {
-    async fn layout(
-        &mut self,
-        selected: bool,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut vizual::text::Text_context,
-        slots: &mut Slots,
-    ) -> Result<Child> {
-        let title =
-            Text::new("Custom").set_style(self.theme.load().semantic.text.subtitle(selected));
-        let field = self.field.clone();
-        let contents = match selected {
-            true => vec![Some(display!(title)), Some(display!(field))],
-            false => vec![Some(display!(title))],
-        };
-        let layout = Layout::new(
-            Direction::Vertical,
-            contents,
-            Layout_style::default(self.theme.clone()),
-            Objective::default(),
-            2,
-        );
-
-        Ok(display!(layout))
-    }
-}
-
-/// Builds a menu for choosing a default value or editing a custom value.
-pub fn configuration_menu<Value: Thread_safe>(
-    default_value: impl Into<String>,
-    is_default: bool,
-    field: impl Field<Value> + 'static,
-    theme: State<Theme>,
-) -> Menu<Option<Value>> {
-    let field = (Box::new(field) as Box<dyn Field<Value>>).into_shared();
-    let default_item = Arc::new(Mutex::new(Default_leaf_value {
-        label: default_value.into(),
-        theme: theme.clone(),
-        value: PhantomData,
-    })) as Shared_menu_item<Option<Value>>;
-    let custom_item = Arc::new(Mutex::new(Custom_leaf_value {
-        field,
-        theme: theme.clone(),
-    })) as Shared_menu_item<Option<Value>>;
-    let items = vec![default_item, custom_item];
-    let default_item = get_selector(&items[usize::from(!is_default)]);
-
-    Menu::new(items, default_item, theme)
 }
 
 /// An ordered group of configuration nodes.
@@ -299,10 +194,10 @@ impl<T: Tree> Tree_view<T> {
         cursor: &[String],
         problem: &Component_context,
         button_delta: vizual::layouter::variable::Variable,
-    ) -> Result<Vec<Option<Child>>> {
-        const INDENT: usize = 20;
+    ) -> Result<Vec<Child>> {
+        const INDENT: usize = 50;
 
-        let mut buttons: Vec<Option<Child>> = vec![];
+        let mut buttons: Vec<Child> = vec![];
 
         for (name, child) in &node.0 {
             let mut child_cursor = cursor.to_vec();
@@ -327,7 +222,7 @@ impl<T: Tree> Tree_view<T> {
             // Since cursor should be unique for every button we can use it to generate id
             let button = slots.set(get_strings_id(&child_cursor), button).await?;
 
-            buttons.push(Some(button));
+            buttons.push(button);
 
             if let Configuration_tree::Branch(branch) = child {
                 let mut child_tree = self
@@ -633,11 +528,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 let widget = leaf.widget;
                 let layout = Layout::new(
                     Direction::Vertical,
-                    vec![
-                        Some(display!(description)),
-                        Some(display!(linebreak)),
-                        Some(display!(widget)),
-                    ],
+                    vec![display!(description), display!(linebreak), display!(widget)],
                     Layout_style::default(self.theme.clone()),
                     Objective::default(),
                     2,
@@ -668,34 +559,28 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             tree_view,
             Anchors {
                 horizontal: Some(Anchor_position::Start),
-                vertical: Some(Anchor_position::End),
+                vertical: Some(Anchor_position::Start),
             },
         );
         let mut children = vec![display!(tree_view)];
 
         if let Some(field) = field {
-            let field = Anchor::new(
-                field,
-                Anchors {
-                    horizontal: None,
-                    vertical: Some(Anchor_position::Start),
-                },
-            );
             let field = Align::new(
-                display!(field),
+                field,
                 Alignments {
                     horizontal: Some(Objective::Minimize),
-                    vertical: None,
+                    vertical: Some(Objective::Minimize),
                 },
             );
+
             children.push(display!(field));
         }
 
-        let button = Anchor::new(
+        let button = Align::new(
             display!(button),
-            Anchors {
-                horizontal: Some(Anchor_position::End),
-                vertical: Some(Anchor_position::End),
+            Alignments {
+                horizontal: Some(Objective::Maximize),
+                vertical: Some(Objective::Maximize),
             },
         );
 

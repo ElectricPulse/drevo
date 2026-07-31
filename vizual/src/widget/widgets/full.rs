@@ -61,7 +61,12 @@ impl Widget_trait for Full {
         match (self.width, self.height) {
             (true, true) => {
                 hitbox.full(parent, &problem).await?;
-                self.child.full(*hitbox, &problem).await?;
+                self.child
+                    .lock()
+                    .await?
+                    .hitbox
+                    .full(parent, &problem)
+                    .await?;
             }
             (width, height) => {
                 for (enabled, direction) in [

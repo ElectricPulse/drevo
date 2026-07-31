@@ -82,10 +82,6 @@ impl Shared_component {
         Ok(self.lock().await?.hitbox)
     }
 
-    pub async fn full(&self, parent: Hitbox, problem: &Component_context) -> Result<()> {
-        self.lock().await?.hitbox.full(parent, problem).await
-    }
-
     pub async fn share_start(
         &self,
         parent: Hitbox,
@@ -142,26 +138,6 @@ impl Shared_component {
         }
 
         Ok(())
-    }
-
-    pub async fn fill(self, problem: Component_context) -> Result<Self> {
-        let priority = 1;
-        let hitbox = self.get_hitbox().await?;
-
-        problem
-            .maximize(
-                Expression::from(hitbox.get_dimension(Direction::Horizontal)),
-                priority,
-            )
-            .await?;
-        problem
-            .maximize(
-                Expression::from(hitbox.get_dimension(Direction::Vertical)),
-                priority,
-            )
-            .await?;
-
-        Ok(self)
     }
 
     pub fn compare_with_reference(&self, node: &Child_reference) -> bool {

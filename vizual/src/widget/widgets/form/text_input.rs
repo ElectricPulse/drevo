@@ -202,6 +202,7 @@ impl Widget_trait for Text_input {
         slots: &mut Slots,
     ) -> Result<Children> {
         focus.set_active(true);
+
         let content = Text_input_content {
             input: self.input.clone(),
             cursor: self.cursor,
@@ -209,8 +210,8 @@ impl Widget_trait for Text_input {
             valid: self.valid,
             focused: self.focused.clone(),
         };
-        let content = display!(content).fill(problem.clone()).await?;
-        let block = Title_block::new(content, self.title.clone(), self.theme.clone());
+
+        let block = Title_block::new(display!(content), self.title.clone(), self.theme.clone());
         let full = Full::new(display!(block));
 
         Ok(vec![display!(full)])

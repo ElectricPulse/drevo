@@ -152,7 +152,7 @@ impl Widget_trait for Tab_bar {
                 .set(page.tab.button.clone(), problem.clone())
                 .await?;
 
-            buttons.push(Some(button));
+            buttons.push(button);
         }
 
         let layout = Layout::new(
@@ -191,20 +191,18 @@ impl Widget_trait for Tabs {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let tab = {
+        let header = self.header.clone();
+        let mut elements = vec![display!(header)];
+        {
             let selected = self.header.lock().await?.get_selected().await;
             if let Some(widget) = selected {
-                Some(display!(widget))
-            } else {
-                None
+                elements.push(display!(widget));
             }
-        };
-
-        let header = self.header.clone();
+        }
 
         let layout = Layout::new(
             Direction::Vertical,
-            vec![Some(display!(header)), tab],
+            elements,
             Layout_style::default(self.theme.clone()),
             Objective::default(),
             2,

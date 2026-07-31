@@ -52,7 +52,7 @@ impl Widget_trait for Title_block {
 
         let layout = Layout::new(
             Direction::Vertical,
-            vec![Some(display!(title)), Some(self.child.clone())],
+            vec![display!(title), self.child.clone()],
             Layout_style::Gap(self.theme.load().units.em * 0.45),
             Objective::default(),
             2,

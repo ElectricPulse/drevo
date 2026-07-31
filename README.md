@@ -69,6 +69,7 @@ runtime remains active for asynchronous widget and background work.
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
 ## To-Do list
+- optimize with ArcSwaps and RwLocks
 - remove the need for nightly
 - Implement static hitbox variables so known constant positions and dimensions do
   not require solver variables and equality constraints.

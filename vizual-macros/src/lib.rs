@@ -6,12 +6,12 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Ident, Member, Type, parse_macro_input, parse_quote};
+use syn::{Data, DeriveInput, Expr, Fields, Ident, Member, Type, parse_macro_input, parse_quote};
 
 /// Sets a child in a unique slot and returns it, assuming the slot manager is named `slots`.
 #[proc_macro]
 pub fn display(input: TokenStream) -> TokenStream {
-    let child = parse_macro_input!(input as Ident);
+    let child = parse_macro_input!(input as Expr);
 
     quote! {
         slots.set(::vizual::id!(), #child).await?

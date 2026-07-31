@@ -20,8 +20,8 @@ use crate::{
     display::Display,
     event::{Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
-    handlers::Retrieve_handler,
-    layouter::{hitbox::Hitbox, objective::Objective},
+    handlers::{Retrieve_handler, Submit_handler},
+    layouter::{hitbox::Hitbox, objective::Objective, variable::Variable},
     slot::manager::Slots,
     state::State,
     sync::{Mutex, Thread_safe},
@@ -69,12 +69,20 @@ struct Menu_item<Value> {
     widget: Shared_menu_item<Value>,
     menu_selector: State<Selector<Value>>,
     theme: State<Theme>,
+    button_delta: Variable,
+    submit_state: Option<State<Value>>,
 }
 
 #[async_trait]
 impl<Value: Thread_safe> Control for Menu_item<Value> {
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
         self.menu_selector.store(get_selector(&self.widget));
+
+        if let Some(submit_state) = &self.submit_state {
+            let mut widget = self.widget.lock().await?;
+            submit_state.store(widget.on_retrieve().await?);
+        }
+
         Vizual_msg::new(Vizual_command::Layout)
     }
 }
@@ -106,6 +114,7 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
             .await?;
         let mut button = Button::around(content, self.theme.clone());
         button.highlighted = self.selected;
+        button.delta = Some(self.button_delta);
         let full = Full::new(display!(button));
 
         Ok(vec![display!(full)])
@@ -130,6 +139,7 @@ pub struct Menu<Value> {
     pub selected: State<Selector<Value>>,
     default_item: Selector<Value>,
     pub theme: State<Theme>,
+    submit_state: Option<State<Value>>,
 }
 
 impl<Value: Thread_safe> Menu<Value> {
@@ -143,6 +153,7 @@ impl<Value: Thread_safe> Menu<Value> {
             selected: State::new_with(theme.rerender.clone(), default_item.clone()),
             default_item,
             theme,
+            submit_state: None,
         }
     }
 
@@ -206,13 +217,13 @@ impl<Value: Thread_safe> Retrieve_handler<Value> for Menu<Value> {
 }
 
 #[async_trait]
-impl<Value: Thread_safe> Widget_trait for Menu<Value> {
+impl<Value: Thread_safe + Clone> Widget_trait for Menu<Value> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
-        _problem: Component_context,
+        problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
@@ -228,8 +239,10 @@ impl<Value: Thread_safe> Widget_trait for Menu<Value> {
         {
             return Err(eyre!("Default menu item is not in the menu"));
         }
+
         let selected = self.get_selected_item()?;
         let mut rows = Vec::with_capacity(self.items.len());
+        let button_delta = problem.add_delta("menu-item-button-delta", 2).await?;
 
         for (index, item) in self.items.iter().enumerate() {
             let item = Menu_item {
@@ -237,21 +250,21 @@ impl<Value: Thread_safe> Widget_trait for Menu<Value> {
                 widget: item.clone(),
                 menu_selector: self.selected.clone(),
                 theme: self.theme.clone(),
+                button_delta,
+                submit_state: self.submit_state.as_ref().map(|state| state.clone()),
             };
-            rows.push(Some(slots.set(index as u64, item).await?));
+            rows.push(slots.set(index as u64, item).await?);
         }
 
-        let layout = Layout::new(
+        let layout = display!(Layout::new(
             Direction::Vertical,
             rows,
             Layout_style::default(self.theme.clone()),
             Objective::default(),
             2,
-        );
-        let space = Space::uniform(display!(layout), 3.0, Objective::default(), 2);
-        let full = Full::new(display!(space));
+        ));
 
-        Ok(vec![display!(full)])
+        Ok(vec![display!(Full::new(layout))])
     }
 
     async fn render(

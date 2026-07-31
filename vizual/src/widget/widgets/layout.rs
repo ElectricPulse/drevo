@@ -25,7 +25,7 @@ impl Style {
 
 pub struct Layout {
     direction: Direction,
-    elements: Vec<Option<Child>>,
+    elements: Vec<Child>,
     pub style: Style,
     objective: Objective,
     // TODO: Keep priority manual until there is a way to set it automatically.
@@ -35,13 +35,9 @@ pub struct Layout {
 impl Control for Layout {}
 
 impl Layout {
-    fn get_elements(&self) -> Vec<&Child> {
-        self.elements.iter().flatten().collect()
-    }
-
     pub fn new(
         direction: Direction,
-        elements: Vec<Option<Child>>,
+        elements: Vec<Child>,
         style: Style,
         objective: Objective,
         priority: usize,
@@ -67,14 +63,12 @@ impl Widget_trait for Layout {
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
-        let elements = self.get_elements();
-
         let direction = self.direction;
 
-        if elements.len() >= 1 {
+        if self.elements.len() >= 1 {
             let flip_direction = direction.flip();
 
-            for element in elements.iter() {
+            for element in self.elements.iter() {
                 let element_hitbox = element.get_hitbox().await?;
 
                 // left align
@@ -87,7 +81,7 @@ impl Widget_trait for Layout {
             }
         }
 
-        match (elements.first(), elements.last()) {
+        match (self.elements.first(), self.elements.last()) {
             (Some(first), Some(last)) => {
                 let first_hitbox = first.get_hitbox().await?;
                 let last_hitbox = last.get_hitbox().await?;
@@ -111,7 +105,7 @@ impl Widget_trait for Layout {
             }
         }
 
-        if elements.len() >= 2 {
+        if self.elements.len() >= 2 {
             let Style::Gap(gap) = self.style;
             let gap_delta = match self.objective {
                 Objective::Minimize_difference => {
@@ -120,7 +114,7 @@ impl Widget_trait for Layout {
                 Objective::Maximize | Objective::Minimize => None,
             };
 
-            for pair in elements.windows(2) {
+            for pair in self.elements.windows(2) {
                 let [previous, current] = pair else {
                     continue;
                 };
@@ -139,6 +133,6 @@ impl Widget_trait for Layout {
             }
         }
 
-        Ok(elements.into_iter().cloned().collect())
+        Ok(self.elements.clone())
     }
 }

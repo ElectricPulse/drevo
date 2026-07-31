@@ -179,7 +179,7 @@ impl Widget_trait for Popup {
         let menu = self.menu.clone();
         let layout = Layout::new(
             Direction::Vertical,
-            vec![Some(display!(menu)), Some(display!(button))],
+            vec![display!(menu), display!(button)],
             Layout_style::default(self.theme.clone()),
             Objective::default(),
             2,

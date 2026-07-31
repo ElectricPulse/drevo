@@ -1,0 +1,163 @@
+use async_trait::async_trait;
+use color_eyre::eyre::{Result, eyre};
+use std::{marker::PhantomData, sync::Arc};
+use vizual::{
+    component::{Child, Children, context::Component_context},
+    handlers::Retrieve_handler,
+    layouter::hitbox::Hitbox,
+    slot::manager::Slots,
+    state::State,
+    sync::{Mutex, Thread_safe},
+    theme::Theme,
+    widget::{
+        Control, Focus_provider, Shared_widget, Widget_trait,
+        widgets::{
+            full::Full,
+            layout::{Layout, Style as Layout_style},
+            menu::{Menu, Menu_item_trait, Shared_menu_item, get_selector},
+            text::Text,
+        },
+    },
+};
+use vizual::{geometry::Direction, layouter::objective::Objective};
+use vizual_macros::display;
+
+use crate::Field;
+
+struct Default_leaf_value<Value: Thread_safe> {
+    label: String,
+    theme: State<Theme>,
+    value: PhantomData<Value>,
+}
+
+#[async_trait]
+impl<Value: Thread_safe> Retrieve_handler<Option<Value>> for Default_leaf_value<Value> {
+    async fn on_retrieve(&mut self) -> Result<Option<Value>> {
+        Ok(None)
+    }
+}
+
+#[async_trait]
+impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Default_leaf_value<Value> {
+    async fn layout(
+        &mut self,
+        selected: bool,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut vizual::text::Text_context,
+        slots: &mut Slots,
+    ) -> Result<Child> {
+        let text = Text::new(format!("Default - {}", self.label))
+            .set_style(self.theme.load().semantic.text.subtitle(selected));
+
+        Ok(display!(text))
+    }
+}
+
+struct Custom_leaf_value<Value: Thread_safe> {
+    field: Shared_widget<Box<dyn Field<Value>>>,
+    theme: State<Theme>,
+}
+
+#[async_trait]
+impl<Value: Thread_safe> Retrieve_handler<Option<Value>> for Custom_leaf_value<Value> {
+    async fn on_retrieve(&mut self) -> Result<Option<Value>> {
+        let value = self
+            .field
+            .lock()
+            .await?
+            .on_retrieve()
+            .await?
+            .ok_or_else(|| eyre!("Expected to get value from custom field"))?;
+        Ok(Some(value))
+    }
+}
+
+#[async_trait]
+impl<Value: Thread_safe> Menu_item_trait<Option<Value>> for Custom_leaf_value<Value> {
+    async fn layout(
+        &mut self,
+        selected: bool,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut vizual::text::Text_context,
+        slots: &mut Slots,
+    ) -> Result<Child> {
+        let title =
+            Text::new("Custom").set_style(self.theme.load().semantic.text.subtitle(selected));
+        let field = self.field.clone();
+        let contents = match selected {
+            true => vec![display!(title), display!(field)],
+            false => vec![display!(title)],
+        };
+        let layout = Layout::new(
+            Direction::Vertical,
+            contents,
+            Layout_style::default(self.theme.clone()),
+            Objective::default(),
+            2,
+        );
+
+        Ok(display!(layout))
+    }
+}
+
+pub struct Optional_setting<Value: Clone + Thread_safe> {
+    menu: Shared_widget<Menu<Option<Value>>>,
+}
+
+impl<Value: Clone + Thread_safe> Optional_setting<Value> {
+    pub fn new(
+        default_value: impl Into<String>,
+        is_default: bool,
+        field: impl Field<Value> + 'static,
+        theme: State<Theme>,
+    ) -> Self {
+        let field = (Box::new(field) as Box<dyn Field<Value>>).into_shared();
+        let default_item = Arc::new(Mutex::new(Default_leaf_value {
+            label: default_value.into(),
+            theme: theme.clone(),
+            value: PhantomData,
+        })) as Shared_menu_item<Option<Value>>;
+        let custom_item = Arc::new(Mutex::new(Custom_leaf_value {
+            field,
+            theme: theme.clone(),
+        })) as Shared_menu_item<Option<Value>>;
+        let items = vec![default_item, custom_item];
+        let default_item = get_selector(&items[usize::from(!is_default)]);
+        let menu = Menu::new(items, default_item, theme).into_shared();
+
+        Self { menu }
+    }
+}
+
+impl<Value: Clone + Thread_safe> Control for Optional_setting<Value> {}
+
+#[async_trait]
+impl<Value: Clone + Thread_safe> Widget_trait for Optional_setting<Value> {
+    async fn layout(
+        &mut self,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut vizual::text::Text_context,
+        slots: &mut Slots,
+    ) -> Result<Children> {
+        let menu = self.menu.clone();
+        let full = Full::new(display!(menu));
+
+        Ok(vec![display!(full)])
+    }
+}
+
+#[async_trait]
+impl<Value: Clone + Thread_safe> Retrieve_handler<Option<Value>> for Optional_setting<Value> {
+    async fn on_retrieve(&mut self) -> Result<Option<Value>> {
+        self.menu.on_retrieve().await
+    }
+}
