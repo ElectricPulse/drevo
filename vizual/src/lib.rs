@@ -467,7 +467,7 @@ enum Ui_input {
     Rerender,
 }
 
-// TODO: This message-passing bullshit is probably not needed.
+// TODO: This message-passing layer is probably unnecessary.
 enum User_event {
     Initialize(Size, Size),
     Minimum_size(Size),

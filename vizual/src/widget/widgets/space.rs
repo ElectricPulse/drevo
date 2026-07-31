@@ -125,7 +125,7 @@ impl Space {
 
         match target {
             Some(target) => {
-                // TODO: Using 16 as the target for zero-sized space is also a bodge.
+                // TODO: Using 16 as the target for zero-sized space is also a workaround.
                 let target = match target {
                     0.0 => 16.0,
                     target => target,

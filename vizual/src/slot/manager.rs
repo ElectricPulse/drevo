@@ -124,7 +124,7 @@ impl Slots<'_> {
 #[macro_export]
 macro_rules! id {
     () => {
-        // TODO: This u64::MAX/2 is a bodge to solve namespace conflicts with other `slots.set` calls that
+        // TODO: This u64::MAX/2 offset is a workaround for namespace conflicts with other `slots.set` calls that
         // commonly use `set_generic` with the index from an iteration as the key.
         (::uniqify::uniqify!() as u64) + u64::MAX / 2
     };

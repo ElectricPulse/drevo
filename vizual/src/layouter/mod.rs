@@ -143,7 +143,7 @@ impl Problem {
         let difference = (Expression::from(target) - expression.into()) / target;
         self.constrain(constraint!(difference.clone() >= 0));
         self.constrain(constraint!(difference == delta));
-        // Bodge: goals at the same priority are summed together at the end, so minimizing
+        // Workaround: goals at the same priority are summed together at the end, so minimizing
         // the same delta once for every use is equivalent to putting a weight on it.
         self.minimize(Expression::from(delta), priority)
     }
