@@ -9,7 +9,7 @@ use color_eyre::eyre::{Result, WrapErr, bail};
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Shared_widget, Widget_trait},
+    super::{Focus_provider, Shared_widget, Widget_trait},
     full::Full,
     text_viewport::Text_viewport,
     title_block::Title_block,
@@ -311,8 +311,6 @@ impl Widget_trait for Screen_content {
     }
 }
 
-
-
 #[async_trait]
 impl Widget_trait for Screen {
     async fn layout(
@@ -335,9 +333,6 @@ impl Widget_trait for Screen {
 
         Ok(vec![display!(full)])
     }
-}
-
-#[async_trait]
 
     async fn on_key_press(&mut self, event: &Key_event) -> Result<Vizual_msg> {
         let mut content = self.content.lock().await?;

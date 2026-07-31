@@ -6,7 +6,7 @@ use crate::{
     geometry::Direction,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    widget::{Control, Focus_provider, Widget_trait},
+    widget::{Focus_provider, Widget_trait},
 };
 
 /// Shares both this component and its child across the entire parent hitbox.

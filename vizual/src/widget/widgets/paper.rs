@@ -3,7 +3,7 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Widget_trait},
+    super::{Focus_provider, Widget_trait},
     block::Block,
     full::Full,
     space::Space,
@@ -31,8 +31,6 @@ impl Paper {
         Self { child, theme }
     }
 }
-
-
 
 #[async_trait]
 impl Widget_trait for Paper {

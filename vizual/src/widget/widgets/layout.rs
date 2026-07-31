@@ -6,7 +6,7 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::Theme,
-    widget::{Control, Focus_provider, Widget_trait},
+    widget::{Focus_provider, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -31,8 +31,6 @@ pub struct Layout {
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
 }
-
-
 
 impl Layout {
     pub fn new(

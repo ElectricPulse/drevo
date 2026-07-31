@@ -8,7 +8,7 @@ use crate::{
     geometry::Direction,
     layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
-    widget::{Control, Focus_provider, Widget_trait, widgets::full::Full},
+    widget::{Focus_provider, Widget_trait, widgets::full::Full},
 };
 
 pub struct Alignments {
@@ -50,8 +50,6 @@ impl Align {
         }
     }
 }
-
-
 
 #[async_trait]
 impl Widget_trait for Align {

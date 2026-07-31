@@ -4,7 +4,7 @@ use crate::{
     geometry::Direction,
     layouter::{expression::Expression, hitbox::Hitbox},
     slot::manager::Slots,
-    widget::{Control, Focus_provider, Widget_trait, widgets::full::Full},
+    widget::{Focus_provider, Widget_trait, widgets::full::Full},
 };
 use async_trait::async_trait;
 use color_eyre::Result;
@@ -85,8 +85,6 @@ impl Anchor {
         Ok(())
     }
 }
-
-
 
 #[async_trait]
 impl Widget_trait for Anchor {

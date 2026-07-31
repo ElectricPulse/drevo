@@ -6,7 +6,7 @@ use uuid::Uuid;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Shared_widget, Widget, Widget_trait},
+    super::{Focus_provider, Shared_widget, Widget, Widget_trait},
     full::Full,
     layout::{Layout, Style as Layout_style},
 };
@@ -60,36 +60,6 @@ struct Tab_bar {
     selected_page: State<Uuid>,
     pages: Vec<Page>,
     theme: State<Theme>,
-}
-
-#[async_trait]
-
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
-        if let Key_code::Character(char) = key.code
-            && let Some(digit) = char.to_digit(10)
-        {
-            let digit = digit as usize;
-            if digit >= self.pages.len() {
-                return crate::Vizual_msg::none();
-            }
-
-            if digit == self.get_page_index() {
-                return crate::Vizual_msg::new(crate::Vizual_command::None);
-            }
-
-            self.set_page_index(digit);
-            return crate::Vizual_msg::new(crate::Vizual_command::Layout);
-        }
-
-        if let Some(page_index) =
-            utils::handle_keys_for_iterable(key, self.pages.len(), self.get_page_index())
-        {
-            self.set_page_index(page_index);
-            return crate::Vizual_msg::new(crate::Vizual_command::Layout);
-        }
-
-        crate::Vizual_msg::none()
-    }
 }
 
 impl Tab_bar {
@@ -167,6 +137,33 @@ impl Widget_trait for Tab_bar {
         Ok(vec![display!(full)])
     }
 
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
+        if let Key_code::Character(char) = key.code
+            && let Some(digit) = char.to_digit(10)
+        {
+            let digit = digit as usize;
+            if digit >= self.pages.len() {
+                return crate::Vizual_msg::none();
+            }
+
+            if digit == self.get_page_index() {
+                return crate::Vizual_msg::new(crate::Vizual_command::None);
+            }
+
+            self.set_page_index(digit);
+            return crate::Vizual_msg::new(crate::Vizual_command::Layout);
+        }
+
+        if let Some(page_index) =
+            utils::handle_keys_for_iterable(key, self.pages.len(), self.get_page_index())
+        {
+            self.set_page_index(page_index);
+            return crate::Vizual_msg::new(crate::Vizual_command::Layout);
+        }
+
+        crate::Vizual_msg::none()
+    }
+
     async fn render(
         &mut self,
         focus: &mut Focus_provider,
@@ -177,8 +174,6 @@ impl Widget_trait for Tab_bar {
         Ok(None)
     }
 }
-
-
 
 #[async_trait]
 impl Widget_trait for Tabs {

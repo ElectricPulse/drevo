@@ -1,7 +1,6 @@
 pub mod widgets;
 
 use async_trait::async_trait;
-use auto_impl::auto_impl;
 use color_eyre::eyre::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -58,7 +57,7 @@ impl Focus_provider {
 // just as Slots is passed to layout now.
 #[async_trait]
 /// A widget that participates in layout and painting.
-pub trait Widget_trait: Control + Thread_safe {
+pub trait Widget_trait: Thread_safe {
     /// Configures this widget's mutable hitbox and returns its visual children.
     ///
     /// A widget can reuse parent variables through [`Hitbox::share_start`],
@@ -84,6 +83,42 @@ pub trait Widget_trait: Control + Thread_safe {
         _display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         Ok(None)
+    }
+
+    // Event handling defaults to no action for non-interactive widgets.
+
+    async fn on_all_events(&mut self, _event: &Event) -> Result<Vizual_msg> {
+        Vizual_msg::none()
+    }
+
+    async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
+        Vizual_msg::none()
+    }
+
+    async fn on_key_press(&mut self, _key: &Key_event) -> Result<Vizual_msg> {
+        Vizual_msg::none()
+    }
+
+    async fn on_other_event(&mut self, _event: &Event) -> Result<Vizual_msg> {
+        Vizual_msg::none()
+    }
+
+    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+        let msg = self.on_all_events(event).await?;
+
+        if msg.has_command() || !msg.propagate {
+            return Ok(msg);
+        }
+
+        if let Event::Key(key) = event {
+            return self.on_key_press(key).await;
+        }
+
+        if let Event::Pointer(mouse) = event {
+            return self.on_mouse_click(mouse).await;
+        }
+
+        self.on_other_event(event).await
     }
 
     fn into_shared(self) -> Shared_widget<Self>
@@ -130,6 +165,26 @@ impl Widget_trait for Widget {
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         (**self).render(focus, hitbox, display).await
+    }
+
+    async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
+        (**self).on_all_events(event).await
+    }
+
+    async fn on_mouse_click(&mut self, mouse: &Pointer_event) -> Result<Vizual_msg> {
+        (**self).on_mouse_click(mouse).await
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+        (**self).on_key_press(key).await
+    }
+
+    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+        (**self).on_other_event(event).await
+    }
+
+    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+        (**self).forward_event(event).await
     }
 }
 
@@ -193,16 +248,7 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
     ) -> Result<Option<Hitbox>> {
         self.0.lock().await?.render(focus, hitbox, display).await
     }
-}
 
-impl<T: Widget_trait> From<Shared_widget<T>> for Widget {
-    fn from(value: Shared_widget<T>) -> Self {
-        Box::new(value)
-    }
-}
-
-#[async_trait]
-impl<T: Widget_trait> Control for Shared_widget<T> {
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
         let mut inner = self.0.lock().await?;
         inner.on_all_events(event).await
@@ -229,43 +275,9 @@ impl<T: Widget_trait> Control for Shared_widget<T> {
     }
 }
 
-#[async_trait]
-#[auto_impl(Box)]
-/// Handles normalized UI events.
-pub trait Control {
-    // If needed, Focus_provider, the hitbox, or any other field from Shared_component can be passed into these methods.
-    async fn on_all_events(&mut self, _event: &Event) -> Result<Vizual_msg> {
-        Vizual_msg::none()
-    }
-
-    async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
-        Vizual_msg::none()
-    }
-
-    async fn on_key_press(&mut self, _key: &Key_event) -> Result<Vizual_msg> {
-        Vizual_msg::none()
-    }
-
-    async fn on_other_event(&mut self, _event: &Event) -> Result<Vizual_msg> {
-        Vizual_msg::none()
-    }
-
-    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
-        let msg = self.on_all_events(event).await?;
-
-        if msg.has_command() || !msg.propagate {
-            return Ok(msg);
-        }
-
-        if let Event::Key(key) = event {
-            return self.on_key_press(key).await;
-        }
-
-        if let Event::Pointer(mouse) = event {
-            return self.on_mouse_click(mouse).await;
-        }
-
-        self.on_other_event(event).await
+impl<T: Widget_trait> From<Shared_widget<T>> for Widget {
+    fn from(value: Shared_widget<T>) -> Self {
+        Box::new(value)
     }
 }
 

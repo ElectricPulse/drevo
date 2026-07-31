@@ -8,7 +8,7 @@ use color_eyre::eyre::{Result, eyre};
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Widget_trait},
+    super::{Focus_provider, Widget_trait},
     button::Button,
     full::Full,
     layout::{Layout, Style as Layout_style},
@@ -74,20 +74,6 @@ struct Menu_item<Value> {
 }
 
 #[async_trait]
-impl<Value: Thread_safe> Control for Menu_item<Value> {
-    async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
-        self.menu_selector.store(get_selector(&self.widget));
-
-        if let Some(submit_state) = &self.submit_state {
-            let mut widget = self.widget.lock().await?;
-            submit_state.store(widget.on_retrieve().await?);
-        }
-
-        Vizual_msg::new(Vizual_command::Layout)
-    }
-}
-
-#[async_trait]
 impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
     async fn layout(
         &mut self,
@@ -131,6 +117,17 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
             .await?
             .render(self.selected, focus, hitbox, display)
             .await
+    }
+
+    async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
+        self.menu_selector.store(get_selector(&self.widget));
+
+        if let Some(submit_state) = &self.submit_state {
+            let mut widget = self.widget.lock().await?;
+            submit_state.store(widget.on_retrieve().await?);
+        }
+
+        Vizual_msg::new(Vizual_command::Layout)
     }
 }
 
@@ -186,24 +183,6 @@ impl<Value: Thread_safe> Menu<Value> {
             .ok_or_else(|| eyre!("Menu item index {index} is out of range"))?;
         self.selected.store(get_selector(item));
         Ok(())
-    }
-}
-
-#[async_trait]
-impl<Value: Thread_safe> Control for Menu<Value> {
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
-        match key.code {
-            Key_code::Arrow_up | Key_code::Arrow_down => {
-                let index = self.get_selected_index()?;
-                let index = match key.code {
-                    Key_code::Arrow_up => get_previous_index(self.items.len(), index),
-                    _ => get_next_index(self.items.len(), index),
-                };
-                self.set_index(index)?;
-                Vizual_msg::new(Vizual_command::Layout)
-            }
-            _ => Vizual_msg::none(),
-        }
     }
 }
 
@@ -275,5 +254,20 @@ impl<Value: Thread_safe + Clone> Widget_trait for Menu<Value> {
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         Ok(None)
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+        match key.code {
+            Key_code::Arrow_up | Key_code::Arrow_down => {
+                let index = self.get_selected_index()?;
+                let index = match key.code {
+                    Key_code::Arrow_up => get_previous_index(self.items.len(), index),
+                    _ => get_next_index(self.items.len(), index),
+                };
+                self.set_index(index)?;
+                Vizual_msg::new(Vizual_command::Layout)
+            }
+            _ => Vizual_msg::none(),
+        }
     }
 }

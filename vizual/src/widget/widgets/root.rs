@@ -2,7 +2,7 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Shared_widget, Widget_trait},
+    super::{Focus_provider, Shared_widget, Widget_trait},
     full::Full,
     space::Space,
 };
@@ -40,17 +40,6 @@ impl<T: Widget_trait> Root<T> {
 }
 
 #[async_trait::async_trait]
-impl<T: Widget_trait> Control for Root<T> {
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
-        if crate::check_quit_event(key) {
-            return crate::Vizual_msg::new(crate::Vizual_command::Quit);
-        }
-
-        crate::Vizual_msg::none()
-    }
-}
-
-#[async_trait::async_trait]
 impl<T: Widget_trait> Widget_trait for Root<T> {
     async fn layout(
         &mut self,
@@ -77,5 +66,13 @@ impl<T: Widget_trait> Widget_trait for Root<T> {
     ) -> Result<Option<Hitbox>> {
         display.fill_rect(hitbox, self.theme.load().background);
         Ok(None)
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
+        if crate::check_quit_event(key) {
+            return crate::Vizual_msg::new(crate::Vizual_command::Quit);
+        }
+
+        crate::Vizual_msg::none()
     }
 }

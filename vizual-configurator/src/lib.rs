@@ -30,7 +30,7 @@ use vizual::{
     theme::Theme,
     utils::get_strings_id,
     widget::{
-        Control, Focus_provider, Shared_widget, Widget, Widget_trait,
+        Focus_provider, Shared_widget, Widget, Widget_trait,
         widgets::{
             align::{Align, Alignments},
             anchor::{Anchor, Anchors, Position as Anchor_position},
@@ -321,10 +321,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         focus.set_active(true);
         Ok(None)
     }
-}
 
-#[async_trait]
-impl<T: Tree> Control for Tree_view<T> {
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
         match key.code {
             Key_code::Arrow_left => {
@@ -406,23 +403,6 @@ pub struct Configurator<T: Tree> {
     submit: Shared_widget<Popup>,
     submitting: bool,
     popup_slot: Component_slot,
-}
-
-#[async_trait]
-impl<T: Tree> Control for Configurator<T> {
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
-        if check_quit_event(key) {
-            if !self.submitting {
-                self.submitting = true;
-
-                return Vizual_msg::new(Vizual_command::Focus(self.popup_slot.get_reference()));
-            }
-
-            return Vizual_msg::none();
-        }
-
-        Vizual_msg::none()
-    }
 }
 
 impl<T: Tree> Config_manager<T> {
@@ -600,5 +580,19 @@ impl<T: Tree> Widget_trait for Configurator<T> {
 
         let full = Full::new(display!(grid));
         Ok(vec![display!(full)])
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+        if check_quit_event(key) {
+            if !self.submitting {
+                self.submitting = true;
+
+                return Vizual_msg::new(Vizual_command::Focus(self.popup_slot.get_reference()));
+            }
+
+            return Vizual_msg::none();
+        }
+
+        Vizual_msg::none()
     }
 }

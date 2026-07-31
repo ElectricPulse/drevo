@@ -1,12 +1,12 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 //! Procedural macros for Vizual widgets.
 //!
-//! The derives delegate to a single field by default. Use
-//! `#[control(field = name)]` or `#[widget_trait(field = name)]` to select one.
+//! The widget derive delegates to a single field by default. Use
+//! `#[widget_trait(field = name)]` to select one.
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Expr, Fields, Ident, Member, Type, parse_macro_input, parse_quote};
+use syn::{Data, DeriveInput, Expr, Fields, Member, Type, parse_macro_input, parse_quote};
 
 /// Sets a child in a unique slot and returns it, assuming the slot manager is named `slots`.
 #[proc_macro]
@@ -19,16 +19,6 @@ pub fn display(input: TokenStream) -> TokenStream {
     .into()
 }
 
-#[proc_macro_derive(Control, attributes(control))]
-/// Derives `vizual::widget::Control` by delegating to a field.
-pub fn derive_control(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-
-    expand_control(input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
-
 #[proc_macro_derive(Widget_trait, attributes(widget_trait))]
 /// Derives `vizual::widget::Widget_trait` by delegating to a field.
 pub fn derive_widget_trait(input: TokenStream) -> TokenStream {
@@ -37,81 +27,6 @@ pub fn derive_widget_trait(input: TokenStream) -> TokenStream {
     expand_widget_trait(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
-}
-
-fn expand_control(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    let (field, field_type) = delegated_field(&input, "control", "Control")?;
-    let name = input.ident;
-    let mut generics = input.generics;
-
-    generics
-        .make_where_clause()
-        .predicates
-        .push(parse_quote!(#field_type: ::vizual::widget::Control));
-
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    Ok(quote! {
-        #[::async_trait::async_trait]
-        impl #impl_generics ::vizual::widget::Control
-            for #name #ty_generics #where_clause
-        {
-            async fn on_all_events(
-                &mut self,
-                event: &::vizual::event::Event,
-            ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
-                ::vizual::widget::Control::on_all_events(
-                    &mut self.#field,
-                    event,
-                )
-                .await
-            }
-
-            async fn on_mouse_click(
-                &mut self,
-                mouse: &::vizual::event::Pointer_event,
-            ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
-                ::vizual::widget::Control::on_mouse_click(
-                    &mut self.#field,
-                    mouse,
-                )
-                .await
-            }
-
-            async fn on_key_press(
-                &mut self,
-                key: &::vizual::event::Key_event,
-            ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
-                ::vizual::widget::Control::on_key_press(
-                    &mut self.#field,
-                    key,
-                )
-                .await
-            }
-
-            async fn on_other_event(
-                &mut self,
-                event: &::vizual::event::Event,
-            ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
-                ::vizual::widget::Control::on_other_event(
-                    &mut self.#field,
-                    event,
-                )
-                .await
-            }
-
-            async fn forward_event(
-                &mut self,
-                event: &::vizual::event::Event,
-            ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
-                ::vizual::widget::Control::forward_event(
-                    &mut self.#field,
-                    event,
-                )
-                .await
-            }
-        }
-    })
 }
 
 fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
@@ -165,6 +80,41 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                     display,
                 )
                 .await
+            }
+
+            async fn on_all_events(
+                &mut self,
+                event: &::vizual::event::Event,
+            ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
+                ::vizual::widget::Widget_trait::on_all_events(&mut self.#field, event).await
+            }
+
+            async fn on_mouse_click(
+                &mut self,
+                mouse: &::vizual::event::Pointer_event,
+            ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
+                ::vizual::widget::Widget_trait::on_mouse_click(&mut self.#field, mouse).await
+            }
+
+            async fn on_key_press(
+                &mut self,
+                key: &::vizual::event::Key_event,
+            ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
+                ::vizual::widget::Widget_trait::on_key_press(&mut self.#field, key).await
+            }
+
+            async fn on_other_event(
+                &mut self,
+                event: &::vizual::event::Event,
+            ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
+                ::vizual::widget::Widget_trait::on_other_event(&mut self.#field, event).await
+            }
+
+            async fn forward_event(
+                &mut self,
+                event: &::vizual::event::Event,
+            ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
+                ::vizual::widget::Widget_trait::forward_event(&mut self.#field, event).await
             }
         }
     })

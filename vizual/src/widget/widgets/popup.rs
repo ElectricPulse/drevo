@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::{Control, display};
+use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Shared_widget, Widget_trait},
@@ -17,6 +17,7 @@ use super::{
 use crate::{
     Vizual_command, Vizual_msg,
     component::{Child, Children, context::Component_context},
+    event::{Event, Key_event, Pointer_event},
     geometry::Direction,
     handlers::{Retrieve_handler, Submit_handler},
     layouter::{hitbox::Hitbox, objective::Objective},
@@ -123,8 +124,6 @@ impl Submit_handler<String> for Popup_button_handler {
     }
 }
 
-#[derive(Control)]
-#[control(field = menu)]
 pub struct Popup {
     menu: Shared_widget<Menu<Popup_options>>,
     submit_handler: Shared_popup_submit_handler,
@@ -193,5 +192,25 @@ impl Widget_trait for Popup {
         let full = Full::new(display!(anchor));
 
         Ok(vec![display!(full)])
+    }
+
+    async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
+        self.menu.on_all_events(event).await
+    }
+
+    async fn on_mouse_click(&mut self, mouse: &Pointer_event) -> Result<Vizual_msg> {
+        self.menu.on_mouse_click(mouse).await
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+        self.menu.on_key_press(key).await
+    }
+
+    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+        self.menu.on_other_event(event).await
+    }
+
+    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+        self.menu.forward_event(event).await
     }
 }

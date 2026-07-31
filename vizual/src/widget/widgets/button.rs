@@ -3,7 +3,7 @@ use color_eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Widget_trait},
+    super::{Focus_provider, Widget_trait},
     block::Block,
     full::Full,
     space::Space,
@@ -99,9 +99,6 @@ impl Widget_trait for Button {
 
         Ok(vec![display!(full)])
     }
-}
-
-#[async_trait]
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
         match (&mut self.click_handler, &self.content) {

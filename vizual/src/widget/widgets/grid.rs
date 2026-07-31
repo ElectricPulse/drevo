@@ -5,7 +5,7 @@ use crate::{
     component::{Child, Children, context::Component_context},
     layouter::{constraints::prohibit_overlap, hitbox::Hitbox},
     slot::manager::Slots,
-    widget::{Control, Focus_provider, Widget_trait},
+    widget::{Focus_provider, Widget_trait},
 };
 
 pub struct Grid {
@@ -18,8 +18,6 @@ impl Grid {
         Self { children, gap }
     }
 }
-
-
 
 #[async_trait]
 impl Widget_trait for Grid {

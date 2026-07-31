@@ -10,7 +10,7 @@ use vizual::{
     sync::{Mutex, Thread_safe},
     theme::Theme,
     widget::{
-        Control, Focus_provider, Shared_widget, Widget_trait,
+        Focus_provider, Shared_widget, Widget_trait,
         widgets::{
             full::Full,
             layout::{Layout, Style as Layout_style},
@@ -134,8 +134,6 @@ impl<Value: Clone + Thread_safe> Optional_setting<Value> {
         Self { menu }
     }
 }
-
-impl<Value: Clone + Thread_safe> Control for Optional_setting<Value> {}
 
 #[async_trait]
 impl<Value: Clone + Thread_safe> Widget_trait for Optional_setting<Value> {

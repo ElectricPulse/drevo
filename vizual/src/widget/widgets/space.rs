@@ -1,4 +1,4 @@
-use super::super::{Control, Focus_provider, Widget_trait};
+use super::super::{Focus_provider, Widget_trait};
 use crate::{
     component::{Child, Children, context::Component_context},
     constraint,

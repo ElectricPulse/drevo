@@ -15,7 +15,7 @@ use crate::{
     slot::manager::{Slot_records, Slots},
     sync::{Mutex, MutexGuard},
     text::Text_context,
-    widget::{Control, Focus_provider, Widget, Widget_trait},
+    widget::{Focus_provider, Widget, Widget_trait},
 };
 
 use self::context::Component_context;
@@ -41,8 +41,6 @@ pub struct Component {
 
 #[derive(Clone, new)]
 pub struct Shared_component(Arc<Mutex<Component>>);
-
-
 
 #[async_trait::async_trait]
 impl Widget_trait for Shared_component {

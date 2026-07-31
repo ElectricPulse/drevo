@@ -1,4 +1,4 @@
-use super::super::{Control, Focus_provider, Widget_trait};
+use super::super::{Focus_provider, Widget_trait};
 use crate::{
     component::Children,
     component::context::Component_context,
@@ -51,8 +51,6 @@ impl Text {
         self
     }
 }
-
-
 
 #[async_trait]
 impl Widget_trait for Text {

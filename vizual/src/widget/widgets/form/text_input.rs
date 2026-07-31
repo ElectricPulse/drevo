@@ -8,7 +8,7 @@ use color_eyre::eyre::Result;
 use regex::Regex;
 use vizual_macros::display;
 
-use super::super::super::{Control, Focus_provider, Widget_trait};
+use super::super::super::{Focus_provider, Widget_trait};
 use super::super::full::Full;
 use super::super::title_block::Title_block;
 use crate::{
@@ -188,8 +188,6 @@ impl Widget_trait for Text_input_content {
     }
 }
 
-
-
 #[async_trait]
 impl Widget_trait for Text_input {
     async fn layout(
@@ -226,9 +224,6 @@ impl Widget_trait for Text_input {
         self.focused.store(focus.get(), Ordering::Relaxed);
         Ok(None)
     }
-}
-
-#[async_trait]
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
         if matches!(key.code, Key_code::Escape) {

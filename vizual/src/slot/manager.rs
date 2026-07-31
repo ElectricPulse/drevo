@@ -15,7 +15,7 @@ pub struct Record {
     pub mounted: bool,
 }
 
-// In the future this could also be passed into Control methods to allow things like Focus to work.
+// In the future this could also be passed into widget event methods to allow things like Focus to work.
 pub struct Slot_records {
     // We store a reference to Component_context so that one doesn't have to pass it in set()
     pub(crate) problem: Component_context,

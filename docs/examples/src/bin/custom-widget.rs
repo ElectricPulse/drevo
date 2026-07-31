@@ -9,26 +9,13 @@ use vizual::{
     state::State,
     theme::dark_theme,
     widget::{
-        Control, Focus_provider, Widget_trait,
+        Focus_provider, Widget_trait,
         widgets::{full::Full, text::Text},
     },
 };
 use vizual_macros::display;
 
 struct Counter(i64);
-
-#[async_trait]
-
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
-        match key.code {
-            Key_code::Arrow_up => self.0 += 1,
-            Key_code::Arrow_down => self.0 -= 1,
-            _ => return Vizual_msg::none(),
-        }
-
-        Vizual_msg::new(Vizual_command::Layout)
-    }
-}
 
 #[async_trait]
 impl Widget_trait for Counter {
@@ -48,6 +35,16 @@ impl Widget_trait for Counter {
         ));
         let full = Full::new(display!(text));
         Ok(vec![display!(full)])
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+        match key.code {
+            Key_code::Arrow_up => self.0 += 1,
+            Key_code::Arrow_down => self.0 -= 1,
+            _ => return Vizual_msg::none(),
+        }
+
+        Vizual_msg::new(Vizual_command::Layout)
     }
 }
 

@@ -6,7 +6,7 @@ use std::future::Future;
 use std::pin::Pin;
 use vizual_macros::display;
 
-use super::super::{Control, Focus_provider, Shared_widget, Widget_trait};
+use super::super::{Focus_provider, Shared_widget, Widget_trait};
 use super::full::Full;
 use super::menu::Menu;
 use super::title_block::Title_block;
@@ -85,55 +85,6 @@ pub struct Form<Config: Clone + Thread_safe> {
     exit_menu: Shared_widget<Menu<bool>>,
     on_submit: Submit_callback<Config>,
     pub theme: State<Theme>,
-}
-
-#[async_trait]
-impl<Config: Clone + Thread_safe> Control for Form<Config> {
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
-        if self.exitting {
-            let (message, submitted, selected) = {
-                let mut exit_menu = self.exit_menu.lock().await?;
-                let message = exit_menu.on_key_press(key).await?;
-                //let submitted = exit_menu.submitted;
-                let submitted = false;
-                let selected = if submitted {
-                    exit_menu.on_retrieve().await?
-                } else {
-                    false
-                };
-                (message, submitted, selected)
-            };
-
-            if submitted {
-                if selected {
-                    self.submit().await?;
-                    return crate::Vizual_msg::new(crate::Vizual_command::Quit);
-                }
-
-                self.ensure_exit_menu_closed().await?;
-            }
-
-            return Ok(message);
-        }
-
-        match key.code {
-            Key_code::Enter => {
-                self.field_index = get_next_index(self.get_number_of_fields(), self.field_index);
-                self.field_active = false;
-                return crate::Vizual_msg::new(crate::Vizual_command::Layout);
-            }
-            Key_code::Arrow_right => {
-                if self.get_number_of_fields() - 1 == self.field_index {
-                    self.field_active = false;
-                    self.exitting = true;
-                    return crate::Vizual_msg::new(crate::Vizual_command::Layout);
-                }
-            }
-            _ => {}
-        }
-
-        crate::Vizual_msg::none()
-    }
 }
 
 impl<Config: Clone + Thread_safe> Form<Config> {
@@ -231,5 +182,51 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
         let full = Full::new(display!(block));
 
         Ok(vec![display!(full)])
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
+        if self.exitting {
+            let (message, submitted, selected) = {
+                let mut exit_menu = self.exit_menu.lock().await?;
+                let message = exit_menu.on_key_press(key).await?;
+                //let submitted = exit_menu.submitted;
+                let submitted = false;
+                let selected = if submitted {
+                    exit_menu.on_retrieve().await?
+                } else {
+                    false
+                };
+                (message, submitted, selected)
+            };
+
+            if submitted {
+                if selected {
+                    self.submit().await?;
+                    return crate::Vizual_msg::new(crate::Vizual_command::Quit);
+                }
+
+                self.ensure_exit_menu_closed().await?;
+            }
+
+            return Ok(message);
+        }
+
+        match key.code {
+            Key_code::Enter => {
+                self.field_index = get_next_index(self.get_number_of_fields(), self.field_index);
+                self.field_active = false;
+                return crate::Vizual_msg::new(crate::Vizual_command::Layout);
+            }
+            Key_code::Arrow_right => {
+                if self.get_number_of_fields() - 1 == self.field_index {
+                    self.field_active = false;
+                    self.exitting = true;
+                    return crate::Vizual_msg::new(crate::Vizual_command::Layout);
+                }
+            }
+            _ => {}
+        }
+
+        crate::Vizual_msg::none()
     }
 }

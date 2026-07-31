@@ -12,7 +12,7 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::Theme,
-    widget::{Control, Focus_provider, Widget_trait, widgets::full::Full},
+    widget::{Focus_provider, Widget_trait, widgets::full::Full},
 };
 
 pub struct Linebreak {

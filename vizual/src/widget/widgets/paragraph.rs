@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use super::{
-    super::{Control, Focus_provider, Widget_trait},
+    super::{Focus_provider, Widget_trait},
     text_viewport::Text_viewport,
 };
 use crate::{
@@ -111,9 +111,6 @@ impl Widget_trait for Paragraph {
 
         Ok(None)
     }
-}
-
-#[async_trait]
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
         let step = self.viewport.line_step();

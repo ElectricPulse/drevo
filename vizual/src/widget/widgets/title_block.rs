@@ -3,7 +3,7 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Control, Focus_provider, Widget_trait},
+    super::{Focus_provider, Widget_trait},
     full::Full,
     layout::{Layout, Style as Layout_style},
     paper::Paper,
@@ -33,8 +33,6 @@ impl Title_block {
         }
     }
 }
-
-
 
 #[async_trait]
 impl Widget_trait for Title_block {
