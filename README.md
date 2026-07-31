@@ -100,6 +100,7 @@ runtime remains active for asynchronous widget and background work.
 - for no focus components I don't think they need to have stable known lifetime in between
  layout() calls
 - add light theme
+- add icons particularly into vizual-builder via Lucide icons + resvg
 
 ## Technologies used
 - [winit](https://github.com/rust-windowing/winit) for window managment

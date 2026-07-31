@@ -140,6 +140,8 @@ pub trait Widget_trait: Thread_safe {
     }
 }
 
+// Basically a cloneable widget
+pub type Generic_shared_widget = Shared_widget<Widget>;
 pub struct Shared_widget<T: Widget_trait>(Arc<Mutex<T>>);
 
 #[async_trait]
