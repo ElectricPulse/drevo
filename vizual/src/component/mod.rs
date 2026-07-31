@@ -8,10 +8,7 @@ use std::sync::{Arc, Weak};
 use crate::{
     focus::Focus,
     geometry::Direction,
-    layouter::{
-        Solution, constraints::shrink_wrap, expression::Expression, hitbox::Hitbox,
-        variables::Variables,
-    },
+    layouter::{Solution, constraints::shrink_wrap, hitbox::Hitbox, variables::Variables},
     slot::manager::{Slot_records, Slots},
     sync::{Mutex, MutexGuard},
     text::Text_context,

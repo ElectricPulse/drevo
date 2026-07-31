@@ -97,7 +97,9 @@ runtime remains active for asynchronous widget and background work.
   weights for adjusting how relationships scale, while an absolute-difference
   system likely has a place alongside it.
 - Crystalize the relationships between `Widget`, `Shared_widget`, and `Shared_component`
-- for no focus components I don't think they need to have stable known lifetime in between layout() calls
+- for no focus components I don't think they need to have stable known lifetime in between
+ layout() calls
+- add light theme
 
 ## Technologies used
 - [winit](https://github.com/rust-windowing/winit) for window managment

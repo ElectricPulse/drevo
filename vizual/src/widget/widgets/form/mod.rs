@@ -13,7 +13,7 @@ use super::title_block::Title_block;
 use crate::{
     component::{Children, context::Component_context},
     display::Display,
-    event::{Key_code, Key_event},
+    event::{Event, Key_code, Key_event, Pointer_event},
     geometry::Rect,
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
@@ -52,6 +52,26 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         (**self).render(focus, hitbox, display).await
+    }
+
+    async fn on_all_events(&mut self, event: &Event) -> Result<crate::Vizual_msg> {
+        (**self).on_all_events(event).await
+    }
+
+    async fn on_mouse_click(&mut self, mouse: &Pointer_event) -> Result<crate::Vizual_msg> {
+        (**self).on_mouse_click(mouse).await
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
+        (**self).on_key_press(key).await
+    }
+
+    async fn on_other_event(&mut self, event: &Event) -> Result<crate::Vizual_msg> {
+        (**self).on_other_event(event).await
+    }
+
+    async fn forward_event(&mut self, event: &Event) -> Result<crate::Vizual_msg> {
+        (**self).forward_event(event).await
     }
 }
 

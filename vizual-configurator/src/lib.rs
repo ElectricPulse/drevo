@@ -20,7 +20,7 @@ use vizual::{
     Vizual_command, Vizual_msg, check_quit_event,
     component::{Child, Children, context::Component_context},
     display::Display,
-    event::{Key_code, Key_event},
+    event::{Event, Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
     handlers::{Retrieve_handler, Submit_handler},
     layouter::{hitbox::Hitbox, objective::Objective},
@@ -84,6 +84,26 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
         (**self).render(focus, hitbox, display).await
+    }
+
+    async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
+        (**self).on_all_events(event).await
+    }
+
+    async fn on_mouse_click(&mut self, mouse: &Pointer_event) -> Result<Vizual_msg> {
+        (**self).on_mouse_click(mouse).await
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+        (**self).on_key_press(key).await
+    }
+
+    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+        (**self).on_other_event(event).await
+    }
+
+    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+        (**self).forward_event(event).await
     }
 }
 

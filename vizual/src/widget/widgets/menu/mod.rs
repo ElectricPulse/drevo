@@ -12,7 +12,6 @@ use super::{
     button::Button,
     full::Full,
     layout::{Layout, Style as Layout_style},
-    space::Space,
 };
 use crate::{
     Vizual_command, Vizual_msg,
@@ -20,7 +19,7 @@ use crate::{
     display::Display,
     event::{Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
-    handlers::{Retrieve_handler, Submit_handler},
+    handlers::Retrieve_handler,
     layouter::{hitbox::Hitbox, objective::Objective, variable::Variable},
     slot::manager::Slots,
     state::State,
