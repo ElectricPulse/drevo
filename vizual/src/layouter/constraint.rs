@@ -1,7 +1,7 @@
 use color_eyre::eyre::Result;
 use good_lp::constraint as solver_constraint;
 
-use super::{expression::Expression, variables::Solver_variables};
+use super::{expression::Expression, variables::Resolved_variables};
 use crate::geometry::Size;
 
 /// A symbolic equality or inequality over stable layout variables.
@@ -52,7 +52,7 @@ impl Constraint {
 
     pub(crate) fn into_solver(
         &self,
-        solver_variables: &Solver_variables,
+        solver_variables: &Resolved_variables,
         screen: Option<Size>,
     ) -> Result<good_lp::Constraint> {
         let expression = self.expression.into_solver(solver_variables, screen)?;

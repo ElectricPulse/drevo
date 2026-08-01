@@ -4,9 +4,9 @@ use std::{
 };
 
 use color_eyre::eyre::{Result, eyre};
-use good_lp::Expression as Solver_expression;
+use good_lp::{Expression as Solver_expression, Variable};
 
-use super::{screen::SCREEN, variable::Variable, variables::Solver_variables};
+use super::{screen::SCREEN, variable::Variable as Solver_variable, variables::Resolved_variables};
 use crate::geometry::Size;
 
 /// A symbolic affine expression over stable [`Variable`] indices.
@@ -51,7 +51,7 @@ impl Expression {
 
     pub(crate) fn into_solver(
         &self,
-        solver_variables: &Solver_variables,
+        solver_variables: &Resolved_variables,
         screen: Option<Size>,
     ) -> Result<Solver_expression> {
         let mut expression = Solver_expression::from(self.constant);
@@ -66,7 +66,7 @@ impl Expression {
             match constant {
                 Some(constant) => expression += *coefficient * constant,
                 None => {
-                    let solver_variable = solver_variables
+                    solver_variables
                         .get(&variable.index())
                         .copied()
                         .ok_or_else(|| {
@@ -75,6 +75,7 @@ impl Expression {
                                 variable.index()
                             )
                         })?;
+
                     expression += *coefficient * solver_variable;
                 }
             }

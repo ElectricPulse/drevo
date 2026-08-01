@@ -19,7 +19,12 @@ pub struct Variable_definition {
     component_path: String,
 }
 
-pub(crate) type Solver_variables = HashMap<usize, Solver_variable>;
+enum Resolved_variable {
+    Constant(f64),
+    Variable(Solver_variable),
+}
+
+pub(crate) type Resolved_variables = HashMap<usize, Resolved_variable>;
 
 /// Definitions for stable layout variables shared across relayout-created problems.
 #[derive(Default)]
@@ -46,6 +51,7 @@ impl Variables {
         let index = (FIRST_DYNAMIC_VARIABLE_INDEX..)
             .find(|index| !definitions.contains_key(index))
             .expect("layout variable index space exhausted");
+
         let _ = definitions.insert(
             index,
             Variable_definition {
@@ -56,6 +62,18 @@ impl Variables {
             },
         );
         Variable::new(index)
+    }
+
+    pub fn set_static(&self, variable: Variable, value: f64) {
+        let mut definitions = self
+            .definitions
+            .lock()
+            .expect("Layout variable definitions poisoned");
+
+        let record = definitions
+            .get_mut(&variable.index())
+            .expect("Layout variables are broken");
+        record.solver = record.solver.clone().clamp(value, value);
     }
 
     pub fn remove(&self, variable: Variable) {
@@ -113,7 +131,7 @@ impl Variables {
         &self,
         referenced: &HashSet<Variable>,
         screen: Option<Size>,
-    ) -> Result<(ProblemVariables, Solver_variables)> {
+    ) -> Result<(ProblemVariables, Resolved_variables)> {
         // Dismounting should keep stale definitions out of this registry already. Filtering again
         // is probably unnecessary, but it guarantees that a priority solve only materializes
         // variables referenced by the current symbolic layout.
@@ -121,6 +139,7 @@ impl Variables {
             .definitions
             .lock()
             .expect("layout variable definitions poisoned");
+
         let mut problem_variables = ProblemVariables::new();
         let mut solver_variables = HashMap::new();
         let mut referenced = referenced.iter().copied().collect::<Vec<_>>();
@@ -128,14 +147,6 @@ impl Variables {
 
         for indexed_variable in referenced {
             let definition = match indexed_variable {
-                variable if variable == SCREEN.width && screen.is_some() => continue,
-                variable if variable == SCREEN.height && screen.is_some() => continue,
-                variable if variable == SCREEN.width => {
-                    VariableDefinition::new().min(0).name("screen width")
-                }
-                variable if variable == SCREEN.height => {
-                    VariableDefinition::new().min(0).name("screen height")
-                }
                 variable => definitions
                     .get(&variable.index())
                     .map(|definition| definition.solver.clone())

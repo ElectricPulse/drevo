@@ -34,9 +34,9 @@ use crate::{
 // height setting on child.
 pub type Setter = Box<dyn Fn(f64) -> BoxFuture<'static, ()> + Send + Sync>;
 
-const PRIORITY_LEVELS: usize = 4;
+const PRIORITY_LEVELS: usize = 3;
 // As of this moment the usage of priorities has crystalized like this:
-// 3 is for calculating minimum screen size as that will just minimize root hitbox
+// 3 is for calculating minimum screen size as that will just minimize root hitbox - but you cannot access it
 // 2 is for gaps, spaces, margins, paddings
 // 1 is for elements that just want to fill the surrounding space after content looks like it wants to look like and for align
 // 0 is for shrink wrap of parents around their children
@@ -196,20 +196,22 @@ impl Problem {
         constraints: &[Constraint],
         direction: ObjectiveDirection,
         objective: Expression,
-        screen: Option<Size>,
     ) -> std::result::Result<Solution, ResolutionError> {
         let referenced = constraints
             .iter()
             .flat_map(|constraint| constraint.expression.referenced_variables())
             .chain(objective.referenced_variables())
             .collect::<HashSet<_>>();
+
         let (problem_variables, solver_variables) = self
             .variables
             .create_solver_variables(&referenced, screen)
             .map_err(|error| ResolutionError::Str(error.to_string()))?;
+
         let solver_objective = objective
             .into_solver(&solver_variables, screen)
             .map_err(|error| ResolutionError::Str(error.to_string()))?;
+
         let solver_constraints = constraints
             .iter()
             .map(|constraint| constraint.into_solver(&solver_variables, screen))
@@ -232,16 +234,12 @@ impl Problem {
                 .with_all(solver_constraints)
         })
         .await;
+
         let solved = log_duration(4, "priority solve", || async { model.solve() }).await?;
         let mut values = solver_variables
             .iter()
             .map(|(index, variable)| (Variable::new(*index), solved.value(*variable)))
             .collect::<HashMap<_, _>>();
-
-        if let Some(screen) = screen {
-            let _ = values.insert(SCREEN.width, screen.width);
-            let _ = values.insert(SCREEN.height, screen.height);
-        }
 
         log_info(4, format_args!("stats: {:?}", solved.into_inner().stats()));
 
@@ -491,45 +489,34 @@ impl Problem {
         minimum_size_objective: Option<Expression>,
     ) -> Result<Solution> {
         log_duration(0, "layout full solve", || async {
-            let mut objectives = self.objectives.clone();
-            if let Some(minimum_size_objective) = minimum_size_objective {
-                match &mut objectives[PRIORITY_LEVELS - 1] {
-                    Some(objective) => *objective += minimum_size_objective,
-                    objective => *objective = Some(minimum_size_objective),
-                }
-            }
-            let mut objectives =
-                objectives
-                    .iter()
-                    .enumerate()
-                    .rev()
-                    .filter_map(|(priority, objective)| {
-                        objective.as_ref().map(|objective| (priority, objective))
-                    });
-            let Some((mut priority, mut objective)) = objectives.next() else {
-                log_info(2, "feasibility priority solve");
-                return self
-                    .priority_solve_with_diagnostics(&constraints, Expression::from(0), screen)
-                    .await;
-            };
+            let mut objectives = self.objectives.clone().to_vec();
 
-            loop {
+            objectives.push(minimum_size_objective);
+            let objectives: Vec<Expression> = objectives
+                .into_iter()
+                .filter_map(|item| item)
+                .rev()
+                .collect();
+
+            let mut maybe_solution: Option<Solution> = None;
+
+            for (priority, objective) in objectives.into_iter().enumerate() {
                 log_info(2, format_args!("priority solve {priority}"));
-                let solved = self
+                let solution = self
                     .priority_solve_with_diagnostics(&constraints, objective.clone(), screen)
                     .await?;
-                let Some((next_priority, next_objective)) = objectives.next() else {
-                    return Ok(solved);
-                };
-                let optimal_value = solved.eval(objective);
+
+                let optimal_value = solution.eval(&objective);
+                maybe_solution = Some(solution);
+
+                // TODO: A big performance boost would be if all objectives that contain only one variable would be set with set_static
                 constraints.push(Component_context::name_constraint(
                     constraint!(objective.clone() == optimal_value),
                     format!("priority_{priority}_optimum"),
                 ));
-
-                priority = next_priority;
-                objective = next_objective;
             }
+
+            maybe_solution.ok_or(eyre!("Expected solution"))
         })
         .await
     }
