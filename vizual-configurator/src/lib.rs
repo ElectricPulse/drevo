@@ -549,12 +549,6 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         let Layout_style::Gap(gap) = Layout_style::default(self.theme.clone());
         let tree_view = display!(tree_view);
 
-        let button = Button::new(
-            "Apply",
-            Box::new(self.config_manager.clone()),
-            self.theme.clone(),
-        );
-
         let tree_view = Anchor::new(
             tree_view,
             Anchors {
@@ -575,6 +569,12 @@ impl<T: Tree> Widget_trait for Configurator<T> {
 
             children.push(display!(field));
         }
+
+        let button = Button::new(
+            "Apply",
+            Box::new(self.config_manager.clone()),
+            self.theme.clone(),
+        );
 
         let button = Align::new(
             display!(button),

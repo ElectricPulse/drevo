@@ -33,7 +33,8 @@ impl Align {
         objective: Objective,
         direction: Direction,
     ) -> Result<()> {
-        let priority = 1;
+        let priority = 0;
+
         match objective {
             Objective::Minimize => {
                 let start_margin = Expression::from(

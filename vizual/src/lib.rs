@@ -662,9 +662,10 @@ async fn ui_loop<T: Widget_trait>(
         if matches!(command, Vizual_command::Render)
             && let (Some(problem), Some(solution)) = (&mut app_problem, &solution)
         {
-            let scene = problem
-                .render(solution, &mut focus, &mut text_context)
-                .await?;
+            let scene = log_duration(0, "app problem render", || {
+                problem.render(solution, &mut focus, &mut text_context)
+            })
+            .await?;
             if proxy.send_event(User_event::Scene(scene)).is_err() {
                 break;
             }

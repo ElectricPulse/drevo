@@ -218,22 +218,28 @@ impl Problem {
             // Fully static constraints cannot affect optimization. Dropping them also prevents
             // solver infeasibility caused solely by rounding differences between solved values.
             .filter(|constraint| {
-                constraint.expression.referenced_variables().any(|variable| {
-                    matches!(
-                        solver_variables.get(&variable.index()),
-                        Some(Resolved_variable::Variable(_))
-                    )
-                })
+                constraint
+                    .expression
+                    .referenced_variables()
+                    .any(|variable| {
+                        matches!(
+                            solver_variables.get(&variable.index()),
+                            Some(Resolved_variable::Variable(_))
+                        )
+                    })
             })
             .map(|constraint| constraint.into_solver(&solver_variables))
             .collect::<Result<Vec<_>>>()
             .map_err(|error| ResolutionError::Str(error.to_string()))?;
+        let non_static_variables = solver_variables
+            .values()
+            .filter(|variable| matches!(variable, Resolved_variable::Variable(_)))
+            .count();
 
         log_info(
             4,
             format_args!(
-                "priority model: {} referenced variables, {} constraints",
-                solver_variables.len(),
+                "priority model: {non_static_variables} non-static variables, {} constraints",
                 solver_constraints.len(),
             ),
         );
@@ -488,7 +494,8 @@ impl Problem {
         }
     }
 
-    async fn full_solve(&self, constraints: Vec<Constraint>, screen: Size) -> Result<Solution> {
+    async fn full_solve(&mut self, constraints: Vec<Constraint>, screen: Size) -> Result<Solution> {
+        self.variables.clear_static();
         self.variables.set_static(SCREEN.width, screen.width);
         self.variables.set_static(SCREEN.height, screen.height);
 
@@ -500,20 +507,46 @@ impl Problem {
             {
                 log_info(2, format_args!("priority solve {priority}"));
 
-                for objective in priority_objectives {
-                    let solution = self
-                        .priority_solve_with_diagnostics(&constraints, objective.clone())
-                        .await?;
-                    let referenced_variables: Vec<Variable> =
-                        objective.referenced_variables().collect();
+                let priority_objective = priority_objectives
+                    .clone()
+                    .into_iter()
+                    .fold(Expression::default(), |sum, expression| sum + expression);
 
-                    if let [variable] = referenced_variables.as_slice() {
-                        let value = solution.eval(&Expression::from(*variable));
-                        self.variables.set_static(*variable, value);
+                let solution = self
+                    .priority_solve_with_diagnostics(&constraints, priority_objective)
+                    .await?;
+
+                let mut priority_objectives = priority_objectives;
+
+                loop {
+                    let previous_length = priority_objectives.len();
+                    priority_objectives.retain(|objective| {
+                        let mut variables = objective
+                            .referenced_variables()
+                            .filter(|variable| self.variables.static_value(*variable).is_none());
+                        let Some(variable) = variables.next() else {
+                            return false;
+                        };
+                        if variables.next().is_some() {
+                            return true;
+                        }
+
+                        let value = solution.eval(&Expression::from(variable));
+                        self.variables.set_static(variable, value);
+                        false
+                    });
+
+                    if priority_objectives.len() == previous_length {
+                        break;
                     }
-
-                    maybe_solution = Some(solution);
                 }
+
+                for objective in priority_objectives {
+                    let objective_solution = solution.eval(&objective);
+                    self.constrain(constraint!(objective == objective_solution));
+                }
+
+                maybe_solution = Some(solution);
             }
 
             maybe_solution.ok_or(eyre!("Expected solution"))
@@ -521,11 +554,12 @@ impl Problem {
         .await
     }
 
-    pub async fn solve(&self, screen: Size) -> Result<Solution> {
+    pub async fn solve(&mut self, screen: Size) -> Result<Solution> {
         self.full_solve(self.constraints.clone(), screen).await
     }
 
     pub async fn solve_minimum(&self, root: Hitbox) -> Result<Solution> {
+        self.variables.clear_static();
         let root_size =
             root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
         self.priority_solve_with_diagnostics(&self.constraints, root_size * -1.0)

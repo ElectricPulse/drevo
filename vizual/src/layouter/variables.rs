@@ -17,6 +17,7 @@ const FIRST_DYNAMIC_VARIABLE_INDEX: usize = 3;
 #[derive(Clone)]
 pub struct Variable_definition {
     solver: VariableDefinition,
+    static_value: Option<f64>,
     name: String,
     path: String,
     component_path: String,
@@ -59,6 +60,7 @@ impl Default for Variables {
                 variable.index(),
                 Variable_definition {
                     solver: VariableDefinition::new().min(0).name(name),
+                    static_value: None,
                     name: name.to_string(),
                     path: String::new(),
                     component_path: String::new(),
@@ -97,6 +99,7 @@ impl Variables {
             index,
             Variable_definition {
                 solver: definition,
+                static_value: None,
                 name: name.into(),
                 path: path.into(),
                 component_path: component_path.into(),
@@ -114,7 +117,18 @@ impl Variables {
         let record = definitions
             .get_mut(&variable.index())
             .expect("Layout variables are broken");
-        record.solver = record.solver.clone().clamp(value, value);
+        record.static_value = Some(value);
+    }
+
+    pub(crate) fn clear_static(&self) {
+        for definition in self
+            .definitions
+            .lock()
+            .expect("layout variable definitions poisoned")
+            .values_mut()
+        {
+            definition.static_value = None;
+        }
     }
 
     pub fn remove(&self, variable: Variable) {
@@ -150,8 +164,10 @@ impl Variables {
             .expect("layout variable definitions poisoned");
         let definition = definitions.get(&variable.index())?;
 
-        (definition.solver.get_min() == definition.solver.get_max())
-            .then_some(definition.solver.get_min())
+        definition.static_value.or_else(|| {
+            (definition.solver.get_min() == definition.solver.get_max())
+                .then_some(definition.solver.get_min())
+        })
     }
 
     pub(crate) fn component_paths(
@@ -198,18 +214,20 @@ impl Variables {
 
         for indexed_variable in referenced {
             let definition = match indexed_variable {
-                variable => definitions
-                    .get(&variable.index())
-                    .map(|definition| definition.solver.clone())
-                    .ok_or_else(|| {
-                        eyre!(
-                            "Layout variable {} is referenced but no longer registered",
-                            variable.index()
-                        )
-                    })?,
+                variable => definitions.get(&variable.index()).ok_or_else(|| {
+                    eyre!(
+                        "Layout variable {} is referenced but no longer registered",
+                        variable.index()
+                    )
+                })?,
             };
 
             let solver_variable = 'value: {
+                if let Some(value) = definition.static_value {
+                    break 'value Resolved_variable::Constant(value);
+                }
+
+                let definition = definition.solver.clone();
                 if definition.get_min() == definition.get_max() {
                     break 'value Resolved_variable::Constant(definition.get_min());
                 }
@@ -222,5 +240,22 @@ impl Variables {
         }
 
         Ok((problem_variables, solver_variables))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn static_values_can_be_cleared_between_solves() {
+        let variables = Variables::new();
+        let variable = variables.add(VariableDefinition::new().min(0), "test", "", "");
+
+        variables.set_static(variable, 42.0);
+        assert_eq!(variables.static_value(variable), Some(42.0));
+
+        variables.clear_static();
+        assert_eq!(variables.static_value(variable), None);
     }
 }
