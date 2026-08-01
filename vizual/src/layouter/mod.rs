@@ -510,7 +510,7 @@ impl Problem {
                 // The screen minimization has passed
                 if priority == 0 {
                     // set screen dimensions
-                    continue
+                    continue;
                 }
 
                 // TODO: A big performance boost would be if all objectives that contain only one variable would be set with set_static
