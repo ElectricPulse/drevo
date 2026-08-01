@@ -10,13 +10,13 @@ use super::{
     button::Button,
     full::Full,
     layout::{Layout, Style as Layout_style},
-    menu::{Menu, Menu_item_trait, Shared_menu_item, get_selector},
+    menu::{Menu, Shared_menu_item, get_selector},
     text::Text,
     title_block::Title_block,
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    component::{Child, Children, context::Component_context},
+    component::{Children, context::Component_context},
     event::{Event, Key_event, Pointer_event},
     geometry::Direction,
     handlers::{Retrieve_handler, Submit_handler},
@@ -25,6 +25,7 @@ use crate::{
     state::State,
     sync::Mutex,
     theme::Theme,
+    widget::custom_widget::Custom_widget_trait,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -67,21 +68,21 @@ impl Retrieve_handler<Popup_options> for Popup_menu_item {
 }
 
 #[async_trait]
-impl Menu_item_trait<Popup_options> for Popup_menu_item {
+impl Custom_widget_trait<bool> for Popup_menu_item {
     async fn layout(
         &mut self,
-        selected: bool,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Child> {
+        selected: bool,
+    ) -> Result<Children> {
         let text = Text::new(self.option.label())
             .set_style(self.theme.load().semantic.text.subtitle(selected));
 
-        Ok(display!(text))
+        Ok(vec![display!(text)])
     }
 }
 
@@ -134,15 +135,16 @@ impl Popup {
     pub fn new(submit_handler: impl Submit_handler<bool>, theme: State<Theme>) -> Self {
         let items = Popup_options::ALL
             .into_iter()
-            .map(|option| {
-                Arc::new(Mutex::new(Popup_menu_item {
+            .map(|option| -> Shared_menu_item<Popup_options> {
+                Popup_menu_item {
                     option,
                     theme: theme.clone(),
-                })) as Shared_menu_item<Popup_options>
+                }
+                .into_shared()
             })
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[0]);
-        let menu = Menu::new(items, default_item, theme.clone()).into_shared();
+        let menu = Widget_trait::into_shared(Menu::new(items, default_item, theme.clone()));
         let submit_handler: Shared_popup_submit_handler =
             Arc::new(Mutex::new(Popup_submit_handler {
                 subhandler: submit_handler,

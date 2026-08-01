@@ -8,14 +8,17 @@ use color_eyre::eyre::{Result, eyre};
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Widget_trait},
+    super::{
+        Focus_provider, Widget_trait,
+        custom_widget::{Custom_widget_trait, Shared_custom_widget},
+    },
     button::Button,
     full::Full,
     layout::{Layout, Style as Layout_style},
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    component::{Child, Children, context::Component_context},
+    component::{Children, context::Component_context},
     display::Display,
     event::{Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
@@ -28,36 +31,14 @@ use crate::{
     utils::{get_next_index, get_previous_index},
 };
 
-// TODO: Replace this with a custom `Widget_custom_state<State>` that passes `State` into
-// `layout(...state: State) render(...state: State)`
-// implement this if ever Render is ever wrapped againt with a custom thing
-// theme should definetely be passed in like this
-#[async_trait]
-pub trait Menu_item_trait<Value>: Retrieve_handler<Value> {
-    async fn layout(
-        &mut self,
-        selected: bool,
-        focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        parent: Hitbox,
-        problem: Component_context,
-        text_context: &mut crate::text::Text_context,
-        slots: &mut Slots,
-    ) -> Result<Child>;
+pub trait Menu_item_trait<Value> = Custom_widget_trait<bool> + Retrieve_handler<Value>;
 
-    async fn render(
-        &mut self,
-        _selected: bool,
-        _focus: &mut Focus_provider,
-        _hitbox: Rect,
-        _display: &mut Display<'_>,
-    ) -> Result<Option<Hitbox>> {
-        Ok(None)
-    }
-}
+pub trait Menu_item_object<Value>: Custom_widget_trait<bool> + Retrieve_handler<Value> {}
 
-pub type Shared_menu_item<Value> = Arc<Mutex<dyn Menu_item_trait<Value>>>;
-pub type Selector<Value> = Weak<Mutex<dyn Menu_item_trait<Value>>>;
+impl<Value, T> Menu_item_object<Value> for T where T: Menu_item_trait<Value> {}
+
+pub type Shared_menu_item<Value> = Shared_custom_widget<dyn Menu_item_object<Value>>;
+pub type Selector<Value> = Weak<Mutex<dyn Menu_item_object<Value>>>;
 
 pub fn get_selector<Value>(item: &Shared_menu_item<Value>) -> Selector<Value> {
     Arc::downgrade(item)
@@ -83,39 +64,33 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
         text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let content = self
+        let mut contents = self
             .widget
             .lock()
             .await?
             .layout(
-                self.selected,
                 focus,
                 hitbox,
                 parent,
                 problem.clone(),
                 text_context,
                 slots,
+                self.selected,
             )
             .await?;
+        if contents.len() != 1 {
+            return Err(eyre!(
+                "Menu item layout must return exactly one child, got {}",
+                contents.len()
+            ));
+        }
+        let content = contents.pop().expect("menu item child count checked above");
         let mut button = Button::around(content, self.theme.clone());
         button.highlighted = self.selected;
         button.delta = Some(self.button_delta);
         let full = Full::new(display!(button));
 
         Ok(vec![display!(full)])
-    }
-
-    async fn render(
-        &mut self,
-        focus: &mut Focus_provider,
-        hitbox: Rect,
-        display: &mut Display<'_>,
-    ) -> Result<Option<Hitbox>> {
-        self.widget
-            .lock()
-            .await?
-            .render(self.selected, focus, hitbox, display)
-            .await
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
@@ -268,5 +243,29 @@ impl<Value: Thread_safe + Clone> Widget_trait for Menu<Value> {
             }
             _ => Vizual_msg::none(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Ordinary_menu_item;
+
+    #[async_trait]
+    impl Widget_trait for Ordinary_menu_item {}
+
+    #[async_trait]
+    impl Retrieve_handler<usize> for Ordinary_menu_item {
+        async fn on_retrieve(&mut self) -> Result<usize> {
+            Ok(0)
+        }
+    }
+
+    #[test]
+    fn ordinary_widgets_automatically_satisfy_menu_item_trait() {
+        fn assert_menu_item<T: Menu_item_trait<usize>>() {}
+
+        assert_menu_item::<Ordinary_menu_item>();
     }
 }

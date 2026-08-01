@@ -1,21 +1,19 @@
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::super::Focus_provider, super::text::Text, Menu, Menu_item_trait, Shared_menu_item,
-    get_selector,
+    super::{super::Focus_provider, text::Text},
+    Menu, Shared_menu_item, get_selector,
 };
 use crate::{
-    component::{Child, context::Component_context},
+    component::{Children, context::Component_context},
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
-    sync::Mutex,
     theme::Theme,
+    widget::custom_widget::Custom_widget_trait,
 };
 
 struct String_menu_item {
@@ -31,21 +29,21 @@ impl Retrieve_handler<String> for String_menu_item {
 }
 
 #[async_trait]
-impl Menu_item_trait<String> for String_menu_item {
+impl Custom_widget_trait<bool> for String_menu_item {
     async fn layout(
         &mut self,
-        selected: bool,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
-    ) -> Result<Child> {
+        selected: bool,
+    ) -> Result<Children> {
         let text = Text::new(self.value.clone())
             .set_style(self.theme.load().semantic.text.subtitle(selected));
 
-        Ok(display!(text))
+        Ok(vec![display!(text)])
     }
 }
 
@@ -53,11 +51,12 @@ impl Menu<String> {
     pub fn text(items: Vec<String>, default_item: usize, theme: State<Theme>) -> Self {
         let items = items
             .into_iter()
-            .map(|value| {
-                Arc::new(Mutex::new(String_menu_item {
+            .map(|value| -> Shared_menu_item<String> {
+                String_menu_item {
                     value,
                     theme: theme.clone(),
-                })) as Shared_menu_item<String>
+                }
+                .into_shared()
             })
             .collect::<Vec<_>>();
         let default_item = get_selector(

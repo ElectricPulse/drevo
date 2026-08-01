@@ -1,4 +1,5 @@
 #![feature(async_fn_track_caller)]
+#![feature(trait_alias)]
 #![warn(rustdoc::broken_intra_doc_links)]
 //! An async, solver-driven desktop UI framework.
 //!

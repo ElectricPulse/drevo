@@ -1,3 +1,4 @@
+pub mod custom_widget;
 pub mod widgets;
 
 use async_trait::async_trait;
