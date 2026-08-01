@@ -2,7 +2,6 @@ use color_eyre::eyre::Result;
 use good_lp::constraint as solver_constraint;
 
 use super::{expression::Expression, variables::Resolved_variables};
-use crate::geometry::Size;
 
 /// A symbolic equality or inequality over stable layout variables.
 #[derive(Clone, Debug)]

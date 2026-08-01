@@ -6,8 +6,7 @@ use std::{
 use color_eyre::eyre::{Result, eyre};
 use good_lp::Expression as Solver_expression;
 
-use super::{screen::SCREEN, variable::Variable, variables::Resolved_variables};
-use crate::geometry::Size;
+use super::{variable::Variable, variables::Resolved_variables};
 
 /// A symbolic affine expression over stable [`Variable`] indices.
 #[derive(Clone, Debug, Default)]

@@ -11,7 +11,6 @@ use good_lp::{
 };
 
 use super::{screen::SCREEN, variable::Variable};
-use crate::geometry::Size;
 
 const FIRST_DYNAMIC_VARIABLE_INDEX: usize = 3;
 
@@ -44,9 +43,34 @@ impl Mul<f64> for Resolved_variable {
 pub(crate) type Resolved_variables = HashMap<usize, Resolved_variable>;
 
 /// Definitions for stable layout variables shared across relayout-created problems.
-#[derive(Default)]
 pub struct Variables {
     definitions: Mutex<HashMap<usize, Variable_definition>>,
+}
+
+impl Default for Variables {
+    fn default() -> Self {
+        let definitions = [
+            (SCREEN.width, "screen width"),
+            (SCREEN.height, "screen height"),
+        ]
+        .into_iter()
+        .map(|(variable, name)| {
+            (
+                variable.index(),
+                Variable_definition {
+                    solver: VariableDefinition::new().min(0).name(name),
+                    name: name.to_string(),
+                    path: String::new(),
+                    component_path: String::new(),
+                },
+            )
+        })
+        .collect();
+
+        Self {
+            definitions: Mutex::new(definitions),
+        }
+    }
 }
 
 impl Variables {
@@ -119,6 +143,17 @@ impl Variables {
         }
     }
 
+    pub(crate) fn static_value(&self, variable: Variable) -> Option<f64> {
+        let definitions = self
+            .definitions
+            .lock()
+            .expect("layout variable definitions poisoned");
+        let definition = definitions.get(&variable.index())?;
+
+        (definition.solver.get_min() == definition.solver.get_max())
+            .then_some(definition.solver.get_min())
+    }
+
     pub(crate) fn component_paths(
         &self,
         variables: &HashSet<Variable>,
@@ -147,7 +182,7 @@ impl Variables {
     pub(crate) fn create_solver_variables(
         &self,
         referenced: &HashSet<Variable>,
-    ) -> Result<Resolved_variables> {
+    ) -> Result<(ProblemVariables, Resolved_variables)> {
         // Dismounting should keep stale definitions out of this registry already. Filtering again
         // is probably unnecessary, but it guarantees that a priority solve only materializes
         // variables referenced by the current symbolic layout.
@@ -175,10 +210,7 @@ impl Variables {
             };
 
             let solver_variable = 'value: {
-                let has_lower_bound = definition.get_min().is_finite();
-                let has_upper_bound = definition.get_max().is_finite();
-
-                if has_lower_bound && has_upper_bound {
+                if definition.get_min() == definition.get_max() {
                     break 'value Resolved_variable::Constant(definition.get_min());
                 }
 
@@ -189,6 +221,6 @@ impl Variables {
             let _ = solver_variables.insert(indexed_variable.index(), solver_variable);
         }
 
-        Ok(solver_variables)
+        Ok((problem_variables, solver_variables))
     }
 }

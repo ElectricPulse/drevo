@@ -20,8 +20,12 @@ use good_lp::{
 };
 
 use self::{
-    constraint::Constraint, expression::Expression, hitbox::Hitbox, screen::SCREEN,
-    variable::Variable, variables::Variables,
+    constraint::Constraint,
+    expression::Expression,
+    hitbox::Hitbox,
+    screen::SCREEN,
+    variable::Variable,
+    variables::{Resolved_variable, Variables},
 };
 use crate::{
     component::context::Component_context,
@@ -35,6 +39,7 @@ use crate::{
 pub type Setter = Box<dyn Fn(f64) -> BoxFuture<'static, ()> + Send + Sync>;
 
 const PRIORITY_LEVELS: usize = 3;
+type Priority_objective = Vec<Expression>;
 // As of this moment the usage of priorities has crystalized like this:
 // 3 is for calculating minimum screen size as that will just minimize root hitbox - but you cannot access it
 // 2 is for gaps, spaces, margins, paddings
@@ -73,7 +78,7 @@ impl Solution {
 
 pub struct Problem {
     constraints: Vec<Constraint>,
-    objectives: [Option<Expression>; PRIORITY_LEVELS],
+    objectives: [Priority_objective; PRIORITY_LEVELS],
     pub(crate) variables: Arc<Variables>,
 }
 
@@ -81,7 +86,7 @@ impl Problem {
     pub fn new(variables: Arc<Variables>) -> Self {
         Self {
             constraints: Vec::new(),
-            objectives: std::array::from_fn(|_| None),
+            objectives: std::array::from_fn(|_| Vec::new()),
             variables,
         }
     }
@@ -117,10 +122,7 @@ impl Problem {
             ));
         }
 
-        match &mut self.objectives[priority] {
-            Some(objective) => *objective += expression,
-            objective => *objective = Some(expression),
-        }
+        self.objectives[priority].push(expression);
         Ok(())
     }
 
@@ -202,7 +204,7 @@ impl Problem {
             .chain(objective.referenced_variables())
             .collect::<HashSet<_>>();
 
-        let solver_variables = self
+        let (problem_variables, solver_variables) = self
             .variables
             .create_solver_variables(&referenced)
             .map_err(|error| ResolutionError::Str(error.to_string()))?;
@@ -213,6 +215,16 @@ impl Problem {
 
         let solver_constraints = constraints
             .iter()
+            // Fully static constraints cannot affect optimization. Dropping them also prevents
+            // solver infeasibility caused solely by rounding differences between solved values.
+            .filter(|constraint| {
+                constraint.expression.referenced_variables().any(|variable| {
+                    matches!(
+                        solver_variables.get(&variable.index()),
+                        Some(Resolved_variable::Variable(_))
+                    )
+                })
+            })
             .map(|constraint| constraint.into_solver(&solver_variables))
             .collect::<Result<Vec<_>>>()
             .map_err(|error| ResolutionError::Str(error.to_string()))?;
@@ -222,12 +234,12 @@ impl Problem {
             format_args!(
                 "priority model: {} referenced variables, {} constraints",
                 solver_variables.len(),
-                constraints.len(),
+                solver_constraints.len(),
             ),
         );
 
         let model = log_duration(4, "priority model recreation", || async {
-            solver_variables
+            problem_variables
                 .optimise(direction, solver_objective)
                 .using(microlp)
                 .with_all(solver_constraints)
@@ -235,9 +247,15 @@ impl Problem {
         .await;
 
         let solved = log_duration(4, "priority solve", || async { model.solve() }).await?;
-        let mut values = solver_variables
+        let values = solver_variables
             .iter()
-            .map(|(index, variable)| (Variable::new(*index), solved.value(*variable)))
+            .map(|(index, variable)| {
+                let value = match variable {
+                    Resolved_variable::Constant(value) => *value,
+                    Resolved_variable::Variable(variable) => solved.value(*variable),
+                };
+                (Variable::new(*index), value)
+            })
             .collect::<HashMap<_, _>>();
 
         log_info(4, format_args!("stats: {:?}", solved.into_inner().stats()));
@@ -248,7 +266,6 @@ impl Problem {
     async fn find_conflicting_constraints(
         &self,
         constraints: &[Constraint],
-        screen: Option<Size>,
     ) -> Result<Vec<Constraint>> {
         let mut conflict = constraints.to_vec();
         let mut index = 0;
@@ -286,11 +303,14 @@ impl Problem {
         let mut terms = coefficients
             .into_iter()
             .map(|(variable, coefficient)| {
-                let variable = self.variables.name(variable);
+                let mut name = self.variables.name(variable);
+                if let Some(value) = self.variables.static_value(variable) {
+                    name = format!("{name} [static = {value}]");
+                }
 
                 match coefficient {
-                    1.0 => variable,
-                    _ => format!("{coefficient} {variable}"),
+                    1.0 => name,
+                    _ => format!("{coefficient} {name}"),
                 }
             })
             .collect::<Vec<_>>();
@@ -375,15 +395,9 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objective: Expression,
-        screen: Option<Size>,
     ) -> Result<bool> {
         match self
-            .priority_solve(
-                constraints,
-                ObjectiveDirection::Maximisation,
-                objective,
-                screen,
-            )
+            .priority_solve(constraints, ObjectiveDirection::Maximisation, objective)
             .await
         {
             Err(ResolutionError::Unbounded) => Ok(true),
@@ -396,7 +410,6 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objective: &Expression,
-        screen: Option<Size>,
     ) -> Result<String> {
         let mut variables = constraints
             .iter()
@@ -411,10 +424,10 @@ impl Problem {
         let mut details = Vec::new();
         for variable in variables {
             let has_no_upper_bound = self
-                .is_unbounded(constraints, Expression::from(variable), screen)
+                .is_unbounded(constraints, Expression::from(variable))
                 .await?;
             let has_no_lower_bound = self
-                .is_unbounded(constraints, Expression::from(variable) * -1.0, screen)
+                .is_unbounded(constraints, Expression::from(variable) * -1.0)
                 .await?;
             let range = match (has_no_lower_bound, has_no_upper_bound) {
                 (true, true) => "has neither a lower nor an upper bound",
@@ -441,22 +454,18 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objective: Expression,
-        screen: Option<Size>,
     ) -> Result<Solution> {
         match self
             .priority_solve(
                 constraints,
                 ObjectiveDirection::Maximisation,
                 objective.clone(),
-                screen,
             )
             .await
         {
             Ok(solution) => Ok(solution),
             Err(ResolutionError::Infeasible) => {
-                let conflict = self
-                    .find_conflicting_constraints(constraints, screen)
-                    .await?;
+                let conflict = self.find_conflicting_constraints(constraints).await?;
                 let constraints = self.display_constraints(&conflict);
                 let conflict = self.with_component_paths(
                     constraints,
@@ -472,46 +481,39 @@ impl Problem {
             }
             Err(ResolutionError::Unbounded) => Err(eyre!(
                 "{}",
-                self.describe_underconstrained(constraints, &objective, screen)
+                self.describe_underconstrained(constraints, &objective)
                     .await?
             )),
             Err(error) => Err(error.into()),
         }
     }
 
-    async fn full_solve(
-        &self,
-        mut constraints: Vec<Constraint>,
-        screen: Option<Size>,
-        minimum_size_objective: Option<Expression>,
-    ) -> Result<Solution> {
+    async fn full_solve(&self, constraints: Vec<Constraint>, screen: Size) -> Result<Solution> {
+        self.variables.set_static(SCREEN.width, screen.width);
+        self.variables.set_static(SCREEN.height, screen.height);
+
         log_duration(0, "layout full solve", || async {
-            let mut objectives = self.objectives.clone().to_vec();
-
-            // Compute minimum_size_objective_seperately
-
-            let objectives: Vec<Expression> = objectives
-                .into_iter()
-                .filter_map(|item| item)
-                .rev()
-                .collect();
-
             let mut maybe_solution: Option<Solution> = None;
 
-            // set screen dimensions fixedly
-
-            for (priority, objective) in objectives.into_iter().enumerate() {
+            for (priority, priority_objectives) in
+                self.objectives.clone().into_iter().enumerate().rev()
+            {
                 log_info(2, format_args!("priority solve {priority}"));
-                let solution = self
-                    .priority_solve_with_diagnostics(&constraints, objective.clone(), screen)
-                    .await?;
 
-                for variable in objective.referenced_variables() {
-                    let value = solution.eval(&Expression::from(variable));
-                    self.variables.set_static(variable, value);
+                for objective in priority_objectives {
+                    let solution = self
+                        .priority_solve_with_diagnostics(&constraints, objective.clone())
+                        .await?;
+                    let referenced_variables: Vec<Variable> =
+                        objective.referenced_variables().collect();
+
+                    if let [variable] = referenced_variables.as_slice() {
+                        let value = solution.eval(&Expression::from(*variable));
+                        self.variables.set_static(*variable, value);
+                    }
+
+                    maybe_solution = Some(solution);
                 }
-
-                maybe_solution = Some(solution);
             }
 
             maybe_solution.ok_or(eyre!("Expected solution"))
@@ -520,14 +522,13 @@ impl Problem {
     }
 
     pub async fn solve(&self, screen: Size) -> Result<Solution> {
-        self.full_solve(self.constraints.clone(), Some(screen), None)
-            .await
+        self.full_solve(self.constraints.clone(), screen).await
     }
 
     pub async fn solve_minimum(&self, root: Hitbox) -> Result<Solution> {
         let root_size =
             root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
-        self.full_solve(self.constraints.clone(), None, Some(root_size * -1.0))
+        self.priority_solve_with_diagnostics(&self.constraints, root_size * -1.0)
             .await
     }
 }
@@ -537,7 +538,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn each_delta_use_adds_objective_weight() -> Result<()> {
+    fn each_delta_use_adds_separate_objective() -> Result<()> {
         let variables = Arc::new(Variables::new());
         let mut problem = Problem::new(Arc::clone(&variables));
         let delta = problem.add_delta(
@@ -549,7 +550,7 @@ mod tests {
 
         assert_eq!(
             problem.objectives[2]
-                .as_ref()
+                .first()
                 .and_then(|objective| objective.coefficients.get(&delta)),
             Some(&-1.0)
         );
@@ -557,10 +558,12 @@ mod tests {
         problem.minimize_difference(Expression::from(0.0), 1.0, delta, 2)?;
         problem.minimize_difference(Expression::from(0.0), 1.0, delta, 2)?;
 
-        let objective = problem.objectives[2]
-            .as_ref()
-            .expect("delta uses should create an objective");
-        assert_eq!(objective.coefficients.get(&delta), Some(&-3.0));
+        assert_eq!(problem.objectives[2].len(), 3);
+        assert!(
+            problem.objectives[2]
+                .iter()
+                .all(|objective| objective.coefficients.get(&delta) == Some(&-1.0))
+        );
         Ok(())
     }
 }
