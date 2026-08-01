@@ -213,7 +213,7 @@ impl Problem {
 
         let solver_constraints = constraints
             .iter()
-            .map(|constraint| constraint.into_solver(&solver_variables, screen))
+            .map(|constraint| constraint.into_solver(&solver_variables))
             .collect::<Result<Vec<_>>>()
             .map_err(|error| ResolutionError::Str(error.to_string()))?;
 
@@ -227,7 +227,7 @@ impl Problem {
         );
 
         let model = log_duration(4, "priority model recreation", || async {
-            problem_variables
+            solver_variables
                 .optimise(direction, solver_objective)
                 .using(microlp)
                 .with_all(solver_constraints)
@@ -262,7 +262,6 @@ impl Problem {
                     &candidate,
                     ObjectiveDirection::Maximisation,
                     Expression::from(0),
-                    screen,
                 )
                 .await
             {
@@ -489,7 +488,8 @@ impl Problem {
         log_duration(0, "layout full solve", || async {
             let mut objectives = self.objectives.clone().to_vec();
 
-            objectives.push(minimum_size_objective);
+            // Compute minimum_size_objective_seperately
+
             let objectives: Vec<Expression> = objectives
                 .into_iter()
                 .filter_map(|item| item)
@@ -498,26 +498,20 @@ impl Problem {
 
             let mut maybe_solution: Option<Solution> = None;
 
+            // set screen dimensions fixedly
+
             for (priority, objective) in objectives.into_iter().enumerate() {
                 log_info(2, format_args!("priority solve {priority}"));
                 let solution = self
                     .priority_solve_with_diagnostics(&constraints, objective.clone(), screen)
                     .await?;
 
-                let optimal_value = solution.eval(&objective);
-                maybe_solution = Some(solution);
-
-                // The screen minimization has passed
-                if priority == 0 {
-                    // set screen dimensions
-                    continue;
+                for variable in objective.referenced_variables() {
+                    let value = solution.eval(&Expression::from(variable));
+                    self.variables.set_static(variable, value);
                 }
 
-                // TODO: A big performance boost would be if all objectives that contain only one variable would be set with set_static
-                constraints.push(Component_context::name_constraint(
-                    constraint!(objective.clone() == optimal_value),
-                    format!("priority_{priority}_optimum"),
-                ));
+                maybe_solution = Some(solution);
             }
 
             maybe_solution.ok_or(eyre!("Expected solution"))

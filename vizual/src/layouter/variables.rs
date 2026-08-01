@@ -1,10 +1,14 @@
 use std::{
     collections::{HashMap, HashSet},
+    ops::Mul,
     sync::Mutex,
 };
 
 use color_eyre::eyre::{Result, eyre};
-use good_lp::{ProblemVariables, Variable as Solver_variable, VariableDefinition};
+use good_lp::{
+    Expression as Solver_expression, ProblemVariables, Variable as Solver_variable,
+    VariableDefinition,
+};
 
 use super::{screen::SCREEN, variable::Variable};
 use crate::geometry::Size;
@@ -19,9 +23,22 @@ pub struct Variable_definition {
     component_path: String,
 }
 
-enum Resolved_variable {
+#[derive(Clone, Copy)]
+pub(crate) enum Resolved_variable {
     Constant(f64),
     Variable(Solver_variable),
+}
+
+// Only used in expression.rs to multiply resolved variables by their coefficients.
+impl Mul<f64> for Resolved_variable {
+    type Output = Solver_expression;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        match self {
+            Self::Constant(value) => Solver_expression::from(value * rhs),
+            Self::Variable(variable) => variable * rhs,
+        }
+    }
 }
 
 pub(crate) type Resolved_variables = HashMap<usize, Resolved_variable>;
@@ -130,7 +147,6 @@ impl Variables {
     pub(crate) fn create_solver_variables(
         &self,
         referenced: &HashSet<Variable>,
-        screen: Option<Size>,
     ) -> Result<Resolved_variables> {
         // Dismounting should keep stale definitions out of this registry already. Filtering again
         // is probably unnecessary, but it guarantees that a priority solve only materializes

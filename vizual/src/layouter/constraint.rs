@@ -53,9 +53,8 @@ impl Constraint {
     pub(crate) fn into_solver(
         &self,
         solver_variables: &Resolved_variables,
-        screen: Option<Size>,
     ) -> Result<good_lp::Constraint> {
-        let expression = self.expression.into_solver(solver_variables, screen)?;
+        let expression = self.expression.into_solver(solver_variables)?;
         let constraint = match self.equality {
             true => solver_constraint::eq(expression, 0),
             false => solver_constraint::leq(expression, 0),
