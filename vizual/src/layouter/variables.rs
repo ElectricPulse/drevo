@@ -131,7 +131,7 @@ impl Variables {
         &self,
         referenced: &HashSet<Variable>,
         screen: Option<Size>,
-    ) -> Result<(ProblemVariables, Resolved_variables)> {
+    ) -> Result<Resolved_variables> {
         // Dismounting should keep stale definitions out of this registry already. Filtering again
         // is probably unnecessary, but it guarantees that a priority solve only materializes
         // variables referenced by the current symbolic layout.
@@ -157,10 +157,22 @@ impl Variables {
                         )
                     })?,
             };
-            let solver_variable = problem_variables.add(definition);
+
+            let solver_variable = 'value: {
+                let has_lower_bound = definition.get_min().is_finite();
+                let has_upper_bound = definition.get_max().is_finite();
+
+                if has_lower_bound && has_upper_bound {
+                    break 'value Resolved_variable::Constant(definition.get_min());
+                }
+
+                let solver_variable = problem_variables.add(definition);
+                Resolved_variable::Variable(solver_variable)
+            };
+
             let _ = solver_variables.insert(indexed_variable.index(), solver_variable);
         }
 
-        Ok((problem_variables, solver_variables))
+        Ok(solver_variables)
     }
 }

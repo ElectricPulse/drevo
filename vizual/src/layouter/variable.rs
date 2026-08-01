@@ -8,7 +8,7 @@ pub struct Variable {
 }
 
 impl Variable {
-    pub(crate) const fn new(index: usize) -> Self {
+    pub const fn new(index: usize) -> Self {
         Self { index }
     }
 

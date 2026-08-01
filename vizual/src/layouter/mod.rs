@@ -190,7 +190,6 @@ impl Problem {
         }
     }
 
-    /// Performs one priority solve with a fresh set of `good_lp` variables and a fresh model.
     async fn priority_solve(
         &self,
         constraints: &[Constraint],
@@ -203,13 +202,13 @@ impl Problem {
             .chain(objective.referenced_variables())
             .collect::<HashSet<_>>();
 
-        let (problem_variables, solver_variables) = self
+        let solver_variables = self
             .variables
-            .create_solver_variables(&referenced, screen)
+            .create_solver_variables(&referenced)
             .map_err(|error| ResolutionError::Str(error.to_string()))?;
 
         let solver_objective = objective
-            .into_solver(&solver_variables, screen)
+            .into_solver(&solver_variables)
             .map_err(|error| ResolutionError::Str(error.to_string()))?;
 
         let solver_constraints = constraints
@@ -481,7 +480,6 @@ impl Problem {
         }
     }
 
-    /// Performs the complete sequence of populated priority solves.
     async fn full_solve(
         &self,
         mut constraints: Vec<Constraint>,
@@ -508,6 +506,12 @@ impl Problem {
 
                 let optimal_value = solution.eval(&objective);
                 maybe_solution = Some(solution);
+
+                // The screen minimization has passed
+                if priority == 0 {
+                    // set screen dimensions
+                    continue
+                }
 
                 // TODO: A big performance boost would be if all objectives that contain only one variable would be set with set_static
                 constraints.push(Component_context::name_constraint(
