@@ -4,7 +4,7 @@ use vizual_macros::display;
 
 use super::{
     super::{super::Focus_provider, text::Text},
-    Menu, Shared_menu_item, get_selector,
+    Menu, Shared_menu_item,
 };
 use crate::{
     component::{Children, context::Component_context},

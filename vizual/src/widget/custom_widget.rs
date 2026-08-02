@@ -1,7 +1,8 @@
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use tokio::sync::MutexGuard;
 
 use super::{Focus_provider, Widget_trait};
 use crate::{
@@ -12,7 +13,31 @@ use crate::{
     text::Text_context,
 };
 
-pub type Shared_custom_widget<T> = Arc<Mutex<T>>;
+pub type Selector<Payload: Thread_safe, T: Custom_widget_trait<Payload>> = Weak<Mutex<T>>;
+
+pub struct Shared_custom_widget<Payload: Thread_safe, T: Custom_widget_trait<Payload> + ?Sized>(
+    Arc<Mutex<T>>,
+);
+
+impl<Payload: Thread_safe, Widget: Custom_widget_trait<Payload>>
+    Shared_custom_widget<Payload, Widget>
+{
+    pub fn new(widget: Widget) -> Self {
+        Self(Arc::new(Mutex::new(widget)))
+    }
+}
+
+impl<Payload: Thread_safe, T: Custom_widget_trait<Payload> + ?Sized>
+    Shared_custom_widget<Payload, T>
+{
+    pub fn selector(&self) -> Selector<Payload, T> {
+        Arc::downgrade(&self.0)
+    }
+
+    pub async fn lock(&self) -> Result<MutexGuard<T>> {
+        self.0.lock().await
+    }
+}
 
 #[async_trait]
 pub trait Custom_widget_trait<Payload: Thread_safe>: Thread_safe {
@@ -26,13 +51,6 @@ pub trait Custom_widget_trait<Payload: Thread_safe>: Thread_safe {
         slots: &mut Slots,
         payload: Payload,
     ) -> Result<Children>;
-
-    fn into_shared(self) -> Shared_custom_widget<Self>
-    where
-        Self: Sized,
-    {
-        Arc::new(Mutex::new(self))
-    }
 }
 
 #[async_trait]

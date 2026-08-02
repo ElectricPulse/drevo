@@ -29,32 +29,30 @@ use crate::{
     sync::{Mutex, Thread_safe},
     theme::Theme,
     utils::{get_next_index, get_previous_index},
+    widget::custom_widget::Selector,
 };
 
-pub trait Menu_item_trait<Value> = Custom_widget_trait<bool> + Retrieve_handler<Value>;
-
-pub trait Menu_item_object<Value>: Custom_widget_trait<bool> + Retrieve_handler<Value> {}
-
-impl<Value, T> Menu_item_object<Value> for T where T: Menu_item_trait<Value> {}
-
-pub type Shared_menu_item<Value> = Shared_custom_widget<dyn Menu_item_object<Value>>;
-pub type Selector<Value> = Weak<Mutex<dyn Menu_item_object<Value>>>;
-
-pub fn get_selector<Value>(item: &Shared_menu_item<Value>) -> Selector<Value> {
-    Arc::downgrade(item)
+// Menu_item_trait gets used in a dyn which don't currently work with a trait alias
+pub trait Menu_item_trait<Value>: Custom_widget_trait<bool> + Retrieve_handler<Value> {}
+impl<Value, Widget: Custom_widget_trait<bool> + Retrieve_handler<Value>> Menu_item_trait<Value>
+    for Widget
+{
 }
 
-struct Menu_item<Value> {
+pub type Shared_menu_item<Value> = Shared_custom_widget<bool, dyn Menu_item_trait<Value>>;
+pub type Menu_item_selector<Value> = Selector<bool, dyn Menu_item_trait<Value>>;
+
+struct Menu_item<Value, Widget: Menu_item_trait<Value>> {
     selected: bool,
-    widget: Shared_menu_item<Value>,
-    menu_selector: State<Selector<Value>>,
+    widget: Shared_custom_widget<bool, Widget>,
+    menu_selector: State<Menu_item_selector<Widget>>,
     theme: State<Theme>,
     button_delta: Variable,
     submit_state: Option<State<Value>>,
 }
 
 #[async_trait]
-impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
+impl<Value: Thread_safe, Widget: Menu_item_trait<Value>> Widget_trait for Menu_item<Value, Widget> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -94,7 +92,7 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
-        self.menu_selector.store(get_selector(&self.widget));
+        self.menu_selector.store(self.widget.selector());
 
         if let Some(submit_state) = &self.submit_state {
             let mut widget = self.widget.lock().await?;
@@ -105,10 +103,10 @@ impl<Value: Thread_safe> Widget_trait for Menu_item<Value> {
     }
 }
 
-pub struct Menu<Value> {
+pub struct Menu<Value: Thread_safe> {
     items: Vec<Shared_menu_item<Value>>,
-    pub selected: State<Selector<Value>>,
-    default_item: Selector<Value>,
+    pub selected: State<Menu_item_selector<Value>>,
+    default_item: Menu_item_selector<Value>,
     pub theme: State<Theme>,
     submit_state: Option<State<Value>>,
 }
@@ -116,7 +114,7 @@ pub struct Menu<Value> {
 impl<Value: Thread_safe> Menu<Value> {
     pub fn new(
         items: Vec<Shared_menu_item<Value>>,
-        default_item: Selector<Value>,
+        default_item: Menu_item_selector<Value>,
         theme: State<Theme>,
     ) -> Self {
         Self {
@@ -155,7 +153,7 @@ impl<Value: Thread_safe> Menu<Value> {
             .items
             .get(index)
             .ok_or_else(|| eyre!("Menu item index {index} is out of range"))?;
-        self.selected.store(get_selector(item));
+        self.selected.store(item.selector());
         Ok(())
     }
 }
