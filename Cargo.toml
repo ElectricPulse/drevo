@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["vizual", "vizual-configurator", "vizual-macros"]
+members = ["vizual", "vizual-builder", "vizual-configurator", "vizual-macros"]
 
 [workspace.lints.rust]
 non_camel_case_types = "allow"
