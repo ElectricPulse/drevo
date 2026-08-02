@@ -41,6 +41,10 @@ impl Anchor {
         Self { child, anchors }
     }
 
+    pub fn center(child: Child) -> Self {
+        Self::new(child, Anchors::middle())
+    }
+
     /// Applies the selected anchor while generic layout handles unshared-edge shrink wrapping.
     async fn anchor(
         problem: &Component_context,

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use color_eyre::eyre::Error;
+use lucide_icons::Icon;
 
 use crate::task::Status;
 
@@ -15,18 +16,17 @@ pub enum Target_status {
 }
 
 impl Target_status {
-    pub fn get_icon(&self) -> String {
+    pub fn get_icon(&self) -> Icon {
         match self {
-            Target_status::Unsatisfied => ".",
-            Target_status::Running_dependencies => "..",
-            Target_status::Running => "...",
+            Target_status::Unsatisfied => Icon::CircleDashed,
+            Target_status::Running_dependencies => Icon::CircleEllipsis,
+            Target_status::Running => Icon::Loader,
             Target_status::Satisfied(status) => match status {
-                Status::Built => "⚒",
-                Status::Already_built => "✔",
+                Status::Built => Icon::Hammer,
+                Status::Already_built => Icon::CheckCircle,
             },
-            Target_status::Error(_err) => "✖",
+            Target_status::Error(_err) => Icon::CircleX,
         }
-        .to_owned()
     }
 
     pub fn satisfied(&self) -> bool {

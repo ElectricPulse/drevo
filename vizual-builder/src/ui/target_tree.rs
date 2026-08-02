@@ -3,8 +3,9 @@ use color_eyre::Result;
 use derive_new::new;
 use vizual::{
     component::{Children, context::Component_context},
+    geometry::Direction,
     handlers::Retrieve_handler,
-    layouter::hitbox::Hitbox,
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -12,7 +13,10 @@ use vizual::{
         Focus_provider, Widget_trait,
         custom_widget::Custom_widget_trait,
         widgets::{
+            anchor::Anchor,
             full::Full,
+            icon::Icon,
+            layout::Layout,
             menu::{Menu, Shared_menu_item, get_selector},
             text::Text,
         },
@@ -51,11 +55,22 @@ impl Custom_widget_trait for Target_tree_item {
         selected: bool,
     ) -> Result<Children> {
         let metadata = self.target.get_metadata().await?;
-        let text = Text::new(metadata.name, (&self.theme).into());
-        /*let icon;
-        metadata.status.get_icon()*/
 
-        Ok(vec![display!(text)])
+        let icon = Icon::new(metadata.status.get_icon(), (&self.theme).into());
+        let icon = Anchor::center(display!(icon));
+
+        let text = Text::new(metadata.name, (&self.theme).into());
+
+        let row = Layout::new(
+            Direction::Horizontal,
+            vec![display!(text), display!(icon)],
+            (&self.theme).into(),
+            Objective::default(),
+            2,
+        );
+        let row = Full::width(display!(row));
+
+        Ok(vec![display!(row)])
     }
 }
 

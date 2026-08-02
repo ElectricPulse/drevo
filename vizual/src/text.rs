@@ -1,8 +1,9 @@
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
+use lucide_icons::{Icon as Lucide_icon, LUCIDE_FONT_BYTES};
 use parley::{
-    Alignment, AlignmentOptions, FontContext, FontStyle, FontWeight, GenericFamily, Layout,
-    LayoutContext, PositionedLayoutItem, StyleProperty,
+    Alignment, AlignmentOptions, FontContext, FontFamily, FontStyle, FontWeight, GenericFamily,
+    Layout, LayoutContext, PositionedLayoutItem, StyleProperty, fontique::Blob,
 };
 use vello::{
     Glyph, Scene,
@@ -45,8 +46,13 @@ pub struct Text_context {
 
 impl Text_context {
     pub fn new() -> Self {
+        let mut font_context = FontContext::new();
+        let _ = font_context
+            .collection
+            .register_fonts(Blob::new(Arc::new(LUCIDE_FONT_BYTES)), None);
+
         Self {
-            font_context: FontContext::new(),
+            font_context,
             layout_context: LayoutContext::new(),
         }
     }
@@ -65,6 +71,17 @@ impl Text_context {
         ));
         Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
     }
+
+    pub(crate) fn measure_icon(&mut self, icon: Lucide_icon, font_size: f32) -> Size {
+        let layout = self.build_layout(&Styled_text::icon(
+            icon,
+            Text_style {
+                size: font_size,
+                color: Color::White,
+            },
+        ));
+        Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
+    }
 }
 
 impl Default for Text_context {
@@ -76,6 +93,23 @@ impl Default for Text_context {
 impl Display<'_> {
     pub fn draw_text(&mut self, content: &str, origin: Point, style: Text_style) -> Size {
         let styled = Styled_text::styled(content, style);
+        let layout = build_layout(
+            &mut self.text_context.font_context,
+            &mut self.text_context.layout_context,
+            &styled,
+        );
+        let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
+        self.paint_layout(&layout, origin, None);
+        size
+    }
+
+    pub(crate) fn draw_icon(
+        &mut self,
+        icon: Lucide_icon,
+        origin: Point,
+        style: Text_style,
+    ) -> Size {
+        let styled = Styled_text::icon(icon, style);
         let layout = build_layout(
             &mut self.text_context.font_context,
             &mut self.text_context.layout_context,
@@ -218,7 +252,14 @@ pub(crate) struct Text_window {
 pub(crate) struct Styled_text {
     pub content: String,
     size: f32,
+    font: Text_font,
     spans: Vec<Styled_span>,
+}
+
+#[derive(Clone, Copy)]
+enum Text_font {
+    Sans_serif,
+    Lucide,
 }
 
 impl Styled_text {
@@ -238,6 +279,7 @@ impl Styled_text {
         Self {
             content,
             size: style.size,
+            font: Text_font::Sans_serif,
             spans: vec![Styled_span {
                 range: 0..length,
                 style: Ansi_style {
@@ -246,6 +288,12 @@ impl Styled_text {
                 },
             }],
         }
+    }
+
+    fn icon(icon: Lucide_icon, style: Text_style) -> Self {
+        let mut text = Self::styled(icon.unicode().to_string(), style);
+        text.font = Text_font::Lucide;
+        text
     }
 
     pub(crate) fn ansi(content: &str) -> Self {
@@ -294,7 +342,10 @@ fn build_layout(
     text: &Styled_text,
 ) -> Layout<Text_brush> {
     let mut builder = layout_context.ranged_builder(font_context, &text.content, 1.0, false);
-    builder.push_default(GenericFamily::SansSerif);
+    match text.font {
+        Text_font::Sans_serif => builder.push_default(GenericFamily::SansSerif),
+        Text_font::Lucide => builder.push_default(FontFamily::named("lucide")),
+    }
     builder.push_default(StyleProperty::FontSize(text.size));
     builder.push_default(StyleProperty::Brush(Text_brush::default()));
 
@@ -406,6 +457,7 @@ fn parse_ansi(input: &str) -> Styled_text {
     Styled_text {
         content,
         size: DEFAULT_FONT_SIZE,
+        font: Text_font::Sans_serif,
         spans,
     }
 }

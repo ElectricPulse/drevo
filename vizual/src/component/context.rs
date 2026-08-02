@@ -4,8 +4,10 @@ use color_eyre::eyre::Result;
 use good_lp::VariableDefinition;
 
 use crate::{
+    constraint,
+    geometry::Direction,
     layouter::{
-        Problem, constraint::Constraint, expression::Expression, objective::Delta,
+        Problem, constraint::Constraint, expression::Expression, hitbox::Hitbox, objective::Delta,
         variable::Variable,
     },
     sync::{Mutex, MutexGuard},
@@ -82,6 +84,20 @@ impl Component_context {
             None => Self::name_constraint(constraint, Self::path(Location::caller())),
         };
         self.lock().await?.constrain(constraint);
+        Ok(())
+    }
+
+    // TODO: To save solver performance, only add these constraints where they are necessary.
+    // Linebreak is one of those cases.
+    #[track_caller]
+    pub async fn constrain_hitbox(&self, hitbox: Hitbox) -> Result<()> {
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            self.constrain(constraint!(
+                hitbox.get_end_position(direction) >= hitbox.get_start_position(direction)
+            ))
+            .await?;
+        }
+
         Ok(())
     }
 

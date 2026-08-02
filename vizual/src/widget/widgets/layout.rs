@@ -6,7 +6,7 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::Theme,
-    widget::{Focus_provider, Widget_trait},
+    widget::{Focus_provider, Widget_trait, widgets::container::Container},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -59,27 +59,32 @@ impl Widget_trait for Layout {
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
-        _slots: &mut Slots,
+        slots: &mut Slots,
     ) -> Result<Children> {
         let direction = self.direction;
-
-        if self.elements.len() >= 1 {
-            let flip_direction = direction.flip();
-
-            for element in self.elements.iter() {
-                let element_hitbox = element.get_hitbox().await?;
-
-                // left align
-                problem
-                    .constrain(constraint!(
-                        hitbox.get_start_position(flip_direction)
-                            == element_hitbox.get_start_position(flip_direction)
-                    ))
-                    .await?;
-            }
+        // TODO: A separate Container for every item wastes performance, but without its independent
+        // hitbox an Align or Anchor cannot be placed directly in a Layout.
+        let mut elements = Vec::with_capacity(self.elements.len());
+        for (index, element) in self.elements.iter().enumerate() {
+            elements.push(
+                slots
+                    .set(index as u64, Container::new(element.clone()))
+                    .await?,
+            );
         }
 
-        match (self.elements.first(), self.elements.last()) {
+        // let cross_direction = direction.flip();
+        // for element in &elements {
+        //     let element_hitbox = element.get_hitbox().await?;
+        //     problem
+        //         .constrain(constraint!(
+        //             hitbox.get_dimension(cross_direction)
+        //                 == element_hitbox.get_dimension(cross_direction)
+        //         ))
+        //         .await?;
+        // }
+
+        match (elements.first(), elements.last()) {
             (Some(first), Some(last)) => {
                 let first_hitbox = first.get_hitbox().await?;
                 let last_hitbox = last.get_hitbox().await?;
@@ -103,7 +108,7 @@ impl Widget_trait for Layout {
             }
         }
 
-        if self.elements.len() >= 2 {
+        if elements.len() >= 2 {
             let Style::Gap(gap) = self.style;
             let gap_delta = match self.objective {
                 Objective::Minimize_difference => {
@@ -112,7 +117,7 @@ impl Widget_trait for Layout {
                 Objective::Maximize | Objective::Minimize => None,
             };
 
-            for pair in self.elements.windows(2) {
+            for pair in elements.windows(2) {
                 let [previous, current] = pair else {
                     continue;
                 };
@@ -131,6 +136,6 @@ impl Widget_trait for Layout {
             }
         }
 
-        Ok(self.elements.clone())
+        Ok(elements)
     }
 }

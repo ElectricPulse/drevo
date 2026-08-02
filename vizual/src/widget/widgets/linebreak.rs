@@ -36,7 +36,7 @@ impl Widget_trait for Linebreak {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let line = Linebreak_component {
+        let line = Linebreak_unsized {
             theme: self.theme.clone(),
         };
         let full = Full::width(display!(line));
@@ -45,12 +45,12 @@ impl Widget_trait for Linebreak {
     }
 }
 
-struct Linebreak_component {
+struct Linebreak_unsized {
     theme: State<Theme>,
 }
 
 #[async_trait]
-impl Widget_trait for Linebreak_component {
+impl Widget_trait for Linebreak_unsized {
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -60,6 +60,7 @@ impl Widget_trait for Linebreak_component {
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
+        problem.constrain_hitbox(*hitbox).await?;
         problem
             .constrain(constraint!(
                 hitbox.get_dimension(Direction::Vertical) == BORDER_SIZE
