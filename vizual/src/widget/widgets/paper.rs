@@ -14,21 +14,29 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::Theme,
+    widget::widgets::block::Block_style,
 };
 
 #[derive(Clone, Copy)]
 pub struct Paper_style {
-    pub frame_padding: f64,
+    pub padding: f64,
+    pub block: Block_style,
 }
 
 pub struct Paper {
     child: Child,
-    theme: State<Theme>,
+    style: State<Paper_style>,
 }
 
 impl Paper {
-    pub fn new(child: Child, theme: State<Theme>) -> Self {
-        Self { child, theme }
+    pub fn new(child: Child, style: State<Paper_style>) -> Self {
+        Self { child, style }
+    }
+}
+
+impl From<&State<Theme>> for State<Paper_style> {
+    fn from(theme: &State<Theme>) -> Self {
+        theme.project(|theme| &theme.specific.paper)
     }
 }
 
@@ -45,12 +53,13 @@ impl Widget_trait for Paper {
     ) -> Result<Children> {
         let space = Space::uniform(
             self.child.clone(),
-            self.theme.load().specific.paper.frame_padding,
+            self.style.load().padding,
             Objective::default(),
             2,
         );
 
-        let block = Block::new(display!(space), self.theme.clone());
+        let block_style = self.style.project(|style| &style.block);
+        let block = Block::new(display!(space), block_style);
         let full = Full::new(display!(block));
 
         Ok(vec![display!(full)])

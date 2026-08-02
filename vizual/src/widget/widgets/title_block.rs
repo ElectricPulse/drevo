@@ -45,8 +45,8 @@ impl Widget_trait for Title_block {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let title =
-            Text::new(self.title.clone()).set_style(self.theme.load().semantic.text.title());
+        let style = self.theme.project(|theme| &theme.specific.text.title);
+        let title = Text::new(self.title.clone(), style);
 
         let layout = Layout::new(
             Direction::Vertical,
@@ -56,7 +56,7 @@ impl Widget_trait for Title_block {
             2,
         );
 
-        let paper = Paper::new(display!(layout), self.theme.clone());
+        let paper = Paper::new(display!(layout), (&self.theme).into());
         let full = Full::new(display!(paper));
 
         Ok(vec![display!(full)])

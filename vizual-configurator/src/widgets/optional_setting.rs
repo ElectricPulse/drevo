@@ -14,7 +14,7 @@ use vizual::{
         custom_widget::Custom_widget_trait,
         widgets::{
             full::Full,
-            layout::{Layout, Style as Layout_style},
+            layout::Layout,
             menu::{Menu, Shared_menu_item, get_selector},
             text::Text,
         },
@@ -39,7 +39,9 @@ impl<Value: Thread_safe> Retrieve_handler<Option<Value>> for Default_leaf_value<
 }
 
 #[async_trait]
-impl<Value: Thread_safe> Custom_widget_trait<bool> for Default_leaf_value<Value> {
+impl<Value: Thread_safe> Custom_widget_trait for Default_leaf_value<Value> {
+    type Payload = bool;
+
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -50,8 +52,13 @@ impl<Value: Thread_safe> Custom_widget_trait<bool> for Default_leaf_value<Value>
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let text = Text::new(format!("Default - {}", self.label))
-            .set_style(self.theme.load().semantic.text.subtitle(selected));
+        let style = match selected {
+            true => self
+                .theme
+                .project(|theme| &theme.specific.text.selected_subtitle),
+            false => self.theme.project(|theme| &theme.specific.text.subtitle),
+        };
+        let text = Text::new(format!("Default - {}", self.label), style);
 
         Ok(vec![display!(text)])
     }
@@ -77,7 +84,9 @@ impl<Value: Thread_safe> Retrieve_handler<Option<Value>> for Custom_leaf_value<V
 }
 
 #[async_trait]
-impl<Value: Thread_safe> Custom_widget_trait<bool> for Custom_leaf_value<Value> {
+impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
+    type Payload = bool;
+
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -88,8 +97,13 @@ impl<Value: Thread_safe> Custom_widget_trait<bool> for Custom_leaf_value<Value> 
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let title =
-            Text::new("Custom").set_style(self.theme.load().semantic.text.subtitle(selected));
+        let style = match selected {
+            true => self
+                .theme
+                .project(|theme| &theme.specific.text.selected_subtitle),
+            false => self.theme.project(|theme| &theme.specific.text.subtitle),
+        };
+        let title = Text::new("Custom", style);
         let field = self.field.clone();
         let contents = match selected {
             true => vec![display!(title), display!(field)],
@@ -98,7 +112,7 @@ impl<Value: Thread_safe> Custom_widget_trait<bool> for Custom_leaf_value<Value> 
         let layout = Layout::new(
             Direction::Vertical,
             contents,
-            Layout_style::default(self.theme.clone()),
+            (&self.theme).into(),
             Objective::default(),
             2,
         );

@@ -35,7 +35,9 @@ impl Retrieve_handler<bool> for Boolean_menu_item {
 }
 
 #[async_trait]
-impl Custom_widget_trait<bool> for Boolean_menu_item {
+impl Custom_widget_trait for Boolean_menu_item {
+    type Payload = bool;
+
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -46,8 +48,13 @@ impl Custom_widget_trait<bool> for Boolean_menu_item {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let text =
-            Text::new(self.label()).set_style(self.theme.load().semantic.text.subtitle(selected));
+        let style = match selected {
+            true => self
+                .theme
+                .project(|theme| &theme.specific.text.selected_subtitle),
+            false => self.theme.project(|theme| &theme.specific.text.subtitle),
+        };
+        let text = Text::new(self.label(), style);
 
         Ok(vec![display!(text)])
     }

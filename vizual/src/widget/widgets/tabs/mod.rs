@@ -8,7 +8,7 @@ use vizual_macros::display;
 use super::{
     super::{Focus_provider, Shared_widget, Widget, Widget_trait},
     full::Full,
-    layout::{Layout, Style as Layout_style},
+    layout::Layout,
 };
 use crate::{
     Rerender,
@@ -128,7 +128,7 @@ impl Widget_trait for Tab_bar {
         let layout = Layout::new(
             Direction::Horizontal,
             buttons,
-            Layout_style::default(self.theme.clone()),
+            (&self.theme).into(),
             Objective::default(),
             2,
         );
@@ -198,7 +198,7 @@ impl Widget_trait for Tabs {
         let layout = Layout::new(
             Direction::Vertical,
             elements,
-            Layout_style::default(self.theme.clone()),
+            (&self.theme).into(),
             Objective::default(),
             2,
         );

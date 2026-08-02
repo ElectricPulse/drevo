@@ -2,7 +2,6 @@ use std::sync::{Arc, Weak};
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use tokio::sync::MutexGuard;
 
 use super::{Focus_provider, Widget_trait};
 use crate::{
@@ -13,34 +12,13 @@ use crate::{
     text::Text_context,
 };
 
-pub type Selector<Payload: Thread_safe, T: Custom_widget_trait<Payload>> = Weak<Mutex<T>>;
-
-pub struct Shared_custom_widget<Payload: Thread_safe, T: Custom_widget_trait<Payload> + ?Sized>(
-    Arc<Mutex<T>>,
-);
-
-impl<Payload: Thread_safe, Widget: Custom_widget_trait<Payload>>
-    Shared_custom_widget<Payload, Widget>
-{
-    pub fn new(widget: Widget) -> Self {
-        Self(Arc::new(Mutex::new(widget)))
-    }
-}
-
-impl<Payload: Thread_safe, T: Custom_widget_trait<Payload> + ?Sized>
-    Shared_custom_widget<Payload, T>
-{
-    pub fn selector(&self) -> Selector<Payload, T> {
-        Arc::downgrade(&self.0)
-    }
-
-    pub async fn lock(&self) -> Result<MutexGuard<T>> {
-        self.0.lock().await
-    }
-}
+pub type Selector<T> = Weak<Mutex<T>>;
+pub type Shared_custom_widget<T> = Arc<Mutex<T>>;
 
 #[async_trait]
-pub trait Custom_widget_trait<Payload: Thread_safe>: Thread_safe {
+pub trait Custom_widget_trait: Thread_safe {
+    type Payload: Thread_safe;
+
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -49,16 +27,24 @@ pub trait Custom_widget_trait<Payload: Thread_safe>: Thread_safe {
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
-        payload: Payload,
+        payload: Self::Payload,
     ) -> Result<Children>;
+
+    fn into_shared(self) -> Shared_custom_widget<Self>
+    where
+        Self: Sized,
+    {
+        Arc::new(Mutex::new(self))
+    }
 }
 
 #[async_trait]
-impl<Payload, T> Custom_widget_trait<Payload> for T
+impl<T> Custom_widget_trait for T
 where
-    Payload: Thread_safe,
     T: Widget_trait,
 {
+    type Payload = bool;
+
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -67,7 +53,7 @@ where
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
-        _payload: Payload,
+        _payload: Self::Payload,
     ) -> Result<Children> {
         Widget_trait::layout(self, focus, hitbox, parent, problem, text_context, slots).await
     }

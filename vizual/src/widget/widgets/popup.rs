@@ -9,7 +9,7 @@ use super::{
     anchor::{Anchor, Anchors},
     button::Button,
     full::Full,
-    layout::{Layout, Style as Layout_style},
+    layout::Layout,
     menu::{Menu, Shared_menu_item, get_selector},
     text::Text,
     title_block::Title_block,
@@ -68,7 +68,9 @@ impl Retrieve_handler<Popup_options> for Popup_menu_item {
 }
 
 #[async_trait]
-impl Custom_widget_trait<bool> for Popup_menu_item {
+impl Custom_widget_trait for Popup_menu_item {
+    type Payload = bool;
+
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -79,8 +81,13 @@ impl Custom_widget_trait<bool> for Popup_menu_item {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let text = Text::new(self.option.label())
-            .set_style(self.theme.load().semantic.text.subtitle(selected));
+        let style = match selected {
+            true => self
+                .theme
+                .project(|theme| &theme.specific.text.selected_subtitle),
+            false => self.theme.project(|theme| &theme.specific.text.subtitle),
+        };
+        let text = Text::new(self.option.label(), style);
 
         Ok(vec![display!(text)])
     }
@@ -181,7 +188,7 @@ impl Widget_trait for Popup {
         let layout = Layout::new(
             Direction::Vertical,
             vec![display!(menu), display!(button)],
-            Layout_style::default(self.theme.clone()),
+            (&self.theme).into(),
             Objective::default(),
             2,
         );

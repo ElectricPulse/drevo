@@ -321,7 +321,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         let layout = Layout::new(
             Direction::Vertical,
             buttons,
-            Layout_style::default(self.theme.clone()),
+            (&self.theme).into(),
             Objective::default(),
             2,
         );
@@ -522,14 +522,13 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             let tree = self.tree.lock().await?;
 
             if let Ok(leaf) = tree.get_tree().get_leaf(&cursor) {
-                let description = Text::new(leaf.description)
-                    .set_style(self.theme.load().semantic.text.paragraph());
+                let description = Text::new(leaf.description, (&self.theme).into());
                 let linebreak = Linebreak::new(self.theme.clone());
                 let widget = leaf.widget;
                 let layout = Layout::new(
                     Direction::Vertical,
                     vec![display!(description), display!(linebreak), display!(widget)],
-                    Layout_style::default(self.theme.clone()),
+                    (&self.theme).into(),
                     Objective::default(),
                     2,
                 );
@@ -546,7 +545,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             }
         };
 
-        let Layout_style::Gap(gap) = Layout_style::default(self.theme.clone());
+        let Layout_style::Gap(gap) = (&self.theme).into();
         let tree_view = display!(tree_view);
 
         let tree_view = Anchor::new(

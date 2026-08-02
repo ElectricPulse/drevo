@@ -318,7 +318,7 @@ impl Widget_trait for Screen {
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
-        problem: Component_context,
+        _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {

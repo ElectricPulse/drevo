@@ -1,5 +1,4 @@
 #![feature(async_fn_track_caller)]
-#![feature(trait_alias)]
 #![warn(rustdoc::broken_intra_doc_links)]
 //! An async, solver-driven desktop UI framework.
 //!
@@ -1109,7 +1108,7 @@ pub fn run<T: Widget_trait>(
     theme: State<Theme>,
     render_signal: mpsc::UnboundedReceiver<()>,
 ) -> Result<()> {
-    let root = Root::new(root, theme).into_shared();
+    let root = Root::new(root, (&theme).into()).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
         .wrap_err("vizual::run requires an active Tokio runtime")?;
     let event_loop = EventLoop::<User_event>::with_user_event()

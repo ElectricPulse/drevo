@@ -1,7 +1,7 @@
 pub mod boolean;
 mod string;
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, eyre};
@@ -14,7 +14,7 @@ use super::{
     },
     button::Button,
     full::Full,
-    layout::{Layout, Style as Layout_style},
+    layout::Layout,
 };
 use crate::{
     Vizual_command, Vizual_msg,
@@ -26,33 +26,42 @@ use crate::{
     layouter::{hitbox::Hitbox, objective::Objective, variable::Variable},
     slot::manager::Slots,
     state::State,
-    sync::{Mutex, Thread_safe},
+    sync::Thread_safe,
     theme::Theme,
     utils::{get_next_index, get_previous_index},
     widget::custom_widget::Selector,
 };
 
-// Menu_item_trait gets used in a dyn which don't currently work with a trait alias
-pub trait Menu_item_trait<Value>: Custom_widget_trait<bool> + Retrieve_handler<Value> {}
-impl<Value, Widget: Custom_widget_trait<bool> + Retrieve_handler<Value>> Menu_item_trait<Value>
-    for Widget
+// This trait is used as a trait object, which trait aliases do not currently support.
+pub trait Menu_item_trait<Choice: Thread_safe>:
+    Custom_widget_trait<Payload = bool> + Retrieve_handler<Choice>
+{
+}
+impl<Choice: Thread_safe, Widget> Menu_item_trait<Choice> for Widget where
+    Widget: Custom_widget_trait<Payload = bool> + Retrieve_handler<Choice>
 {
 }
 
-pub type Shared_menu_item<Value> = Shared_custom_widget<bool, dyn Menu_item_trait<Value>>;
-pub type Menu_item_selector<Value> = Selector<bool, dyn Menu_item_trait<Value>>;
+pub type Shared_menu_item<Choice> = Shared_custom_widget<dyn Menu_item_trait<Choice>>;
+pub type Menu_item_selector<Choice> = Selector<dyn Menu_item_trait<Choice>>;
 
-struct Menu_item<Value, Widget: Menu_item_trait<Value>> {
+pub fn get_selector<Choice: Thread_safe>(
+    item: &Shared_menu_item<Choice>,
+) -> Menu_item_selector<Choice> {
+    Arc::downgrade(item)
+}
+
+struct Menu_item<Choice: Thread_safe> {
     selected: bool,
-    widget: Shared_custom_widget<bool, Widget>,
-    menu_selector: State<Menu_item_selector<Widget>>,
+    widget: Shared_menu_item<Choice>,
+    menu_selector: State<Menu_item_selector<Choice>>,
     theme: State<Theme>,
     button_delta: Variable,
-    submit_state: Option<State<Value>>,
+    submit_state: Option<State<Choice>>,
 }
 
 #[async_trait]
-impl<Value: Thread_safe, Widget: Menu_item_trait<Value>> Widget_trait for Menu_item<Value, Widget> {
+impl<Choice: Thread_safe> Widget_trait for Menu_item<Choice> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -92,7 +101,7 @@ impl<Value: Thread_safe, Widget: Menu_item_trait<Value>> Widget_trait for Menu_i
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
-        self.menu_selector.store(self.widget.selector());
+        self.menu_selector.store(get_selector(&self.widget));
 
         if let Some(submit_state) = &self.submit_state {
             let mut widget = self.widget.lock().await?;
@@ -103,18 +112,18 @@ impl<Value: Thread_safe, Widget: Menu_item_trait<Value>> Widget_trait for Menu_i
     }
 }
 
-pub struct Menu<Value: Thread_safe> {
-    items: Vec<Shared_menu_item<Value>>,
-    pub selected: State<Menu_item_selector<Value>>,
-    default_item: Menu_item_selector<Value>,
+pub struct Menu<Choice: Thread_safe> {
+    items: Vec<Shared_menu_item<Choice>>,
+    pub selected: State<Menu_item_selector<Choice>>,
+    default_item: Menu_item_selector<Choice>,
     pub theme: State<Theme>,
-    submit_state: Option<State<Value>>,
+    submit_state: Option<State<Choice>>,
 }
 
-impl<Value: Thread_safe> Menu<Value> {
+impl<Choice: Thread_safe> Menu<Choice> {
     pub fn new(
-        items: Vec<Shared_menu_item<Value>>,
-        default_item: Menu_item_selector<Value>,
+        items: Vec<Shared_menu_item<Choice>>,
+        default_item: Menu_item_selector<Choice>,
         theme: State<Theme>,
     ) -> Self {
         Self {
@@ -126,7 +135,7 @@ impl<Value: Thread_safe> Menu<Value> {
         }
     }
 
-    fn get_selected_item(&self) -> Result<Shared_menu_item<Value>> {
+    fn get_selected_item(&self) -> Result<Shared_menu_item<Choice>> {
         let selected = self
             .selected
             .load()
@@ -153,22 +162,22 @@ impl<Value: Thread_safe> Menu<Value> {
             .items
             .get(index)
             .ok_or_else(|| eyre!("Menu item index {index} is out of range"))?;
-        self.selected.store(item.selector());
+        self.selected.store(get_selector(item));
         Ok(())
     }
 }
 
 #[async_trait]
-impl<Value: Thread_safe> Retrieve_handler<Value> for Menu<Value> {
-    async fn on_retrieve(&mut self) -> Result<Value> {
+impl<Choice: Thread_safe> Retrieve_handler<Choice> for Menu<Choice> {
+    async fn on_retrieve(&mut self) -> Result<Choice> {
         let item = self.get_selected_item()?;
-        let value = item.lock().await?.on_retrieve().await?;
-        Ok(value)
+        let choice = item.lock().await?.on_retrieve().await?;
+        Ok(choice)
     }
 }
 
 #[async_trait]
-impl<Value: Thread_safe + Clone> Widget_trait for Menu<Value> {
+impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
     async fn layout(
         &mut self,
         focus: &mut Focus_provider,
@@ -202,7 +211,7 @@ impl<Value: Thread_safe + Clone> Widget_trait for Menu<Value> {
                 menu_selector: self.selected.clone(),
                 theme: self.theme.clone(),
                 button_delta,
-                submit_state: self.submit_state.as_ref().map(|state| state.clone()),
+                submit_state: self.submit_state.clone(),
             };
             rows.push(slots.set(index as u64, item).await?);
         }
@@ -210,7 +219,7 @@ impl<Value: Thread_safe + Clone> Widget_trait for Menu<Value> {
         let layout = display!(Layout::new(
             Direction::Vertical,
             rows,
-            Layout_style::default(self.theme.clone()),
+            (&self.theme).into(),
             Objective::default(),
             2,
         ));
@@ -265,5 +274,26 @@ mod tests {
         fn assert_menu_item<T: Menu_item_trait<usize>>() {}
 
         assert_menu_item::<Ordinary_menu_item>();
+    }
+
+    #[test]
+    fn selectors_preserve_menu_item_identity() {
+        let item: Shared_menu_item<usize> = Custom_widget_trait::into_shared(Ordinary_menu_item);
+        let selected = get_selector(&item)
+            .upgrade()
+            .expect("menu item should still be alive");
+
+        assert!(Arc::ptr_eq(&item, &selected));
+    }
+
+    #[test]
+    fn selectors_become_stale_after_the_menu_item_is_dropped() {
+        let selector = {
+            let item: Shared_menu_item<usize> =
+                Custom_widget_trait::into_shared(Ordinary_menu_item);
+            get_selector(&item)
+        };
+
+        assert!(selector.upgrade().is_none());
     }
 }

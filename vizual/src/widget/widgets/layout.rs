@@ -17,8 +17,8 @@ pub enum Style {
     // TODO: Implement Start, Center, End, Space_between, Space_around, and Space_evenly.
 }
 
-impl Style {
-    pub fn default(theme: State<Theme>) -> Self {
+impl From<&State<Theme>> for Style {
+    fn from(theme: &State<Theme>) -> Self {
         Self::Gap(theme.load().semantic.layout.gap)
     }
 }

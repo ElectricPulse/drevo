@@ -78,8 +78,14 @@ impl Widget_trait for Button {
     ) -> Result<Children> {
         let content = match &self.content {
             Button_content::Label(label) => {
-                let text = Text::new(label.clone())
-                    .set_style(self.theme.load().semantic.text.subtitle(self.active));
+                let active = self.active;
+                let style = match active {
+                    true => self
+                        .theme
+                        .project(|theme| &theme.specific.text.selected_subtitle),
+                    false => self.theme.project(|theme| &theme.specific.text.subtitle),
+                };
+                let text = Text::new(label.clone(), style);
                 display!(text)
             }
             Button_content::Child(content) => content.clone(),
@@ -93,7 +99,7 @@ impl Widget_trait for Button {
         );
         space.delta = self.delta;
 
-        let mut block = Block::new(display!(space), self.theme.clone());
+        let mut block = Block::new(display!(space), (&self.theme).into());
         block.highlighted = self.highlighted;
         let full = Full::new(display!(block));
 

@@ -4,7 +4,7 @@ use vizual_macros::display;
 
 use super::{
     super::{super::Focus_provider, text::Text},
-    Menu, Shared_menu_item,
+    Menu, Shared_menu_item, get_selector,
 };
 use crate::{
     component::{Children, context::Component_context},
@@ -29,7 +29,9 @@ impl Retrieve_handler<String> for String_menu_item {
 }
 
 #[async_trait]
-impl Custom_widget_trait<bool> for String_menu_item {
+impl Custom_widget_trait for String_menu_item {
+    type Payload = bool;
+
     async fn layout(
         &mut self,
         _focus: &mut Focus_provider,
@@ -40,8 +42,13 @@ impl Custom_widget_trait<bool> for String_menu_item {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let text = Text::new(self.value.clone())
-            .set_style(self.theme.load().semantic.text.subtitle(selected));
+        let style = match selected {
+            true => self
+                .theme
+                .project(|theme| &theme.specific.text.selected_subtitle),
+            false => self.theme.project(|theme| &theme.specific.text.subtitle),
+        };
+        let text = Text::new(self.value.clone(), style);
 
         Ok(vec![display!(text)])
     }

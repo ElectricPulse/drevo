@@ -1,7 +1,6 @@
 use super::super::{Focus_provider, Widget_trait};
 use crate::{
     component::{Child, Children, context::Component_context},
-    config::BORDER_SIZE,
     constraint,
     display::Display,
     geometry::{Direction, Rect},
@@ -14,26 +13,31 @@ use crate::{
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
+pub struct Border_style {
+    pub thickness: f64,
+    pub color: Color,
+    pub radius: f64,
+}
+
+#[derive(Clone, Copy)]
 pub struct Block_style {
     pub background: Color,
-    pub color: Color,
-    pub focused_color: Color,
-    pub border_radius: f64,
+    pub border: Border_style,
+    pub focused_border: Border_style,
 }
 
 pub struct Block {
     child: Child,
-    pub theme: State<Block_style>,
+    pub style: State<Block_style>,
     pub highlighted: bool,
 }
 
 impl Block {
-    pub fn new(child: Child, theme: State<Theme>) -> Self {
-        let theme = theme.project(|theme| &theme.specific.block);
+    pub fn new(child: Child, style: State<Block_style>) -> Self {
         Self {
             child,
-            theme,
+            style,
             highlighted: false,
         }
     }
@@ -51,19 +55,21 @@ impl Widget_trait for Block {
         _slots: &mut Slots,
     ) -> Result<Children> {
         let child_hitbox = self.child.get_hitbox().await?;
+        let style = self.style.load();
+        let border_thickness = style.border.thickness.max(style.focused_border.thickness);
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
             problem
                 .constrain(constraint!(
                     hitbox.get_dimension(direction)
-                        == child_hitbox.get_dimension(direction) + 2.0 * BORDER_SIZE
+                        == child_hitbox.get_dimension(direction) + 2.0 * border_thickness
                 ))
                 .await?;
 
             problem
                 .constrain(constraint!(
                     child_hitbox.get_start_position(direction)
-                        == hitbox.get_start_position(direction) + BORDER_SIZE
+                        == hitbox.get_start_position(direction) + border_thickness
                 ))
                 .await?;
         }
@@ -77,17 +83,31 @@ impl Widget_trait for Block {
         hitbox: Rect,
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        paint_block(display, hitbox, &self.theme.load(), self.highlighted);
+        paint_block(display, hitbox, &self.style.load(), self.highlighted);
         Ok(None)
     }
 }
 
+impl From<&State<Theme>> for State<Block_style> {
+    fn from(theme: &State<Theme>) -> Self {
+        theme.project(|theme| &theme.specific.block)
+    }
+}
+
 fn paint_block(display: &mut Display<'_>, hitbox: Rect, style: &Block_style, focused: bool) {
-    display.fill_rounded_rect(hitbox, style.background, style.border_radius);
-    let color = match focused {
-        true => style.focused_color,
-        false => style.color,
+    let border = match focused {
+        true => style.focused_border,
+        false => style.border,
     };
-    let radius = (style.border_radius - BORDER_SIZE / 2.0).max(0.0);
-    display.stroke_rounded_rect(hitbox.inset(BORDER_SIZE / 2.0), color, BORDER_SIZE, radius);
+
+    display.fill_rounded_rect(hitbox, style.background, border.radius);
+    if border.thickness > 0.0 {
+        let radius = (border.radius - border.thickness / 2.0).max(0.0);
+        display.stroke_rounded_rect(
+            hitbox.inset(border.thickness / 2.0),
+            border.color,
+            border.thickness,
+            radius,
+        );
+    }
 }
