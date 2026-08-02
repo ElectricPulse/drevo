@@ -73,16 +73,16 @@ impl Widget_trait for Layout {
             );
         }
 
-        // let cross_direction = direction.flip();
-        // for element in &elements {
-        //     let element_hitbox = element.get_hitbox().await?;
-        //     problem
-        //         .constrain(constraint!(
-        //             hitbox.get_dimension(cross_direction)
-        //                 == element_hitbox.get_dimension(cross_direction)
-        //         ))
-        //         .await?;
-        // }
+        let cross_direction = direction.flip();
+        for element in &elements {
+            let element_hitbox = element.get_hitbox().await?;
+            problem
+                .constrain(constraint!(
+                    hitbox.get_dimension(cross_direction)
+                        == element_hitbox.get_dimension(cross_direction)
+                ))
+                .await?;
+        }
 
         match (elements.first(), elements.last()) {
             (Some(first), Some(last)) => {

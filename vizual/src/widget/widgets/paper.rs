@@ -17,7 +17,7 @@ use crate::{
     widget::widgets::block::Block_style,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Paper_style {
     pub padding: f64,
     pub block: Block_style,

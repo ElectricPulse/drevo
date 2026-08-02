@@ -124,6 +124,7 @@ impl<Choice: Thread_safe> Menu<Choice> {
     pub fn new(
         items: Vec<Shared_menu_item<Choice>>,
         default_item: Menu_item_selector<Choice>,
+        submit_state: Option<State<Choice>>,
         theme: State<Theme>,
     ) -> Self {
         Self {
@@ -131,7 +132,7 @@ impl<Choice: Thread_safe> Menu<Choice> {
             selected: State::new_with(theme.rerender.clone(), default_item.clone()),
             default_item,
             theme,
-            submit_state: None,
+            submit_state,
         }
     }
 

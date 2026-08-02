@@ -146,7 +146,7 @@ impl<Value: Clone + Thread_safe> Optional_setting<Value> {
         .into_shared();
         let items = vec![default_item, custom_item];
         let default_item = get_selector(&items[usize::from(!is_default)]);
-        let menu = Widget_trait::into_shared(Menu::new(items, default_item, theme));
+        let menu = Widget_trait::into_shared(Menu::new(items, default_item, None, theme));
 
         Self { menu }
     }

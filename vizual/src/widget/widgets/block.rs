@@ -13,14 +13,14 @@ use crate::{
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Border_style {
     pub thickness: f64,
     pub color: Color,
     pub radius: f64,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Block_style {
     pub background: Color,
     pub border: Border_style,

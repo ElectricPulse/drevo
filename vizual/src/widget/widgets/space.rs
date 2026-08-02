@@ -1,4 +1,7 @@
-use super::super::{Focus_provider, Widget_trait};
+use super::{
+    super::{Focus_provider, Widget_trait},
+    container::Container,
+};
 use crate::{
     component::{Child, Children, context::Component_context},
     constraint,
@@ -148,9 +151,10 @@ impl Widget_trait for Space {
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
-        _slots: &mut Slots,
+        slots: &mut Slots,
     ) -> Result<Children> {
-        let child_hitbox = self.child.get_hitbox().await?;
+        let child = slots.set(0, Container::new(self.child.clone())).await?;
+        let child_hitbox = child.get_hitbox().await?;
         let spaces = self.spaces;
         let delta = match (self.objective, self.delta, spaces == Spaces::default()) {
             (Objective::Minimize_difference, None, false) => {
@@ -175,6 +179,6 @@ impl Widget_trait for Space {
                 .await?;
         }
 
-        Ok(vec![self.child.clone()])
+        Ok(vec![child])
     }
 }

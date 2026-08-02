@@ -4,32 +4,45 @@ mod ui;
 mod utils;
 
 use color_eyre::eyre::Result;
+use std::path::PathBuf;
 use vizual_macros::display;
 
 use crate::{
     target::{Dependency, status::Target_status},
     task::View,
-    ui::target_tree::Target_tree,
+    ui::{header::Header, target_tree::Target_tree},
 };
 use vizual::{
     self,
     component::{Children, context::Component_context},
+    geometry::Direction,
     layouter::hitbox::Hitbox,
+    layouter::objective::Objective,
     slot::manager::Slots,
     state::State,
-    theme::Theme,
-    widget::{Focus_provider, Shared_widget, Widget_trait, widgets::paragraph::Paragraph},
+    theme::{Theme, Theme_manager},
+    widget::{Focus_provider, Widget_trait, widgets::layout::Layout},
 };
 
 pub struct Builder {
     root: Dependency,
     selected_target: State<Option<Dependency>>,
-    error: Option<Shared_widget<Paragraph>>,
     build_result: State<Option<std::result::Result<(), String>>>,
+    name: String,
+    working_directory: PathBuf,
+    settings_open: State<bool>,
+    themes: Theme_manager,
     pub theme: State<Theme>,
 }
 
-pub fn new(root: Dependency, rerender: vizual::Rerender, theme: State<Theme>) -> Builder {
+pub fn new(
+    root: Dependency,
+    working_directory: PathBuf,
+    name: impl Into<String>,
+    rerender: vizual::Rerender,
+    themes: Theme_manager,
+) -> Builder {
+    let theme = themes.theme.clone();
     let root_clone = root.clone();
     let build_result = State::new(rerender.clone());
     let build_result_handle = build_result.clone();
@@ -49,8 +62,11 @@ pub fn new(root: Dependency, rerender: vizual::Rerender, theme: State<Theme>) ->
     Builder {
         root,
         selected_target: State::new_with(rerender, None),
-        error: None,
         build_result,
+        name: name.into(),
+        working_directory,
+        settings_open: State::new(theme.rerender.clone()),
+        themes,
         theme,
     }
 }
@@ -137,8 +153,21 @@ impl Widget_trait for Builder {
             self.root.clone(),
             self.selected_target.clone(),
             self.theme.clone(),
+            self.working_directory.clone(),
+        );
+        let header = Header::new(
+            self.name.clone(),
+            self.settings_open.clone(),
+            self.themes.clone(),
+        );
+        let root = Layout::new(
+            Direction::Vertical,
+            vec![display!(header), display!(tree)],
+            (&self.theme).into(),
+            Objective::default(),
+            2,
         );
 
-        Ok(vec![display!(tree)])
+        Ok(vec![display!(root)])
     }
 }

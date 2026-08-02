@@ -26,19 +26,24 @@ pub async fn shrink_wrap(
         Direction::Vertical => ("child_vertical_start_bound", "child_vertical_end_bound"),
     };
 
-    // TODO: this is broken and adds minimal performance when working
-    /*
-    let shrink_start = hitbox.get_start_position(direction) != parent.get_start_position(direction);
-    let shrink_end = hitbox.end.get(direction) != parent.end.get(direction);
-    */
-    let shrink_start = true;
-    let shrink_end = true;
+    let mut child_hitboxes = Vec::with_capacity(children.len());
+    for child in children {
+        child_hitboxes.push(child.get_hitbox().await?);
+    }
+
+    // A full child defines the component's normal bounds. Additional children can then overflow
+    // those bounds as overlays instead of making the full child grow around them.
+    let shrink_start = !child_hitboxes
+        .iter()
+        .any(|child| child.get_start_position(direction) == hitbox.get_start_position(direction));
+    let shrink_end = !child_hitboxes
+        .iter()
+        .any(|child| child.end.get(direction) == hitbox.end.get(direction));
 
     let mut constrained_start = false;
     let mut constrained_end = false;
 
-    for child in children {
-        let child_hitbox = child.get_hitbox().await?;
+    for child_hitbox in child_hitboxes {
         if shrink_start
             && child_hitbox.get_start_position(direction) != hitbox.get_start_position(direction)
         {

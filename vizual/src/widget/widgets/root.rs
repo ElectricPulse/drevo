@@ -15,7 +15,7 @@ use crate::{
     widget::widgets::paper::{Paper, Paper_style},
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Root_style {
     pub paper: Paper_style,
 }

@@ -2,10 +2,13 @@
 
 # Vizual
 
-Vizual ( ˈvizuaːl) is a reactive all Rust UI framework
+Vizual (ˈvizuaːl) is a component-based Rust UI framework with built in state managment and MILP layouter
 
 ## Features
+- A robust component system with prebuilts for alignment, vertical/horizontal layout and grid.
+This avoids the ad-hoc method for every alignment, style option that other rust libraries add like in tui library [Ratatui](https://ratatui.rs/) or gui library [Iced](https://iced.rs/)
 - State system heavily inspired by [React](https://react.dev/)
+This avoids the sometimes insanely verbose and repetitive ELM architecture of message for everything just look at the [comparison](docs/comparison.md)
 - MILP powered layouting system inspired by [iOS Auto Layout](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html) which is built on [Cassowary](https://constraints.cs.washington.edu/solvers/cassowary-tochi.pdf)
 - Structural navigation via ```Tab``` and ```Shift + Tab``` for accessibility
 ## Demo
@@ -65,14 +68,15 @@ runtime remains active for asynchronous widget and background work.
 
 ## [Documentation](docs/index.md)
 
+## [Comparison with Iced](docs/comparison.md)
+
 ## Pre-release notes
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
 ## To-Do list
+- dont use color eyre for everything
 - optimize with ArcSwaps and RwLocks
 - remove the need for nightly
-- Implement static hitbox variables so known constant positions and dimensions do
-  not require solver variables and equality constraints.
 - `display!()` can be called infinitely on a value that is
   already implements `Widget_trait`
 - fix structural navigation

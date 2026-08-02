@@ -9,8 +9,12 @@ pub fn copy_file(
     destination: PathBuf,
     dependencies: Dependencies,
 ) -> Target<()> {
-    Target::new(
+    let path = destination
+        .parent()
+        .map_or_else(PathBuf::new, PathBuf::from);
+    Target::new_with_path(
         name,
+        path,
         task::Copy_file_task {
             source,
             destination,
@@ -25,8 +29,10 @@ pub fn copy_dir(
     destination: PathBuf,
     dependencies: Dependencies,
 ) -> Target<()> {
-    Target::new(
+    let path = destination.clone();
+    Target::new_with_path(
         name,
+        path,
         task::Copy_dir_task {
             source,
             destination,
@@ -40,7 +46,12 @@ pub fn create_dir(
     path: PathBuf,
     dependencies: Dependencies,
 ) -> Target<()> {
-    Target::new(name, task::Create_dir_task { path }, dependencies)
+    Target::new_with_path(
+        name,
+        path.clone(),
+        task::Create_dir_task { path },
+        dependencies,
+    )
 }
 
 pub fn write_file(
@@ -49,7 +60,13 @@ pub fn write_file(
     content: String,
     dependencies: Dependencies,
 ) -> Target<()> {
-    Target::new(name, task::Write_file_task { path, content }, dependencies)
+    let working_path = path.parent().map_or_else(PathBuf::new, PathBuf::from);
+    Target::new_with_path(
+        name,
+        working_path,
+        task::Write_file_task { path, content },
+        dependencies,
+    )
 }
 
 pub fn create_directory(
@@ -58,8 +75,9 @@ pub fn create_directory(
     subdirs: Vec<String>,
     dependencies: Dependencies,
 ) -> Target<PathBuf> {
-    Target::new(
+    Target::new_with_path(
         name,
+        path.clone(),
         task::Create_directory_task { path, subdirs },
         dependencies,
     )

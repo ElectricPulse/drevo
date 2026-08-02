@@ -45,7 +45,7 @@ use winit::{
     event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     keyboard::{Key, ModifiersState, NamedKey},
-    window::{Window, WindowId},
+    window::{Theme as Window_theme, Window, WindowId},
 };
 
 use component::{Child_reference, Shared_component, context::Component_context};
@@ -59,10 +59,9 @@ use geometry::{Point, Size};
 use layouter::{Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
 use slot::Component_slot;
-use state::State;
 use sync::Mutex;
 use text::Text_context;
-use theme::Theme;
+use theme::{System_theme, Theme_manager};
 use widget::{Shared_widget, Widget_trait, widgets::root::Root};
 
 pub fn init_logging(path: impl AsRef<Path>) -> Result<()> {
@@ -257,14 +256,12 @@ impl App_problem {
         focus: &mut Focus,
     ) -> Result<Vizual_msg> {
         let node_lock = node.lock().await?;
-        if !node_lock.hitbox.hits(solution, position) {
-            return Vizual_msg::none();
-        }
-
+        let hits = node_lock.hitbox.hits(solution, position);
         let children = node_lock.children.clone();
         drop(node_lock);
         let mut total_message = Vizual_msg::bare();
 
+        // Overlay children may intentionally extend beyond their parent's normal hitbox.
         for child in children.iter().rev() {
             let message = self
                 .handle_pointer_press(child.clone(), position, event, solution, focus)
@@ -273,6 +270,10 @@ impl App_problem {
             if !total_message.propagate {
                 return Ok(total_message);
             }
+        }
+
+        if !hits {
+            return Vizual_msg::none();
         }
 
         let mut node_lock = node.lock().await?;
@@ -688,6 +689,7 @@ struct Render_state {
 
 struct Window_app {
     title: String,
+    themes: Theme_manager,
     context: RenderContext,
     renderer: Option<Renderer>,
     state: Option<Render_state>,
@@ -737,6 +739,13 @@ impl Window_app {
     }
 
     fn initialize_window(&mut self, event_loop: &ActiveEventLoop, window: Arc<Window>) {
+        self.themes.set_system_theme(window.theme().map(|theme| {
+            if matches!(theme, Window_theme::Dark) {
+                System_theme::Dark
+            } else {
+                System_theme::Light
+            }
+        }));
         self.scale_factor = window.scale_factor();
         let size = window.inner_size();
         let valid = size.width > 0 && size.height > 0;
@@ -792,6 +801,7 @@ impl Window_app {
         let window = match event_loop.create_window(
             Window::default_attributes()
                 .with_title(self.title.clone())
+                .with_decorations(false)
                 .with_resizable(true)
                 .with_inner_size(LogicalSize::new(initial_size.width, initial_size.height))
                 .with_min_inner_size(LogicalSize::new(minimum_size.width, minimum_size.height)),
@@ -937,6 +947,14 @@ impl ApplicationHandler<User_event> for Window_app {
                 if !occluded {
                     state.window.request_redraw();
                 }
+            }
+            WindowEvent::ThemeChanged(theme) => {
+                let theme = if matches!(theme, Window_theme::Dark) {
+                    System_theme::Dark
+                } else {
+                    System_theme::Light
+                };
+                self.themes.set_system_theme(Some(theme));
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let position = position.to_logical::<f64>(self.scale_factor);
@@ -1102,12 +1120,14 @@ fn map_pointer_button(button: MouseButton) -> Pointer_button {
 ///
 /// A Tokio runtime must already be active. Winit owns the calling thread until
 /// the window closes; widget tasks continue on the runtime.
-pub fn run<T: Widget_trait>(
+pub fn run<T: Widget_trait, Themes: Into<Theme_manager>>(
     title: impl Into<String>,
     root: Shared_widget<T>,
-    theme: State<Theme>,
+    themes: Themes,
     render_signal: mpsc::UnboundedReceiver<()>,
 ) -> Result<()> {
+    let themes = themes.into();
+    let theme = themes.theme.clone();
     let root = Root::new(root, (&theme).into()).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
         .wrap_err("vizual::run requires an active Tokio runtime")?;
@@ -1124,6 +1144,7 @@ pub fn run<T: Widget_trait>(
     });
     let mut app = Window_app {
         title: title.into(),
+        themes,
         context: RenderContext::new(),
         renderer: None,
         state: None,

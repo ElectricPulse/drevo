@@ -3,9 +3,12 @@ pub mod targets;
 
 use async_trait::async_trait;
 use dyn_clone::DynClone;
-use std::sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
+use std::{
+    path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use crate::{
@@ -29,6 +32,8 @@ static NEXT_TARGET_ID: AtomicU64 = AtomicU64::new(0);
 pub struct Target_metadata {
     pub(crate) id: u64,
     pub(crate) name: String,
+    /// This path is only used to show the user roughly where the task is working.
+    pub(crate) path: Option<PathBuf>,
     pub(crate) dependencies: Dependencies,
     pub(crate) status: Target_status,
 }
@@ -131,14 +136,41 @@ impl<Output: Output_constraints> Target<Output> {
         Self::new(name, task, Dependencies::new())
     }
 
+    pub fn new_independent_with_path(
+        name: impl Into<String>,
+        path: PathBuf,
+        task: impl Task_trait<Output = Output> + 'static,
+    ) -> Self {
+        Self::new_with_path(name, path, task, Dependencies::new())
+    }
+
     pub fn new(
         name: impl Into<String>,
+        task: impl Task_trait<Output = Output> + 'static,
+        dependencies: Dependencies,
+    ) -> Self {
+        Self::create(name, None, task, dependencies)
+    }
+
+    pub fn new_with_path(
+        name: impl Into<String>,
+        path: PathBuf,
+        task: impl Task_trait<Output = Output> + 'static,
+        dependencies: Dependencies,
+    ) -> Self {
+        Self::create(name, Some(path), task, dependencies)
+    }
+
+    fn create(
+        name: impl Into<String>,
+        path: Option<PathBuf>,
         task: impl Task_trait<Output = Output> + 'static,
         dependencies: Dependencies,
     ) -> Self {
         let metadata = Arc::new(Mutex::new(Target_metadata {
             id: NEXT_TARGET_ID.fetch_add(1, Ordering::Relaxed),
             name: name.into(),
+            path,
             dependencies,
             status: Target_status::Unsatisfied,
         }));

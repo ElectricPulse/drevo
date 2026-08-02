@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use color_eyre::Result;
 use derive_new::new;
+use std::path::{Path, PathBuf};
 use vizual::{
     component::{Children, context::Component_context},
     geometry::Direction,
@@ -31,6 +32,7 @@ use crate::utils::get_targets;
 struct Target_tree_item {
     target: Dependency,
     theme: State<Theme>,
+    working_directory: PathBuf,
 }
 
 #[async_trait::async_trait]
@@ -52,23 +54,43 @@ impl Custom_widget_trait for Target_tree_item {
         _problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
-        selected: bool,
+        _selected: bool,
     ) -> Result<Children> {
         let metadata = self.target.get_metadata().await?;
 
         let icon = Icon::new(metadata.status.get_icon(), (&self.theme).into());
         let icon = Anchor::center(display!(icon));
 
-        let text = Text::new(metadata.name, (&self.theme).into());
+        let name = Text::new(metadata.name, (&self.theme).into());
+        let mut details = vec![display!(name)];
+        if let Some(path) = metadata.path {
+            let path = path
+                .strip_prefix(&self.working_directory)
+                .unwrap_or(path.as_path());
+            let path = display_relative_path(path);
+            details.push(display!(Text::new(
+                format!("Working directory: {path}"),
+                (&self.theme).into(),
+            )));
+        }
 
-        let row = Layout::new(
-            Direction::Horizontal,
-            vec![display!(text), display!(icon)],
+        let details = Layout::new(
+            Direction::Vertical,
+            details,
             (&self.theme).into(),
             Objective::default(),
             2,
         );
-        let row = Full::width(display!(row));
+
+        let row = Layout::new(
+            Direction::Horizontal,
+            vec![display!(details), display!(icon)],
+            (&self.theme).into(),
+            Objective::default(),
+            2,
+        );
+
+        let row = Full::new(display!(row));
 
         Ok(vec![display!(row)])
     }
@@ -79,6 +101,7 @@ pub struct Target_tree {
     root: Dependency,
     selected: State<Option<Dependency>>,
     theme: State<Theme>,
+    working_directory: PathBuf,
 }
 
 #[async_trait]
@@ -96,7 +119,8 @@ impl Widget_trait for Target_tree {
             .await?
             .into_iter()
             .map(|target| -> Shared_menu_item<Dependency> {
-                Target_tree_item::new(target, self.theme.clone()).into_shared()
+                Target_tree_item::new(target, self.theme.clone(), self.working_directory.clone())
+                    .into_shared()
             })
             .collect::<Vec<_>>();
 
@@ -105,9 +129,16 @@ impl Widget_trait for Target_tree {
                 .first()
                 .expect("target tree must contain its root target"),
         );
-        let menu = Menu::new(targets, default_target, self.theme.clone());
+        let menu = Menu::new(targets, default_target, None, self.theme.clone());
         let menu = Full::new(display!(menu));
 
         Ok(vec![display!(menu)])
+    }
+}
+
+fn display_relative_path(path: &Path) -> String {
+    match path.as_os_str().is_empty() {
+        true => ".".to_string(),
+        false => path.display().to_string(),
     }
 }

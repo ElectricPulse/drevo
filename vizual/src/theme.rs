@@ -1,5 +1,6 @@
 use crate::{
     config::BORDER_SIZE,
+    state::State,
     style::Color,
     widget::widgets::{
         block::{Block_style, Border_style},
@@ -11,19 +12,19 @@ use crate::{
 
 // TODO: Pass the theme into `layout` and `render` through `Widget_custom_state<Theme>`
 // instead of storing it on widgets; see the linked TODO by `Menu_item_trait`.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Theme {
     pub units: Units,
     pub semantic: Semantic_tokens,
     pub specific: Specific_tokens,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Units {
     pub em: f64,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Semantic_tokens {
     pub background: Color,
     pub surface: Color,
@@ -33,18 +34,18 @@ pub struct Semantic_tokens {
     pub focus: Color,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Layout_theme {
     pub gap: f64,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Text_semantic {
     pub muted: Color,
     pub normal: Color,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Text_styles {
     pub title: Text_style,
     pub subtitle: Text_style,
@@ -52,12 +53,72 @@ pub struct Text_styles {
     pub paragraph: Text_style,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Specific_tokens {
     pub block: Block_style,
     pub paper: Paper_style,
     pub root: Root_style,
     pub text: Text_styles,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Theme_choice {
+    Light,
+    User,
+    System,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum System_theme {
+    Light,
+    Dark,
+}
+
+#[derive(Clone)]
+pub struct Theme_manager {
+    pub theme: State<Theme>,
+    pub choice: State<Theme_choice>,
+    pub system_theme: State<Option<System_theme>>,
+    user_theme: Theme,
+}
+
+impl Theme_manager {
+    pub fn new(theme: State<Theme>) -> Self {
+        Self {
+            user_theme: (*theme.load()).clone(),
+            choice: State::new_with(theme.rerender.clone(), Theme_choice::User),
+            system_theme: State::new_with(theme.rerender.clone(), None),
+            theme,
+        }
+    }
+
+    pub fn apply(&self) {
+        let theme = match *self.choice.load() {
+            Theme_choice::Light => light_theme(),
+            Theme_choice::User => self.user_theme.clone(),
+            Theme_choice::System => match *self.system_theme.load() {
+                Some(System_theme::Light) => light_theme(),
+                Some(System_theme::Dark) => dark_theme(),
+                None => self.user_theme.clone(),
+            },
+        };
+        if *self.theme.load() != theme {
+            self.theme.store(theme);
+        }
+    }
+
+    pub(crate) fn set_system_theme(&self, theme: Option<System_theme>) {
+        self.system_theme.store(theme);
+        if *self.choice.load() == Theme_choice::System {
+            self.apply();
+        }
+    }
+}
+
+impl From<State<Theme>> for Theme_manager {
+    fn from(theme: State<Theme>) -> Self {
+        Self::new(theme)
+    }
 }
 
 pub fn dark_theme() -> Theme {
@@ -75,6 +136,28 @@ pub fn dark_theme() -> Theme {
         },
         focus: Color::Rgb(88, 101, 242),
     };
+    theme(units, semantic)
+}
+
+pub fn light_theme() -> Theme {
+    let units = Units { em: 16.0 };
+    let semantic = Semantic_tokens {
+        background: Color::Rgb(245, 246, 248),
+        surface: Color::White,
+        border: Color::Rgb(210, 212, 218),
+        layout: Layout_theme {
+            gap: units.em * 0.625,
+        },
+        text: Text_semantic {
+            muted: Color::Rgb(92, 96, 105),
+            normal: Color::Rgb(31, 32, 35),
+        },
+        focus: Color::Rgb(88, 101, 242),
+    };
+    theme(units, semantic)
+}
+
+fn theme(units: Units, semantic: Semantic_tokens) -> Theme {
     let text = Text_styles {
         title: Text_style {
             size: units.em as f32 * 1.25,
@@ -112,7 +195,7 @@ pub fn dark_theme() -> Theme {
     };
     let root = Root_style {
         paper: Paper_style {
-            padding: units.em * 3.0,
+            padding: units.em * 1.2,
             block: Block_style {
                 background: semantic.background,
                 border: Border_style {

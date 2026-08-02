@@ -11,7 +11,8 @@ pub fn new(
 ) -> Target<()> {
     let task = task::Task::new(path, remote_path);
     let widget = task.widget.clone();
-    let mut target = Target::new(name, task, dependencies);
+    let path = task.path.clone();
+    let mut target = Target::new_with_path(name, path, task, dependencies);
     target.set_widget(widget.into());
     target
 }

@@ -74,7 +74,7 @@ impl Menu<bool> {
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[usize::from(default)]);
 
-        Self::new(items, default_item, theme)
+        Self::new(items, default_item, None, theme)
     }
 
     pub(crate) fn set_selected(&self, value: bool) -> Result<()> {

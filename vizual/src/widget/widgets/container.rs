@@ -10,6 +10,13 @@ use crate::{
     slot::manager::Slots,
 };
 
+/// Gives a child an intermediate hitbox without making the child full-sized in the grandparent.
+///
+/// This is necessary when wrappers such as [`Full`](super::full::Full) appear inside
+/// [`Space`](super::space::Space). Without the intermediate hitbox, a full-sized child binds
+/// directly to the `Space` hitbox, leaving no room for its margins and effectively ignoring the
+/// requested padding. The child fills this container instead, while `Space` keeps its padding
+/// outside the container.
 pub struct Container {
     child: Child,
 }
@@ -20,7 +27,6 @@ impl Container {
     }
 }
 
-//TODO: Used to create an extra hitbox - currently used in layout
 #[async_trait]
 impl Widget_trait for Container {
     async fn layout(

@@ -42,7 +42,10 @@ pub fn new_with_widget(
 
 fn build(name: impl Into<String>, task: task::Task, dependencies: Dependencies) -> Target<()> {
     let widget = task.widget.clone();
-    let mut target = Target::new(name, task, dependencies);
+    let mut target = match task.working_dir.clone() {
+        Some(path) => Target::new_with_path(name, path, task, dependencies),
+        None => Target::new(name, task, dependencies),
+    };
     target.set_widget(widget.into());
     target
 }

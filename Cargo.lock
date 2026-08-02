@@ -3013,6 +3013,7 @@ dependencies = [
  "pollster",
  "regex",
  "simplelog",
+ "skrifa 0.42.1",
  "tokio",
  "uniqify",
  "unit-intervals",

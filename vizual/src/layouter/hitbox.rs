@@ -26,9 +26,6 @@ impl Variable_position {
 ///
 /// Dimensions are derived from these positions. No blanket `end >= start` constraints are added:
 /// components that enclose an ordered child inherit its ordering through shrink wrapping.
-///
-/// TODO: Add basis rotation between start, end, and dimension, like Cassowary pivots between
-/// equivalent solved forms, so the best primitive representation can be selected dynamically.
 #[derive(Clone, Copy)]
 pub struct Hitbox {
     // TODO: add a shape to the hitbox
@@ -142,6 +139,21 @@ impl Hitbox {
             .constrain(crate::constraint!(
                 self.get_dimension(direction) == parent.get_dimension(direction)
             ))
+            .await
+    }
+
+    /// Constrains one derived dimension to a static value.
+    ///
+    /// TODO: In the future this could rotate from the start-end pair to either end-width or
+    /// start-width, like Cassowary, instead of adding a constraint over the derived dimension.
+    pub async fn set_static_dimension(
+        &mut self,
+        problem: &Component_context,
+        direction: Direction,
+        value: f64,
+    ) -> Result<()> {
+        problem
+            .constrain(crate::constraint!(self.get_dimension(direction) == value))
             .await
     }
 

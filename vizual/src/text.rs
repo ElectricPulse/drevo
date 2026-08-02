@@ -5,6 +5,10 @@ use parley::{
     Alignment, AlignmentOptions, FontContext, FontFamily, FontStyle, FontWeight, GenericFamily,
     Layout, LayoutContext, PositionedLayoutItem, StyleProperty, fontique::Blob,
 };
+use skrifa::{
+    FontRef, MetadataProvider,
+    instance::{LocationRef, Size as Font_size},
+};
 use vello::{
     Glyph, Scene,
     kurbo::{Affine, Line, Rect as Kurbo_rect, Stroke},
@@ -80,7 +84,10 @@ impl Text_context {
                 color: Color::White,
             },
         ));
-        Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
+        icon_ink_bounds(&layout, icon, font_size).map_or_else(
+            || Size::new(f64::from(layout.full_width()), f64::from(layout.height())),
+            |bounds| Size::new(bounds.width(), bounds.height()),
+        )
     }
 }
 
@@ -115,8 +122,15 @@ impl Display<'_> {
             &mut self.text_context.layout_context,
             &styled,
         );
-        let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
-        self.paint_layout(&layout, origin, None);
+        let bounds = icon_ink_bounds(&layout, icon, style.size);
+        let size = bounds.map_or_else(
+            || Size::new(f64::from(layout.full_width()), f64::from(layout.height())),
+            |bounds| Size::new(bounds.width(), bounds.height()),
+        );
+        let origin = bounds.map_or(origin, |bounds| {
+            Point::new(origin.x - bounds.x0, origin.y - bounds.y0)
+        });
+        self.paint_layout_with_hint(&layout, origin, None, false);
         size
     }
 
@@ -143,6 +157,16 @@ impl Display<'_> {
         layout: &Layout<Text_brush>,
         origin: Point,
         viewport: Option<Text_window>,
+    ) {
+        self.paint_layout_with_hint(layout, origin, viewport, true);
+    }
+
+    fn paint_layout_with_hint(
+        &mut self,
+        layout: &Layout<Text_brush>,
+        origin: Point,
+        viewport: Option<Text_window>,
+        hint: bool,
     ) {
         let scroll = viewport.map(|window| window.offset).unwrap_or_default();
         let transform = Affine::translate((origin.x - scroll.x, origin.y - scroll.y));
@@ -223,7 +247,7 @@ impl Display<'_> {
                 self.scene
                     .draw_glyphs(run.font())
                     .brush(&style.brush.foreground)
-                    .hint(true)
+                    .hint(hint)
                     .transform(transform)
                     .glyph_transform(glyph_transform)
                     .font_size(run.font_size())
@@ -240,6 +264,31 @@ impl Display<'_> {
             }
         }
     }
+}
+
+fn icon_ink_bounds(
+    layout: &Layout<Text_brush>,
+    icon: Lucide_icon,
+    font_size: f32,
+) -> Option<Kurbo_rect> {
+    let font = FontRef::new(LUCIDE_FONT_BYTES).ok()?;
+    let glyph_id = font.charmap().map(icon.unicode())?;
+    let bounds = font
+        .glyph_metrics(Font_size::new(font_size), LocationRef::default())
+        .bounds(glyph_id)?;
+    let glyph = layout.lines().find_map(|line| {
+        line.items().find_map(|item| match item {
+            PositionedLayoutItem::GlyphRun(glyph_run) => glyph_run.positioned_glyphs().next(),
+            _ => None,
+        })
+    })?;
+
+    Some(Kurbo_rect::new(
+        f64::from(glyph.x + bounds.x_min),
+        f64::from(glyph.y - bounds.y_max),
+        f64::from(glyph.x + bounds.x_max),
+        f64::from(glyph.y - bounds.y_min),
+    ))
 }
 
 #[derive(Clone, Copy)]
