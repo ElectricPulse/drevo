@@ -65,6 +65,6 @@ impl Menu<String> {
                 .expect("Default menu item index must be in range"),
         );
 
-        Self::new(items, default_item, None, render)
+        Self::new(items, default_item, render)
     }
 }

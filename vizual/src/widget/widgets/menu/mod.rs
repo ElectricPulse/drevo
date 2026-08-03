@@ -56,7 +56,13 @@ struct Menu_item<Choice: Thread_safe> {
     widget: Shared_menu_item<Choice>,
     menu_selector: State<Menu_item_selector<Choice>>,
     button_delta: Variable,
-    submit_state: Option<State<Choice>>,
+    submission: Submission<Choice>,
+}
+
+#[derive(Clone)]
+enum Submission<Choice> {
+    None,
+    State(State<Choice>),
 }
 
 #[async_trait]
@@ -106,9 +112,8 @@ impl<Choice: Thread_safe> Widget_trait for Menu_item<Choice> {
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
         self.menu_selector.store(get_selector(&self.widget));
 
-        if let Some(submit_state) = &self.submit_state {
-            let mut widget = self.widget.lock().await?;
-            submit_state.store(widget.on_retrieve().await?);
+        if let Submission::State(state) = &self.submission {
+            state.set(self.widget.lock().await?.on_retrieve().await?);
         }
 
         Vizual_msg::new(Vizual_command::Layout)
@@ -119,22 +124,25 @@ pub struct Menu<Choice: Thread_safe> {
     items: Vec<Shared_menu_item<Choice>>,
     pub selected: State<Menu_item_selector<Choice>>,
     default_item: Menu_item_selector<Choice>,
-    submit_state: Option<State<Choice>>,
+    submission: Submission<Choice>,
 }
 
 impl<Choice: Thread_safe> Menu<Choice> {
     pub fn new(
         items: Vec<Shared_menu_item<Choice>>,
         default_item: Menu_item_selector<Choice>,
-        submit_state: Option<State<Choice>>,
         render: crate::Render,
     ) -> Self {
         Self {
             items,
             selected: render.new_state(default_item.clone()),
             default_item,
-            submit_state,
+            submission: Submission::None,
         }
+    }
+
+    pub fn set_submit_state(&mut self, state: State<Choice>) {
+        self.submission = Submission::State(state);
     }
 
     fn get_selected_item(&self) -> Result<Shared_menu_item<Choice>> {
@@ -214,7 +222,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 widget: item.clone(),
                 menu_selector: self.selected.clone(),
                 button_delta,
-                submit_state: self.submit_state.clone(),
+                submission: self.submission.clone(),
             };
             rows.push(slots.set(index as u64, item).await?);
         }

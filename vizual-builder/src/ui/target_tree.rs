@@ -119,7 +119,7 @@ impl Widget_trait for Target_tree {
                 .first()
                 .expect("target tree must contain its root target"),
         );
-        let menu = Menu::new(targets, default_target, None, render);
+        let menu = Menu::new(targets, default_target, render);
         let menu = Full::new(display!(menu));
 
         Ok(vec![display!(menu)])

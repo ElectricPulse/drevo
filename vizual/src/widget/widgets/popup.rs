@@ -145,7 +145,7 @@ impl Popup {
             })
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[0]);
-        let menu = Widget_trait::into_shared(Menu::new(items, default_item, None, render));
+        let menu = Widget_trait::into_shared(Menu::new(items, default_item, render));
         let submit_handler: Shared_popup_submit_handler =
             Arc::new(Mutex::new(Popup_submit_handler {
                 subhandler: submit_handler,

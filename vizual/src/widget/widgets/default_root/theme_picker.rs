@@ -120,7 +120,8 @@ impl Widget_trait for Theme_picker {
             })
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[selected_index]);
-        let menu = Menu::new(items, default_item, Some(self.choice.clone()), render);
+        let mut menu = Menu::new(items, default_item, render);
+        menu.set_submit_state(self.choice.clone());
 
         Ok(vec![button, display!(menu)])
     }
