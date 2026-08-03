@@ -37,7 +37,7 @@ use vizual::{
             button::Button,
             full::Full,
             grid::Grid,
-            layout::{Layout, Style as Layout_style},
+            layout::Layout,
             linebreak::Linebreak,
             popup::Popup,
             space::Space,
@@ -66,6 +66,7 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
     async fn layout(
         &mut self,
         render: vizual::Render,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -74,17 +75,27 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
         slots: &mut Slots,
     ) -> Result<Children> {
         (**self)
-            .layout(render, focus, hitbox, parent, problem, text_context, slots)
+            .layout(
+                render,
+                theme,
+                focus,
+                hitbox,
+                parent,
+                problem,
+                text_context,
+                slots,
+            )
             .await
     }
 
     async fn render(
         &mut self,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        (**self).render(focus, hitbox, display).await
+        (**self).render(theme, focus, hitbox, display).await
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
@@ -185,7 +196,6 @@ impl Configuration_tree {
 struct Tree_view<T: Tree> {
     tree: Arc<Mutex<T>>,
     configurator_state: Arc<Mutex<Configurator_state>>,
-    theme: State<Theme>,
 }
 
 struct Field_click_handler {
@@ -231,7 +241,6 @@ impl<T: Tree> Tree_view<T> {
                     configurator_state: self.configurator_state.clone(),
                     cursor: child_cursor.clone(),
                 }),
-                self.theme.clone(),
             );
 
             button.active = selected_cursor == child_cursor;
@@ -302,6 +311,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
     async fn layout(
         &mut self,
         _render: vizual::Render,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -320,15 +330,9 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
             .render_tree(slots, &tree, &cursor, &[], &problem, button_delta)
             .await?;
 
-        let layout = Layout::new(
-            Direction::Vertical,
-            buttons,
-            (&self.theme).into(),
-            Objective::default(),
-            2,
-        );
+        let layout = Layout::new(Direction::Vertical, buttons, Objective::default(), 2);
 
-        let block = Title_block::new(display!(layout), "Config", self.theme.clone());
+        let block = Title_block::new(display!(layout), "Config");
         let full = Full::new(display!(block));
 
         Ok(vec![display!(full)])
@@ -336,6 +340,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
 
     async fn render(
         &mut self,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: Rect,
         _display: &mut Display<'_>,
@@ -421,7 +426,6 @@ pub struct Configurator<T: Tree> {
     tree: Arc<Mutex<T>>,
     configurator_state: Arc<Mutex<Configurator_state>>,
     config_manager: Config_manager_handle<T>,
-    theme: State<Theme>,
     submit: Shared_widget<Popup>,
     submitting: bool,
     popup_slot: Component_slot,
@@ -468,7 +472,7 @@ pub fn configurator<T: Tree>(
     configuration_path: impl AsRef<Path>,
     tree: T,
     submit_handler: impl Submit_handler<bool>,
-    theme: State<Theme>,
+    render: vizual::Render,
 ) -> Result<Configurator<T>> {
     let child_name = tree
         .get_tree()
@@ -494,8 +498,7 @@ pub fn configurator<T: Tree>(
         tree,
         configurator_state,
         config_manager: config_manager.clone(),
-        theme: theme.clone(),
-        submit: Popup::new(config_manager, theme).into_shared(),
+        submit: Popup::new(config_manager, render).into_shared(),
         submitting: false,
         popup_slot: Component_slot::new(),
     })
@@ -506,6 +509,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
     async fn layout(
         &mut self,
         _render: vizual::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -516,7 +520,6 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         let tree_view = Tree_view {
             tree: self.tree.clone(),
             configurator_state: self.configurator_state.clone(),
-            theme: self.theme.clone(),
         };
         let cursor = self.configurator_state.lock().await?.cursor.clone();
 
@@ -525,22 +528,17 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             let tree = self.tree.lock().await?;
 
             if let Ok(leaf) = tree.get_tree().get_leaf(&cursor) {
-                let description = Text::new(leaf.description, (&self.theme).into());
-                let linebreak = Linebreak::new(self.theme.clone());
+                let description = Text::new(leaf.description);
+                let linebreak = Linebreak::new();
                 let widget = leaf.widget;
                 let layout = Layout::new(
                     Direction::Vertical,
                     vec![display!(description), display!(linebreak), display!(widget)],
-                    (&self.theme).into(),
                     Objective::default(),
                     2,
                 );
 
-                let leaf = Title_block::new(
-                    display!(layout),
-                    format!("Value - {}", leaf.name),
-                    self.theme.clone(),
-                );
+                let leaf = Title_block::new(display!(layout), format!("Value - {}", leaf.name));
 
                 Some(display!(leaf))
             } else {
@@ -548,7 +546,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             }
         };
 
-        let Layout_style::Gap(gap) = (&self.theme).into();
+        let gap = theme.load().semantic.layout.gap;
         let tree_view = display!(tree_view);
 
         let tree_view = Anchor::new(
@@ -572,11 +570,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             children.push(display!(field));
         }
 
-        let button = Button::new(
-            "Apply",
-            Box::new(self.config_manager.clone()),
-            self.theme.clone(),
-        );
+        let button = Button::new("Apply", Box::new(self.config_manager.clone()));
 
         let button = Align::new(
             display!(button),

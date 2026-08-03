@@ -26,27 +26,25 @@ use self::tab::{Tab, Tab_specification};
 use crate::utils;
 
 pub struct Tabs {
-    theme: State<Theme>,
     header: Shared_widget<Tab_bar>,
 }
 
 impl Tabs {
-    pub fn new(render: Render, pages: Vec<Tab_specification>, theme: State<Theme>) -> Self {
+    pub fn new(render: Render, pages: Vec<Tab_specification>) -> Self {
         let selected_page = render.new_state(Uuid::default());
         let pages: Vec<Tab> = pages
             .into_iter()
-            .map(|page| Tab::new(page, selected_page.clone(), theme.clone()))
+            .map(|page| Tab::new(page, selected_page.clone()))
             .collect();
 
         if let Some(initial_page) = pages.first().map(|page| page.id) {
             selected_page.store(initial_page);
         }
 
-        let header = Tab_bar::new(selected_page.clone(), pages, theme.clone());
+        let header = Tab_bar::new(selected_page.clone(), pages);
 
         Self {
             header: header.into_shared(),
-            theme,
         }
     }
 }
@@ -59,11 +57,10 @@ struct Page {
 struct Tab_bar {
     selected_page: State<Uuid>,
     pages: Vec<Page>,
-    theme: State<Theme>,
 }
 
 impl Tab_bar {
-    fn new(selected_page: State<Uuid>, tabs: Vec<Tab>, theme: State<Theme>) -> Self {
+    fn new(selected_page: State<Uuid>, tabs: Vec<Tab>) -> Self {
         Self {
             pages: tabs
                 .into_iter()
@@ -73,7 +70,6 @@ impl Tab_bar {
                 })
                 .collect(),
             selected_page,
-            theme,
         }
     }
 }
@@ -105,6 +101,7 @@ impl Widget_trait for Tab_bar {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -126,13 +123,7 @@ impl Widget_trait for Tab_bar {
             buttons.push(button);
         }
 
-        let layout = Layout::new(
-            Direction::Horizontal,
-            buttons,
-            (&self.theme).into(),
-            Objective::default(),
-            2,
-        );
+        let layout = Layout::new(Direction::Horizontal, buttons, Objective::default(), 2);
         let full = Full::new(display!(layout));
 
         Ok(vec![display!(full)])
@@ -167,6 +158,7 @@ impl Widget_trait for Tab_bar {
 
     async fn render(
         &mut self,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: Rect,
         _display: &mut Display<'_>,
@@ -181,6 +173,7 @@ impl Widget_trait for Tabs {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -197,13 +190,7 @@ impl Widget_trait for Tabs {
             }
         }
 
-        let layout = Layout::new(
-            Direction::Vertical,
-            elements,
-            (&self.theme).into(),
-            Objective::default(),
-            2,
-        );
+        let layout = Layout::new(Direction::Vertical, elements, Objective::default(), 2);
         let full = Full::new(display!(layout));
 
         Ok(vec![display!(full)])

@@ -15,13 +15,11 @@ use crate::{
     widget::{Focus_provider, Widget_trait, widgets::full::Full},
 };
 
-pub struct Linebreak {
-    pub theme: State<Theme>,
-}
+pub struct Linebreak;
 
 impl Linebreak {
-    pub fn new(theme: State<Theme>) -> Self {
-        Self { theme }
+    pub fn new() -> Self {
+        Self
     }
 }
 
@@ -30,6 +28,7 @@ impl Widget_trait for Linebreak {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -37,24 +36,21 @@ impl Widget_trait for Linebreak {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let line = Linebreak_unsized {
-            theme: self.theme.clone(),
-        };
+        let line = Linebreak_unsized;
         let full = Full::width(display!(line));
 
         Ok(vec![display!(full)])
     }
 }
 
-struct Linebreak_unsized {
-    theme: State<Theme>,
-}
+struct Linebreak_unsized;
 
 #[async_trait]
 impl Widget_trait for Linebreak_unsized {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -74,11 +70,12 @@ impl Widget_trait for Linebreak_unsized {
 
     async fn render(
         &mut self,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        display.fill_rect(hitbox, self.theme.load().semantic.border);
+        display.fill_rect(hitbox, theme.load().semantic.border);
         Ok(None)
     }
 }

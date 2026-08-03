@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use super::super::button::Button;
 use crate::widget::{Shared_widget, Shared_widget_trait, Widget_trait as _};
-use crate::{Vizual_command, Vizual_msg, handlers::Submit_handler, state::State, theme::Theme};
+use crate::{Vizual_command, Vizual_msg, handlers::Submit_handler, state::State};
 
 pub struct Tab_specification {
     pub widget: Box<dyn Shared_widget_trait>,
@@ -40,11 +40,7 @@ impl Submit_handler<String> for Tab_button_click_handler {
 }
 
 impl Tab {
-    pub fn new(
-        specification: Tab_specification,
-        selected_page: State<Uuid>,
-        theme: State<Theme>,
-    ) -> Self {
+    pub fn new(specification: Tab_specification, selected_page: State<Uuid>) -> Self {
         let id = Uuid::new_v4();
 
         Self {
@@ -54,7 +50,6 @@ impl Tab {
                     state: selected_page,
                     id,
                 }),
-                theme,
             )
             .into_shared(),
             specification,

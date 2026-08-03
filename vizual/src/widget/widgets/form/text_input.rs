@@ -44,15 +44,10 @@ pub struct Text_input {
     valid: bool,
     focused: Arc<AtomicBool>,
     submit_handler: Box<dyn Submit_handler<String>>,
-    pub theme: State<Theme>,
 }
 
 impl Text_input {
-    pub fn new(
-        title: impl Into<String>,
-        submit_handler: Box<dyn Submit_handler<String>>,
-        theme: State<Theme>,
-    ) -> Self {
+    pub fn new(title: impl Into<String>, submit_handler: Box<dyn Submit_handler<String>>) -> Self {
         Self {
             title: title.into(),
             input: String::new(),
@@ -62,7 +57,6 @@ impl Text_input {
             valid: true,
             focused: Arc::new(AtomicBool::new(false)),
             submit_handler,
-            theme,
         }
     }
 
@@ -145,6 +139,7 @@ impl Text_input {
 impl Widget_trait for Text_input_content {
     async fn render(
         &mut self,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,
@@ -193,6 +188,7 @@ impl Widget_trait for Text_input {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -210,7 +206,7 @@ impl Widget_trait for Text_input {
             focused: self.focused.clone(),
         };
 
-        let block = Title_block::new(display!(content), self.title.clone(), self.theme.clone());
+        let block = Title_block::new(display!(content), self.title.clone());
         let full = Full::new(display!(block));
 
         Ok(vec![display!(full)])
@@ -218,6 +214,7 @@ impl Widget_trait for Text_input {
 
     async fn render(
         &mut self,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: Rect,
         _display: &mut Display<'_>,

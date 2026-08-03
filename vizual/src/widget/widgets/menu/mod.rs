@@ -55,7 +55,6 @@ struct Menu_item<Choice: Thread_safe> {
     selected: bool,
     widget: Shared_menu_item<Choice>,
     menu_selector: State<Menu_item_selector<Choice>>,
-    theme: State<Theme>,
     button_delta: Variable,
     submit_state: Option<State<Choice>>,
 }
@@ -65,6 +64,7 @@ impl<Choice: Thread_safe> Widget_trait for Menu_item<Choice> {
     async fn layout(
         &mut self,
         render: crate::Render,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -78,6 +78,7 @@ impl<Choice: Thread_safe> Widget_trait for Menu_item<Choice> {
             .await?
             .layout(
                 render,
+                theme,
                 focus,
                 hitbox,
                 parent,
@@ -94,7 +95,7 @@ impl<Choice: Thread_safe> Widget_trait for Menu_item<Choice> {
             ));
         }
         let content = contents.pop().expect("menu item child count checked above");
-        let mut button = Button::around(content, self.theme.clone());
+        let mut button = Button::around(content);
         button.highlighted = self.selected;
         button.delta = Some(self.button_delta);
         let full = Full::new(display!(button));
@@ -118,7 +119,6 @@ pub struct Menu<Choice: Thread_safe> {
     items: Vec<Shared_menu_item<Choice>>,
     pub selected: State<Menu_item_selector<Choice>>,
     default_item: Menu_item_selector<Choice>,
-    pub theme: State<Theme>,
     submit_state: Option<State<Choice>>,
 }
 
@@ -127,13 +127,12 @@ impl<Choice: Thread_safe> Menu<Choice> {
         items: Vec<Shared_menu_item<Choice>>,
         default_item: Menu_item_selector<Choice>,
         submit_state: Option<State<Choice>>,
-        theme: State<Theme>,
+        render: crate::Render,
     ) -> Self {
         Self {
             items,
-            selected: theme.render.new_state(default_item.clone()),
+            selected: render.new_state(default_item.clone()),
             default_item,
-            theme,
             submit_state,
         }
     }
@@ -184,6 +183,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -213,7 +213,6 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 selected: Arc::ptr_eq(item, &selected),
                 widget: item.clone(),
                 menu_selector: self.selected.clone(),
-                theme: self.theme.clone(),
                 button_delta,
                 submit_state: self.submit_state.clone(),
             };
@@ -223,7 +222,6 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         let layout = display!(Layout::new(
             Direction::Vertical,
             rows,
-            (&self.theme).into(),
             Objective::default(),
             2,
         ));
@@ -233,6 +231,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
 
     async fn render(
         &mut self,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: Rect,
         _display: &mut Display<'_>,

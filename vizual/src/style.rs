@@ -1,3 +1,28 @@
+use crate::{state::State, theme::Theme};
+
+#[derive(Clone)]
+pub struct Style<ConcreteStyle: From<Theme>> {
+    concrete: Option<ConcreteStyle>,
+}
+
+impl<ConcreteStyle: From<Theme>> Default for Style<ConcreteStyle> {
+    fn default() -> Self {
+        Self { concrete: None }
+    }
+}
+
+impl<ConcreteStyle: From<Theme> + Clone> Style<ConcreteStyle> {
+    pub fn set(&mut self, concrete: ConcreteStyle) {
+        self.concrete = Some(concrete);
+    }
+
+    pub fn get(&self, theme: &State<Theme>) -> ConcreteStyle {
+        self.concrete
+            .clone()
+            .unwrap_or_else(|| ConcreteStyle::from((*theme.load()).clone()))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Color {
     Black,

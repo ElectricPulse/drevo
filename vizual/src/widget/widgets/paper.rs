@@ -25,18 +25,21 @@ pub struct Paper_style {
 
 pub struct Paper {
     child: Child,
-    style: State<Paper_style>,
+    pub style: crate::style::Style<Paper_style>,
 }
 
 impl Paper {
-    pub fn new(child: Child, style: State<Paper_style>) -> Self {
-        Self { child, style }
+    pub fn new(child: Child) -> Self {
+        Self {
+            child,
+            style: crate::style::Style::default(),
+        }
     }
 }
 
-impl From<&State<Theme>> for State<Paper_style> {
-    fn from(theme: &State<Theme>) -> Self {
-        theme.project(|theme| &theme.specific.paper)
+impl From<Theme> for Paper_style {
+    fn from(theme: Theme) -> Self {
+        theme.specific.paper
     }
 }
 
@@ -45,6 +48,7 @@ impl Widget_trait for Paper {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -52,15 +56,11 @@ impl Widget_trait for Paper {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let space = Space::uniform(
-            self.child.clone(),
-            self.style.load().padding,
-            Objective::default(),
-            2,
-        );
+        let style = self.style.get(&theme);
+        let space = Space::uniform(self.child.clone(), style.padding, Objective::default(), 2);
 
-        let block_style = self.style.project(|style| &style.block);
-        let block = Block::new(display!(space), block_style);
+        let mut block = Block::new(display!(space));
+        block.style.set(style.block);
         let full = Full::new(display!(block));
 
         Ok(vec![display!(full)])

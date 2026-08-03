@@ -90,8 +90,6 @@ use vizual::{
     layouter::{hitbox::Hitbox, objective::Objective},
     render_manager::Render_manager,
     slot::manager::Slots,
-    state::State,
-    theme::{Theme, dark_theme},
     widget::{
         Focus_provider, Widget_trait,
         widgets::{
@@ -104,15 +102,14 @@ use vizual::{
 };
 use vizual_macros::display;
 
-struct Hello {
-    theme: State<Theme>,
-}
+struct Hello;
 
 #[async_trait]
 impl Widget_trait for Hello {
     async fn layout(
         &mut self,
         _render: vizual::Render,
+        theme: vizual::state::State<vizual::theme::Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -120,16 +117,13 @@ impl Widget_trait for Hello {
         _text_context: &mut vizual::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let title = Text::new(
-            "Hello, world!",
-            self.theme.project(|theme| &theme.specific.text.title),
-        );
+        let mut title = Text::new("Hello, world!");
+        title.style.set(theme.load().specific.text.title);
         let title = Anchor::center(display!(title));
 
         let goodbye = Button::new(
             "Goodbye!",
             Box::new(Command_submit_handler::new(Vizual_command::Quit)),
-            self.theme.clone(),
         );
         let goodbye = Space::left(display!(goodbye), 5.0, Objective::default(), 1);
         let goodbye = Anchor::new(
@@ -149,12 +143,9 @@ async fn main() -> Result<()> {
     color_eyre::install()?;
 
     let render_manager = Render_manager::new();
-    let theme = render_manager.render.new_state(dark_theme());
-    let hello = Hello {
-        theme: theme.clone(),
-    };
+    let hello = Hello;
 
-    vizual::run("Hello, world!", hello.into_shared(), theme, render_manager)
+    vizual::run("Hello, world!", hello.into_shared(), render_manager)
 }
 ```
 

@@ -4,8 +4,6 @@ use crate::target::{Output_constraints, Target};
 use color_eyre::eyre::Result;
 use vizual::{
     Render,
-    state::State,
-    theme::Theme,
     widget::{Shared_widget, Widget, Widget_trait},
 };
 
@@ -44,7 +42,6 @@ pub type Task_result<Output = ()> = Result<(Output, Status)>;
 
 pub struct View {
     pub render: Render,
-    pub theme: State<Theme>,
 }
 
 impl View {

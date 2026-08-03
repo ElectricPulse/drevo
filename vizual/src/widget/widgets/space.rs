@@ -16,31 +16,27 @@ use crate::{
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Spaces {
-    pub left: Option<Expression>,
-    pub right: Option<Expression>,
-    pub top: Option<Expression>,
-    pub bottom: Option<Expression>,
+    pub left: Option<f64>,
+    pub right: Option<f64>,
+    pub top: Option<f64>,
+    pub bottom: Option<f64>,
 }
 
 impl Spaces {
-    fn start(&self, direction: Direction) -> Option<Expression> {
+    fn start(self, direction: Direction) -> Option<f64> {
         match direction {
-            Direction::Horizontal => self.left.clone(),
-            Direction::Vertical => self.top.clone(),
+            Direction::Horizontal => self.left,
+            Direction::Vertical => self.top,
         }
     }
 
-    fn end(&self, direction: Direction) -> Option<Expression> {
+    fn end(self, direction: Direction) -> Option<f64> {
         match direction {
-            Direction::Horizontal => self.right.clone(),
-            Direction::Vertical => self.bottom.clone(),
+            Direction::Horizontal => self.right,
+            Direction::Vertical => self.bottom,
         }
-    }
-
-    fn is_empty(&self) -> bool {
-        self.left.is_none() && self.right.is_none() && self.top.is_none() && self.bottom.is_none()
     }
 }
 
@@ -66,10 +62,10 @@ impl Space {
         Self {
             child,
             spaces: Spaces {
-                left: left.map(Expression::from),
-                right: right.map(Expression::from),
-                top: top.map(Expression::from),
-                bottom: bottom.map(Expression::from),
+                left,
+                right,
+                top,
+                bottom,
             },
             objective,
             delta: Delta::default(),
@@ -77,108 +73,41 @@ impl Space {
         }
     }
 
-    pub fn inline(
-        child: Child,
-        value: impl Into<Expression>,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        let value = value.into();
-        Self::new_with_spaces(
+    pub fn inline(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(
             child,
-            Spaces {
-                left: Some(value.clone()),
-                right: Some(value),
-                ..Spaces::default()
-            },
+            Some(value),
+            Some(value),
+            None,
+            None,
             objective,
             priority,
         )
     }
 
-    pub fn left(
-        child: Child,
-        value: impl Into<Expression>,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        Self::new_with_spaces(
-            child,
-            Spaces {
-                left: Some(value.into()),
-                ..Spaces::default()
-            },
-            objective,
-            priority,
-        )
+    pub fn left(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(child, Some(value), None, None, None, objective, priority)
     }
 
-    pub fn right(
-        child: Child,
-        value: impl Into<Expression>,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        Self::new_with_spaces(
-            child,
-            Spaces {
-                right: Some(value.into()),
-                ..Spaces::default()
-            },
-            objective,
-            priority,
-        )
+    pub fn right(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(child, None, Some(value), None, None, objective, priority)
     }
 
-    pub fn top(
-        child: Child,
-        value: impl Into<Expression>,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        Self::new_with_spaces(
-            child,
-            Spaces {
-                top: Some(value.into()),
-                ..Spaces::default()
-            },
-            objective,
-            priority,
-        )
+    pub fn top(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(child, None, None, Some(value), None, objective, priority)
     }
 
-    pub fn bottom(
-        child: Child,
-        value: impl Into<Expression>,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        Self::new_with_spaces(
-            child,
-            Spaces {
-                bottom: Some(value.into()),
-                ..Spaces::default()
-            },
-            objective,
-            priority,
-        )
+    pub fn bottom(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(child, None, None, None, Some(value), objective, priority)
     }
 
-    pub fn uniform(
-        child: Child,
-        value: impl Into<Expression>,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        let value = value.into();
-        Self::new_with_spaces(
+    pub fn uniform(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+        Self::new(
             child,
-            Spaces {
-                left: Some(value.clone()),
-                right: Some(value.clone()),
-                top: Some(value.clone()),
-                bottom: Some(value),
-            },
+            Some(value),
+            Some(value),
+            Some(value),
+            Some(value),
             objective,
             priority,
         )
@@ -188,38 +117,24 @@ impl Space {
         Self::new(child, None, None, None, None, objective, priority)
     }
 
-    fn new_with_spaces(
-        child: Child,
-        spaces: Spaces,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        Self {
-            child,
-            spaces,
-            objective,
-            delta: Delta::default(),
-            priority,
-        }
-    }
-
     async fn apply_objective(
         &self,
         problem: &Component_context,
         space: Expression,
-        target: Option<Expression>,
+        target: Option<f64>,
         delta: Delta,
     ) -> Result<()> {
         problem.constrain(constraint!(space.clone() >= 0)).await?;
 
         match target {
-            Some(mut target) => {
+            Some(target) => {
                 // TODO: Using 16 as the target for zero-sized space is also a workaround.
-                if target.is_zero() {
-                    target = Expression::from(16.0);
-                }
+                let target = match target {
+                    0.0 => 16.0,
+                    target => target,
+                };
                 self.objective
-                    .apply(problem, space - target, 0.0, delta, self.priority)
+                    .apply(problem, space, target, delta, self.priority)
                     .await
             }
             None => Ok(()),
@@ -232,6 +147,7 @@ impl Widget_trait for Space {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: crate::state::State<crate::theme::Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -241,8 +157,8 @@ impl Widget_trait for Space {
     ) -> Result<Children> {
         let child = slots.set(0, Container::new(self.child.clone())).await?;
         let child_hitbox = child.get_hitbox().await?;
-        let spaces = &self.spaces;
-        let delta = match (self.objective, self.delta, spaces.is_empty()) {
+        let spaces = self.spaces;
+        let delta = match (self.objective, self.delta, spaces == Spaces::default()) {
             (Objective::Minimize_difference, None, false) => {
                 Some(problem.add_delta("space-delta", self.priority).await?)
             }

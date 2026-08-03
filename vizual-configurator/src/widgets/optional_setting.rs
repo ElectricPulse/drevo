@@ -27,7 +27,6 @@ use crate::Field;
 
 struct Default_leaf_value<Value: Thread_safe> {
     label: String,
-    theme: State<Theme>,
     value: PhantomData<Value>,
 }
 
@@ -45,6 +44,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Default_leaf_value<Value> {
     async fn layout(
         &mut self,
         _render: vizual::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -53,13 +53,11 @@ impl<Value: Thread_safe> Custom_widget_trait for Default_leaf_value<Value> {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let style = match selected {
-            true => self
-                .theme
-                .project(|theme| &theme.specific.text.selected_subtitle),
-            false => self.theme.project(|theme| &theme.specific.text.subtitle),
-        };
-        let text = Text::new(format!("Default - {}", self.label), style);
+        let mut text = Text::new(format!("Default - {}", self.label));
+        text.style.set(match selected {
+            true => theme.load().specific.text.selected_subtitle,
+            false => theme.load().specific.text.subtitle,
+        });
 
         Ok(vec![display!(text)])
     }
@@ -67,7 +65,6 @@ impl<Value: Thread_safe> Custom_widget_trait for Default_leaf_value<Value> {
 
 struct Custom_leaf_value<Value: Thread_safe> {
     field: Shared_widget<Box<dyn Field<Value>>>,
-    theme: State<Theme>,
 }
 
 #[async_trait]
@@ -91,6 +88,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
     async fn layout(
         &mut self,
         _render: vizual::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -99,25 +97,17 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let style = match selected {
-            true => self
-                .theme
-                .project(|theme| &theme.specific.text.selected_subtitle),
-            false => self.theme.project(|theme| &theme.specific.text.subtitle),
-        };
-        let title = Text::new("Custom", style);
+        let mut title = Text::new("Custom");
+        title.style.set(match selected {
+            true => theme.load().specific.text.selected_subtitle,
+            false => theme.load().specific.text.subtitle,
+        });
         let field = self.field.clone();
         let contents = match selected {
             true => vec![display!(title), display!(field)],
             false => vec![display!(title)],
         };
-        let layout = Layout::new(
-            Direction::Vertical,
-            contents,
-            (&self.theme).into(),
-            Objective::default(),
-            2,
-        );
+        let layout = Layout::new(Direction::Vertical, contents, Objective::default(), 2);
 
         Ok(vec![display!(layout)])
     }
@@ -132,23 +122,19 @@ impl<Value: Clone + Thread_safe> Optional_setting<Value> {
         default_value: impl Into<String>,
         is_default: bool,
         field: impl Field<Value> + 'static,
-        theme: State<Theme>,
+        render: vizual::Render,
     ) -> Self {
         let field = Widget_trait::into_shared(Box::new(field) as Box<dyn Field<Value>>);
         let default_item: Shared_menu_item<Option<Value>> = Default_leaf_value {
             label: default_value.into(),
-            theme: theme.clone(),
             value: PhantomData,
         }
         .into_shared();
-        let custom_item: Shared_menu_item<Option<Value>> = Custom_leaf_value {
-            field,
-            theme: theme.clone(),
-        }
-        .into_shared();
+        let custom_item: Shared_menu_item<Option<Value>> =
+            Custom_leaf_value { field }.into_shared();
         let items = vec![default_item, custom_item];
         let default_item = get_selector(&items[usize::from(!is_default)]);
-        let menu = Widget_trait::into_shared(Menu::new(items, default_item, None, theme));
+        let menu = Widget_trait::into_shared(Menu::new(items, default_item, None, render));
 
         Self { menu }
     }
@@ -159,6 +145,7 @@ impl<Value: Clone + Thread_safe> Widget_trait for Optional_setting<Value> {
     async fn layout(
         &mut self,
         _render: vizual::Render,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

@@ -9,7 +9,7 @@ use crate::{
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
-    style::Color,
+    style::{Color, Style},
     theme::Theme,
 };
 use async_trait::async_trait;
@@ -30,22 +30,22 @@ impl Default for Text_style {
     }
 }
 
-impl From<&State<Theme>> for State<Text_style> {
-    fn from(theme: &State<Theme>) -> Self {
-        theme.project(|theme| &theme.specific.text.paragraph)
+impl From<Theme> for Text_style {
+    fn from(theme: Theme) -> Self {
+        theme.specific.text.paragraph
     }
 }
 
 pub struct Text {
     content: String,
-    pub style: State<Text_style>,
+    pub style: Style<Text_style>,
 }
 
 impl Text {
-    pub fn new(content: impl Into<String>, style: State<Text_style>) -> Self {
+    pub fn new(content: impl Into<String>) -> Self {
         Self {
             content: content.into(),
-            style,
+            style: Style::default(),
         }
     }
 }
@@ -55,6 +55,7 @@ impl Widget_trait for Text {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -62,7 +63,7 @@ impl Widget_trait for Text {
         text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
-        let size = text_context.measure(&self.content, self.style.load().size);
+        let size = text_context.measure(&self.content, self.style.get(&theme).size);
         problem
             .constrain(constraint!(
                 hitbox.get_dimension(Direction::Horizontal) == size.width
@@ -79,11 +80,12 @@ impl Widget_trait for Text {
 
     async fn render(
         &mut self,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        let _ = display.draw_text(&self.content, hitbox.origin, *self.style.load());
+        let _ = display.draw_text(&self.content, hitbox.origin, self.style.get(&theme));
         Ok(None)
     }
 }

@@ -7,8 +7,6 @@ use vizual::{
     layouter::hitbox::Hitbox,
     render_manager::Render_manager,
     slot::manager::Slots,
-    state::State,
-    theme::dark_theme,
     widget::{
         Focus_provider, Widget_trait,
         widgets::{full::Full, text::Text},
@@ -18,7 +16,6 @@ use vizual_macros::display;
 
 struct Counter {
     value: i64,
-    theme: State<vizual::theme::Theme>,
 }
 
 #[async_trait]
@@ -26,6 +23,7 @@ impl Widget_trait for Counter {
     async fn layout(
         &mut self,
         _render: vizual::Render,
+        _theme: vizual::state::State<vizual::theme::Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -34,10 +32,7 @@ impl Widget_trait for Counter {
         slots: &mut Slots,
     ) -> Result<Children> {
         focus.set_active(true);
-        let text = Text::new(
-            format!("Count: {} (use ↑ and ↓)", self.value),
-            (&self.theme).into(),
-        );
+        let text = Text::new(format!("Count: {} (use ↑ and ↓)", self.value));
         let full = Full::new(display!(text));
         Ok(vec![display!(full)])
     }
@@ -58,16 +53,10 @@ async fn main() -> Result<()> {
     color_eyre::install()?;
 
     let render_manager = Render_manager::new();
-    let theme = render_manager.render.new_state(dark_theme());
 
     vizual::run(
         "Custom widget",
-        Counter {
-            value: 0,
-            theme: theme.clone(),
-        }
-        .into_shared(),
-        theme,
+        Counter { value: 0 }.into_shared(),
         render_manager,
     )
 }

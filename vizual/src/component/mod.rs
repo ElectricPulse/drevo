@@ -11,8 +11,10 @@ use crate::{
     geometry::Direction,
     layouter::{Solution, constraints::shrink_wrap, hitbox::Hitbox, variables::Variables},
     slot::manager::{Slot_records, Slots},
+    state::State,
     sync::{Mutex, MutexGuard},
     text::Text_context,
+    theme::Theme,
     widget::{Focus_provider, Widget, Widget_trait},
 };
 
@@ -45,6 +47,7 @@ impl Widget_trait for Shared_component {
     async fn layout(
         &mut self,
         _render: Render,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -148,6 +151,7 @@ impl Shared_component {
     pub async fn layout(
         &mut self,
         render: Render,
+        theme: State<Theme>,
         parent_reference: Parent,
         parent: Hitbox,
         mut problem: Component_context,
@@ -173,6 +177,7 @@ impl Shared_component {
                 let children = widget
                     .layout(
                         render,
+                        theme,
                         &mut focus,
                         hitbox,
                         parent,
@@ -199,6 +204,7 @@ impl Shared_component {
     pub async fn layout_children(
         &mut self,
         render: Render,
+        theme: State<Theme>,
         children: Children,
         parent_hitbox: Hitbox,
         mut problem: Component_context,
@@ -216,6 +222,7 @@ impl Shared_component {
                 .clone()
                 .layout(
                     render.clone(),
+                    theme.clone(),
                     self.clone().into(),
                     hitbox,
                     problem.clone(),
@@ -225,6 +232,7 @@ impl Shared_component {
             child
                 .layout_children(
                     render.clone(),
+                    theme.clone(),
                     grandchildren,
                     hitbox,
                     problem.clone(),
@@ -242,6 +250,7 @@ impl Shared_component {
 
     pub async fn render(
         &mut self,
+        theme: State<Theme>,
         focus: Focus,
         display: &mut crate::display::Display<'_>,
         solution: &Solution,
@@ -253,7 +262,10 @@ impl Shared_component {
             let hitbox = this.hitbox.get_resolved(solution);
             let focused = focus.compare(self);
             let mut focus = Focus_provider::new(focused);
-            let maybe_hitbox = this.widget.render(&mut focus, hitbox, display).await?;
+            let maybe_hitbox = this
+                .widget
+                .render(theme.clone(), &mut focus, hitbox, display)
+                .await?;
             this.focusable = focus.is_active();
 
             if let Some(hitbox) = maybe_hitbox {
@@ -263,20 +275,23 @@ impl Shared_component {
             this.children.clone()
         };
 
-        self.render_children(children, focus, display, solution)
+        self.render_children(theme, children, focus, display, solution)
             .await
     }
 
     #[async_recursion]
     pub async fn render_children(
         &mut self,
+        theme: State<Theme>,
         children: Children,
         focus: Focus,
         display: &mut crate::display::Display<'_>,
         solution: &Solution,
     ) -> Result<()> {
         for mut child in children {
-            child.render(focus.clone(), display, solution).await?;
+            child
+                .render(theme.clone(), focus.clone(), display, solution)
+                .await?;
         }
 
         Ok(())

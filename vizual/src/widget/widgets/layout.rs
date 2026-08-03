@@ -5,6 +5,7 @@ use crate::{
     layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
+    style::Style,
     theme::Theme,
     widget::{Focus_provider, Widget_trait, widgets::container::Container},
 };
@@ -12,21 +13,21 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Style {
+pub enum Layout_style {
     Gap(f64),
     // TODO: Implement Start, Center, End, Space_between, Space_around, and Space_evenly.
 }
 
-impl From<&State<Theme>> for Style {
-    fn from(theme: &State<Theme>) -> Self {
-        Self::Gap(theme.load().semantic.layout.gap)
+impl From<Theme> for Layout_style {
+    fn from(theme: Theme) -> Self {
+        Self::Gap(theme.semantic.layout.gap)
     }
 }
 
 pub struct Layout {
     direction: Direction,
     elements: Vec<Child>,
-    pub style: Style,
+    pub style: Style<Layout_style>,
     objective: Objective,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
@@ -36,14 +37,13 @@ impl Layout {
     pub fn new(
         direction: Direction,
         elements: Vec<Child>,
-        style: Style,
         objective: Objective,
         priority: usize,
     ) -> Self {
         Self {
             direction,
             elements,
-            style,
+            style: Style::default(),
             objective,
             priority,
         }
@@ -55,6 +55,7 @@ impl Widget_trait for Layout {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -110,7 +111,7 @@ impl Widget_trait for Layout {
         }
 
         if elements.len() >= 2 {
-            let Style::Gap(gap) = self.style;
+            let Layout_style::Gap(gap) = self.style.get(&theme);
             let gap_delta = match self.objective {
                 Objective::Minimize_difference => {
                     Some(problem.add_delta("layout-gap-delta", self.priority).await?)

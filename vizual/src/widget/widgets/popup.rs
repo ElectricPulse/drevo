@@ -57,7 +57,6 @@ impl Popup_options {
 
 struct Popup_menu_item {
     option: Popup_options,
-    theme: State<Theme>,
 }
 
 #[async_trait]
@@ -74,6 +73,7 @@ impl Custom_widget_trait for Popup_menu_item {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -82,13 +82,11 @@ impl Custom_widget_trait for Popup_menu_item {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let style = match selected {
-            true => self
-                .theme
-                .project(|theme| &theme.specific.text.selected_subtitle),
-            false => self.theme.project(|theme| &theme.specific.text.subtitle),
-        };
-        let text = Text::new(self.option.label(), style);
+        let mut text = Text::new(self.option.label());
+        text.style.set(match selected {
+            true => theme.load().specific.text.selected_subtitle,
+            false => theme.load().specific.text.subtitle,
+        });
 
         Ok(vec![display!(text)])
     }
@@ -136,23 +134,18 @@ impl Submit_handler<String> for Popup_button_handler {
 pub struct Popup {
     menu: Shared_widget<Menu<Popup_options>>,
     submit_handler: Shared_popup_submit_handler,
-    theme: State<Theme>,
 }
 
 impl Popup {
-    pub fn new(submit_handler: impl Submit_handler<bool>, theme: State<Theme>) -> Self {
+    pub fn new(submit_handler: impl Submit_handler<bool>, render: crate::Render) -> Self {
         let items = Popup_options::ALL
             .into_iter()
             .map(|option| -> Shared_menu_item<Popup_options> {
-                Popup_menu_item {
-                    option,
-                    theme: theme.clone(),
-                }
-                .into_shared()
+                Popup_menu_item { option }.into_shared()
             })
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[0]);
-        let menu = Widget_trait::into_shared(Menu::new(items, default_item, None, theme.clone()));
+        let menu = Widget_trait::into_shared(Menu::new(items, default_item, None, render));
         let submit_handler: Shared_popup_submit_handler =
             Arc::new(Mutex::new(Popup_submit_handler {
                 subhandler: submit_handler,
@@ -161,7 +154,6 @@ impl Popup {
         Self {
             menu,
             submit_handler,
-            theme,
         }
     }
 }
@@ -171,6 +163,7 @@ impl Widget_trait for Popup {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -184,21 +177,15 @@ impl Widget_trait for Popup {
                 menu: self.menu.clone(),
                 submit_handler: self.submit_handler.clone(),
             }),
-            self.theme.clone(),
         );
         let menu = self.menu.clone();
         let layout = Layout::new(
             Direction::Vertical,
             vec![display!(menu), display!(button)],
-            (&self.theme).into(),
             Objective::default(),
             2,
         );
-        let block = Title_block::new(
-            display!(layout),
-            "Are you sure you want to quit?",
-            self.theme.clone(),
-        );
+        let block = Title_block::new(display!(layout), "Are you sure you want to quit?");
         let anchor = Anchor::new(display!(block), Anchors::middle());
         let full = Full::new(display!(anchor));
 

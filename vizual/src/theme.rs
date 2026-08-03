@@ -1,6 +1,5 @@
 use crate::{
     config::BORDER_SIZE,
-    state::State,
     style::Color,
     widget::widgets::{
         block::{Block_style, Border_style},
@@ -9,10 +8,10 @@ use crate::{
     },
 };
 
-// TODO: Pass the theme into `layout` and `render` through `Widget_custom_state<Theme>`
-// instead of storing it on widgets; see the linked TODO by `Menu_item_trait`.
 #[derive(Clone, PartialEq)]
 pub struct Theme {
+    choice: Theme_choice,
+    system: System_theme,
     pub units: Units,
     pub semantic: Semantic_tokens,
     pub specific: Specific_tokens,
@@ -62,9 +61,9 @@ pub struct Specific_tokens {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Theme_choice {
-    Light,
-    User,
     System,
+    Dark,
+    Light,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -73,54 +72,45 @@ pub enum System_theme {
     Dark,
 }
 
-#[derive(Clone)]
-pub struct Theme_manager {
-    pub theme: State<Theme>,
-    pub choice: State<Theme_choice>,
-    pub system_theme: State<Option<System_theme>>,
-    user_theme: Theme,
-}
-
-impl Theme_manager {
-    pub fn new(theme: State<Theme>) -> Self {
-        Self {
-            user_theme: (*theme.load()).clone(),
-            choice: theme.render.new_state(Theme_choice::User),
-            system_theme: theme.render.new_state(None),
-            theme,
-        }
+impl Theme {
+    pub fn choice(&self) -> Theme_choice {
+        self.choice
     }
 
-    pub fn apply(&self) {
-        let theme = match *self.choice.load() {
-            Theme_choice::Light => light_theme(),
-            Theme_choice::User => self.user_theme.clone(),
-            Theme_choice::System => match *self.system_theme.load() {
-                Some(System_theme::Light) => light_theme(),
-                Some(System_theme::Dark) => dark_theme(),
-                None => self.user_theme.clone(),
-            },
-        };
-        if *self.theme.load() != theme {
-            self.theme.store(theme);
-        }
+    pub fn select(&self, choice: Theme_choice) -> Self {
+        resolve_theme(choice, self.system)
     }
 
-    pub(crate) fn set_system_theme(&self, theme: Option<System_theme>) {
-        self.system_theme.store(theme);
-        if *self.choice.load() == Theme_choice::System {
-            self.apply();
-        }
-    }
-}
-
-impl From<State<Theme>> for Theme_manager {
-    fn from(theme: State<Theme>) -> Self {
-        Self::new(theme)
+    pub(crate) fn set_system(&self, system: System_theme) -> Self {
+        resolve_theme(self.choice, system)
     }
 }
 
 pub fn dark_theme() -> Theme {
+    resolve_theme(Theme_choice::Dark, System_theme::Dark)
+}
+
+pub fn light_theme() -> Theme {
+    resolve_theme(Theme_choice::Light, System_theme::Light)
+}
+
+pub(crate) fn system_theme(system: System_theme) -> Theme {
+    resolve_theme(Theme_choice::System, system)
+}
+
+fn resolve_theme(choice: Theme_choice, system: System_theme) -> Theme {
+    let dark = match choice {
+        Theme_choice::System => matches!(system, System_theme::Dark),
+        Theme_choice::Dark => true,
+        Theme_choice::Light => false,
+    };
+    let mut theme = if dark { dark_tokens() } else { light_tokens() };
+    theme.choice = choice;
+    theme.system = system;
+    theme
+}
+
+fn dark_tokens() -> Theme {
     let units = Units { em: 16.0 };
     let semantic = Semantic_tokens {
         background: Color::Rgb(30, 31, 34),
@@ -138,7 +128,7 @@ pub fn dark_theme() -> Theme {
     theme(units, semantic)
 }
 
-pub fn light_theme() -> Theme {
+fn light_tokens() -> Theme {
     let units = Units { em: 16.0 };
     let semantic = Semantic_tokens {
         background: Color::Rgb(245, 246, 248),
@@ -216,6 +206,8 @@ fn theme(units: Units, semantic: Semantic_tokens) -> Theme {
     };
 
     Theme {
+        choice: Theme_choice::System,
+        system: System_theme::Dark,
         units,
         semantic,
         specific,
@@ -224,6 +216,6 @@ fn theme(units: Units, semantic: Semantic_tokens) -> Theme {
 
 impl Default for Theme {
     fn default() -> Self {
-        dark_theme()
+        system_theme(System_theme::Dark)
     }
 }

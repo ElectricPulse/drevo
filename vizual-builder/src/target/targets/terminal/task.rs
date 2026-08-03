@@ -54,7 +54,7 @@ impl task::Task_trait for Task {
     type Output = ();
 
     async fn run(&self, manager: &mut task::Manager<'_>) -> task::Task_result {
-        let mut screen = Screen::new(manager.view.render.clone(), manager.view.theme.clone());
+        let mut screen = Screen::new(manager.view.render.clone());
         let handle = screen.run_maybe_in_dir(self.command.clone(), self.working_dir.clone())?;
 
         task::set_widget(&self.widget, screen).await?;

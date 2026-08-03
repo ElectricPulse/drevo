@@ -5,7 +5,7 @@ use vizual_macros::display;
 use super::{
     super::{Focus_provider, Widget_trait},
     full::Full,
-    layout::{Layout, Style as Layout_style},
+    layout::{Layout, Layout_style},
     paper::Paper,
     text::Text,
 };
@@ -21,15 +21,13 @@ use crate::{
 pub struct Title_block {
     child: Child,
     pub title: String,
-    pub theme: State<Theme>,
 }
 
 impl Title_block {
-    pub fn new(child: Child, title: impl Into<String>, theme: State<Theme>) -> Self {
+    pub fn new(child: Child, title: impl Into<String>) -> Self {
         Self {
             child,
             title: title.into(),
-            theme,
         }
     }
 }
@@ -39,6 +37,7 @@ impl Widget_trait for Title_block {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -46,18 +45,20 @@ impl Widget_trait for Title_block {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let style = self.theme.project(|theme| &theme.specific.text.title);
-        let title = Text::new(self.title.clone(), style);
+        let mut title = Text::new(self.title.clone());
+        title.style.set(theme.load().specific.text.title);
 
-        let layout = Layout::new(
+        let mut layout = Layout::new(
             Direction::Vertical,
             vec![display!(title), self.child.clone()],
-            Layout_style::Gap(self.theme.load().units.em * 0.45),
             Objective::default(),
             2,
         );
+        layout
+            .style
+            .set(Layout_style::Gap(theme.load().units.em * 0.45));
 
-        let paper = Paper::new(display!(layout), (&self.theme).into());
+        let paper = Paper::new(display!(layout));
         let full = Full::new(display!(paper));
 
         Ok(vec![display!(full)])

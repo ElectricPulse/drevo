@@ -16,10 +16,6 @@ pub struct Expression {
 }
 
 impl Expression {
-    pub(crate) fn is_zero(&self) -> bool {
-        self.coefficients.is_empty() && self.constant == 0.0
-    }
-
     pub(crate) fn referenced_variables(&self) -> impl Iterator<Item = Variable> + '_ {
         self.coefficients.keys().copied()
     }

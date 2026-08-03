@@ -18,7 +18,6 @@ use crate::{
 
 struct String_menu_item {
     value: String,
-    theme: State<Theme>,
 }
 
 #[async_trait]
@@ -35,6 +34,7 @@ impl Custom_widget_trait for String_menu_item {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -43,29 +43,21 @@ impl Custom_widget_trait for String_menu_item {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let style = match selected {
-            true => self
-                .theme
-                .project(|theme| &theme.specific.text.selected_subtitle),
-            false => self.theme.project(|theme| &theme.specific.text.subtitle),
-        };
-        let text = Text::new(self.value.clone(), style);
+        let mut text = Text::new(self.value.clone());
+        text.style.set(match selected {
+            true => theme.load().specific.text.selected_subtitle,
+            false => theme.load().specific.text.subtitle,
+        });
 
         Ok(vec![display!(text)])
     }
 }
 
 impl Menu<String> {
-    pub fn text(items: Vec<String>, default_item: usize, theme: State<Theme>) -> Self {
+    pub fn text(items: Vec<String>, default_item: usize, render: crate::Render) -> Self {
         let items = items
             .into_iter()
-            .map(|value| -> Shared_menu_item<String> {
-                String_menu_item {
-                    value,
-                    theme: theme.clone(),
-                }
-                .into_shared()
-            })
+            .map(|value| -> Shared_menu_item<String> { String_menu_item { value }.into_shared() })
             .collect::<Vec<_>>();
         let default_item = get_selector(
             items
@@ -73,6 +65,6 @@ impl Menu<String> {
                 .expect("Default menu item index must be in range"),
         );
 
-        Self::new(items, default_item, None, theme)
+        Self::new(items, default_item, None, render)
     }
 }

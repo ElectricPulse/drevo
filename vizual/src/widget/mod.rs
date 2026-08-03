@@ -14,8 +14,10 @@ use crate::{
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
     slot::{Component_slot, manager::Slots},
+    state::State,
     sync::{Mutex, MutexGuard, Thread_safe},
     text::Text_context,
+    theme::Theme,
 };
 
 use super::{Render, Vizual_msg};
@@ -54,8 +56,6 @@ impl Focus_provider {
     }
 }
 
-// TODO: Add a Themeable subtrait of Widget_trait that receives the theme in layout and render,
-// just as Slots is passed to layout now.
 #[async_trait]
 /// A widget that participates in layout and painting.
 pub trait Widget_trait: Thread_safe {
@@ -67,6 +67,7 @@ pub trait Widget_trait: Thread_safe {
     async fn layout(
         &mut self,
         _render: Render,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -80,6 +81,7 @@ pub trait Widget_trait: Thread_safe {
     // The hitbox must be a resolved hitbox returned by the layouter.
     async fn render(
         &mut self,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: Rect,
         _display: &mut Display<'_>,
@@ -151,6 +153,7 @@ impl Widget_trait for Widget {
     async fn layout(
         &mut self,
         render: Render,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -159,17 +162,27 @@ impl Widget_trait for Widget {
         slots: &mut Slots,
     ) -> Result<Children> {
         (**self)
-            .layout(render, focus, hitbox, parent, problem, text_context, slots)
+            .layout(
+                render,
+                theme,
+                focus,
+                hitbox,
+                parent,
+                problem,
+                text_context,
+                slots,
+            )
             .await
     }
 
     async fn render(
         &mut self,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        (**self).render(focus, hitbox, display).await
+        (**self).render(theme, focus, hitbox, display).await
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
@@ -232,6 +245,7 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
     async fn layout(
         &mut self,
         render: Render,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         component: &mut Hitbox,
         parent: Hitbox,
@@ -244,6 +258,7 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
             .await?
             .layout(
                 render,
+                theme,
                 focus,
                 component,
                 parent,
@@ -256,11 +271,16 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
 
     async fn render(
         &mut self,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        self.0.lock().await?.render(focus, hitbox, display).await
+        self.0
+            .lock()
+            .await?
+            .render(theme, focus, hitbox, display)
+            .await
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {

@@ -61,9 +61,10 @@ use layouter::{Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
 use render_manager::{Render_manager, Render_reciever};
 use slot::Component_slot;
+use state::State;
 use sync::Mutex;
 use text::Text_context;
-use theme::{System_theme, Theme_manager};
+use theme::{System_theme, Theme};
 use widget::{Shared_widget, Widget_trait, widgets::root::Root};
 
 pub fn init_logging(path: impl AsRef<Path>) -> Result<()> {
@@ -185,11 +186,17 @@ impl App_problem {
         })
     }
 
-    async fn layout(&mut self, render: Render, text_context: &mut Text_context) -> Result<()> {
+    async fn layout(
+        &mut self,
+        render: Render,
+        theme: State<Theme>,
+        text_context: &mut Text_context,
+    ) -> Result<()> {
         let children = self
             .root
             .layout(
                 render.clone(),
+                theme.clone(),
                 None,
                 self.root_hitbox,
                 self.component_context.clone(),
@@ -199,6 +206,7 @@ impl App_problem {
         self.root
             .layout_children(
                 render,
+                theme,
                 children,
                 self.root_hitbox,
                 self.component_context.clone(),
@@ -233,6 +241,7 @@ impl App_problem {
 
     async fn render(
         &mut self,
+        theme: State<Theme>,
         solution: &Solution,
         focus: &mut Focus,
         text_context: &mut Text_context,
@@ -240,7 +249,7 @@ impl App_problem {
         let mut scene = Scene::new();
         let mut display = Display::new(&mut scene, text_context);
         self.root
-            .render(focus.clone(), &mut display, solution)
+            .render(theme, focus.clone(), &mut display, solution)
             .await?;
         Ok(scene)
     }
@@ -479,13 +488,14 @@ enum User_event {
 async fn layout_problem<T: Widget_trait>(
     root: Shared_widget<T>,
     render: Render,
+    theme: State<Theme>,
     root_slot: &mut Component_slot,
     text_context: &mut Text_context,
     variables: Arc<Variables>,
 ) -> Result<(App_problem, Size)> {
     let mut problem = App_problem::new(root, root_slot, variables).await?;
     log_duration(0, "app problem layout", || {
-        problem.layout(render, text_context)
+        problem.layout(render, theme, text_context)
     })
     .await?;
     let minimum_size = problem.minimum_size().await?;
@@ -495,6 +505,7 @@ async fn layout_problem<T: Widget_trait>(
 async fn ui_loop<T: Widget_trait>(
     root: Shared_widget<T>,
     render: Render,
+    theme: State<Theme>,
     mut render_reciever: Render_reciever,
     mut input_receiver: mpsc::UnboundedReceiver<Ui_input>,
     proxy: EventLoopProxy<User_event>,
@@ -561,6 +572,7 @@ async fn ui_loop<T: Widget_trait>(
                 let (_, minimum_size) = layout_problem(
                     root.clone(),
                     render.clone(),
+                    theme.clone(),
                     &mut root_slot,
                     &mut text_context,
                     Arc::clone(&variables),
@@ -645,6 +657,7 @@ async fn ui_loop<T: Widget_trait>(
             let (problem, minimum) = layout_problem(
                 root.clone(),
                 render.clone(),
+                theme.clone(),
                 &mut root_slot,
                 &mut text_context,
                 Arc::clone(&variables),
@@ -670,7 +683,7 @@ async fn ui_loop<T: Widget_trait>(
             && let (Some(problem), Some(solution)) = (&mut app_problem, &solution)
         {
             let scene = log_duration(0, "app problem render", || {
-                problem.render(solution, &mut focus, &mut text_context)
+                problem.render(theme.clone(), solution, &mut focus, &mut text_context)
             })
             .await?;
             if proxy.send_event(User_event::Scene(scene)).is_err() {
@@ -695,7 +708,7 @@ struct Render_state {
 
 struct Window_app {
     title: String,
-    themes: Theme_manager,
+    theme: State<Theme>,
     context: RenderContext,
     renderer: Option<Renderer>,
     state: Option<Render_state>,
@@ -745,13 +758,9 @@ impl Window_app {
     }
 
     fn initialize_window(&mut self, event_loop: &ActiveEventLoop, window: Arc<Window>) {
-        self.themes.set_system_theme(window.theme().map(|theme| {
-            if matches!(theme, Window_theme::Dark) {
-                System_theme::Dark
-            } else {
-                System_theme::Light
-            }
-        }));
+        if let Some(system) = window.theme().map(map_system_theme) {
+            self.theme.set(self.theme.load().set_system(system));
+        }
         self.scale_factor = window.scale_factor();
         let size = window.inner_size();
         let valid = size.width > 0 && size.height > 0;
@@ -906,6 +915,12 @@ impl Window_app {
 
 impl ApplicationHandler<User_event> for Window_app {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        let system = event_loop
+            .system_theme()
+            .map(map_system_theme)
+            .unwrap_or(System_theme::Dark);
+        self.theme.set(self.theme.load().set_system(system));
+
         if self.state.is_some() {
             return;
         }
@@ -956,12 +971,8 @@ impl ApplicationHandler<User_event> for Window_app {
                 }
             }
             WindowEvent::ThemeChanged(theme) => {
-                let theme = if matches!(theme, Window_theme::Dark) {
-                    System_theme::Dark
-                } else {
-                    System_theme::Light
-                };
-                self.themes.set_system_theme(Some(theme));
+                let system = map_system_theme(theme);
+                self.theme.set(self.theme.load().set_system(system));
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let position = position.to_logical::<f64>(self.scale_factor);
@@ -1123,18 +1134,25 @@ fn map_pointer_button(button: MouseButton) -> Pointer_button {
     }
 }
 
+fn map_system_theme(theme: Window_theme) -> System_theme {
+    if matches!(theme, Window_theme::Dark) {
+        System_theme::Dark
+    } else {
+        System_theme::Light
+    }
+}
+
 /// Runs a Vizual application on the calling thread.
 ///
 /// A Tokio runtime must already be active. Winit owns the calling thread until
 /// the window closes; widget tasks continue on the runtime.
-pub fn run<T: Widget_trait, Themes: Into<Theme_manager>>(
+pub fn run<T: Widget_trait>(
     title: impl Into<String>,
     root: Shared_widget<T>,
-    themes: Themes,
     render_manager: Render_manager,
 ) -> Result<()> {
     let Render_manager { render, reciever } = render_manager;
-    let themes = themes.into();
+    let theme = render.new_state(Theme::default());
     let root = Root::new(root).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
         .wrap_err("vizual::run requires an active Tokio runtime")?;
@@ -1144,14 +1162,15 @@ pub fn run<T: Widget_trait, Themes: Into<Theme_manager>>(
     let proxy = event_loop.create_proxy();
     let error_proxy = proxy.clone();
     let (input_sender, input_receiver) = mpsc::unbounded_channel();
+    let ui_theme = theme.clone();
     let ui_task = runtime.spawn(async move {
-        if let Err(error) = ui_loop(root, render, reciever, input_receiver, proxy).await {
+        if let Err(error) = ui_loop(root, render, ui_theme, reciever, input_receiver, proxy).await {
             let _ = error_proxy.send_event(User_event::Error(format!("{error:?}")));
         }
     });
     let mut app = Window_app {
         title: title.into(),
-        themes,
+        theme,
         context: RenderContext::new(),
         renderer: None,
         state: None,

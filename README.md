@@ -34,7 +34,6 @@ Then replace `src/main.rs` with:
 use color_eyre::eyre::Result;
 use vizual::{
     render_manager::Render_manager,
-    theme::dark_theme,
     widget::{Widget_trait as _, widgets::paragraph::Paragraph},
 };
 
@@ -43,16 +42,10 @@ async fn main() -> Result<()> {
     color_eyre::install()?;
 
     let render_manager = Render_manager::new();
-    let theme = render_manager.render.new_state(dark_theme());
     let mut paragraph = Paragraph::new();
     paragraph.set_content("Hello from Vizual".into());
 
-    vizual::run(
-        "Vizual example",
-        paragraph.into_shared(),
-        theme,
-        render_manager,
-    )
+    vizual::run("Vizual example", paragraph.into_shared(), render_manager)
 }
 ```
 
@@ -87,6 +80,7 @@ runtime remains active for asynchronous widget and background work.
   mobile screens.
 - Remove the extra minimum-screen calculation pass. Allow the window to use any
   size and handle content overflow with scrollbars or equivalent behavior.
+- a widget shouldn't have to recoincile itself between system theme or override
 - When Winit exposes cross-platform window-size negotiation, let the window
   manager propose a size and have Vizual respond with a supported size instead
   of calculating and publishing a minimum window size in advance.

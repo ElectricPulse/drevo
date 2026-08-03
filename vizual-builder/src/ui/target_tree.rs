@@ -9,7 +9,6 @@ use vizual::{
     layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
-    theme::Theme,
     widget::{
         Focus_provider, Widget_trait,
         custom_widget::Custom_widget_trait,
@@ -31,7 +30,6 @@ use crate::utils::get_targets;
 #[derive(new)]
 struct Target_tree_item {
     target: Dependency,
-    theme: State<Theme>,
     working_directory: PathBuf,
 }
 
@@ -49,6 +47,7 @@ impl Custom_widget_trait for Target_tree_item {
     async fn layout(
         &mut self,
         _render: vizual::Render,
+        _theme: State<vizual::theme::Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -59,34 +58,24 @@ impl Custom_widget_trait for Target_tree_item {
     ) -> Result<Children> {
         let metadata = self.target.get_metadata().await?;
 
-        let icon = Icon::new(metadata.status.get_icon(), (&self.theme).into());
+        let icon = Icon::new(metadata.status.get_icon());
         let icon = Anchor::center(display!(icon));
 
-        let name = Text::new(metadata.name, (&self.theme).into());
+        let name = Text::new(metadata.name);
         let mut details = vec![display!(name)];
         if let Some(path) = metadata.path {
             let path = path
                 .strip_prefix(&self.working_directory)
                 .unwrap_or(path.as_path());
             let path = display_relative_path(path);
-            details.push(display!(Text::new(
-                format!("Working directory: {path}"),
-                (&self.theme).into(),
-            )));
+            details.push(display!(Text::new(format!("Working directory: {path}"))));
         }
 
-        let details = Layout::new(
-            Direction::Vertical,
-            details,
-            (&self.theme).into(),
-            Objective::default(),
-            2,
-        );
+        let details = Layout::new(Direction::Vertical, details, Objective::default(), 2);
 
         let row = Layout::new(
             Direction::Horizontal,
             vec![display!(details), display!(icon)],
-            (&self.theme).into(),
             Objective::default(),
             2,
         );
@@ -101,7 +90,6 @@ impl Custom_widget_trait for Target_tree_item {
 pub struct Target_tree {
     root: Dependency,
     selected: State<Option<Dependency>>,
-    theme: State<Theme>,
     working_directory: PathBuf,
 }
 
@@ -109,7 +97,8 @@ pub struct Target_tree {
 impl Widget_trait for Target_tree {
     async fn layout(
         &mut self,
-        _render: vizual::Render,
+        render: vizual::Render,
+        _theme: State<vizual::theme::Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -121,8 +110,7 @@ impl Widget_trait for Target_tree {
             .await?
             .into_iter()
             .map(|target| -> Shared_menu_item<Dependency> {
-                Target_tree_item::new(target, self.theme.clone(), self.working_directory.clone())
-                    .into_shared()
+                Target_tree_item::new(target, self.working_directory.clone()).into_shared()
             })
             .collect::<Vec<_>>();
 
@@ -131,7 +119,7 @@ impl Widget_trait for Target_tree {
                 .first()
                 .expect("target tree must contain its root target"),
         );
-        let menu = Menu::new(targets, default_target, None, self.theme.clone());
+        let menu = Menu::new(targets, default_target, None, render);
         let menu = Full::new(display!(menu));
 
         Ok(vec![display!(menu)])

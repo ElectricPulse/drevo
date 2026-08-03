@@ -1,4 +1,3 @@
-pub mod default_root;
 pub mod target;
 pub mod task;
 mod ui;
@@ -15,7 +14,6 @@ use vizual::{
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
-    theme::{Theme, Theme_manager},
     widget::{Focus_provider, Widget_trait},
 };
 
@@ -24,16 +22,9 @@ pub struct Builder {
     selected_target: State<Option<Dependency>>,
     build_result: State<Option<std::result::Result<(), String>>>,
     working_directory: PathBuf,
-    pub theme: State<Theme>,
 }
 
-pub fn new(
-    root: Dependency,
-    working_directory: PathBuf,
-    render: vizual::Render,
-    themes: Theme_manager,
-) -> Builder {
-    let theme = themes.theme.clone();
+pub fn new(root: Dependency, working_directory: PathBuf, render: vizual::Render) -> Builder {
     let root_clone = root.clone();
     let build_result = render.new_state(None);
     let build_result_handle = build_result.clone();
@@ -51,7 +42,6 @@ pub fn new(
         selected_target: render.new_state(None),
         build_result,
         working_directory,
-        theme,
     }
 }
 
@@ -60,6 +50,7 @@ impl Widget_trait for Builder {
     async fn layout(
         &mut self,
         _render: vizual::Render,
+        _theme: vizual::state::State<vizual::theme::Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -137,7 +128,6 @@ impl Widget_trait for Builder {
         let tree = Target_tree::new(
             self.root.clone(),
             self.selected_target.clone(),
-            self.theme.clone(),
             self.working_directory.clone(),
         );
 

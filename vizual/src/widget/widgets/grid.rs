@@ -24,6 +24,7 @@ impl Widget_trait for Grid {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: crate::state::State<crate::theme::Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

@@ -52,6 +52,7 @@ impl List {
 impl Widget_trait for List {
     async fn render(
         &mut self,
+        _theme: crate::state::State<crate::theme::Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,

@@ -18,7 +18,6 @@ use crate::{
 
 struct Boolean_menu_item {
     value: bool,
-    theme: State<Theme>,
 }
 
 impl Boolean_menu_item {
@@ -41,6 +40,7 @@ impl Custom_widget_trait for Boolean_menu_item {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -49,33 +49,25 @@ impl Custom_widget_trait for Boolean_menu_item {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let style = match selected {
-            true => self
-                .theme
-                .project(|theme| &theme.specific.text.selected_subtitle),
-            false => self.theme.project(|theme| &theme.specific.text.subtitle),
-        };
-        let text = Text::new(self.label(), style);
+        let mut text = Text::new(self.label());
+        text.style.set(match selected {
+            true => theme.load().specific.text.selected_subtitle,
+            false => theme.load().specific.text.subtitle,
+        });
 
         Ok(vec![display!(text)])
     }
 }
 
 impl Menu<bool> {
-    pub fn boolean(default: bool, theme: State<Theme>) -> Self {
+    pub fn boolean(default: bool, render: crate::Render) -> Self {
         let items = [false, true]
             .into_iter()
-            .map(|value| -> Shared_menu_item<bool> {
-                Boolean_menu_item {
-                    value,
-                    theme: theme.clone(),
-                }
-                .into_shared()
-            })
+            .map(|value| -> Shared_menu_item<bool> { Boolean_menu_item { value }.into_shared() })
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[usize::from(default)]);
 
-        Self::new(items, default_item, None, theme)
+        Self::new(items, default_item, None, render)
     }
 
     pub(crate) fn set_selected(&self, value: bool) -> Result<()> {

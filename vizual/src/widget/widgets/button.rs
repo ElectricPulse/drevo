@@ -33,33 +33,26 @@ pub struct Button {
     click_handler: Option<Box<dyn Submit_handler<String>>>,
     pub active: bool,
     pub highlighted: bool,
-    pub theme: State<Theme>,
     pub delta: Delta,
 }
 
 impl Button {
-    pub fn new(
-        label: impl Into<String>,
-        click_handler: Box<dyn Submit_handler<String>>,
-        theme: State<Theme>,
-    ) -> Self {
+    pub fn new(label: impl Into<String>, click_handler: Box<dyn Submit_handler<String>>) -> Self {
         Self {
             content: Button_content::Label(label.into()),
             click_handler: Some(click_handler),
             active: true,
             highlighted: false,
-            theme,
             delta: Delta::default(),
         }
     }
 
-    pub fn around(content: Child, theme: State<Theme>) -> Self {
+    pub fn around(content: Child) -> Self {
         Self {
             content: Button_content::Child(content),
             click_handler: None,
             active: true,
             highlighted: false,
-            theme,
             delta: Delta::default(),
         }
     }
@@ -70,6 +63,7 @@ impl Widget_trait for Button {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -80,13 +74,11 @@ impl Widget_trait for Button {
         let content = match &self.content {
             Button_content::Label(label) => {
                 let active = self.active;
-                let style = match active {
-                    true => self
-                        .theme
-                        .project(|theme| &theme.specific.text.selected_subtitle),
-                    false => self.theme.project(|theme| &theme.specific.text.subtitle),
-                };
-                let text = Text::new(label.clone(), style);
+                let mut text = Text::new(label.clone());
+                text.style.set(match active {
+                    true => theme.load().specific.text.selected_subtitle,
+                    false => theme.load().specific.text.subtitle,
+                });
                 display!(text)
             }
             Button_content::Child(content) => content.clone(),
@@ -94,13 +86,13 @@ impl Widget_trait for Button {
 
         let mut space = Space::uniform(
             content,
-            self.theme.load().units.em * 0.75,
+            theme.load().units.em * 0.75,
             Objective::default(),
             2,
         );
         space.delta = self.delta;
 
-        let mut block = Block::new(display!(space), (&self.theme).into());
+        let mut block = Block::new(display!(space));
         block.highlighted = self.highlighted;
         let full = Full::new(display!(block));
 

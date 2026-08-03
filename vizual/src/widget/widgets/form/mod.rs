@@ -34,6 +34,7 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
     async fn layout(
         &mut self,
         render: crate::Render,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -42,17 +43,27 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
         slots: &mut Slots,
     ) -> Result<Children> {
         (**self)
-            .layout(render, focus, hitbox, parent, problem, text_context, slots)
+            .layout(
+                render,
+                theme,
+                focus,
+                hitbox,
+                parent,
+                problem,
+                text_context,
+                slots,
+            )
             .await
     }
 
     async fn render(
         &mut self,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        (**self).render(focus, hitbox, display).await
+        (**self).render(theme, focus, hitbox, display).await
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<crate::Vizual_msg> {
@@ -105,7 +116,6 @@ pub struct Form<Config: Clone + Thread_safe> {
     exitting: bool,
     exit_menu: Shared_widget<Menu<bool>>,
     on_submit: Submit_callback<Config>,
-    pub theme: State<Theme>,
 }
 
 impl<Config: Clone + Thread_safe> Form<Config> {
@@ -113,7 +123,7 @@ impl<Config: Clone + Thread_safe> Form<Config> {
         fields: Fields<Config>,
         config: Config,
         on_submit: Submit_fn,
-        theme: State<Theme>,
+        render: crate::Render,
     ) -> Self
     where
         Submit_fn: Fn(Config) -> Submit_future_impl + Thread_safe,
@@ -129,10 +139,9 @@ impl<Config: Clone + Thread_safe> Form<Config> {
             field_index: 0,
             field_active: false,
             exitting: false,
-            exit_menu: Menu::boolean(false, theme.clone()).into_shared(),
+            exit_menu: Menu::boolean(false, render).into_shared(),
             fields,
             on_submit: Box::new(move |config| Box::pin(on_submit(config))),
-            theme,
         }
     }
 }
@@ -184,6 +193,7 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -200,7 +210,7 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
             display!(field)
         };
 
-        let block = Title_block::new(child, self.title().await?, self.theme.clone());
+        let block = Title_block::new(child, self.title().await?);
         let full = Full::new(display!(block));
 
         Ok(vec![display!(full)])

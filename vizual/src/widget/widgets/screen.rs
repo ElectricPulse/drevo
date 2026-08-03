@@ -43,7 +43,6 @@ pub struct Screen {
     text: Text,
     content: Shared_widget<Screen_content>,
     render: Render,
-    pub theme: State<Theme>,
 }
 
 #[cfg(unix)]
@@ -198,7 +197,7 @@ fn run_command(
 }
 
 impl Screen {
-    pub fn new(render: Render, theme: State<Theme>) -> Self {
+    pub fn new(render: Render) -> Self {
         let text = Arc::new(ArcSwap::from_pointee(String::new()));
         Self {
             command: String::new(),
@@ -211,7 +210,6 @@ impl Screen {
             }
             .into_shared(),
             render,
-            theme,
         }
     }
 
@@ -292,6 +290,7 @@ impl Screen_content {
 impl Widget_trait for Screen_content {
     async fn render(
         &mut self,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,
@@ -316,6 +315,7 @@ impl Widget_trait for Screen {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -329,7 +329,7 @@ impl Widget_trait for Screen {
             format!("{}{}", self.command, content.status())
         };
 
-        let block = Title_block::new(display!(self.content.clone()), title, self.theme.clone());
+        let block = Title_block::new(display!(self.content.clone()), title);
         let full = Full::new(display!(block));
 
         Ok(vec![display!(full)])

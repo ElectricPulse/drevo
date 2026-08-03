@@ -9,8 +9,10 @@ use crate::{
     component::{Children, context::Component_context},
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
+    state::State,
     sync::{Mutex, Thread_safe},
     text::Text_context,
+    theme::Theme,
 };
 
 pub type Selector<T> = Weak<Mutex<T>>;
@@ -23,6 +25,7 @@ pub trait Custom_widget_trait: Thread_safe {
     async fn layout(
         &mut self,
         render: Render,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -50,6 +53,7 @@ where
     async fn layout(
         &mut self,
         render: Render,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -61,6 +65,7 @@ where
         Widget_trait::layout(
             self,
             render,
+            theme,
             focus,
             hitbox,
             parent,

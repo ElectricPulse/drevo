@@ -7,7 +7,7 @@ use crate::{
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
-    style::Color,
+    style::{Color, Style},
     theme::Theme,
 };
 use async_trait::async_trait;
@@ -29,15 +29,15 @@ pub struct Block_style {
 
 pub struct Block {
     child: Child,
-    pub style: State<Block_style>,
+    pub style: Style<Block_style>,
     pub highlighted: bool,
 }
 
 impl Block {
-    pub fn new(child: Child, style: State<Block_style>) -> Self {
+    pub fn new(child: Child) -> Self {
         Self {
             child,
-            style,
+            style: Style::default(),
             highlighted: false,
         }
     }
@@ -48,6 +48,7 @@ impl Widget_trait for Block {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -56,7 +57,7 @@ impl Widget_trait for Block {
         _slots: &mut Slots,
     ) -> Result<Children> {
         let child_hitbox = self.child.get_hitbox().await?;
-        let style = self.style.load();
+        let style = self.style.get(&theme);
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
@@ -80,18 +81,19 @@ impl Widget_trait for Block {
 
     async fn render(
         &mut self,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        paint_block(display, hitbox, &self.style.load(), self.highlighted);
+        paint_block(display, hitbox, &self.style.get(&theme), self.highlighted);
         Ok(None)
     }
 }
 
-impl From<&State<Theme>> for State<Block_style> {
-    fn from(theme: &State<Theme>) -> Self {
-        theme.project(|theme| &theme.specific.block)
+impl From<Theme> for Block_style {
+    fn from(theme: Theme) -> Self {
+        theme.specific.block
     }
 }
 

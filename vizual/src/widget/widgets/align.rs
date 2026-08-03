@@ -57,6 +57,7 @@ impl Widget_trait for Align {
     async fn layout(
         &mut self,
         _render: crate::Render,
+        _theme: crate::state::State<crate::theme::Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,

@@ -3,6 +3,7 @@ pub mod anchor;
 pub mod block;
 pub mod button;
 pub mod container;
+pub mod default_root;
 pub mod form;
 pub mod full;
 pub mod grid;

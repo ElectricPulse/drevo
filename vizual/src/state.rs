@@ -39,6 +39,10 @@ impl<Value> State<Value> {
         (self.store)(value);
         self.render.send();
     }
+
+    pub fn set(&self, value: Value) {
+        self.store(value);
+    }
 }
 
 impl<Value: Clone + Send + Sync + 'static> State<Value> {
