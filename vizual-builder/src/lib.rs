@@ -1,3 +1,4 @@
+pub mod default_root;
 pub mod target;
 pub mod task;
 mod ui;
@@ -7,43 +8,34 @@ use color_eyre::eyre::Result;
 use std::path::PathBuf;
 use vizual_macros::display;
 
-use crate::{
-    target::{Dependency, status::Target_status},
-    task::View,
-    ui::{header::Header, target_tree::Target_tree},
-};
+use crate::{target::Dependency, ui::target_tree::Target_tree};
 use vizual::{
     self,
     component::{Children, context::Component_context},
-    geometry::Direction,
     layouter::hitbox::Hitbox,
-    layouter::objective::Objective,
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_manager},
-    widget::{Focus_provider, Widget_trait, widgets::layout::Layout},
+    widget::{Focus_provider, Widget_trait},
 };
 
 pub struct Builder {
     root: Dependency,
     selected_target: State<Option<Dependency>>,
     build_result: State<Option<std::result::Result<(), String>>>,
-    name: String,
     working_directory: PathBuf,
-    themes: Theme_manager,
     pub theme: State<Theme>,
 }
 
 pub fn new(
     root: Dependency,
     working_directory: PathBuf,
-    name: impl Into<String>,
-    rerender: vizual::Rerender,
+    render: vizual::Render,
     themes: Theme_manager,
 ) -> Builder {
     let theme = themes.theme.clone();
     let root_clone = root.clone();
-    let build_result = State::new(rerender.clone());
+    let build_result = render.new_state(None);
     let build_result_handle = build_result.clone();
 
     /*let _ = tokio::spawn(async move {
@@ -56,11 +48,9 @@ pub fn new(
 
     Builder {
         root,
-        selected_target: State::new_with(rerender, None),
+        selected_target: render.new_state(None),
         build_result,
-        name: name.into(),
         working_directory,
-        themes,
         theme,
     }
 }
@@ -69,6 +59,7 @@ pub fn new(
 impl Widget_trait for Builder {
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -149,16 +140,7 @@ impl Widget_trait for Builder {
             self.theme.clone(),
             self.working_directory.clone(),
         );
-        
-        let header = Header::new(self.name.clone(), self.themes.clone());
-        let root = Layout::new(
-            Direction::Vertical,
-            vec![display!(header), display!(tree)],
-            (&self.theme).into(),
-            Objective::default(),
-            2,
-        );
 
-        Ok(vec![display!(root)])
+        Ok(vec![display!(tree)])
     }
 }

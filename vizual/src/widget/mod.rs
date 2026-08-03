@@ -18,7 +18,7 @@ use crate::{
     text::Text_context,
 };
 
-use super::{Rerender, Vizual_msg};
+use super::{Render, Vizual_msg};
 
 pub type Widget = Box<dyn Widget_trait>;
 
@@ -66,6 +66,7 @@ pub trait Widget_trait: Thread_safe {
     /// are shrink-wrapped by default wherever neither side of an edge is shared.
     async fn layout(
         &mut self,
+        _render: Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -149,6 +150,7 @@ pub struct Shared_widget<T: Widget_trait>(Arc<Mutex<T>>);
 impl Widget_trait for Widget {
     async fn layout(
         &mut self,
+        render: Render,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -157,7 +159,7 @@ impl Widget_trait for Widget {
         slots: &mut Slots,
     ) -> Result<Children> {
         (**self)
-            .layout(focus, hitbox, parent, problem, text_context, slots)
+            .layout(render, focus, hitbox, parent, problem, text_context, slots)
             .await
     }
 
@@ -229,6 +231,7 @@ impl<T: Widget_trait> Shared_widget_trait for Shared_widget<T> {
 impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
     async fn layout(
         &mut self,
+        render: Render,
         focus: &mut Focus_provider,
         component: &mut Hitbox,
         parent: Hitbox,
@@ -239,7 +242,15 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
         self.0
             .lock()
             .await?
-            .layout(focus, component, parent, problem, text_context, slots)
+            .layout(
+                render,
+                focus,
+                component,
+                parent,
+                problem,
+                text_context,
+                slots,
+            )
             .await
     }
 
@@ -292,13 +303,13 @@ type Message = Option<Widget>;
 #[derive(Clone)]
 pub struct Widget_sender {
     pub channel: mpsc::Sender<Message>,
-    pub rerender: Rerender,
+    pub render: Render,
 }
 
 impl Widget_sender {
     pub async fn set(&self, widget: impl Widget_trait) {
         let _ = self.channel.send(Some(Box::new(widget))).await;
-        self.rerender.send();
+        self.render.send();
     }
 
     pub async fn reset(&self) {
@@ -322,11 +333,11 @@ impl Widget_receiver {
     }
 }
 
-pub fn new_view(rerender: Rerender) -> (Widget_receiver, Widget_sender) {
+pub fn new_view(render: Render) -> (Widget_receiver, Widget_sender) {
     let (tx, rx) = mpsc::channel(1);
     let sender = Widget_sender {
         channel: tx,
-        rerender,
+        render,
     };
     let receiver = Widget_receiver { channel: rx };
     (receiver, sender)

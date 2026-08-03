@@ -73,6 +73,7 @@ impl Custom_widget_trait for Popup_menu_item {
 
     async fn layout(
         &mut self,
+        _render: crate::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -169,6 +170,7 @@ impl Popup {
 impl Widget_trait for Popup {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

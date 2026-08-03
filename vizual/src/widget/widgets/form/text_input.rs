@@ -192,6 +192,7 @@ impl Widget_trait for Text_input_content {
 impl Widget_trait for Text_input {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

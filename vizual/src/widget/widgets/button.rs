@@ -69,6 +69,7 @@ impl Button {
 impl Widget_trait for Button {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

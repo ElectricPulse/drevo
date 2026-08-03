@@ -6,6 +6,7 @@ use derive_new::new;
 use std::sync::{Arc, Weak};
 
 use crate::{
+    Render,
     focus::Focus,
     geometry::Direction,
     layouter::{Solution, constraints::shrink_wrap, hitbox::Hitbox, variables::Variables},
@@ -43,6 +44,7 @@ pub struct Shared_component(Arc<Mutex<Component>>);
 impl Widget_trait for Shared_component {
     async fn layout(
         &mut self,
+        _render: Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -145,6 +147,7 @@ impl Shared_component {
 
     pub async fn layout(
         &mut self,
+        render: Render,
         parent_reference: Parent,
         parent: Hitbox,
         mut problem: Component_context,
@@ -169,6 +172,7 @@ impl Shared_component {
                 let mut slots = slot_manager.slots();
                 let children = widget
                     .layout(
+                        render,
                         &mut focus,
                         hitbox,
                         parent,
@@ -194,6 +198,7 @@ impl Shared_component {
     #[async_recursion]
     pub async fn layout_children(
         &mut self,
+        render: Render,
         children: Children,
         parent_hitbox: Hitbox,
         mut problem: Component_context,
@@ -209,10 +214,22 @@ impl Shared_component {
             let mut child = child.clone();
             let grandchildren = child
                 .clone()
-                .layout(self.clone().into(), hitbox, problem.clone(), text_context)
+                .layout(
+                    render.clone(),
+                    self.clone().into(),
+                    hitbox,
+                    problem.clone(),
+                    text_context,
+                )
                 .await?;
             child
-                .layout_children(grandchildren, hitbox, problem.clone(), text_context)
+                .layout_children(
+                    render.clone(),
+                    grandchildren,
+                    hitbox,
+                    problem.clone(),
+                    text_context,
+                )
                 .await?;
         }
 

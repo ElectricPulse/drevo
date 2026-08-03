@@ -33,6 +33,7 @@ pub trait Field<Config>: Widget_trait {
 impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
     async fn layout(
         &mut self,
+        render: crate::Render,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -41,7 +42,7 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
         slots: &mut Slots,
     ) -> Result<Children> {
         (**self)
-            .layout(focus, hitbox, parent, problem, text_context, slots)
+            .layout(render, focus, hitbox, parent, problem, text_context, slots)
             .await
     }
 
@@ -182,6 +183,7 @@ impl<Config: Clone + Thread_safe> Form<Config> {
 impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

@@ -49,6 +49,7 @@ impl Full {
 impl Widget_trait for Full {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,

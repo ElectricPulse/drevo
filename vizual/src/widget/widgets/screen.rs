@@ -15,7 +15,7 @@ use super::{
     title_block::Title_block,
 };
 use crate::{
-    Rerender, Vizual_command, Vizual_msg,
+    Render, Vizual_command, Vizual_msg,
     component::{Children, context::Component_context},
     config::COMMAND_WAIT_TIMEOUT,
     display::Display,
@@ -42,12 +42,12 @@ pub struct Screen {
     command: String,
     text: Text,
     content: Shared_widget<Screen_content>,
-    rerender: Rerender,
+    render: Render,
     pub theme: State<Theme>,
 }
 
 #[cfg(unix)]
-async fn read(mut output: io::PipeReader, rerender: Rerender, text: Text) -> Result<()> {
+async fn read(mut output: io::PipeReader, render: Render, text: Text) -> Result<()> {
     let mut buffer = [0_u8; 1024];
     let mut queue = Vec::new();
 
@@ -77,7 +77,7 @@ async fn read(mut output: io::PipeReader, rerender: Rerender, text: Text) -> Res
             updated.push_str(&new_text);
             Arc::new(updated)
         });
-        rerender.send();
+        render.send();
     }
 
     Ok(())
@@ -177,7 +177,7 @@ impl Command_handle {
 #[cfg(unix)]
 fn run_command(
     mut command: tokio::process::Command,
-    rerender: Rerender,
+    render: Render,
     text: Text,
 ) -> Result<Command_handle> {
     let (output_reader, stdout) = io::pipe().wrap_err("")?;
@@ -189,7 +189,7 @@ fn run_command(
         .stderr(std::process::Stdio::from(stderr))
         .spawn()
         .wrap_err("")?;
-    let read_handle = tokio::spawn(read(output_reader, rerender, text));
+    let read_handle = tokio::spawn(read(output_reader, render, text));
     let state = Arc::new(Mutex::new(Command_handle_inner {
         read_handle,
         command_handle,
@@ -198,7 +198,7 @@ fn run_command(
 }
 
 impl Screen {
-    pub fn new(rerender: Rerender, theme: State<Theme>) -> Self {
+    pub fn new(render: Render, theme: State<Theme>) -> Self {
         let text = Arc::new(ArcSwap::from_pointee(String::new()));
         Self {
             command: String::new(),
@@ -210,7 +210,7 @@ impl Screen {
                 last_text_len: 0,
             }
             .into_shared(),
-            rerender,
+            render,
             theme,
         }
     }
@@ -220,7 +220,7 @@ impl Screen {
         #[cfg(unix)]
         {
             let command = get_command(&self.command, None::<String>);
-            run_command(command, self.rerender.clone(), self.text.clone())
+            run_command(command, self.render.clone(), self.text.clone())
         }
         #[cfg(not(unix))]
         {
@@ -248,7 +248,7 @@ impl Screen {
         #[cfg(unix)]
         {
             let command = get_command(&self.command, Some(working_dir));
-            run_command(command, self.rerender.clone(), self.text.clone())
+            run_command(command, self.render.clone(), self.text.clone())
         }
         #[cfg(not(unix))]
         {
@@ -315,6 +315,7 @@ impl Widget_trait for Screen_content {
 impl Widget_trait for Screen {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

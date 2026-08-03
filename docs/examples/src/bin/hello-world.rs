@@ -1,7 +1,6 @@
 use color_eyre::eyre::Result;
 use vizual::{
-    Rerender,
-    state::State,
+    render_manager::Render_manager,
     theme::dark_theme,
     widget::{Widget_trait as _, widgets::paragraph::Paragraph},
 };
@@ -10,8 +9,8 @@ use vizual::{
 async fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let (rerender, render_signal) = Rerender::new();
-    let theme = State::new_with(rerender, dark_theme());
+    let render_manager = Render_manager::new();
+    let theme = render_manager.render.new_state(dark_theme());
     let mut paragraph = Paragraph::new();
     paragraph.set_content("Hello from Vizual".into());
 
@@ -19,6 +18,6 @@ async fn main() -> Result<()> {
         "Vizual example",
         paragraph.into_shared(),
         theme,
-        render_signal,
+        render_manager,
     )
 }

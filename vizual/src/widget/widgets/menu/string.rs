@@ -34,6 +34,7 @@ impl Custom_widget_trait for String_menu_item {
 
     async fn layout(
         &mut self,
+        _render: crate::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

@@ -5,7 +5,6 @@ use crate::{
     widget::widgets::{
         block::{Block_style, Border_style},
         paper::Paper_style,
-        root::Root_style,
         text::Text_style,
     },
 };
@@ -57,7 +56,7 @@ pub struct Text_styles {
 pub struct Specific_tokens {
     pub block: Block_style,
     pub paper: Paper_style,
-    pub root: Root_style,
+    pub root: Paper_style,
     pub text: Text_styles,
 }
 
@@ -86,8 +85,8 @@ impl Theme_manager {
     pub fn new(theme: State<Theme>) -> Self {
         Self {
             user_theme: (*theme.load()).clone(),
-            choice: State::new_with(theme.rerender.clone(), Theme_choice::User),
-            system_theme: State::new_with(theme.rerender.clone(), None),
+            choice: theme.render.new_state(Theme_choice::User),
+            system_theme: theme.render.new_state(None),
             theme,
         }
     }
@@ -193,21 +192,19 @@ fn theme(units: Units, semantic: Semantic_tokens) -> Theme {
         padding: units.em * 0.75,
         block,
     };
-    let root = Root_style {
-        paper: Paper_style {
-            padding: units.em * 1.2,
-            block: Block_style {
-                background: semantic.background,
-                border: Border_style {
-                    thickness: 0.0,
-                    color: semantic.border,
-                    radius: 0.0,
-                },
-                focused_border: Border_style {
-                    thickness: 0.0,
-                    color: semantic.focus,
-                    radius: 0.0,
-                },
+    let root = Paper_style {
+        padding: units.em * 1.2,
+        block: Block_style {
+            background: semantic.background,
+            border: Border_style {
+                thickness: 0.0,
+                color: semantic.border,
+                radius: 0.0,
+            },
+            focused_border: Border_style {
+                thickness: 0.0,
+                color: semantic.focus,
+                radius: 0.0,
             },
         },
     };

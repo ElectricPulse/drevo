@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual::{
+    Render,
     component::{Children, context::Component_context},
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
@@ -16,7 +17,7 @@ use vizual::{
 };
 use vizual_macros::display;
 
-use super::theme_picker::Theme_picker;
+use crate::ui::theme_picker::Theme_picker;
 
 pub struct Header {
     name: String,
@@ -25,10 +26,10 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn new(name: impl Into<String>, themes: Theme_manager) -> Self {
+    pub fn new(name: impl Into<String>, open: State<bool>, themes: Theme_manager) -> Self {
         Self {
             name: name.into(),
-            open: State::new_with(rerender, false),
+            open,
             themes,
         }
     }
@@ -38,6 +39,7 @@ impl Header {
 impl Widget_trait for Header {
     async fn layout(
         &mut self,
+        _render: Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -51,7 +53,7 @@ impl Widget_trait for Header {
                 .theme
                 .project(|theme| &theme.specific.text.title),
         );
-        
+
         let name = Anchor::center(display!(name));
         let settings = Theme_picker::new(self.open.clone(), self.themes.clone());
         let settings = Anchor::new(

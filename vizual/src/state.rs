@@ -2,35 +2,30 @@ use std::sync::Arc;
 
 use arc_swap::{ArcSwap, ArcSwapOption};
 
-use crate::Rerender;
+use crate::Render;
 
 type Load<Value> = Arc<dyn Fn() -> Arc<Value> + Send + Sync>;
 type Store<Value> = Arc<dyn Fn(Value) + Send + Sync>;
 
 // TODO: this is pretty trash LLM code
+/// Application state created by [`Render::new_state`].
 #[derive(Clone)]
 pub struct State<Value> {
     load: Load<Value>,
     store: Store<Value>,
-    pub rerender: Rerender,
+    pub render: Render,
 }
 
-impl<Value: Default + Send + Sync + 'static> State<Value> {
-    pub fn new(rerender: Rerender) -> Self {
-        Self::new_with(rerender, Value::default())
-    }
-}
-
-impl<Value: Send + Sync + 'static> State<Value> {
-    pub fn new_with(rerender: Rerender, value: Value) -> Self {
+impl Render {
+    pub fn new_state<Value: Send + Sync + 'static>(&self, value: Value) -> State<Value> {
         let value = Arc::new(ArcSwap::from_pointee(value));
         let load_value = value.clone();
         let store_value = value;
 
-        Self {
+        State {
             load: Arc::new(move || load_value.load_full()),
             store: Arc::new(move |value| store_value.store(Arc::new(value))),
-            rerender,
+            render: self.clone(),
         }
     }
 }
@@ -42,7 +37,7 @@ impl<Value> State<Value> {
 
     pub fn store(&self, value: Value) {
         (self.store)(value);
-        self.rerender.send();
+        self.render.send();
     }
 }
 
@@ -70,7 +65,7 @@ impl<Value: Clone + Send + Sync + 'static> State<Value> {
         State {
             load,
             store,
-            rerender: self.rerender.clone(),
+            render: self.render.clone(),
         }
     }
 }

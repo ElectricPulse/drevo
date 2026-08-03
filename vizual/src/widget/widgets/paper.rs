@@ -44,6 +44,7 @@ impl From<&State<Theme>> for State<Paper_style> {
 impl Widget_trait for Paper {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

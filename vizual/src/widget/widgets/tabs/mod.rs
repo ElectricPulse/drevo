@@ -11,7 +11,7 @@ use super::{
     layout::Layout,
 };
 use crate::{
-    Rerender,
+    Render,
     component::{Children, context::Component_context},
     display::Display,
     event::{Key_code, Key_event},
@@ -31,8 +31,8 @@ pub struct Tabs {
 }
 
 impl Tabs {
-    pub fn new(rerender: Rerender, pages: Vec<Tab_specification>, theme: State<Theme>) -> Self {
-        let selected_page = State::new(rerender);
+    pub fn new(render: Render, pages: Vec<Tab_specification>, theme: State<Theme>) -> Self {
+        let selected_page = render.new_state(Uuid::default());
         let pages: Vec<Tab> = pages
             .into_iter()
             .map(|page| Tab::new(page, selected_page.clone(), theme.clone()))
@@ -104,6 +104,7 @@ impl Tab_bar {
 impl Widget_trait for Tab_bar {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -179,6 +180,7 @@ impl Widget_trait for Tab_bar {
 impl Widget_trait for Tabs {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

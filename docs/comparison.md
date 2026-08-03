@@ -84,10 +84,11 @@ Then use this `src/main.rs`:
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual::{
-    Rerender, Vizual_command,
+    Vizual_command,
     component::{Children, context::Component_context},
     handlers::Command_submit_handler,
     layouter::{hitbox::Hitbox, objective::Objective},
+    render_manager::Render_manager,
     slot::manager::Slots,
     state::State,
     theme::{Theme, dark_theme},
@@ -111,6 +112,7 @@ struct Hello {
 impl Widget_trait for Hello {
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -146,13 +148,13 @@ impl Widget_trait for Hello {
 async fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let (rerender, render_signal) = Rerender::new();
-    let theme = State::new_with(rerender, dark_theme());
+    let render_manager = Render_manager::new();
+    let theme = render_manager.render.new_state(dark_theme());
     let hello = Hello {
         theme: theme.clone(),
     };
 
-    vizual::run("Hello, world!", hello.into_shared(), theme, render_signal)
+    vizual::run("Hello, world!", hello.into_shared(), theme, render_manager)
 }
 ```
 

@@ -5,6 +5,7 @@ use color_eyre::eyre::Result;
 
 use super::{Focus_provider, Widget_trait};
 use crate::{
+    Render,
     component::{Children, context::Component_context},
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
@@ -21,6 +22,7 @@ pub trait Custom_widget_trait: Thread_safe {
 
     async fn layout(
         &mut self,
+        render: Render,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -47,6 +49,7 @@ where
 
     async fn layout(
         &mut self,
+        render: Render,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -55,6 +58,16 @@ where
         slots: &mut Slots,
         _payload: Self::Payload,
     ) -> Result<Children> {
-        Widget_trait::layout(self, focus, hitbox, parent, problem, text_context, slots).await
+        Widget_trait::layout(
+            self,
+            render,
+            focus,
+            hitbox,
+            parent,
+            problem,
+            text_context,
+            slots,
+        )
+        .await
     }
 }

@@ -4,11 +4,9 @@ use lucide_icons::Icon as Lucide_icon;
 use vizual::{
     Vizual_command, Vizual_msg,
     component::{Children, context::Component_context},
-    constraint,
     event::Pointer_event,
-    geometry::Direction,
     handlers::Retrieve_handler,
-    layouter::{expression::Expression, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_choice, Theme_manager},
@@ -52,6 +50,7 @@ impl Custom_widget_trait for Theme_menu_item {
 
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -87,6 +86,7 @@ impl Theme_picker {
 impl Widget_trait for Theme_picker {
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -111,7 +111,7 @@ impl Widget_trait for Theme_picker {
             Theme_choice::User,
             Theme_choice::System,
         ];
-        
+
         let selected_index = choices
             .iter()
             .position(|choice| *choice == selected_choice)

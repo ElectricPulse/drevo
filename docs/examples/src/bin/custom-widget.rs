@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual::{
-    Rerender, Vizual_command, Vizual_msg,
+    Vizual_command, Vizual_msg,
     component::{Children, context::Component_context},
     event::{Key_code, Key_event},
     layouter::hitbox::Hitbox,
+    render_manager::Render_manager,
     slot::manager::Slots,
     state::State,
     theme::dark_theme,
@@ -24,6 +25,7 @@ struct Counter {
 impl Widget_trait for Counter {
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -55,8 +57,8 @@ impl Widget_trait for Counter {
 async fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let (rerender, render_signal) = Rerender::new();
-    let theme = State::new_with(rerender, dark_theme());
+    let render_manager = Render_manager::new();
+    let theme = render_manager.render.new_state(dark_theme());
 
     vizual::run(
         "Custom widget",
@@ -66,6 +68,6 @@ async fn main() -> Result<()> {
         }
         .into_shared(),
         theme,
-        render_signal,
+        render_manager,
     )
 }

@@ -65,6 +65,7 @@ pub trait Field<Value>: Widget_trait + Retrieve_handler<Option<Value>> {}
 impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
     async fn layout(
         &mut self,
+        render: vizual::Render,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -73,7 +74,7 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
         slots: &mut Slots,
     ) -> Result<Children> {
         (**self)
-            .layout(focus, hitbox, parent, problem, text_context, slots)
+            .layout(render, focus, hitbox, parent, problem, text_context, slots)
             .await
     }
 
@@ -300,6 +301,7 @@ impl<T: Tree> Tree_view<T> {
 impl<T: Tree> Widget_trait for Tree_view<T> {
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -503,6 +505,7 @@ pub fn configurator<T: Tree>(
 impl<T: Tree> Widget_trait for Configurator<T> {
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

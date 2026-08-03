@@ -33,8 +33,7 @@ Then replace `src/main.rs` with:
 ```rust
 use color_eyre::eyre::Result;
 use vizual::{
-    Rerender,
-    state::State,
+    render_manager::Render_manager,
     theme::dark_theme,
     widget::{Widget_trait as _, widgets::paragraph::Paragraph},
 };
@@ -43,8 +42,8 @@ use vizual::{
 async fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let (rerender, render_signal) = Rerender::new();
-    let theme = State::new_with(rerender, dark_theme());
+    let render_manager = Render_manager::new();
+    let theme = render_manager.render.new_state(dark_theme());
     let mut paragraph = Paragraph::new();
     paragraph.set_content("Hello from Vizual".into());
 
@@ -52,7 +51,7 @@ async fn main() -> Result<()> {
         "Vizual example",
         paragraph.into_shared(),
         theme,
-        render_signal,
+        render_manager,
     )
 }
 ```
@@ -74,6 +73,7 @@ runtime remains active for asynchronous widget and background work.
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
 ## To-Do list
+- disable default decorations in winit
 - optimize state managment relayouting/rerendering - there is no reason to relayout if the state of a parent changed
 - dont use color eyre for everything
 - optimize with ArcSwaps and RwLocks

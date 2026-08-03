@@ -44,6 +44,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Default_leaf_value<Value> {
 
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -89,6 +90,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
 
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -156,6 +158,7 @@ impl<Value: Clone + Thread_safe> Optional_setting<Value> {
 impl<Value: Clone + Thread_safe> Widget_trait for Optional_setting<Value> {
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

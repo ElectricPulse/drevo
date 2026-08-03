@@ -54,6 +54,7 @@ impl Layout {
 impl Widget_trait for Layout {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,

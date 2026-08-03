@@ -14,6 +14,7 @@ pub mod geometry;
 pub mod handlers;
 pub mod layouter;
 pub mod log;
+pub mod render_manager;
 pub mod slot;
 pub mod state;
 pub mod style;
@@ -58,6 +59,7 @@ use focus::{Focus, Focus_search_direction};
 use geometry::{Point, Size};
 use layouter::{Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
+use render_manager::{Render_manager, Render_reciever};
 use slot::Component_slot;
 use sync::Mutex;
 use text::Text_context;
@@ -143,14 +145,9 @@ impl Vizual_command {
 }
 
 #[derive(Clone)]
-pub struct Rerender(mpsc::UnboundedSender<()>);
+pub struct Render(pub(crate) mpsc::UnboundedSender<()>);
 
-impl Rerender {
-    pub fn new() -> (Self, mpsc::UnboundedReceiver<()>) {
-        let (sender, receiver) = mpsc::unbounded_channel();
-        (Self(sender), receiver)
-    }
-
+impl Render {
     pub fn send(&self) {
         let _ = self.0.send(());
     }
@@ -188,20 +185,22 @@ impl App_problem {
         })
     }
 
-    async fn layout(&mut self, text_context: &mut Text_context) -> Result<()> {
+    async fn layout(&mut self, render: Render, text_context: &mut Text_context) -> Result<()> {
         let children = self
             .root
             .layout(
+                render.clone(),
                 None,
-                Hitbox::default(),
+                self.root_hitbox,
                 self.component_context.clone(),
                 text_context,
             )
             .await?;
         self.root
             .layout_children(
+                render,
                 children,
-                Hitbox::default(),
+                self.root_hitbox,
                 self.component_context.clone(),
                 text_context,
             )
@@ -465,7 +464,7 @@ enum Ui_input {
     Initialize(Size),
     Event(Event),
     Resize(Size),
-    Rerender,
+    Render,
 }
 
 // TODO: This message-passing layer is probably unnecessary.
@@ -479,19 +478,24 @@ enum User_event {
 
 async fn layout_problem<T: Widget_trait>(
     root: Shared_widget<T>,
+    render: Render,
     root_slot: &mut Component_slot,
     text_context: &mut Text_context,
     variables: Arc<Variables>,
 ) -> Result<(App_problem, Size)> {
     let mut problem = App_problem::new(root, root_slot, variables).await?;
-    log_duration(0, "app problem layout", || problem.layout(text_context)).await?;
+    log_duration(0, "app problem layout", || {
+        problem.layout(render, text_context)
+    })
+    .await?;
     let minimum_size = problem.minimum_size().await?;
     Ok((problem, minimum_size))
 }
 
 async fn ui_loop<T: Widget_trait>(
     root: Shared_widget<T>,
-    mut render_signal: mpsc::UnboundedReceiver<()>,
+    render: Render,
+    mut render_reciever: Render_reciever,
     mut input_receiver: mpsc::UnboundedReceiver<Ui_input>,
     proxy: EventLoopProxy<User_event>,
 ) -> Result<()> {
@@ -503,7 +507,7 @@ async fn ui_loop<T: Widget_trait>(
     let mut solution = None;
     let mut window_size = None;
     let mut pending_minimum_size: Option<Size> = None;
-    let mut rerender_open = true;
+    let mut render_open = true;
     let mut buffered_input = None;
 
     loop {
@@ -512,14 +516,14 @@ async fn ui_loop<T: Widget_trait>(
             None => {
                 tokio::select! {
                     input = input_receiver.recv() => input,
-                    rerender = render_signal.recv(), if rerender_open => {
-                        match rerender {
+                    render_request = render_reciever.0.recv(), if render_open => {
+                        match render_request {
                             Some(()) => {
-                                while render_signal.try_recv().is_ok() {}
-                                Some(Ui_input::Rerender)
+                                while render_reciever.0.try_recv().is_ok() {}
+                                Some(Ui_input::Render)
                             }
                             None => {
-                                rerender_open = false;
+                                render_open = false;
                                 continue;
                             }
                         }
@@ -556,6 +560,7 @@ async fn ui_loop<T: Widget_trait>(
                 // This technically performs one extra layout call before the window-driven layout loop starts.
                 let (_, minimum_size) = layout_problem(
                     root.clone(),
+                    render.clone(),
                     &mut root_slot,
                     &mut text_context,
                     Arc::clone(&variables),
@@ -617,7 +622,7 @@ async fn ui_loop<T: Widget_trait>(
                     },
                 }
             }
-            Ui_input::Rerender => Vizual_command::Layout,
+            Ui_input::Render => Vizual_command::Layout,
             Ui_input::Event(event) => match (&mut app_problem, &solution) {
                 (Some(problem), Some(solution)) => {
                     problem.handle_event(&event, solution, &mut focus).await?
@@ -639,6 +644,7 @@ async fn ui_loop<T: Widget_trait>(
         if matches!(command, Vizual_command::Layout) {
             let (problem, minimum) = layout_problem(
                 root.clone(),
+                render.clone(),
                 &mut root_slot,
                 &mut text_context,
                 Arc::clone(&variables),
@@ -801,8 +807,9 @@ impl Window_app {
         let window = match event_loop.create_window(
             Window::default_attributes()
                 .with_title(self.title.clone())
-                .with_decorations(false)
-                .with_resizable(true)
+                // TODO: have to implement custom resizing after that
+                //.with_decorations(false)
+                //.with_resizable(true)
                 .with_inner_size(LogicalSize::new(initial_size.width, initial_size.height))
                 .with_min_inner_size(LogicalSize::new(minimum_size.width, minimum_size.height)),
         ) {
@@ -1124,11 +1131,11 @@ pub fn run<T: Widget_trait, Themes: Into<Theme_manager>>(
     title: impl Into<String>,
     root: Shared_widget<T>,
     themes: Themes,
-    render_signal: mpsc::UnboundedReceiver<()>,
+    render_manager: Render_manager,
 ) -> Result<()> {
+    let Render_manager { render, reciever } = render_manager;
     let themes = themes.into();
-    let theme = themes.theme.clone();
-    let root = Root::new(root, (&theme).into()).into_shared();
+    let root = Root::new(root).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
         .wrap_err("vizual::run requires an active Tokio runtime")?;
     let event_loop = EventLoop::<User_event>::with_user_event()
@@ -1138,7 +1145,7 @@ pub fn run<T: Widget_trait, Themes: Into<Theme_manager>>(
     let error_proxy = proxy.clone();
     let (input_sender, input_receiver) = mpsc::unbounded_channel();
     let ui_task = runtime.spawn(async move {
-        if let Err(error) = ui_loop(root, render_signal, input_receiver, proxy).await {
+        if let Err(error) = ui_loop(root, render, reciever, input_receiver, proxy).await {
             let _ = error_proxy.send_event(User_event::Error(format!("{error:?}")));
         }
     });

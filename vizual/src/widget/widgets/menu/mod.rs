@@ -64,6 +64,7 @@ struct Menu_item<Choice: Thread_safe> {
 impl<Choice: Thread_safe> Widget_trait for Menu_item<Choice> {
     async fn layout(
         &mut self,
+        render: crate::Render,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -76,6 +77,7 @@ impl<Choice: Thread_safe> Widget_trait for Menu_item<Choice> {
             .lock()
             .await?
             .layout(
+                render,
                 focus,
                 hitbox,
                 parent,
@@ -129,7 +131,7 @@ impl<Choice: Thread_safe> Menu<Choice> {
     ) -> Self {
         Self {
             items,
-            selected: State::new_with(theme.rerender.clone(), default_item.clone()),
+            selected: theme.render.new_state(default_item.clone()),
             default_item,
             theme,
             submit_state,
@@ -181,6 +183,7 @@ impl<Choice: Thread_safe> Retrieve_handler<Choice> for Menu<Choice> {
 impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
     async fn layout(
         &mut self,
+        _render: crate::Render,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

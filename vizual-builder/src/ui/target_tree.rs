@@ -48,6 +48,7 @@ impl Custom_widget_trait for Target_tree_item {
 
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -108,6 +109,7 @@ pub struct Target_tree {
 impl Widget_trait for Target_tree {
     async fn layout(
         &mut self,
+        _render: vizual::Render,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
