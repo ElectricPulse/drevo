@@ -7,10 +7,11 @@ use crate::{
     state::State,
     style::Style,
     theme::Theme,
-    widget::{Focus_provider, Widget_trait, widgets::container::Container},
+    widget::{Focus_provider, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use vizual_macros::container;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Layout_style {
@@ -68,22 +69,7 @@ impl Widget_trait for Layout {
         // hitbox an Align or Anchor cannot be placed directly in a Layout.
         let mut elements = Vec::with_capacity(self.elements.len());
         for (index, element) in self.elements.iter().enumerate() {
-            elements.push(
-                slots
-                    .set(index as u64, Container::new(element.clone()))
-                    .await?,
-            );
-        }
-
-        let cross_direction = direction.flip();
-        for element in &elements {
-            let element_hitbox = element.get_hitbox().await?;
-            problem
-                .constrain(constraint!(
-                    hitbox.get_dimension(cross_direction)
-                        == element_hitbox.get_dimension(cross_direction)
-                ))
-                .await?;
+            elements.push(container!(index as u64 => element.clone()));
         }
 
         match (elements.first(), elements.last()) {

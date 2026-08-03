@@ -2,15 +2,10 @@ pub mod header;
 mod theme_picker;
 
 use color_eyre::eyre::Result;
-use vizual_macros::display;
+use vizual_macros::{container, display};
 
 use self::header::Header;
-use super::{
-    anchor::{Anchor, Anchors, Position},
-    full::Full,
-    layout::Layout,
-    paper::Paper,
-};
+use super::{layout::Layout, paper::Paper};
 use crate::{
     component::{Children, context::Component_context},
     geometry::Direction,
@@ -52,14 +47,15 @@ impl<T: Widget_trait> Widget_trait for Default_root<T> {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let body = Paper::new(display!(self.widget.clone()));
-        let body = Full::new(display!(body));
+        let widget = container!(self.widget.clone());
 
-        let header = Full::width(display!(Header::new(
+        let body = Paper::new(display!(widget));
+
+        let header = display!(Header::new(
             self.title.clone(),
             self.header_open.clone(),
             self.theme_choice.clone(),
-        )));
+        ));
 
         let layout = Layout::new(
             Direction::Vertical,
@@ -68,17 +64,8 @@ impl<T: Widget_trait> Widget_trait for Default_root<T> {
             2,
         );
 
-        let layout = Full::new(display!(layout));
         let mut root = Paper::new(display!(layout));
         root.style.set(theme.load().specific.root);
-
-        let root = Anchor::new(
-            display!(root),
-            Anchors {
-                horizontal: Some(Position::Start),
-                vertical: Some(Position::Start),
-            },
-        );
 
         Ok(vec![display!(root)])
     }

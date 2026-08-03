@@ -1,7 +1,4 @@
-use super::{
-    super::{Focus_provider, Widget_trait},
-    container::Container,
-};
+use super::super::{Focus_provider, Widget_trait};
 use crate::{
     component::{Child, Children, context::Component_context},
     constraint,
@@ -15,6 +12,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use vizual_macros::container;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Spaces {
@@ -155,7 +153,7 @@ impl Widget_trait for Space {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let child = slots.set(0, Container::new(self.child.clone())).await?;
+        let child = container!(0 => self.child.clone());
         let child_hitbox = child.get_hitbox().await?;
         let spaces = self.spaces;
         let delta = match (self.objective, self.delta, spaces == Spaces::default()) {
