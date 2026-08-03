@@ -111,6 +111,7 @@ impl Widget_trait for Theme_picker {
             Theme_choice::User,
             Theme_choice::System,
         ];
+        
         let selected_index = choices
             .iter()
             .position(|choice| *choice == selected_choice)
@@ -135,33 +136,33 @@ impl Widget_trait for Theme_picker {
         let menu = display!(menu);
         let button_hitbox = button.get_hitbox().await?;
         let menu_hitbox = menu.get_hitbox().await?;
-        let button_center =
-            (Expression::from(button_hitbox.get_start_position(Direction::Horizontal))
-                + button_hitbox.get_end_position(Direction::Horizontal))
-                / 2.0;
-        let menu_center = (Expression::from(menu_hitbox.get_start_position(Direction::Horizontal))
-            + menu_hitbox.get_end_position(Direction::Horizontal))
-            / 2.0;
+        // let button_center =
+        //     (Expression::from(button_hitbox.get_start_position(Direction::Horizontal))
+        //         + button_hitbox.get_end_position(Direction::Horizontal))
+        //         / 2.0;
+        // let menu_center = (Expression::from(menu_hitbox.get_start_position(Direction::Horizontal))
+        //     + menu_hitbox.get_end_position(Direction::Horizontal))
+        //     / 2.0;
 
-        problem
-            .minimize_difference(menu_center - button_center, 0.0, None, 1)
-            .await?;
-        problem
-            .constrain(constraint!(
-                menu_hitbox.get_start_position(Direction::Vertical)
-                    >= button_hitbox.get_end_position(Direction::Vertical)
-            ))
-            .await?;
-        // TODO: Menus could hover over their button when there is not enough room below it.
-        problem
-            .minimize_difference(
-                menu_hitbox.get_start_position(Direction::Vertical)
-                    - button_hitbox.get_end_position(Direction::Vertical),
-                0.0,
-                None,
-                1,
-            )
-            .await?;
+        // problem
+        //     .minimize_difference(menu_center - button_center, 0.0, None, 1)
+        //     .await?;
+        // problem
+        //     .constrain(constraint!(
+        //         menu_hitbox.get_start_position(Direction::Vertical)
+        //             >= button_hitbox.get_end_position(Direction::Vertical)
+        //     ))
+        //     .await?;
+        // // TODO: Menus could hover over their button when there is not enough room below it.
+        // problem
+        //     .minimize_difference(
+        //         menu_hitbox.get_start_position(Direction::Vertical)
+        //             - button_hitbox.get_end_position(Direction::Vertical),
+        //         0.0,
+        //         None,
+        //         1,
+        //     )
+        //     .await?;
 
         Ok(vec![button, menu])
     }

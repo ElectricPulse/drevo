@@ -25,10 +25,10 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn new(name: impl Into<String>, open: State<bool>, themes: Theme_manager) -> Self {
+    pub fn new(name: impl Into<String>, themes: Theme_manager) -> Self {
         Self {
             name: name.into(),
-            open,
+            open: State::new_with(rerender, false),
             themes,
         }
     }
@@ -51,6 +51,7 @@ impl Widget_trait for Header {
                 .theme
                 .project(|theme| &theme.specific.text.title),
         );
+        
         let name = Anchor::center(display!(name));
         let settings = Theme_picker::new(self.open.clone(), self.themes.clone());
         let settings = Anchor::new(

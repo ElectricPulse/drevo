@@ -30,7 +30,6 @@ pub struct Builder {
     build_result: State<Option<std::result::Result<(), String>>>,
     name: String,
     working_directory: PathBuf,
-    settings_open: State<bool>,
     themes: Theme_manager,
     pub theme: State<Theme>,
 }
@@ -46,10 +45,6 @@ pub fn new(
     let root_clone = root.clone();
     let build_result = State::new(rerender.clone());
     let build_result_handle = build_result.clone();
-    let view = View {
-        rerender: rerender.clone(),
-        theme: theme.clone(),
-    };
 
     /*let _ = tokio::spawn(async move {
         let result = root_clone
@@ -65,7 +60,6 @@ pub fn new(
         build_result,
         name: name.into(),
         working_directory,
-        settings_open: State::new(theme.rerender.clone()),
         themes,
         theme,
     }
@@ -155,11 +149,8 @@ impl Widget_trait for Builder {
             self.theme.clone(),
             self.working_directory.clone(),
         );
-        let header = Header::new(
-            self.name.clone(),
-            self.settings_open.clone(),
-            self.themes.clone(),
-        );
+        
+        let header = Header::new(self.name.clone(), self.themes.clone());
         let root = Layout::new(
             Direction::Vertical,
             vec![display!(header), display!(tree)],

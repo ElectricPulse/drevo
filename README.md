@@ -8,7 +8,7 @@ Vizual (ˈvizuaːl) is a component-based Rust UI framework with built in state m
 - A robust component system with prebuilts for alignment, vertical/horizontal layout and grid.
 This avoids the ad-hoc method for every alignment, style option that other rust libraries add like in tui library [Ratatui](https://ratatui.rs/) or gui library [Iced](https://iced.rs/)
 - State system heavily inspired by [React](https://react.dev/)
-This avoids the sometimes insanely verbose and repetitive ELM architecture of message for everything just look at the [comparison](docs/comparison.md)
+This avoids the sometimes insanely verbose and repetitive ELM architecture of a message for everything
 - MILP powered layouting system inspired by [iOS Auto Layout](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html) which is built on [Cassowary](https://constraints.cs.washington.edu/solvers/cassowary-tochi.pdf)
 - Structural navigation via ```Tab``` and ```Shift + Tab``` for accessibility
 ## Demo
@@ -74,6 +74,7 @@ runtime remains active for asynchronous widget and background work.
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
 ## To-Do list
+- optimize state managment relayouting/rerendering - there is no reason to relayout if the state of a parent changed
 - dont use color eyre for everything
 - optimize with ArcSwaps and RwLocks
 - remove the need for nightly
@@ -103,8 +104,6 @@ runtime remains active for asynchronous widget and background work.
 - Crystalize the relationships between `Widget`, `Shared_widget`, and `Shared_component`
 - for no focus components I don't think they need to have stable known lifetime in between
  layout() calls
-- add light theme
-- add icons particularly into vizual-builder via Lucide icons + resvg
 
 ## Technologies used
 - [winit](https://github.com/rust-windowing/winit) for window managment
