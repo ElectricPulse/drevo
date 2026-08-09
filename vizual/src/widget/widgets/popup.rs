@@ -8,7 +8,6 @@ use super::{
     super::{Focus_provider, Shared_widget, Widget_trait},
     anchor::{Anchor, Anchors},
     button::Button,
-    full::Full,
     layout::Layout,
     menu::{Menu, Shared_menu_item, get_selector},
     text::Text,
@@ -87,6 +86,7 @@ impl Custom_widget_trait for Popup_menu_item {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
+        let text = Anchor::new(Widget_trait::into_shared(text).into(), Anchors::top_left());
 
         Ok(vec![display!(text)])
     }
@@ -141,7 +141,7 @@ impl Popup {
         let items = Popup_options::ALL
             .into_iter()
             .map(|option| -> Shared_menu_item<Popup_options> {
-                Popup_menu_item { option }.into_shared()
+                Popup_menu_item { option }.into_shared().into()
             })
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[0]);
@@ -186,10 +186,8 @@ impl Widget_trait for Popup {
             2,
         );
         let block = Title_block::new(display!(layout), "Are you sure you want to quit?");
-        let anchor = Anchor::new(display!(block), Anchors::middle());
-        let full = Full::new(display!(anchor));
-
-        Ok(vec![display!(full)])
+        let anchor = Anchor::new(Widget_trait::into_shared(block).into(), Anchors::middle());
+        Ok(vec![display!(anchor)])
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {

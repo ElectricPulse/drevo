@@ -9,7 +9,6 @@ use regex::Regex;
 use vizual_macros::display;
 
 use super::super::super::{Focus_provider, Widget_trait};
-use super::super::full::Full;
 use super::super::title_block::Title_block;
 use crate::{
     Vizual_command, Vizual_msg,
@@ -207,9 +206,7 @@ impl Widget_trait for Text_input {
         };
 
         let block = Title_block::new(display!(content), self.title.clone());
-        let full = Full::new(display!(block));
-
-        Ok(vec![display!(full)])
+        Ok(vec![display!(block)])
     }
 
     async fn render(

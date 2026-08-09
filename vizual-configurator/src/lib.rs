@@ -30,12 +30,11 @@ use vizual::{
     theme::Theme,
     utils::get_strings_id,
     widget::{
-        Focus_provider, Shared_widget, Widget, Widget_trait,
+        Focus_provider, General_shared_widget, Shared_widget, Widget, Widget_trait,
         widgets::{
             align::{Align, Alignments},
             anchor::{Anchor, Anchors, Position as Anchor_position},
             button::Button,
-            full::Full,
             grid::Grid,
             layout::Layout,
             linebreak::Linebreak,
@@ -246,8 +245,12 @@ impl<T: Tree> Tree_view<T> {
             button.active = selected_cursor == child_cursor;
             button.delta = Some(button_delta);
 
-            let button = slots.set(get_strings_id(&child_cursor) + 1, button).await?;
-            let button = Space::left(button, (INDENT * depth) as f64, Objective::default(), 2);
+            let button = Space::left(
+                button.into_shared().into(),
+                (INDENT * depth) as f64,
+                Objective::default(),
+                2,
+            );
 
             // Since cursor should be unique for every button we can use it to generate id
             let button = slots.set(get_strings_id(&child_cursor), button).await?;
@@ -333,9 +336,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         let layout = Layout::new(Direction::Vertical, buttons, Objective::default(), 2);
 
         let block = Title_block::new(display!(layout), "Config");
-        let full = Full::new(display!(block));
-
-        Ok(vec![display!(full)])
+        Ok(vec![display!(block)])
     }
 
     async fn render(
@@ -524,11 +525,13 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         let cursor = self.configurator_state.lock().await?.cursor.clone();
 
         //TODO: this menu could later be moved into the menu item of the tree to make it clearer
-        let field: Option<Child> = {
+        let field: Option<General_shared_widget> = {
             let tree = self.tree.lock().await?;
 
             if let Ok(leaf) = tree.get_tree().get_leaf(&cursor) {
                 let description = Text::new(leaf.description);
+                let description =
+                    Anchor::new(description.into_shared().into(), Anchors::top_left());
                 let linebreak = Linebreak::new();
                 let widget = leaf.widget;
                 let layout = Layout::new(
@@ -540,15 +543,13 @@ impl<T: Tree> Widget_trait for Configurator<T> {
 
                 let leaf = Title_block::new(display!(layout), format!("Value - {}", leaf.name));
 
-                Some(display!(leaf))
+                Some(leaf.into_shared().into())
             } else {
                 None
             }
         };
 
         let gap = theme.load().semantic.layout.gap;
-        let tree_view = display!(tree_view);
-
         let tree_view = Anchor::new(
             tree_view,
             Anchors {
@@ -556,7 +557,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 vertical: Some(Anchor_position::Start),
             },
         );
-        let mut children = vec![display!(tree_view)];
+        let mut children: Vec<General_shared_widget> = vec![tree_view.into_shared().into()];
 
         if let Some(field) = field {
             let field = Align::new(
@@ -567,20 +568,20 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 },
             );
 
-            children.push(display!(field));
+            children.push(field.into_shared().into());
         }
 
         let button = Button::new("Apply", Box::new(self.config_manager.clone()));
 
         let button = Align::new(
-            display!(button),
+            button.into_shared().into(),
             Alignments {
                 horizontal: Some(Objective::Maximize),
                 vertical: Some(Objective::Maximize),
             },
         );
 
-        children.push(display!(button));
+        children.push(button.into_shared().into());
 
         let grid = Grid::new(children, gap);
 
@@ -590,12 +591,11 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 .set(self.submit.clone(), problem.clone())
                 .await?;
 
-            let popup = Space::full(popup, Objective::default(), 2);
+            let popup = Space::full(popup.into_shared().into(), Objective::default(), 2);
             return Ok(vec![display!(grid), display!(popup)]);
         }
 
-        let full = Full::new(display!(grid));
-        Ok(vec![display!(full)])
+        Ok(vec![display!(grid)])
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {

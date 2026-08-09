@@ -90,7 +90,10 @@ impl Shared_component {
         };
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
-            problem.maximize(hitbox.get_dimension(direction), 1).await?;
+            problem
+                .lock()
+                .await?
+                .maximize(hitbox.get_dimension(direction), 1)?;
         }
 
         Ok(self)

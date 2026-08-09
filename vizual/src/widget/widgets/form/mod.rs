@@ -7,7 +7,6 @@ use std::pin::Pin;
 use vizual_macros::display;
 
 use super::super::{Focus_provider, Shared_widget, Widget_trait};
-use super::full::Full;
 use super::menu::Menu;
 use super::title_block::Title_block;
 use crate::{
@@ -211,9 +210,7 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
         };
 
         let block = Title_block::new(child, self.title().await?);
-        let full = Full::new(display!(block));
-
-        Ok(vec![display!(full)])
+        Ok(vec![display!(block)])
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {

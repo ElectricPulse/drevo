@@ -4,7 +4,7 @@ use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Widget_trait},
-    full::Full,
+    anchor::{Anchor, Anchors},
     layout::{Layout, Layout_style},
     paper::Paper,
     text::Text,
@@ -47,6 +47,7 @@ impl Widget_trait for Title_block {
     ) -> Result<Children> {
         let mut title = Text::new(self.title.clone());
         title.style.set(theme.load().specific.text.title);
+        let title = Anchor::new(title.into_shared().into(), Anchors::top_left());
 
         let mut layout = Layout::new(
             Direction::Vertical,
@@ -59,8 +60,6 @@ impl Widget_trait for Title_block {
             .set(Layout_style::Gap(theme.load().units.em * 0.45));
 
         let paper = Paper::new(display!(layout));
-        let full = Full::new(display!(paper));
-
-        Ok(vec![display!(full)])
+        Ok(vec![display!(paper)])
     }
 }

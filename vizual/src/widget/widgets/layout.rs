@@ -7,11 +7,13 @@ use crate::{
     state::State,
     style::Style,
     theme::Theme,
-    widget::{Focus_provider, Widget_trait},
+    widget::{
+        Focus_provider, Widget_trait,
+        widgets::anchor::{Anchor, Anchors},
+    },
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::container;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Layout_style {
@@ -65,11 +67,23 @@ impl Widget_trait for Layout {
         slots: &mut Slots,
     ) -> Result<Children> {
         let direction = self.direction;
-        // TODO: A separate Container for every item wastes performance, but without its independent
+        // TODO: A separate Anchor for every item wastes performance, but without its independent
         // hitbox an Align or Anchor cannot be placed directly in a Layout.
         let mut elements = Vec::with_capacity(self.elements.len());
         for (index, element) in self.elements.iter().enumerate() {
-            elements.push(container!(index as u64 => element.clone()));
+            let element = Anchor::new(element.clone().into_shared().into(), Anchors::top_left());
+            elements.push(slots.set(index as u64, element).await?);
+        }
+
+        let cross_direction = direction.flip();
+        for element in &elements {
+            let element_hitbox = element.get_hitbox().await?;
+            problem
+                .constrain(constraint!(
+                    hitbox.get_dimension(cross_direction)
+                        == element_hitbox.get_dimension(cross_direction)
+                ))
+                .await?;
         }
 
         match (elements.first(), elements.last()) {
@@ -99,7 +113,7 @@ impl Widget_trait for Layout {
         if elements.len() >= 2 {
             let Layout_style::Gap(gap) = self.style.get(&theme);
             let gap_delta = match self.objective {
-                Objective::Minimize_difference => {
+                Objective::Minimize_delta => {
                     Some(problem.add_delta("layout-gap-delta", self.priority).await?)
                 }
                 Objective::Maximize | Objective::Minimize => None,

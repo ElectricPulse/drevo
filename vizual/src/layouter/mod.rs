@@ -12,10 +12,10 @@ use std::{
     sync::Arc,
 };
 
-use color_eyre::eyre::{Result, ensure, eyre};
+use color_eyre::eyre::{Result, eyre};
 use futures::future::BoxFuture;
 use good_lp::{
-    Solution as Good_lp_solution, SolverModel as _, VariableDefinition, microlp,
+    Solution as Good_lp_solution, SolverModel as _, microlp,
     solvers::{ObjectiveDirection, ResolutionError},
 };
 
@@ -112,59 +112,6 @@ impl Problem {
 
     pub(crate) fn constrain(&mut self, constraint: Constraint) {
         self.constraints.push(constraint);
-    }
-
-    pub(crate) fn maximize(&mut self, expression: Expression, priority: usize) -> Result<()> {
-        if priority >= PRIORITY_LEVELS {
-            return Err(eyre!(
-                "Layout objective priority {priority} is outside the supported range 0..{}",
-                PRIORITY_LEVELS - 1
-            ));
-        }
-
-        self.objectives[priority].push(expression);
-        Ok(())
-    }
-
-    pub fn minimize(&mut self, expression: Expression, priority: usize) -> Result<()> {
-        self.maximize(expression * -1.0, priority)
-    }
-
-    pub fn minimize_difference(
-        &mut self,
-        expression: impl Into<Expression>,
-        target: f64,
-        delta: Variable,
-        priority: usize,
-    ) -> Result<()> {
-        ensure!(
-            target > 0.0,
-            "minimize-difference target must be greater than zero"
-        );
-
-        let difference = (Expression::from(target) - expression.into()) / target;
-        self.constrain(constraint!(difference.clone() >= 0));
-        self.constrain(constraint!(difference == delta));
-        // Workaround: goals at the same priority are summed together at the end, so minimizing
-        // the same delta once for every use is equivalent to putting a weight on it.
-        self.minimize(Expression::from(delta), priority)
-    }
-
-    pub fn add_delta(
-        &mut self,
-        name: String,
-        path: String,
-        component_path: String,
-        priority: usize,
-    ) -> Result<Variable> {
-        let delta = self.variables.add(
-            VariableDefinition::new().min(0).name(name.clone()),
-            name,
-            path,
-            component_path,
-        );
-        self.minimize(Expression::from(delta), priority)?;
-        Ok(delta)
     }
 
     pub(crate) fn constrain_root_to_screen(&mut self, root: Hitbox) {
@@ -564,40 +511,5 @@ impl Problem {
             root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
         self.priority_solve_with_diagnostics(&self.constraints, root_size * -1.0)
             .await
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn each_delta_use_adds_separate_objective() -> Result<()> {
-        let variables = Arc::new(Variables::new());
-        let mut problem = Problem::new(Arc::clone(&variables));
-        let delta = problem.add_delta(
-            "shared-delta".to_string(),
-            "test".to_string(),
-            "test".to_string(),
-            2,
-        )?;
-
-        assert_eq!(
-            problem.objectives[2]
-                .first()
-                .and_then(|objective| objective.coefficients.get(&delta)),
-            Some(&-1.0)
-        );
-
-        problem.minimize_difference(Expression::from(0.0), 1.0, delta, 2)?;
-        problem.minimize_difference(Expression::from(0.0), 1.0, delta, 2)?;
-
-        assert_eq!(problem.objectives[2].len(), 3);
-        assert!(
-            problem.objectives[2]
-                .iter()
-                .all(|objective| objective.coefficients.get(&delta) == Some(&-1.0))
-        );
-        Ok(())
     }
 }

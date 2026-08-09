@@ -8,12 +8,8 @@ use color_eyre::eyre::{Result, eyre};
 use vizual_macros::display;
 
 use super::{
-    super::{
-        Focus_provider, Widget_trait,
-        custom_widget::{Custom_widget_trait, Shared_custom_widget},
-    },
+    super::{Focus_provider, Shared_widget, Widget_trait, custom_widget::Custom_widget_trait},
     button::Button,
-    full::Full,
     layout::Layout,
 };
 use crate::{
@@ -26,7 +22,7 @@ use crate::{
     layouter::{hitbox::Hitbox, objective::Objective, variable::Variable},
     slot::manager::Slots,
     state::State,
-    sync::Thread_safe,
+    sync::{Mutex, Thread_safe},
     theme::Theme,
     utils::{get_next_index, get_previous_index},
     widget::custom_widget::Selector,
@@ -42,13 +38,24 @@ impl<Choice: Thread_safe, Widget> Menu_item_trait<Choice> for Widget where
 {
 }
 
-pub type Shared_menu_item<Choice> = Shared_custom_widget<dyn Menu_item_trait<Choice>>;
+pub type Shared_menu_item<Choice> = Shared_widget<dyn Menu_item_trait<Choice>>;
 pub type Menu_item_selector<Choice> = Selector<dyn Menu_item_trait<Choice>>;
+
+impl<Choice, Widget> From<Shared_widget<Widget>> for Shared_menu_item<Choice>
+where
+    Choice: Thread_safe,
+    Widget: Menu_item_trait<Choice>,
+{
+    fn from(value: Shared_widget<Widget>) -> Self {
+        let inner: Arc<Mutex<dyn Menu_item_trait<Choice>>> = value.0;
+        Shared_widget(inner)
+    }
+}
 
 pub fn get_selector<Choice: Thread_safe>(
     item: &Shared_menu_item<Choice>,
 ) -> Menu_item_selector<Choice> {
-    Arc::downgrade(item)
+    item.as_reference()
 }
 
 struct Menu_item<Choice: Thread_safe> {
@@ -104,9 +111,7 @@ impl<Choice: Thread_safe> Widget_trait for Menu_item<Choice> {
         let mut button = Button::around(content);
         button.highlighted = self.selected;
         button.delta = Some(self.button_delta);
-        let full = Full::new(display!(button));
-
-        Ok(vec![display!(full)])
+        Ok(vec![display!(button)])
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
@@ -154,7 +159,7 @@ impl<Choice: Thread_safe> Menu<Choice> {
 
         self.items
             .iter()
-            .find(|item| Arc::ptr_eq(item, &selected))
+            .find(|item| item.compare_reference(&selected))
             .cloned()
             .ok_or_else(|| eyre!("Selected menu item is not in the menu"))
     }
@@ -163,7 +168,7 @@ impl<Choice: Thread_safe> Menu<Choice> {
         let selected = self.get_selected_item()?;
         self.items
             .iter()
-            .position(|item| Arc::ptr_eq(item, &selected))
+            .position(|item| item.compare(&selected))
             .ok_or_else(|| eyre!("Selected menu item is not in the menu"))
     }
 
@@ -207,7 +212,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         if !self
             .items
             .iter()
-            .any(|item| Arc::ptr_eq(item, &default_item))
+            .any(|item| item.compare_reference(&default_item))
         {
             return Err(eyre!("Default menu item is not in the menu"));
         }
@@ -218,7 +223,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
 
         for (index, item) in self.items.iter().enumerate() {
             let item = Menu_item {
-                selected: Arc::ptr_eq(item, &selected),
+                selected: item.compare(&selected),
                 widget: item.clone(),
                 menu_selector: self.selected.clone(),
                 button_delta,
@@ -227,14 +232,12 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
             rows.push(slots.set(index as u64, item).await?);
         }
 
-        let layout = display!(Layout::new(
+        Ok(vec![display!(Layout::new(
             Direction::Vertical,
             rows,
             Objective::default(),
             2,
-        ));
-
-        Ok(vec![display!(Full::new(layout))])
+        ))])
     }
 
     async fn render(
@@ -289,19 +292,20 @@ mod tests {
 
     #[test]
     fn selectors_preserve_menu_item_identity() {
-        let item: Shared_menu_item<usize> = Custom_widget_trait::into_shared(Ordinary_menu_item);
+        let item: Shared_menu_item<usize> =
+            Custom_widget_trait::into_shared(Ordinary_menu_item).into();
         let selected = get_selector(&item)
             .upgrade()
             .expect("menu item should still be alive");
 
-        assert!(Arc::ptr_eq(&item, &selected));
+        assert!(item.compare_reference(&selected));
     }
 
     #[test]
     fn selectors_become_stale_after_the_menu_item_is_dropped() {
         let selector = {
             let item: Shared_menu_item<usize> =
-                Custom_widget_trait::into_shared(Ordinary_menu_item);
+                Custom_widget_trait::into_shared(Ordinary_menu_item).into();
             get_selector(&item)
         };
 

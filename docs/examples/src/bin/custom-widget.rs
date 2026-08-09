@@ -9,7 +9,7 @@ use vizual::{
     slot::manager::Slots,
     widget::{
         Focus_provider, Widget_trait,
-        widgets::{full::Full, text::Text},
+        widgets::text::Text,
     },
 };
 use vizual_macros::display;
@@ -33,8 +33,7 @@ impl Widget_trait for Counter {
     ) -> Result<Children> {
         focus.set_active(true);
         let text = Text::new(format!("Count: {} (use ↑ and ↓)", self.value));
-        let full = Full::new(display!(text));
-        Ok(vec![display!(full)])
+        Ok(vec![display!(text)])
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {

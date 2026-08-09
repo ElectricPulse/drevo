@@ -2,13 +2,12 @@ use crate::{
     component::{Child, Children, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{expression::Expression, hitbox::Hitbox},
+    layouter::{expression::Expression, hitbox::Hitbox, objective::minimize},
     slot::manager::Slots,
-    widget::{Focus_provider, Widget_trait, widgets::full::Full},
+    widget::{Focus_provider, General_shared_widget, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::Result;
-use vizual_macros::display;
 
 #[derive(Clone, Copy)]
 pub enum Position {
@@ -23,6 +22,13 @@ pub struct Anchors {
 }
 
 impl Anchors {
+    pub fn top_left() -> Self {
+        Self {
+            horizontal: Some(Position::Start),
+            vertical: Some(Position::Start),
+        }
+    }
+
     pub fn middle() -> Self {
         Self {
             horizontal: Some(Position::Middle),
@@ -32,56 +38,68 @@ impl Anchors {
 }
 
 pub struct Anchor {
-    child: Child,
+    child: General_shared_widget,
     anchors: Anchors,
 }
 
 impl Anchor {
-    pub fn new(child: Child, anchors: Anchors) -> Self {
+    pub fn new(child: General_shared_widget, anchors: Anchors) -> Self {
         Self { child, anchors }
     }
 
-    pub fn center(child: Child) -> Self {
+    pub fn center(child: General_shared_widget) -> Self {
         Self::new(child, Anchors::middle())
     }
 
-    /// Applies the selected anchor while generic layout handles unshared-edge shrink wrapping.
+    /// Applies the selected anchor to the child within this hitbox.
     async fn anchor(
         problem: &Component_context,
-        parent: Hitbox,
-        hitbox: &mut Hitbox,
+        hitbox: Hitbox,
+        child: &Child,
         position: Option<Position>,
         direction: Direction,
     ) -> Result<()> {
+        let child_hitbox = child.get_hitbox().await?;
+        let matches_hitbox = child_hitbox.get_start_position(direction)
+            == hitbox.get_start_position(direction)
+            && child_hitbox.end.get(direction) == hitbox.end.get(direction);
+
+        // This check is needed because even an aligned `Full` should render correctly.
+        if matches_hitbox {
+            return Ok(());
+        }
+
         match position {
             Some(Position::Start) => {
-                hitbox.share_start(parent, problem, direction).await?;
+                child.share_start(hitbox, problem, direction).await?;
             }
             Some(Position::Middle) => {
                 problem
                     .constrain(constraint!(
-                        hitbox.get_start_position(direction)
-                            >= parent.get_start_position(direction)
+                        child_hitbox.get_start_position(direction)
+                            >= hitbox.get_start_position(direction)
                     ))
                     .await?;
                 problem
                     .constrain(constraint!(
-                        hitbox.get_end_position(direction) <= parent.get_end_position(direction)
+                        child_hitbox.get_end_position(direction)
+                            <= hitbox.get_end_position(direction)
                     ))
                     .await?;
 
                 let start_margin = Expression::from(
-                    hitbox.get_start_position(direction) - parent.get_start_position(direction),
+                    child_hitbox.get_start_position(direction)
+                        - hitbox.get_start_position(direction),
                 );
                 let end_margin =
-                    parent.get_end_position(direction) - hitbox.get_end_position(direction);
+                    hitbox.get_end_position(direction) - child_hitbox.get_end_position(direction);
                 problem
                     .constrain(constraint!(start_margin.clone() == end_margin))
                     .await?;
-                problem.minimize(start_margin, 0).await?;
+                minimize(&mut *problem.lock().await?, start_margin, 0)?;
             }
             Some(Position::End) => {
-                hitbox.share_end(parent, problem, direction).await?;
+                child.share_end(hitbox, problem, direction).await?;
             }
             None => {}
         }
@@ -98,15 +116,17 @@ impl Widget_trait for Anchor {
         _theme: crate::state::State<crate::theme::Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
-        parent: Hitbox,
+        _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        let child = slots.set(0, self.child.clone()).await?;
+
         Self::anchor(
             &problem,
-            parent,
-            hitbox,
+            *hitbox,
+            &child,
             self.anchors.horizontal,
             Direction::Horizontal,
         )
@@ -114,14 +134,13 @@ impl Widget_trait for Anchor {
 
         Self::anchor(
             &problem,
-            parent,
-            hitbox,
+            *hitbox,
+            &child,
             self.anchors.vertical,
             Direction::Vertical,
         )
         .await?;
 
-        let full = Full::new(self.child.clone());
-        Ok(vec![display!(full)])
+        Ok(vec![child])
     }
 }

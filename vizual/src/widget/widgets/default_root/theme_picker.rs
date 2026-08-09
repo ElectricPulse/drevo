@@ -4,8 +4,8 @@ use lucide_icons::Icon as Lucide_icon;
 use vizual_macros::display;
 
 use super::super::{
+    anchor::{Anchor, Anchors},
     button::Button,
-    full::Full,
     icon::Icon,
     menu::{Menu, Shared_menu_item, get_selector},
     text::Text,
@@ -62,6 +62,7 @@ impl Custom_widget_trait for Theme_menu_item {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
+        let text = Anchor::new(Widget_trait::into_shared(text).into(), Anchors::top_left());
 
         Ok(vec![display!(text)])
     }
@@ -98,7 +99,6 @@ impl Widget_trait for Theme_picker {
         let icon = Icon::new(Lucide_icon::Settings);
         let button = Button::around(display!(icon));
         let button = display!(button);
-        let button = display!(Full::new(button));
 
         if !*self.open.load() {
             return Ok(vec![button]);
@@ -116,7 +116,7 @@ impl Widget_trait for Theme_picker {
         let items = choices
             .into_iter()
             .map(|choice| -> Shared_menu_item<Theme_choice> {
-                Theme_menu_item { choice }.into_shared()
+                Theme_menu_item { choice }.into_shared().into()
             })
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[selected_index]);

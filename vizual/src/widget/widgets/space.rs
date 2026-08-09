@@ -1,6 +1,6 @@
 use super::super::{Focus_provider, Widget_trait};
 use crate::{
-    component::{Child, Children, context::Component_context},
+    component::{Children, context::Component_context},
     constraint,
     geometry::Direction,
     layouter::{
@@ -9,10 +9,10 @@ use crate::{
         objective::{Delta, Objective},
     },
     slot::manager::Slots,
+    widget::General_shared_widget,
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::container;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Spaces {
@@ -39,7 +39,7 @@ impl Spaces {
 }
 
 pub struct Space {
-    child: Child,
+    child: General_shared_widget,
     spaces: Spaces,
     objective: Objective,
     pub delta: Delta,
@@ -49,7 +49,7 @@ pub struct Space {
 
 impl Space {
     pub fn new(
-        child: Child,
+        child: General_shared_widget,
         left: Option<f64>,
         right: Option<f64>,
         top: Option<f64>,
@@ -71,7 +71,12 @@ impl Space {
         }
     }
 
-    pub fn inline(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn inline(
+        child: General_shared_widget,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(
             child,
             Some(value),
@@ -83,23 +88,48 @@ impl Space {
         )
     }
 
-    pub fn left(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn left(
+        child: General_shared_widget,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(child, Some(value), None, None, None, objective, priority)
     }
 
-    pub fn right(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn right(
+        child: General_shared_widget,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(child, None, Some(value), None, None, objective, priority)
     }
 
-    pub fn top(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn top(
+        child: General_shared_widget,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(child, None, None, Some(value), None, objective, priority)
     }
 
-    pub fn bottom(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn bottom(
+        child: General_shared_widget,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(child, None, None, None, Some(value), objective, priority)
     }
 
-    pub fn uniform(child: Child, value: f64, objective: Objective, priority: usize) -> Self {
+    pub fn uniform(
+        child: General_shared_widget,
+        value: f64,
+        objective: Objective,
+        priority: usize,
+    ) -> Self {
         Self::new(
             child,
             Some(value),
@@ -111,7 +141,7 @@ impl Space {
         )
     }
 
-    pub fn full(child: Child, objective: Objective, priority: usize) -> Self {
+    pub fn full(child: General_shared_widget, objective: Objective, priority: usize) -> Self {
         Self::new(child, None, None, None, None, objective, priority)
     }
 
@@ -153,11 +183,11 @@ impl Widget_trait for Space {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let child = container!(0 => self.child.clone());
+        let child = slots.set(0, self.child.clone()).await?;
         let child_hitbox = child.get_hitbox().await?;
         let spaces = self.spaces;
         let delta = match (self.objective, self.delta, spaces == Spaces::default()) {
-            (Objective::Minimize_difference, None, false) => {
+            (Objective::Minimize_delta, None, false) => {
                 Some(problem.add_delta("space-delta", self.priority).await?)
             }
             (_, delta, _) => delta,

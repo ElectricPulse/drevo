@@ -96,6 +96,14 @@ runtime remains active for asynchronous widget and background work.
   weights for adjusting how relationships scale, while an absolute-difference
   system likely has a place alongside it.
 - Crystalize the relationships between `Widget`, `Shared_widget`, and `Shared_component`
+- Look into removing the `Shared_widget<Concrete>` to `Shared_menu_item<Choice>`
+  conversion shim. It only exists because the `Shared_widget` newtype does not
+  automatically unsize to a trait object; consider making `Shared_widget` a
+  type alias over `Arc<Mutex<T>>` or constructing menu items directly as their
+  erased shared type.
+- Reconsider using `General_shared_widget` as a generic layout-composition
+  escape hatch. Erasing and remounting widgets this way makes it impossible to
+  reliably track which widget owns focus.
 - for no focus components I don't think they need to have stable known lifetime in between
  layout() calls
 

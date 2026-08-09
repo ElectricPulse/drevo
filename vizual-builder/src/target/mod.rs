@@ -18,7 +18,7 @@ use crate::{
 use color_eyre::eyre::{Result, eyre};
 use vizual::{
     sync::{Mutex, Thread_safe},
-    widget::{Generic_shared_widget, Shared_widget, Widget},
+    widget::{Shared_widget, Widget},
 };
 
 pub trait Output_constraints: Thread_safe + Clone {}
@@ -125,7 +125,7 @@ pub type Dependencies = Vec<Dependency>;
 pub struct Target<Output: Output_constraints> {
     metadata: Arc<Mutex<Target_metadata>>,
     task: Arc<Mutex<Task_manager<Output>>>,
-    widget: Option<Generic_shared_widget>,
+    widget: Option<Shared_widget<Widget>>,
 }
 
 impl<Output: Output_constraints> Target<Output> {
@@ -186,7 +186,7 @@ impl<Output: Output_constraints> Target<Output> {
         }
     }
 
-    pub fn set_widget(&mut self, widget: Generic_shared_widget) {
+    pub fn set_widget(&mut self, widget: Shared_widget<Widget>) {
         self.widget = Some(widget)
     }
 
@@ -207,7 +207,7 @@ impl<Output: Output_constraints> Target_trait for Target<Output> {
         Ok(self.metadata.lock().await?.clone())
     }
 
-    fn widget(&self) -> Option<Generic_shared_widget> {
+    fn widget(&self) -> Option<Shared_widget<Widget>> {
         self.widget.clone()
     }
 

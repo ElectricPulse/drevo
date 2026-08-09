@@ -13,8 +13,7 @@ use vizual::{
         Focus_provider, Widget_trait,
         custom_widget::Custom_widget_trait,
         widgets::{
-            anchor::Anchor,
-            full::Full,
+            anchor::{Anchor, Anchors},
             icon::Icon,
             layout::Layout,
             menu::{Menu, Shared_menu_item, get_selector},
@@ -59,16 +58,19 @@ impl Custom_widget_trait for Target_tree_item {
         let metadata = self.target.get_metadata().await?;
 
         let icon = Icon::new(metadata.status.get_icon());
-        let icon = Anchor::center(display!(icon));
+        let icon = Anchor::center(Widget_trait::into_shared(icon).into());
 
         let name = Text::new(metadata.name);
+        let name = Anchor::new(Widget_trait::into_shared(name).into(), Anchors::top_left());
         let mut details = vec![display!(name)];
         if let Some(path) = metadata.path {
             let path = path
                 .strip_prefix(&self.working_directory)
                 .unwrap_or(path.as_path());
             let path = display_relative_path(path);
-            details.push(display!(Text::new(format!("Working directory: {path}"))));
+            let path = Text::new(format!("Working directory: {path}"));
+            let path = Anchor::new(Widget_trait::into_shared(path).into(), Anchors::top_left());
+            details.push(display!(path));
         }
 
         let details = Layout::new(Direction::Vertical, details, Objective::default(), 2);
@@ -79,8 +81,6 @@ impl Custom_widget_trait for Target_tree_item {
             Objective::default(),
             2,
         );
-
-        let row = Full::new(display!(row));
 
         Ok(vec![display!(row)])
     }
@@ -110,7 +110,9 @@ impl Widget_trait for Target_tree {
             .await?
             .into_iter()
             .map(|target| -> Shared_menu_item<Dependency> {
-                Target_tree_item::new(target, self.working_directory.clone()).into_shared()
+                Target_tree_item::new(target, self.working_directory.clone())
+                    .into_shared()
+                    .into()
             })
             .collect::<Vec<_>>();
 
@@ -120,7 +122,6 @@ impl Widget_trait for Target_tree {
                 .expect("target tree must contain its root target"),
         );
         let menu = Menu::new(targets, default_target, render);
-        let menu = Full::new(display!(menu));
 
         Ok(vec![display!(menu)])
     }

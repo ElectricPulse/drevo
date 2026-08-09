@@ -5,7 +5,6 @@ use vizual_macros::display;
 use super::{
     super::{Focus_provider, Widget_trait},
     block::Block,
-    full::Full,
     space::Space,
 };
 use crate::{
@@ -57,12 +56,15 @@ impl Widget_trait for Paper {
         slots: &mut Slots,
     ) -> Result<Children> {
         let style = self.style.get(&theme);
-        let space = Space::uniform(self.child.clone(), style.padding, Objective::default(), 2);
+        let space = Space::uniform(
+            self.child.clone().into_shared().into(),
+            style.padding,
+            Objective::default(),
+            2,
+        );
 
         let mut block = Block::new(display!(space));
         block.style.set(style.block);
-        let full = Full::new(display!(block));
-
-        Ok(vec![display!(full)])
+        Ok(vec![display!(block)])
     }
 }

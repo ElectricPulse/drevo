@@ -6,8 +6,7 @@ use uuid::Uuid;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Shared_widget, Widget, Widget_trait},
-    full::Full,
+    super::{Focus_provider, General_shared_widget, Shared_widget, Widget_trait},
     layout::Layout,
 };
 use crate::{
@@ -89,10 +88,10 @@ impl Tab_bar {
         }
     }
 
-    async fn get_selected(&mut self) -> Option<Widget> {
+    fn get_selected(&self) -> Option<General_shared_widget> {
         let index = self.find_id(*self.selected_page.load())?;
 
-        Some(self.pages[index].tab.specification.widget.get().await)
+        Some(self.pages[index].tab.specification.widget.clone())
     }
 }
 
@@ -124,9 +123,7 @@ impl Widget_trait for Tab_bar {
         }
 
         let layout = Layout::new(Direction::Horizontal, buttons, Objective::default(), 2);
-        let full = Full::new(display!(layout));
-
-        Ok(vec![display!(full)])
+        Ok(vec![display!(layout)])
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
@@ -184,15 +181,13 @@ impl Widget_trait for Tabs {
         let header = self.header.clone();
         let mut elements = vec![display!(header)];
         {
-            let selected = self.header.lock().await?.get_selected().await;
+            let selected = self.header.lock().await?.get_selected();
             if let Some(widget) = selected {
                 elements.push(display!(widget));
             }
         }
 
         let layout = Layout::new(Direction::Vertical, elements, Objective::default(), 2);
-        let full = Full::new(display!(layout));
-
-        Ok(vec![display!(full)])
+        Ok(vec![display!(layout)])
     }
 }

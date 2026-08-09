@@ -101,16 +101,8 @@ impl Component_context {
         Ok(())
     }
 
-    pub async fn maximize(&self, expression: Expression, priority: usize) -> Result<()> {
-        self.lock().await?.maximize(expression, priority)
-    }
-
-    pub async fn minimize(&self, expression: Expression, priority: usize) -> Result<()> {
-        self.lock().await?.minimize(expression, priority)
-    }
-
     #[track_caller]
-    pub async fn minimize_difference(
+    pub async fn minimize_delta(
         &self,
         expression: impl Into<Expression>,
         target: f64,
@@ -129,6 +121,6 @@ impl Component_context {
                 priority,
             )?,
         };
-        problem.minimize_difference(expression, target, delta, priority)
+        problem.minimize_delta(expression, target, delta, priority)
     }
 }

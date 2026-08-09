@@ -3,7 +3,11 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{super::Focus_provider, text::Text},
+    super::{
+        super::{Focus_provider, Widget_trait},
+        anchor::{Anchor, Anchors},
+        text::Text,
+    },
     Menu, Shared_menu_item, get_selector,
 };
 use crate::{
@@ -54,6 +58,7 @@ impl Custom_widget_trait for Boolean_menu_item {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
+        let text = Anchor::new(Widget_trait::into_shared(text).into(), Anchors::top_left());
 
         Ok(vec![display!(text)])
     }
@@ -63,7 +68,9 @@ impl Menu<bool> {
     pub fn boolean(default: bool, render: crate::Render) -> Self {
         let items = [false, true]
             .into_iter()
-            .map(|value| -> Shared_menu_item<bool> { Boolean_menu_item { value }.into_shared() })
+            .map(|value| -> Shared_menu_item<bool> {
+                Boolean_menu_item { value }.into_shared().into()
+            })
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[usize::from(default)]);
 

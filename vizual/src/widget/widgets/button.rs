@@ -4,8 +4,8 @@ use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Widget_trait},
+    anchor::{Anchor, Anchors},
     block::Block,
-    full::Full,
     space::Space,
     text::Text,
 };
@@ -79,9 +79,10 @@ impl Widget_trait for Button {
                     true => theme.load().specific.text.selected_subtitle,
                     false => theme.load().specific.text.subtitle,
                 });
-                display!(text)
+                let text = Anchor::new(text.into_shared().into(), Anchors::top_left());
+                text.into_shared().into()
             }
-            Button_content::Child(content) => content.clone(),
+            Button_content::Child(content) => content.clone().into_shared().into(),
         };
 
         let mut space = Space::uniform(
@@ -94,9 +95,8 @@ impl Widget_trait for Button {
 
         let mut block = Block::new(display!(space));
         block.highlighted = self.highlighted;
-        let full = Full::new(display!(block));
 
-        Ok(vec![display!(full)])
+        Ok(vec![display!(block)])
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {

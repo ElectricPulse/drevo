@@ -1,4 +1,4 @@
-use super::{expression::Expression, hitbox::Hitbox};
+use super::{expression::Expression, hitbox::Hitbox, objective::minimize};
 use crate::{
     component::Child, component::context::Component_context, config::MAXIMUM_LAYOUT_VALUE,
     constraint, geometry::Direction,
@@ -31,22 +31,11 @@ pub async fn shrink_wrap(
         child_hitboxes.push(child.get_hitbox().await?);
     }
 
-    // A full child defines the component's normal bounds. Additional children can then overflow
-    // those bounds as overlays instead of making the full child grow around them.
-    let shrink_start = !child_hitboxes
-        .iter()
-        .any(|child| child.get_start_position(direction) == hitbox.get_start_position(direction));
-    let shrink_end = !child_hitboxes
-        .iter()
-        .any(|child| child.end.get(direction) == hitbox.end.get(direction));
-
     let mut constrained_start = false;
     let mut constrained_end = false;
 
     for child_hitbox in child_hitboxes {
-        if shrink_start
-            && child_hitbox.get_start_position(direction) != hitbox.get_start_position(direction)
-        {
+        if child_hitbox.get_start_position(direction) != hitbox.get_start_position(direction) {
             problem
                 .constrain(
                     constraint!(
@@ -58,7 +47,7 @@ pub async fn shrink_wrap(
                 .await?;
             constrained_start = true;
         }
-        if shrink_end && child_hitbox.end.get(direction) != hitbox.end.get(direction) {
+        if child_hitbox.end.get(direction) != hitbox.end.get(direction) {
             problem
                 .constrain(
                     constraint!(
@@ -74,13 +63,16 @@ pub async fn shrink_wrap(
 
     if constrained_start {
         problem
-            .maximize(Expression::from(hitbox.get_start_position(direction)), 0)
-            .await?;
+            .lock()
+            .await?
+            .maximize(Expression::from(hitbox.get_start_position(direction)), 0)?;
     }
     if constrained_end {
-        problem
-            .minimize(hitbox.get_end_position(direction), 0)
-            .await?;
+        minimize(
+            &mut *problem.lock().await?,
+            hitbox.get_end_position(direction),
+            0,
+        )?;
     }
 
     Ok(())

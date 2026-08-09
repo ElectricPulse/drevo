@@ -13,7 +13,7 @@ use vizual::{
         Focus_provider, Shared_widget, Widget_trait,
         custom_widget::Custom_widget_trait,
         widgets::{
-            full::Full,
+            anchor::{Anchor, Anchors},
             layout::Layout,
             menu::{Menu, Shared_menu_item, get_selector},
             text::Text,
@@ -58,6 +58,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Default_leaf_value<Value> {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
+        let text = Anchor::new(Widget_trait::into_shared(text).into(), Anchors::top_left());
 
         Ok(vec![display!(text)])
     }
@@ -102,6 +103,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
+        let title = Anchor::new(Widget_trait::into_shared(title).into(), Anchors::top_left());
         let field = self.field.clone();
         let contents = match selected {
             true => vec![display!(title), display!(field)],
@@ -129,9 +131,10 @@ impl<Value: Clone + Thread_safe> Optional_setting<Value> {
             label: default_value.into(),
             value: PhantomData,
         }
-        .into_shared();
+        .into_shared()
+        .into();
         let custom_item: Shared_menu_item<Option<Value>> =
-            Custom_leaf_value { field }.into_shared();
+            Custom_leaf_value { field }.into_shared().into();
         let items = vec![default_item, custom_item];
         let default_item = get_selector(&items[usize::from(!is_default)]);
         let menu = Widget_trait::into_shared(Menu::new(items, default_item, render));
@@ -154,9 +157,7 @@ impl<Value: Clone + Thread_safe> Widget_trait for Optional_setting<Value> {
         slots: &mut Slots,
     ) -> Result<Children> {
         let menu = self.menu.clone();
-        let full = Full::new(display!(menu));
-
-        Ok(vec![display!(full)])
+        Ok(vec![display!(menu)])
     }
 }
 

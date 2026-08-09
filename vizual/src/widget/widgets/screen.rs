@@ -10,7 +10,6 @@ use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Shared_widget, Widget_trait},
-    full::Full,
     text_viewport::Text_viewport,
     title_block::Title_block,
 };
@@ -330,9 +329,7 @@ impl Widget_trait for Screen {
         };
 
         let block = Title_block::new(display!(self.content.clone()), title);
-        let full = Full::new(display!(block));
-
-        Ok(vec![display!(full)])
+        Ok(vec![display!(block)])
     }
 
     async fn on_key_press(&mut self, event: &Key_event) -> Result<Vizual_msg> {

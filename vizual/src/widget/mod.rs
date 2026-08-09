@@ -3,7 +3,7 @@ pub mod widgets;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use tokio::sync::mpsc;
 
 use crate::{
@@ -27,11 +27,6 @@ pub type Widget = Box<dyn Widget_trait>;
 pub struct Focus_provider {
     focused: bool,
     active: bool,
-}
-
-#[async_trait]
-pub trait Shared_widget_trait: Thread_safe {
-    async fn get(&mut self) -> Widget;
 }
 
 impl Focus_provider {
@@ -145,8 +140,8 @@ pub trait Widget_trait: Thread_safe {
 }
 
 // Basically a cloneable widget
-pub type Generic_shared_widget = Shared_widget<Widget>;
-pub struct Shared_widget<T: Widget_trait>(Arc<Mutex<T>>);
+pub type General_shared_widget = Shared_widget<dyn Widget_trait>;
+pub struct Shared_widget<T: Thread_safe + ?Sized>(Arc<Mutex<T>>);
 
 #[async_trait]
 impl Widget_trait for Widget {
@@ -206,7 +201,7 @@ impl Widget_trait for Widget {
     }
 }
 
-impl<T: Widget_trait> Clone for Shared_widget<T> {
+impl<T: Thread_safe + ?Sized> Clone for Shared_widget<T> {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
@@ -215,7 +210,7 @@ impl<T: Widget_trait> Clone for Shared_widget<T> {
 #[async_trait]
 impl<T, Value> Retrieve_handler<Value> for Shared_widget<T>
 where
-    T: Widget_trait + Retrieve_handler<Value>,
+    T: Retrieve_handler<Value> + Thread_safe + ?Sized,
     Value: Thread_safe,
 {
     async fn on_retrieve(&mut self) -> Result<Value> {
@@ -223,25 +218,32 @@ where
     }
 }
 
-impl<T: Widget_trait> Shared_widget<T> {
+impl<T: Thread_safe> Shared_widget<T> {
     pub(crate) fn new(value: T) -> Self {
         Self(Arc::new(Mutex::new(value)))
     }
+}
 
+impl<T: Thread_safe + ?Sized> Shared_widget<T> {
     pub async fn lock(&self) -> Result<MutexGuard<'_, T>> {
         self.0.lock().await
     }
-}
 
-#[async_trait]
-impl<T: Widget_trait> Shared_widget_trait for Shared_widget<T> {
-    async fn get(&mut self) -> Widget {
-        Box::new(self.clone())
+    pub fn as_reference(&self) -> Weak<Mutex<T>> {
+        Arc::downgrade(&self.0)
+    }
+
+    pub fn compare(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+
+    pub fn compare_reference(&self, other: &Arc<Mutex<T>>) -> bool {
+        Arc::ptr_eq(&self.0, other)
     }
 }
 
 #[async_trait]
-impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
+impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
     async fn layout(
         &mut self,
         render: Render,
@@ -309,7 +311,14 @@ impl<T: Widget_trait> Widget_trait for Shared_widget<T> {
     }
 }
 
-impl<T: Widget_trait> From<Shared_widget<T>> for Widget {
+impl<T: Widget_trait> From<Shared_widget<T>> for General_shared_widget {
+    fn from(value: Shared_widget<T>) -> Self {
+        let inner: Arc<Mutex<dyn Widget_trait>> = value.0;
+        Self(inner)
+    }
+}
+
+impl<T: Widget_trait + ?Sized> From<Shared_widget<T>> for Widget {
     fn from(value: Shared_widget<T>) -> Self {
         Box::new(value)
     }

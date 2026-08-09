@@ -6,11 +6,7 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{
-    Data, DeriveInput, Expr, Fields, Member, Token, Type,
-    parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote,
-};
+use syn::{Data, DeriveInput, Expr, Fields, Member, Type, parse_macro_input, parse_quote};
 
 /// Sets a child in a unique slot and returns it enclosed in a slotted `Full`, assuming the slot
 /// manager is named `slots`.
@@ -28,44 +24,6 @@ pub fn display(input: TokenStream) -> TokenStream {
                 )
                 .await?
         }
-    }
-    .into()
-}
-
-struct Container_input {
-    id: Option<Expr>,
-    child: Expr,
-}
-
-impl Parse for Container_input {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let first = input.parse()?;
-        if input.peek(Token![=>]) {
-            let _ = input.parse::<Token![=>]>()?;
-            Ok(Self {
-                id: Some(first),
-                child: input.parse()?,
-            })
-        } else {
-            Ok(Self {
-                id: None,
-                child: first,
-            })
-        }
-    }
-}
-
-/// Sets a widget in a slot without enclosing it in `Full`. An explicit slot ID can be supplied as
-/// `id => widget` for repeated call sites such as loops.
-#[proc_macro]
-pub fn container(input: TokenStream) -> TokenStream {
-    let Container_input { id, child } = parse_macro_input!(input as Container_input);
-    let id = id
-        .map(|id| quote!(#id))
-        .unwrap_or_else(|| quote!(::vizual::id!()));
-
-    quote! {
-        slots.set(#id, #child).await?
     }
     .into()
 }

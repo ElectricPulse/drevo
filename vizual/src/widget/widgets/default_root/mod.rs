@@ -2,10 +2,14 @@ pub mod header;
 mod theme_picker;
 
 use color_eyre::eyre::Result;
-use vizual_macros::{container, display};
+use vizual_macros::display;
 
 use self::header::Header;
-use super::{layout::Layout, paper::Paper};
+use super::{
+    anchor::{Anchor, Anchors},
+    layout::Layout,
+    paper::Paper,
+};
 use crate::{
     component::{Children, context::Component_context},
     geometry::Direction,
@@ -47,7 +51,7 @@ impl<T: Widget_trait> Widget_trait for Default_root<T> {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let widget = container!(self.widget.clone());
+        let widget = Anchor::new(self.widget.clone().into(), Anchors::top_left());
 
         let body = Paper::new(display!(widget));
 

@@ -1,9 +1,9 @@
-use std::sync::{Arc, Weak};
+use std::sync::Weak;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-use super::{Focus_provider, Widget_trait};
+use super::{Focus_provider, Shared_widget, Widget_trait};
 use crate::{
     Render,
     component::{Children, context::Component_context},
@@ -16,8 +16,8 @@ use crate::{
 };
 
 pub type Selector<T> = Weak<Mutex<T>>;
-pub type Shared_custom_widget<T> = Arc<Mutex<T>>;
 
+// TODO: Merge Custom_widget_trait into Widget_trait once payload-based layout is supported there.
 #[async_trait]
 pub trait Custom_widget_trait: Thread_safe {
     type Payload: Thread_safe;
@@ -35,11 +35,11 @@ pub trait Custom_widget_trait: Thread_safe {
         payload: Self::Payload,
     ) -> Result<Children>;
 
-    fn into_shared(self) -> Shared_custom_widget<Self>
+    fn into_shared(self) -> Shared_widget<Self>
     where
         Self: Sized,
     {
-        Arc::new(Mutex::new(self))
+        Shared_widget::new(self)
     }
 }
 
