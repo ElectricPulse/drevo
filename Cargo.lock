@@ -3062,6 +3062,7 @@ dependencies = [
  "async-trait",
  "color-eyre",
  "derive-where",
+ "dyn-clone",
  "indexmap",
  "serde",
  "serde-saphyr",

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual_macros::display;
@@ -22,7 +20,6 @@ use crate::{
     layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
-    sync::Mutex,
     theme::Theme,
     widget::custom_widget::Custom_widget_trait,
 };
@@ -54,6 +51,7 @@ impl Popup_options {
     }
 }
 
+#[derive(Clone)]
 struct Popup_menu_item {
     option: Popup_options,
 }
@@ -92,14 +90,13 @@ impl Custom_widget_trait for Popup_menu_item {
     }
 }
 
-struct Popup_submit_handler<Subhandler> {
-    subhandler: Subhandler,
+#[derive(Clone)]
+struct Popup_submit_handler {
+    subhandler: Box<dyn Submit_handler<bool>>,
 }
 
 #[async_trait]
-impl<Subhandler: Submit_handler<bool>> Submit_handler<Popup_options>
-    for Popup_submit_handler<Subhandler>
-{
+impl Submit_handler<Popup_options> for Popup_submit_handler {
     async fn on_submit(&mut self, option: Option<Popup_options>) -> Result<Vizual_msg> {
         let Some(option) = option else {
             return Vizual_msg::new(Vizual_command::Layout);
@@ -112,29 +109,24 @@ impl<Subhandler: Submit_handler<bool>> Submit_handler<Popup_options>
     }
 }
 
-type Shared_popup_submit_handler = Arc<Mutex<dyn Submit_handler<Popup_options>>>;
-
 #[derive(Clone)]
 struct Popup_button_handler {
     menu: Shared_widget<Menu<Popup_options>>,
-    submit_handler: Shared_popup_submit_handler,
+    submit_handler: Box<dyn Submit_handler<Popup_options>>,
 }
 
 #[async_trait]
 impl Submit_handler<String> for Popup_button_handler {
     async fn on_submit(&mut self, _label: Option<String>) -> Result<Vizual_msg> {
         let option = self.menu.on_retrieve().await?;
-        self.submit_handler
-            .lock()
-            .await?
-            .on_submit(Some(option))
-            .await
+        self.submit_handler.on_submit(Some(option)).await
     }
 }
 
+#[derive(Clone)]
 pub struct Popup {
     menu: Shared_widget<Menu<Popup_options>>,
-    submit_handler: Shared_popup_submit_handler,
+    submit_handler: Box<dyn Submit_handler<Popup_options>>,
 }
 
 impl Popup {
@@ -147,10 +139,10 @@ impl Popup {
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[0]);
         let menu = Widget_trait::into_shared(Menu::new(items, default_item, render));
-        let submit_handler: Shared_popup_submit_handler =
-            Arc::new(Mutex::new(Popup_submit_handler {
-                subhandler: submit_handler,
-            }));
+        let submit_handler: Box<dyn Submit_handler<Popup_options>> =
+            Box::new(Popup_submit_handler {
+                subhandler: Box::new(submit_handler),
+            });
 
         Self {
             menu,

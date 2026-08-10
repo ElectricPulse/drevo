@@ -26,6 +26,7 @@ use crate::{
     theme::Theme,
 };
 
+#[derive(Clone)]
 struct Text_input_content {
     input: String,
     cursor: usize,
@@ -34,6 +35,7 @@ struct Text_input_content {
     focused: Arc<AtomicBool>,
 }
 
+#[derive(Clone)]
 pub struct Text_input {
     title: String,
     input: String,

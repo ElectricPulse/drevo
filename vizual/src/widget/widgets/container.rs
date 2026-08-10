@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use color_eyre::Result;
+use vizual_macros::display;
 
-use super::super::{Focus_provider, General_widget, General_widget_trait, Widget_trait};
+use super::super::{Focus_provider, Widget, Widget_trait};
 use crate::{
     component::{Children, context::Component_context},
     layouter::hitbox::Hitbox,
@@ -11,11 +12,11 @@ use crate::{
 /// Gives a child an independent intermediate hitbox.
 #[derive(Clone)]
 pub struct Container {
-    child: General_widget,
+    child: Widget,
 }
 
 impl Container {
-    pub fn new(child: impl General_widget_trait) -> Self {
+    pub fn new(child: impl Widget_trait) -> Self {
         Self {
             child: Box::new(child),
         }
@@ -35,7 +36,6 @@ impl Widget_trait for Container {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let child = slots.set(0, self.child.clone()).await?;
-        Ok(vec![child])
+        Ok(vec![display!(self.child.clone())])
     }
 }

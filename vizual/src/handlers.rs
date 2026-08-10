@@ -4,9 +4,11 @@ use color_eyre::eyre::Result;
 use crate::{Vizual_command, Vizual_msg, sync::Thread_safe};
 
 #[async_trait]
-pub trait Submit_handler<T: Thread_safe>: Thread_safe {
+pub trait Submit_handler<T: Thread_safe>: Thread_safe + dyn_clone::DynClone {
     async fn on_submit(&mut self, index: Option<T>) -> Result<Vizual_msg>;
 }
+
+dyn_clone::clone_trait_object!(<T> Submit_handler<T> where T: Thread_safe);
 
 #[derive(Clone)]
 pub struct Command_submit_handler {
@@ -27,6 +29,8 @@ impl<T: Thread_safe> Submit_handler<T> for Command_submit_handler {
 }
 
 #[async_trait]
-pub trait Retrieve_handler<Value>: Thread_safe {
+pub trait Retrieve_handler<Value>: Thread_safe + dyn_clone::DynClone {
     async fn on_retrieve(&mut self) -> Result<Value>;
 }
+
+dyn_clone::clone_trait_object!(<Value> Retrieve_handler<Value>);

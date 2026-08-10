@@ -11,6 +11,7 @@ async-recursion = "1.1.1"
 async-trait = "0.1.89"
 color-eyre = "0.6.5"
 derive-where.workspace = true
+dyn-clone = "1.0.20"
 indexmap = "2.13.0"
 serde = "1.0.228"
 serde-saphyr = "0.0.8"

@@ -4,7 +4,7 @@ use good_lp::VariableDefinition;
 use super::{PRIORITY_LEVELS, Problem, expression::Expression, variable::Variable};
 use crate::{component::context::Component_context, constraint};
 
-pub type Delta = Option<Variable>;
+pub type Delta = Variable;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Objective {
@@ -70,7 +70,7 @@ impl Problem {
         &mut self,
         expression: impl Into<Expression>,
         target: f64,
-        delta: Variable,
+        delta: Delta,
         priority: usize,
     ) -> Result<()> {
         ensure!(
@@ -93,7 +93,7 @@ impl Problem {
         path: String,
         component_path: String,
         priority: usize,
-    ) -> Result<Variable> {
+    ) -> Result<Delta> {
         let delta = self.variables.add(
             VariableDefinition::new().min(0).max(1).name(name.clone()),
             name,

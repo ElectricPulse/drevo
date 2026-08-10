@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, eyre};
+use derive_where::derive_where;
 use std::marker::PhantomData;
 use vizual::{
     component::{Children, context::Component_context},
@@ -25,6 +26,7 @@ use vizual_macros::display;
 
 use crate::Field;
 
+#[derive_where(Clone)]
 struct Default_leaf_value<Value: Thread_safe> {
     label: String,
     value: PhantomData<Value>,
@@ -64,6 +66,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Default_leaf_value<Value> {
     }
 }
 
+#[derive_where(Clone)]
 struct Custom_leaf_value<Value: Thread_safe> {
     field: Shared_widget<Box<dyn Field<Value>>>,
 }
@@ -115,6 +118,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
     }
 }
 
+#[derive_where(Clone)]
 pub struct Optional_setting<Value: Clone + Thread_safe> {
     menu: Shared_widget<Menu<Option<Value>>>,
 }

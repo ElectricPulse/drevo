@@ -4,7 +4,7 @@ use vizual::widget::{Shared_widget, Widget, widgets::screen::Screen};
 use async_trait::async_trait;
 use std::path::PathBuf;
 
-#[derive(vizual_macros::Widget_trait)]
+#[derive(Clone, vizual_macros::Widget_trait)]
 #[widget_trait(field = widget)]
 pub(crate) struct Task {
     pub(super) command: String,

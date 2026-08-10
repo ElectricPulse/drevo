@@ -4,7 +4,7 @@ use crate::{
     geometry::Direction,
     layouter::{expression::Expression, hitbox::Hitbox, objective::minimize},
     slot::manager::Slots,
-    widget::{Focus_provider, General_widget, General_widget_trait, Widget_trait},
+    widget::{Focus_provider, Widget, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::Result;
@@ -41,19 +41,19 @@ impl Anchors {
 
 #[derive(Clone)]
 pub struct Anchor {
-    child: General_widget,
+    child: Widget,
     anchors: Anchors,
 }
 
 impl Anchor {
-    pub fn new(child: impl General_widget_trait, anchors: Anchors) -> Self {
+    pub fn new(child: impl Widget_trait, anchors: Anchors) -> Self {
         Self {
             child: Box::new(child),
             anchors,
         }
     }
 
-    pub fn center(child: impl General_widget_trait) -> Self {
+    pub fn center(child: impl Widget_trait) -> Self {
         Self::new(child, Anchors::middle())
     }
 

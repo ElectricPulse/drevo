@@ -30,6 +30,7 @@ fn label(choice: Theme_choice) -> &'static str {
     }
 }
 
+#[derive(Clone)]
 struct Theme_menu_item {
     choice: Theme_choice,
 }

@@ -89,6 +89,8 @@ runtime remains active for asynchronous widget and background work.
   testing. Decide between cached child scenes and culled rerendering during
   implementation.
 - Make the Vizual Configurator save popup work.
+- Create a dedicated demo of `Alignments` capabilities; the current Vizual
+  Configurator does not fit the concept well enough to demonstrate them.
 - Reconcile the different behavior of `Align` and `Space`. `Space` tries to
   push its child and can enlarge the surrounding area, while `Align` only
   positions its child inside an area that already exists.

@@ -13,6 +13,7 @@ use crate::{
 ///
 /// This component exists so callers do not have to pass `hitbox` and `problem` manually when
 /// calling [`Hitbox::full`] on both layers.
+#[derive(Clone)]
 pub struct Full {
     child: Child,
     width: bool,

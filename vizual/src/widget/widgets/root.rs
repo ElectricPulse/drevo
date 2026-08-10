@@ -1,7 +1,7 @@
 use color_eyre::eyre::Result;
 use vizual_macros::display;
 
-use super::super::{Focus_provider, General_widget, General_widget_trait, Widget_trait};
+use super::super::{Focus_provider, Widget, Widget_trait};
 use crate::{
     component::{Children, context::Component_context},
     event::Key_event,
@@ -9,10 +9,11 @@ use crate::{
     slot::manager::Slots,
 };
 
-pub struct Root(General_widget);
+#[derive(Clone)]
+pub struct Root(Widget);
 
 impl Root {
-    pub fn new(widget: impl General_widget_trait) -> Self {
+    pub fn new(widget: impl Widget_trait) -> Self {
         Self(Box::new(widget))
     }
 }

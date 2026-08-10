@@ -6,7 +6,7 @@ use uuid::Uuid;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, General_widget, Shared_widget, Widget_trait},
+    super::{Focus_provider, Shared_widget, Widget, Widget_trait},
     layout::Layout,
     positioning::anchor::{Anchor, Anchors},
 };
@@ -25,6 +25,7 @@ use crate::{
 use self::tab::{Tab, Tab_specification};
 use crate::utils;
 
+#[derive(Clone)]
 pub struct Tabs {
     header: Shared_widget<Tab_bar>,
 }
@@ -49,11 +50,13 @@ impl Tabs {
     }
 }
 
+#[derive(Clone)]
 struct Page {
     slot: Component_slot,
     tab: Tab,
 }
 
+#[derive(Clone)]
 struct Tab_bar {
     selected_page: State<Uuid>,
     pages: Vec<Page>,
@@ -89,7 +92,7 @@ impl Tab_bar {
         }
     }
 
-    fn get_selected(&self) -> Option<General_widget> {
+    fn get_selected(&self) -> Option<Widget> {
         let index = self.find_id(*self.selected_page.load())?;
 
         Some(self.pages[index].tab.specification.widget.clone())

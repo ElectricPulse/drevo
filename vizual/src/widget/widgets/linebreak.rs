@@ -15,6 +15,7 @@ use crate::{
     widget::{Focus_provider, Widget_trait, widgets::full::Full},
 };
 
+#[derive(Clone, Copy)]
 pub struct Linebreak;
 
 impl Linebreak {
@@ -43,6 +44,7 @@ impl Widget_trait for Linebreak {
     }
 }
 
+#[derive(Clone, Copy)]
 struct Linebreak_unsized;
 
 #[async_trait]

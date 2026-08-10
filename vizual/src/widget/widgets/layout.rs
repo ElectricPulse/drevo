@@ -24,6 +24,7 @@ impl From<Theme> for Layout_style {
     }
 }
 
+#[derive(Clone)]
 pub struct Layout {
     direction: Direction,
     elements: Vec<Child>,
@@ -109,12 +110,7 @@ impl Widget_trait for Layout {
 
         if elements.len() >= 2 {
             let Layout_style::Gap(gap) = self.style.get(&theme);
-            let gap_delta = match self.objective {
-                Objective::Minimize_delta => {
-                    Some(problem.add_delta("layout-gap-delta", self.priority).await?)
-                }
-                Objective::Maximize | Objective::Minimize => None,
-            };
+            let gap_delta = problem.add_delta("layout-gap-delta", self.priority).await?;
 
             for pair in elements.windows(2) {
                 let [previous, current] = pair else {

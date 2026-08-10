@@ -1,4 +1,3 @@
-use super::super::{Focus_provider, Widget_trait};
 use crate::{
     component::{Children, context::Component_context},
     constraint,
@@ -9,10 +8,11 @@ use crate::{
         objective::{Delta, Objective},
     },
     slot::manager::Slots,
-    widget::{General_widget, General_widget_trait},
+    widget::{Focus_provider, Widget, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use vizual_macros::display;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Spaces {
@@ -40,17 +40,17 @@ impl Spaces {
 
 #[derive(Clone)]
 pub struct Space {
-    child: General_widget,
+    child: Widget,
     spaces: Spaces,
     objective: Objective,
-    pub delta: Delta,
+    pub delta: Option<Delta>,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
 }
 
 impl Space {
     pub fn new(
-        child: impl General_widget_trait,
+        child: impl Widget_trait,
         left: Option<f64>,
         right: Option<f64>,
         top: Option<f64>,
@@ -67,13 +67,13 @@ impl Space {
                 bottom,
             },
             objective,
-            delta: Delta::default(),
+            delta: None,
             priority,
         }
     }
 
     pub fn inline(
-        child: impl General_widget_trait,
+        child: impl Widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -90,7 +90,7 @@ impl Space {
     }
 
     pub fn left(
-        child: impl General_widget_trait,
+        child: impl Widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -99,7 +99,7 @@ impl Space {
     }
 
     pub fn right(
-        child: impl General_widget_trait,
+        child: impl Widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -108,7 +108,7 @@ impl Space {
     }
 
     pub fn top(
-        child: impl General_widget_trait,
+        child: impl Widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -117,7 +117,7 @@ impl Space {
     }
 
     pub fn bottom(
-        child: impl General_widget_trait,
+        child: impl Widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -126,7 +126,7 @@ impl Space {
     }
 
     pub fn uniform(
-        child: impl General_widget_trait,
+        child: impl Widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -142,7 +142,7 @@ impl Space {
         )
     }
 
-    pub fn full(child: impl General_widget_trait, objective: Objective, priority: usize) -> Self {
+    pub fn full(child: impl Widget_trait, objective: Objective, priority: usize) -> Self {
         Self::new(child, None, None, None, None, objective, priority)
     }
 
@@ -151,12 +151,20 @@ impl Space {
         problem: &Component_context,
         space: Expression,
         target: Option<f64>,
-        delta: Delta,
+        delta: &mut Option<Delta>,
     ) -> Result<()> {
         problem.constrain(constraint!(space.clone() >= 0)).await?;
 
         match target {
             Some(target) => {
+                let delta = match *delta {
+                    Some(delta) => delta,
+                    None => {
+                        let new_delta = problem.add_delta("space-delta", self.priority).await?;
+                        *delta = Some(new_delta);
+                        new_delta
+                    }
+                };
                 // TODO: Using 16 as the target for zero-sized space is also a workaround.
                 let target = match target {
                     0.0 => 16.0,
@@ -179,37 +187,30 @@ impl Widget_trait for Space {
         _theme: crate::state::State<crate::theme::Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
-        _parent: Hitbox,
+        parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let child = slots.set(0, self.child.clone()).await?;
-        let child_hitbox = child.get_hitbox().await?;
         let spaces = self.spaces;
-        let delta = match (self.objective, self.delta, spaces == Spaces::default()) {
-            (Objective::Minimize_delta, None, false) => {
-                Some(problem.add_delta("space-delta", self.priority).await?)
-            }
-            (_, delta, _) => delta,
-        };
+        let mut delta = self.delta;
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
             let start_space = Expression::from(
-                child_hitbox.get_start_position(direction) - hitbox.get_start_position(direction),
+                hitbox.get_start_position(direction) - parent.get_start_position(direction),
             );
 
-            self.apply_objective(&problem, start_space, spaces.start(direction), delta)
+            self.apply_objective(&problem, start_space, spaces.start(direction), &mut delta)
                 .await?;
 
             let end_space = Expression::from(
-                hitbox.get_end_position(direction) - child_hitbox.get_end_position(direction),
+                parent.get_end_position(direction) - hitbox.get_end_position(direction),
             );
 
-            self.apply_objective(&problem, end_space, spaces.end(direction), delta)
+            self.apply_objective(&problem, end_space, spaces.end(direction), &mut delta)
                 .await?;
         }
 
-        Ok(vec![child])
+        Ok(vec![display!(self.child.clone())])
     }
 }

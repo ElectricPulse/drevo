@@ -31,7 +31,7 @@ use vizual::{
     theme::Theme,
     utils::get_strings_id,
     widget::{
-        Focus_provider, General_widget, Shared_widget, Widget, Widget_trait,
+        Focus_provider, Shared_widget, Widget, Widget_trait,
         widgets::{
             button::Button,
             grid::Grid,
@@ -39,10 +39,9 @@ use vizual::{
             linebreak::Linebreak,
             popup::Popup,
             positioning::{
-                align::{Align, Alignments},
                 anchor::{Anchor, Anchors, Position as Anchor_position},
+                space::Space,
             },
-            space::Space,
             text::Text,
             title_block::Title_block,
         },
@@ -62,6 +61,8 @@ pub trait Tree: Thread_safe {
 #[async_trait]
 /// A widget field that can return an optional configured value.
 pub trait Field<Value>: Widget_trait + Retrieve_handler<Option<Value>> {}
+
+dyn_clone::clone_trait_object!(<Value> Field<Value>);
 
 #[async_trait]
 impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
@@ -401,6 +402,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
     }
 }
 
+#[derive_where(Clone)]
 pub struct Config_manager<T: Tree> {
     tree: Arc<Mutex<T>>,
     configuration_path: PathBuf,
@@ -417,6 +419,7 @@ struct Configurator_state {
 }
 
 /// A widget editor for a [`Tree`].
+#[derive_where(Clone)]
 pub struct Configurator<T: Tree> {
     tree: Arc<Mutex<T>>,
     configurator_state: Arc<Mutex<Configurator_state>>,
@@ -519,7 +522,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         let cursor = self.configurator_state.lock().await?.cursor.clone();
 
         //TODO: this menu could later be moved into the menu item of the tree to make it clearer
-        let field: Option<General_widget> = {
+        let field: Option<Widget> = {
             let tree = self.tree.lock().await?;
 
             if let Ok(leaf) = tree.get_tree().get_leaf(&cursor) {
@@ -551,14 +554,14 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 vertical: Some(Anchor_position::Start),
             },
         );
-        let mut children: Vec<General_widget> = vec![Box::new(tree_view)];
+        let mut children: Vec<Widget> = vec![Box::new(tree_view)];
 
         if let Some(field) = field {
-            let field = Align::new(
+            let field = Anchor::new(
                 field,
-                Alignments {
-                    horizontal: Some(Objective::Minimize),
-                    vertical: Some(Objective::Minimize),
+                Anchors {
+                    horizontal: Some(Anchor_position::End),
+                    vertical: Some(Anchor_position::Start),
                 },
             );
 

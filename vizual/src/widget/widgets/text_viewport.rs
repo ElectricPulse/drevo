@@ -6,11 +6,25 @@ use crate::{
     text::{Styled_text, Text_brush, Text_window},
 };
 
+// This is complete AI slop.
 pub(crate) struct Text_viewport {
     styled: Styled_text,
     layout: Option<Layout<Text_brush>>,
     viewport: Size,
     offset: Point,
+}
+
+impl Clone for Text_viewport {
+    fn clone(&self) -> Self {
+        Self {
+            styled: self.styled.clone(),
+            // Parley's layout is derived renderer-facing cache, not durable widget state. A clone
+            // keeps the text, viewport, and scroll offset, then rebuilds shaping during render.
+            layout: None,
+            viewport: self.viewport,
+            offset: self.offset,
+        }
+    }
 }
 
 impl Text_viewport {

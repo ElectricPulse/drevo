@@ -1,10 +1,12 @@
-use super::super::{Focus_provider, Widget_trait};
+use super::{
+    super::{Focus_provider, Widget_trait},
+    positioning::space::Space,
+};
 use crate::{
     component::{Child, Children, context::Component_context},
-    constraint,
     display::Display,
-    geometry::{Direction, Rect},
-    layouter::hitbox::Hitbox,
+    geometry::Rect,
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     style::{Color, Style},
@@ -51,33 +53,22 @@ impl Widget_trait for Block {
         _render: crate::Render,
         theme: State<Theme>,
         _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
-        problem: Component_context,
+        _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
-        _slots: &mut Slots,
+        slots: &mut Slots,
     ) -> Result<Children> {
-        let child_hitbox = self.child.get_hitbox().await?;
         let style = self.style.get(&theme);
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
+        let space = Space::uniform(
+            self.child.clone(),
+            border_thickness,
+            Objective::default(),
+            2,
+        );
 
-        for direction in [Direction::Horizontal, Direction::Vertical] {
-            problem
-                .constrain(constraint!(
-                    hitbox.get_dimension(direction)
-                        == child_hitbox.get_dimension(direction) + 2.0 * border_thickness
-                ))
-                .await?;
-
-            problem
-                .constrain(constraint!(
-                    child_hitbox.get_start_position(direction)
-                        == hitbox.get_start_position(direction) + border_thickness
-                ))
-                .await?;
-        }
-
-        Ok(vec![self.child.clone()])
+        Ok(vec![slots.set(0, space).await?])
     }
 
     async fn render(

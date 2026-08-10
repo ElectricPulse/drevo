@@ -7,6 +7,7 @@ use vizual::{
     widget::{Shared_widget, Widget, Widget_trait},
 };
 
+#[derive(Clone, Copy)]
 struct Empty_widget;
 
 impl Widget_trait for Empty_widget {}

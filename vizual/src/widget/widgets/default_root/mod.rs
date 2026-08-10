@@ -17,22 +17,19 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_choice},
-    widget::{Focus_provider, General_widget, General_widget_trait, Widget_trait},
+    widget::{Focus_provider, Widget, Widget_trait},
 };
 
+#[derive(Clone)]
 pub struct Default_root {
     title: String,
-    widget: General_widget,
+    widget: Widget,
     header_open: State<bool>,
     theme_choice: State<Theme_choice>,
 }
 
 impl Default_root {
-    pub fn new(
-        title: impl Into<String>,
-        widget: impl General_widget_trait,
-        render: crate::Render,
-    ) -> Self {
+    pub fn new(title: impl Into<String>, widget: impl Widget_trait, render: crate::Render) -> Self {
         Self {
             title: title.into(),
             widget: Box::new(widget),
@@ -58,8 +55,6 @@ impl Widget_trait for Default_root {
         let widget = Anchor::new(self.widget.clone(), Anchors::top_left());
 
         let body = Paper::new(display!(widget));
-        let body = display!(body);
-        let body = Anchor::new(body, Anchors::top_left());
 
         let header = display!(Header::new(
             self.title.clone(),

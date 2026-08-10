@@ -29,6 +29,8 @@ pub trait Field<Config>: Widget_trait {
     fn submit(&self, config: &mut Config) -> Result<()>;
 }
 
+dyn_clone::clone_trait_object!(<Config> Field<Config>);
+
 #[async_trait]
 impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
     async fn layout(
@@ -89,7 +91,7 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
 
 pub type Shared_field<Config> = Shared_widget<Box<dyn Field<Config>>>;
 
-#[derive_where(Default)]
+#[derive_where(Clone, Default)]
 pub struct Fields<Config: 'static> {
     fields: Vec<Shared_field<Config>>,
 }
@@ -101,8 +103,22 @@ impl<Config: 'static> Fields<Config> {
 }
 
 pub type Submit_future = Pin<Box<dyn Future<Output = Result<()>> + Send>>;
-pub type Submit_callback<Config> = Box<dyn Fn(Config) -> Submit_future + Send + Sync>;
 
+pub trait Submit_callback_trait<Config>:
+    Fn(Config) -> Submit_future + Thread_safe + dyn_clone::DynClone
+{
+}
+
+impl<Config, Callback> Submit_callback_trait<Config> for Callback where
+    Callback: Fn(Config) -> Submit_future + Thread_safe + Clone
+{
+}
+
+dyn_clone::clone_trait_object!(<Config> Submit_callback_trait<Config>);
+
+pub type Submit_callback<Config> = Box<dyn Submit_callback_trait<Config>>;
+
+#[derive(Clone)]
 pub struct Form<Config: Clone + Thread_safe> {
     field_index: usize,
     field_active: bool,
@@ -121,7 +137,7 @@ impl<Config: Clone + Thread_safe> Form<Config> {
         render: crate::Render,
     ) -> Self
     where
-        Submit_fn: Fn(Config) -> Submit_future_impl + Thread_safe,
+        Submit_fn: Fn(Config) -> Submit_future_impl + Thread_safe + Clone,
         Submit_future_impl: Future<Output = Result<()>> + Send + 'static,
     {
         assert!(
@@ -136,7 +152,7 @@ impl<Config: Clone + Thread_safe> Form<Config> {
             exitting: false,
             exit_menu: Menu::boolean(false, render).into_shared(),
             fields,
-            on_submit: Box::new(move |config| Box::pin(on_submit(config))),
+            on_submit: Box::new(move |config| -> Submit_future { Box::pin(on_submit(config)) }),
         }
     }
 }

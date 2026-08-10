@@ -68,7 +68,7 @@ impl Component_context {
     }
 
     #[track_caller]
-    pub async fn add_delta(&self, name: impl Into<String>, priority: usize) -> Result<Variable> {
+    pub async fn add_delta(&self, name: impl Into<String>, priority: usize) -> Result<Delta> {
         let name = name.into();
         let path = Self::path(Location::caller());
         let component_path = self.component_path.join(".");
@@ -109,18 +109,8 @@ impl Component_context {
         delta: Delta,
         priority: usize,
     ) -> Result<()> {
-        let path = Self::path(Location::caller());
-        let component_path = self.component_path.join(".");
-        let mut problem = self.lock().await?;
-        let delta = match delta {
-            Some(delta) => delta,
-            None => problem.add_delta(
-                "minimize-difference-delta".to_string(),
-                path,
-                component_path,
-                priority,
-            )?,
-        };
-        problem.minimize_delta(expression, target, delta, priority)
+        self.lock()
+            .await?
+            .minimize_delta(expression, target, delta, priority)
     }
 }

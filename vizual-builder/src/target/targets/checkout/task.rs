@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use tokio::process::Command;
 use vizual::widget::{Shared_widget, Widget};
 
-#[derive(vizual_macros::Widget_trait)]
+#[derive(Clone, vizual_macros::Widget_trait)]
 #[widget_trait(field = widget)]
 pub(super) struct Task {
     pub(super) repo_path: PathBuf,

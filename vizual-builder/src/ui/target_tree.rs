@@ -26,7 +26,7 @@ use vizual_macros::display;
 use crate::target::Dependency;
 use crate::utils::get_targets;
 
-#[derive(new)]
+#[derive(Clone, new)]
 struct Target_tree_item {
     target: Dependency,
     working_directory: PathBuf,
@@ -88,7 +88,7 @@ impl Custom_widget_trait for Target_tree_item {
     }
 }
 
-#[derive(new)]
+#[derive(Clone, new)]
 pub struct Target_tree {
     root: Dependency,
     selected: State<Option<Dependency>>,

@@ -25,13 +25,6 @@ use super::{Render, Vizual_msg};
 
 pub type Widget = Box<dyn Widget_trait>;
 
-// In the future only elements whose state changed will need to be relayouted that means that a
-// layout() might get called multiple times on a component. In case of something like align where a
-// child is provided and returned - it will need to get returned multiple times - cloned from self.
-// In that case the child of align is General_widget and it either means that the button be in an Arc
-// or button itself just be clonable which is much cleaner and should be preffered.
-pub type General_widget = Box<dyn General_widget_trait>;
-
 pub struct Focus_provider {
     focused: bool,
     active: bool,
@@ -61,7 +54,17 @@ impl Focus_provider {
 
 #[async_trait]
 /// A widget that participates in layout and painting.
-pub trait Widget_trait: Thread_safe {
+///
+/// Widgets are cloneable because components may be created and destroyed regularly during layout.
+/// A wrapper such as `Align` must be able to return a fresh clone of its child whenever its
+/// `layout` method runs. Applications can opt into shared widget identity by wrapping a widget in
+/// [`Shared_widget`], which uses `Arc`-backed shared ownership. State that is inherently shared
+/// across component instances, such as theme state, belongs in [`State`] instead.
+///
+/// This trait uses [`dyn_clone::DynClone`] rather than [`Clone`] directly because `Clone` is not
+/// dyn-compatible. `DynClone` preserves the clone requirement for concrete widgets while allowing
+/// heterogeneous widgets to be stored as `Box<dyn Widget_trait>`.
+pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
     /// Configures this widget's mutable hitbox and returns its visual children.
     ///
     /// A widget can reuse parent variables through [`Hitbox::share_start`],
@@ -147,88 +150,13 @@ pub trait Widget_trait: Thread_safe {
     }
 }
 
-pub trait General_widget_trait: Widget_trait {
-    fn clone_box(&self) -> General_widget;
-}
-
-impl<T> General_widget_trait for T
-where
-    T: Widget_trait + Clone,
-{
-    fn clone_box(&self) -> General_widget {
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for General_widget {
-    fn clone(&self) -> Self {
-        (**self).clone_box()
-    }
-}
+dyn_clone::clone_trait_object!(Widget_trait);
 
 #[derive_where(Clone)]
 pub struct Shared_widget<T: Thread_safe + ?Sized>(Arc<Mutex<T>>);
 
 #[async_trait]
 impl Widget_trait for Widget {
-    async fn layout(
-        &mut self,
-        render: Render,
-        theme: State<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        parent: Hitbox,
-        problem: Component_context,
-        text_context: &mut Text_context,
-        slots: &mut Slots,
-    ) -> Result<Children> {
-        (**self)
-            .layout(
-                render,
-                theme,
-                focus,
-                hitbox,
-                parent,
-                problem,
-                text_context,
-                slots,
-            )
-            .await
-    }
-
-    async fn render(
-        &mut self,
-        theme: State<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: Rect,
-        display: &mut Display<'_>,
-    ) -> Result<Option<Hitbox>> {
-        (**self).render(theme, focus, hitbox, display).await
-    }
-
-    async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
-        (**self).on_all_events(event).await
-    }
-
-    async fn on_mouse_click(&mut self, mouse: &Pointer_event) -> Result<Vizual_msg> {
-        (**self).on_mouse_click(mouse).await
-    }
-
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
-        (**self).on_key_press(key).await
-    }
-
-    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
-        (**self).on_other_event(event).await
-    }
-
-    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
-        (**self).forward_event(event).await
-    }
-}
-
-#[async_trait]
-impl Widget_trait for General_widget {
     async fn layout(
         &mut self,
         render: Render,

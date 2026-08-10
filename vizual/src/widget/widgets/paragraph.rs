@@ -15,7 +15,10 @@ use crate::{
     style::Color,
 };
 
-#[derive(Default)]
+/// Scrollable text whose clones preserve content and scroll position while rebuilding the cached
+/// Parley layout. The cached layout is derived from the active renderer and is intentionally not
+/// shared between regularly recreated paragraph components.
+#[derive(Clone, Default)]
 pub struct Paragraph {
     viewport: Text_viewport,
 }

@@ -20,6 +20,7 @@ use crate::{
     widget::custom_widget::Custom_widget_trait,
 };
 
+#[derive(Clone)]
 struct String_menu_item {
     value: String,
 }

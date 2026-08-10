@@ -16,7 +16,6 @@ pub mod popup;
 pub mod positioning;
 pub mod root;
 pub mod screen;
-pub mod space;
 pub mod tabs;
 pub mod text;
 pub(crate) mod text_viewport;

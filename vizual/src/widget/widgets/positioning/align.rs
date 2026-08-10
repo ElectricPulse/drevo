@@ -12,7 +12,7 @@ use crate::{
         objective::{Objective, minimize},
     },
     slot::manager::Slots,
-    widget::{Focus_provider, General_widget, General_widget_trait, Widget_trait},
+    widget::{Focus_provider, Widget, Widget_trait},
 };
 
 #[derive(Clone)]
@@ -23,12 +23,12 @@ pub struct Alignments {
 
 #[derive(Clone)]
 pub struct Align {
-    child: General_widget,
+    child: Widget,
     alignments: Alignments,
 }
 
 impl Align {
-    pub fn new(child: impl General_widget_trait, alignments: Alignments) -> Self {
+    pub fn new(child: impl Widget_trait, alignments: Alignments) -> Self {
         Self {
             child: Box::new(child),
             alignments,

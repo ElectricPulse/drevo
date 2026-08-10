@@ -5,6 +5,7 @@ use crate::{
 
 use async_trait::async_trait;
 
+#[derive(Clone, Copy)]
 struct Task {}
 
 impl vizual::widget::Widget_trait for Task {}

@@ -3,16 +3,17 @@ use color_eyre::eyre::Result;
 use uuid::Uuid;
 
 use super::super::button::Button;
-use crate::widget::{General_widget, General_widget_trait};
+use crate::widget::{Widget, Widget_trait};
 use crate::{Vizual_command, Vizual_msg, handlers::Submit_handler, state::State};
 
+#[derive(Clone)]
 pub struct Tab_specification {
-    pub widget: General_widget,
+    pub widget: Widget,
     pub name: String,
 }
 
 impl Tab_specification {
-    pub fn new(name: impl Into<String>, widget: impl General_widget_trait) -> Self {
+    pub fn new(name: impl Into<String>, widget: impl Widget_trait) -> Self {
         Self {
             widget: Box::new(widget),
             name: name.into(),
@@ -20,6 +21,7 @@ impl Tab_specification {
     }
 }
 
+#[derive(Clone)]
 pub struct Tab {
     pub specification: Tab_specification,
     pub button: Button,

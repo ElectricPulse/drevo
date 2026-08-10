@@ -20,6 +20,7 @@ use crate::{
     widget::custom_widget::Custom_widget_trait,
 };
 
+#[derive(Clone, Copy)]
 struct Boolean_menu_item {
     value: bool,
 }

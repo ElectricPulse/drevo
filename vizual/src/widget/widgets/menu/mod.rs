@@ -75,7 +75,7 @@ enum Submission<Choice> {
 }
 
 #[async_trait]
-impl<Choice: Thread_safe> Widget_trait for Menu_item<Choice> {
+impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
     async fn layout(
         &mut self,
         render: crate::Render,
@@ -127,6 +127,7 @@ impl<Choice: Thread_safe> Widget_trait for Menu_item<Choice> {
     }
 }
 
+#[derive(Clone)]
 pub struct Menu<Choice: Thread_safe> {
     items: Vec<Shared_menu_item<Choice>>,
     pub selected: State<Menu_item_selector<Choice>>,
@@ -185,7 +186,7 @@ impl<Choice: Thread_safe> Menu<Choice> {
 }
 
 #[async_trait]
-impl<Choice: Thread_safe> Retrieve_handler<Choice> for Menu<Choice> {
+impl<Choice: Thread_safe + Clone> Retrieve_handler<Choice> for Menu<Choice> {
     async fn on_retrieve(&mut self) -> Result<Choice> {
         let item = self.get_selected_item()?;
         let choice = item.lock().await?.on_retrieve().await?;
@@ -274,6 +275,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
 mod tests {
     use super::*;
 
+    #[derive(Clone, Copy)]
     struct Ordinary_menu_item;
 
     #[async_trait]

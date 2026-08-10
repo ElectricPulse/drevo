@@ -36,7 +36,19 @@ use crate::{
 
 // This is an async callback for the sake of being generic and allowing for more than x, y, width,
 // height setting on child.
-pub type Setter = Box<dyn Fn(f64) -> BoxFuture<'static, ()> + Send + Sync>;
+pub trait Setter_callback:
+    Fn(f64) -> BoxFuture<'static, ()> + Send + Sync + dyn_clone::DynClone
+{
+}
+
+impl<Callback> Setter_callback for Callback where
+    Callback: Fn(f64) -> BoxFuture<'static, ()> + Send + Sync + Clone + 'static
+{
+}
+
+dyn_clone::clone_trait_object!(Setter_callback);
+
+pub type Setter = Box<dyn Setter_callback>;
 
 const PRIORITY_LEVELS: usize = 3;
 type Priority_objective = Vec<Expression>;

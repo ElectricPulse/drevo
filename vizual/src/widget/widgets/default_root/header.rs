@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::display;
 
 use super::{
     super::{
@@ -19,6 +18,7 @@ use crate::{
     widget::{Focus_provider, Widget_trait},
 };
 
+#[derive(Clone)]
 pub struct Header {
     name: String,
     open: State<bool>,
@@ -61,6 +61,6 @@ impl Widget_trait for Header {
             },
         );
 
-        Ok(vec![display!(name)])
+        Ok(vec![slots.set(0, name).await?])
     }
 }

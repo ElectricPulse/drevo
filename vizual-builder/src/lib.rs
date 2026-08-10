@@ -17,6 +17,7 @@ use vizual::{
     widget::{Focus_provider, Widget_trait},
 };
 
+#[derive(Clone)]
 pub struct Builder {
     root: Dependency,
     selected_target: State<Option<Dependency>>,

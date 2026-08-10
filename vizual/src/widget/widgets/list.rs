@@ -13,7 +13,7 @@ use crate::{
     utils::{bind_index, get_next_index, get_previous_index},
 };
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct List {
     selected: usize,
     items: Vec<String>,

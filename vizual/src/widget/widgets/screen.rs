@@ -30,6 +30,9 @@ use crate::{
 
 type Text = Arc<ArcSwap<String>>;
 
+/// The process output text is intentionally shared, while each clone gets an independent viewport
+/// whose renderer-derived Parley layout cache is rebuilt on demand.
+#[derive(Clone)]
 struct Screen_content {
     text: Text,
     viewport: Text_viewport,
@@ -37,6 +40,7 @@ struct Screen_content {
     last_text_len: usize,
 }
 
+#[derive(Clone)]
 pub struct Screen {
     command: String,
     text: Text,

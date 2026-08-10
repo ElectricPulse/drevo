@@ -5,7 +5,7 @@ use vizual_macros::display;
 use super::{
     super::{Focus_provider, Widget_trait},
     block::Block,
-    space::Space,
+    positioning::space::Space,
 };
 use crate::{
     component::{Child, Children, context::Component_context},
@@ -22,6 +22,7 @@ pub struct Paper_style {
     pub block: Block_style,
 }
 
+#[derive(Clone)]
 pub struct Paper {
     child: Child,
     pub style: crate::style::Style<Paper_style>,
@@ -57,8 +58,9 @@ impl Widget_trait for Paper {
     ) -> Result<Children> {
         let style = self.style.get(&theme);
         let space = Space::uniform(self.child.clone(), style.padding, Objective::default(), 2);
+        let space = slots.set(0, space).await?;
 
-        let mut block = Block::new(display!(space));
+        let mut block = Block::new(space);
         block.style.set(style.block);
         Ok(vec![display!(block)])
     }

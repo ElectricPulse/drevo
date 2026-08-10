@@ -5,8 +5,10 @@ use vizual_macros::display;
 use super::{
     super::{Focus_provider, Widget_trait},
     block::Block,
-    positioning::anchor::{Anchor, Anchors},
-    space::Space,
+    positioning::{
+        anchor::{Anchor, Anchors},
+        space::Space,
+    },
     text::Text,
 };
 use crate::{
@@ -21,7 +23,7 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::Theme,
-    widget::General_widget,
+    widget::Widget,
 };
 
 #[derive(Clone)]
@@ -30,32 +32,23 @@ enum Button_content {
     Child(Child),
 }
 
-trait Button_handler: Submit_handler<String> + dyn_clone::DynClone {}
-
-impl<Handler> Button_handler for Handler where Handler: Submit_handler<String> + Clone {}
-
-dyn_clone::clone_trait_object!(Button_handler);
-
 #[derive(Clone)]
 pub struct Button {
     content: Button_content,
-    click_handler: Option<Box<dyn Button_handler>>,
+    click_handler: Option<Box<dyn Submit_handler<String>>>,
     pub active: bool,
     pub highlighted: bool,
-    pub delta: Delta,
+    pub delta: Option<Delta>,
 }
 
 impl Button {
-    pub fn new(
-        label: impl Into<String>,
-        click_handler: impl Submit_handler<String> + Clone,
-    ) -> Self {
+    pub fn new(label: impl Into<String>, click_handler: impl Submit_handler<String>) -> Self {
         Self {
             content: Button_content::Label(label.into()),
             click_handler: Some(Box::new(click_handler)),
             active: true,
             highlighted: false,
-            delta: Delta::default(),
+            delta: None,
         }
     }
 
@@ -65,7 +58,7 @@ impl Button {
             click_handler: None,
             active: true,
             highlighted: false,
-            delta: Delta::default(),
+            delta: None,
         }
     }
 }
@@ -83,7 +76,7 @@ impl Widget_trait for Button {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let content: General_widget = match &self.content {
+        let content: Widget = match &self.content {
             Button_content::Label(label) => {
                 let active = self.active;
                 let mut text = Text::new(label.clone());
@@ -104,8 +97,9 @@ impl Widget_trait for Button {
             2,
         );
         space.delta = self.delta;
+        let space = slots.set(0, space).await?;
 
-        let mut block = Block::new(display!(space));
+        let mut block = Block::new(space);
         block.highlighted = self.highlighted;
 
         Ok(vec![display!(block)])

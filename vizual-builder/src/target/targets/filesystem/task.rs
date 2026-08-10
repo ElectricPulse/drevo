@@ -6,6 +6,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+#[derive(Clone)]
 pub(super) struct Copy_file_task {
     pub(super) source: PathBuf,
     pub(super) destination: PathBuf,
@@ -28,6 +29,7 @@ impl task::Task_trait for Copy_file_task {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct Copy_dir_task {
     pub(super) source: PathBuf,
     pub(super) destination: PathBuf,
@@ -70,6 +72,7 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
     Ok(())
 }
 
+#[derive(Clone)]
 pub(super) struct Create_dir_task {
     pub(super) path: PathBuf,
 }
@@ -92,6 +95,7 @@ impl task::Task_trait for Create_dir_task {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct Write_file_task {
     pub(super) path: PathBuf,
     pub(super) content: String,
@@ -126,6 +130,7 @@ impl task::Task_trait for Write_file_task {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct Create_directory_task {
     pub(super) path: PathBuf,
     pub(super) subdirs: Vec<String>,
