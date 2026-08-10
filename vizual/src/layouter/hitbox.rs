@@ -25,7 +25,7 @@ impl Variable_position {
 /// A rectangular layout region stored as independent start and end positions.
 ///
 /// Dimensions are derived from these positions. No blanket `end >= start` constraints are added:
-/// components that enclose an ordered child inherit its ordering through shrink wrapping.
+/// widgets add ordering directly or inherit it through their explicit child relationships.
 #[derive(Clone, Copy)]
 pub struct Hitbox {
     // TODO: add a shape to the hitbox
@@ -140,6 +140,23 @@ impl Hitbox {
                 self.get_dimension(direction) == parent.get_dimension(direction)
             ))
             .await
+    }
+
+    /// Constrains this hitbox to be no larger than its parent on either axis.
+    pub async fn constrain_smaller_than(
+        &self,
+        parent: Hitbox,
+        problem: &Component_context,
+    ) -> Result<()> {
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            problem
+                .constrain(crate::constraint!(
+                    parent.get_dimension(direction) >= self.get_dimension(direction)
+                ))
+                .await?;
+        }
+
+        Ok(())
     }
 
     /// Constrains one derived dimension to a static value.

@@ -3,14 +3,13 @@ pub(crate) mod debug;
 
 use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
-use derive_new::new;
 use std::sync::{Arc, Weak};
 
 use crate::{
     Render,
     focus::Focus,
     geometry::Direction,
-    layouter::{Solution, constraints::shrink_wrap, hitbox::Hitbox},
+    layouter::{Solution, hitbox::Hitbox},
     slot::manager::{Slot_records, Slots},
     state::State,
     sync::{Mutex, MutexGuard},
@@ -40,8 +39,23 @@ pub struct Component {
     pub slot_manager: Slot_records,
 }
 
-#[derive(Clone, new)]
-pub struct Shared_component(Arc<Mutex<Component>>);
+/// A component as attached to its parent.
+///
+/// `layer` belongs to this child relationship rather than the component allocation. This keeps a
+/// component's default layer at zero whenever a slot returns it while allowing callers to adjust
+/// the value immediately after `display!()` or `position!()`.
+#[derive(Clone)]
+pub struct Shared_component {
+    component: Arc<Mutex<Component>>,
+    pub layer: usize,
+}
+
+#[derive(Clone)]
+pub(crate) struct Layered_component {
+    pub component: Shared_component,
+    pub layer: usize,
+    pub tree_order: usize,
+}
 
 #[async_trait::async_trait]
 impl Widget_trait for Shared_component {
@@ -67,16 +81,23 @@ impl From<Shared_component> for Parent {
 }
 
 impl Shared_component {
+    pub fn new(component: Arc<Mutex<Component>>) -> Self {
+        Self {
+            component,
+            layer: 0,
+        }
+    }
+
     pub async fn lock(&self) -> Result<MutexGuard<'_, Component>> {
-        self.0.lock().await
+        self.component.lock().await
     }
 
     pub fn compare(&self, node: &Shared_component) -> bool {
-        Arc::ptr_eq(&self.0, &node.0)
+        Arc::ptr_eq(&self.component, &node.component)
     }
 
     pub fn as_reference(&self) -> Child_reference {
-        Arc::downgrade(&self.0)
+        Arc::downgrade(&self.component)
     }
 
     pub async fn get_hitbox(&self) -> Result<Hitbox> {
@@ -157,7 +178,35 @@ impl Shared_component {
             return false;
         };
 
-        self.compare(&Shared_component(node))
+        self.compare(&Shared_component::new(node))
+    }
+
+    pub(crate) async fn layered_components(&self) -> Result<Vec<Layered_component>> {
+        let mut components = Vec::new();
+        self.collect_layered_components(0, &mut components).await?;
+        Ok(components)
+    }
+
+    #[async_recursion]
+    async fn collect_layered_components(
+        &self,
+        inherited_layer: usize,
+        components: &mut Vec<Layered_component>,
+    ) -> Result<()> {
+        let layer = inherited_layer.max(self.layer);
+        let children = self.lock().await?.children.clone();
+        let tree_order = components.len();
+        components.push(Layered_component {
+            component: self.clone(),
+            layer,
+            tree_order,
+        });
+
+        for child in children {
+            child.collect_layered_components(layer, components).await?;
+        }
+
+        Ok(())
     }
 
     pub async fn layout(
@@ -218,7 +267,6 @@ impl Shared_component {
         render: Render,
         theme: State<Theme>,
         children: Children,
-        parent_hitbox: Hitbox,
         mut problem: Component_context,
         text_context: &mut Text_context,
     ) -> Result<()> {
@@ -246,15 +294,10 @@ impl Shared_component {
                     render.clone(),
                     theme.clone(),
                     grandchildren,
-                    hitbox,
                     problem.clone(),
                     text_context,
                 )
                 .await?;
-        }
-
-        for direction in [Direction::Horizontal, Direction::Vertical] {
-            shrink_wrap(&problem, hitbox, parent_hitbox, &children, direction).await?;
         }
 
         Ok(())
@@ -267,47 +310,109 @@ impl Shared_component {
         display: &mut crate::display::Display<'_>,
         solution: &Solution,
     ) -> Result<()> {
-        // TODO: I think the cloning of children is not necessary here
-        let children = {
-            let mut this = self.lock().await?;
+        let mut components = self.layered_components().await?;
+        components.sort_by_key(|component| (component.layer, component.tree_order));
 
-            let hitbox = this.hitbox.get_resolved(solution);
-            let focused = focus.compare(self);
-            let mut focus = Focus_provider::new(focused);
-            let maybe_hitbox = this
-                .widget
-                .render(theme.clone(), &mut focus, hitbox, display)
+        for mut component in components {
+            component
+                .component
+                .render_component(theme.clone(), focus.clone(), display, solution)
                 .await?;
-            this.focusable = focus.is_active();
+        }
 
-            if let Some(hitbox) = maybe_hitbox {
-                this.hitbox = hitbox;
-            };
-
-            this.children.clone()
-        };
-
-        self.render_children(theme, children, focus, display, solution)
-            .await
+        Ok(())
     }
 
-    #[async_recursion]
-    pub async fn render_children(
+    async fn render_component(
         &mut self,
         theme: State<Theme>,
-        children: Children,
         focus: Focus,
         display: &mut crate::display::Display<'_>,
         solution: &Solution,
     ) -> Result<()> {
-        for mut child in children {
-            child
-                .render(theme.clone(), focus.clone(), display, solution)
-                .await?;
-        }
+        let mut this = self.lock().await?;
+        let hitbox = this.hitbox.get_resolved(solution);
+        let focused = focus.compare(self);
+        let mut focus = Focus_provider::new(focused);
+        let maybe_hitbox = this
+            .widget
+            .render(theme, &mut focus, hitbox, display)
+            .await?;
+        this.focusable = focus.is_active();
+
+        if let Some(hitbox) = maybe_hitbox {
+            this.hitbox = hitbox;
+        };
 
         Ok(())
     }
 }
 
 pub type Child_reference = Weak<Mutex<Component>>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        layouter::{Problem, variables::Variables},
+        widget::Widget_trait,
+    };
+
+    #[derive(Clone)]
+    struct Empty_widget;
+
+    #[async_trait::async_trait]
+    impl Widget_trait for Empty_widget {}
+
+    fn component(name: &str, problem: Component_context) -> Shared_component {
+        Shared_component::new(Arc::new(Mutex::new(Component {
+            name: name.to_string(),
+            debug: Component_debug::new("test".to_string()),
+            hitbox: Hitbox::default(),
+            widget: Box::new(Empty_widget),
+            focusable: false,
+            parent: None,
+            children: Vec::new(),
+            slot_manager: Slot_records::new(problem),
+        })))
+    }
+
+    #[tokio::test]
+    async fn child_layers_are_inherited_by_their_subtrees() -> Result<()> {
+        let variables = Arc::new(Variables::new());
+        let problem = Arc::new(Mutex::new(Problem::new(variables)));
+        let context = Component_context::new(problem);
+
+        let root = component("root", context.clone());
+        let mut layer_two = component("layer-two", context.clone());
+        layer_two.layer = 2;
+        let layer_two_child = component("layer-two-child", context.clone());
+        layer_two.lock().await?.children = vec![layer_two_child];
+
+        let mut layer_one = component("layer-one", context);
+        layer_one.layer = 1;
+        root.lock().await?.children = vec![layer_two, layer_one];
+
+        let components = root.layered_components().await?;
+        assert_eq!(
+            components
+                .iter()
+                .map(|component| component.layer)
+                .collect::<Vec<_>>(),
+            vec![0, 2, 2, 1]
+        );
+
+        let mut paint_order = components;
+        paint_order.sort_by_key(|component| (component.layer, component.tree_order));
+        let mut names = Vec::new();
+        for component in paint_order {
+            names.push(component.component.lock().await?.name.clone());
+        }
+        assert_eq!(
+            names,
+            vec!["root", "layer-one", "layer-two", "layer-two-child"]
+        );
+
+        Ok(())
+    }
+}

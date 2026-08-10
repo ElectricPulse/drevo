@@ -3,7 +3,11 @@ use color_eyre::eyre::Result;
 
 use crate::{
     component::{Children, context::Component_context},
-    layouter::{constraints::prohibit_overlap, hitbox::Hitbox},
+    geometry::Direction,
+    layouter::{
+        constraints::{prohibit_overlap, shrink_wrap},
+        hitbox::Hitbox,
+    },
     slot::manager::Slots,
     widget::{Focus_provider, Widget, Widget_trait},
 };
@@ -27,7 +31,7 @@ impl Widget_trait for Grid {
         _render: crate::Render,
         _theme: crate::state::State<crate::theme::Theme>,
         _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
@@ -45,6 +49,10 @@ impl Widget_trait for Grid {
 
                 prohibit_overlap(&problem, first_hitbox, second_hitbox, self.gap).await?;
             }
+        }
+
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            shrink_wrap(&problem, *hitbox, &children, direction).await?;
         }
 
         Ok(children)

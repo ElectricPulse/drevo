@@ -2,7 +2,11 @@ use crate::{
     component::{Child, Children, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{expression::Expression, hitbox::Hitbox, objective::Objective},
+    layouter::{
+        expression::Expression,
+        hitbox::Hitbox,
+        objective::{Objective, minimize},
+    },
     slot::manager::Slots,
     state::State,
     style::Style,
@@ -75,37 +79,34 @@ impl Widget_trait for Layout {
 
         let cross_direction = direction.flip();
         for element in &elements {
+            element
+                .share_start(*hitbox, &problem, cross_direction)
+                .await?;
+            element
+                .share_end(*hitbox, &problem, cross_direction)
+                .await?;
+        }
+        for element in &self.elements {
             let element_hitbox = element.get_hitbox().await?;
             problem
                 .constrain(constraint!(
                     hitbox.get_dimension(cross_direction)
-                        == element_hitbox.get_dimension(cross_direction)
+                        >= element_hitbox.get_dimension(cross_direction)
                 ))
                 .await?;
         }
+        minimize(
+            &mut *problem.lock().await?,
+            hitbox.get_dimension(cross_direction),
+            0,
+        )?;
 
         match (elements.first(), elements.last()) {
             (Some(first), Some(last)) => {
-                let first_hitbox = first.get_hitbox().await?;
-                let last_hitbox = last.get_hitbox().await?;
-                problem
-                    .constrain(constraint!(
-                        hitbox.get_start_position(direction)
-                            == first_hitbox.get_start_position(direction)
-                    ))
-                    .await?;
-                problem
-                    .constrain(constraint!(
-                        hitbox.get_end_position(direction)
-                            == last_hitbox.get_end_position(direction)
-                    ))
-                    .await?;
+                first.share_start(*hitbox, &problem, direction).await?;
+                last.share_end(*hitbox, &problem, direction).await?;
             }
-            _ => {
-                problem
-                    .constrain(constraint!(hitbox.get_dimension(direction) == 0))
-                    .await?;
-            }
+            _ => {}
         }
 
         if elements.len() >= 2 {

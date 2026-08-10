@@ -115,6 +115,8 @@ impl Widget_trait for Anchor {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        hitbox.constrain_smaller_than(parent, &problem).await?;
+
         Self::anchor(
             &problem,
             parent,

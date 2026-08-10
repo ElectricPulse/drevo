@@ -16,7 +16,6 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::Theme,
-    widget::widgets::container::Container,
 };
 
 #[derive(Clone)]

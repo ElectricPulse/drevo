@@ -4,7 +4,7 @@ use color_eyre::eyre::Result;
 use crate::{
     component::{Child, Children, context::Component_context},
     geometry::Direction,
-    layouter::hitbox::Hitbox,
+    layouter::{constraints::shrink_wrap, hitbox::Hitbox},
     slot::manager::Slots,
     widget::{Focus_provider, Widget_trait},
 };
@@ -75,10 +75,18 @@ impl Widget_trait for Full {
                     (height, Direction::Vertical),
                 ] {
                     if enabled {
-                        hitbox.share_dimension(parent, &problem, direction).await?;
-                        self.child
-                            .share_dimension(*hitbox, &problem, direction)
-                            .await?;
+                        hitbox.share_start(parent, &problem, direction).await?;
+                        hitbox.share_end(parent, &problem, direction).await?;
+                        self.child.share_start(*hitbox, &problem, direction).await?;
+                        self.child.share_end(*hitbox, &problem, direction).await?;
+                    } else {
+                        shrink_wrap(
+                            &problem,
+                            *hitbox,
+                            std::slice::from_ref(&self.child),
+                            direction,
+                        )
+                        .await?;
                     }
                 }
             }

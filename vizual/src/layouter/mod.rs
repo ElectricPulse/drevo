@@ -456,7 +456,7 @@ impl Problem {
 
     async fn full_solve(
         &mut self,
-        constraints: Vec<Constraint>,
+        mut constraints: Vec<Constraint>,
         screen: Size,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
@@ -512,7 +512,7 @@ impl Problem {
 
                 for objective in priority_objectives {
                     let objective_solution = solution.eval(&objective);
-                    self.constrain(constraint!(objective == objective_solution));
+                    constraints.push(constraint!(objective == objective_solution));
                 }
 
                 maybe_solution = Some(solution);
@@ -542,5 +542,52 @@ impl Problem {
             root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
         self.priority_solve_with_diagnostics(&self.constraints, root_size * -1.0, component_tree)
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::layouter::objective::minimize;
+
+    #[tokio::test]
+    async fn priority_results_do_not_persist_between_solves() -> Result<()> {
+        let variables = Arc::new(Variables::new());
+        let mut problem = Problem::new(Arc::clone(&variables));
+        let root = Hitbox::new(
+            &variables,
+            "root".to_string(),
+            "root".to_string(),
+            "test".to_string(),
+        );
+        let child = Hitbox::new(
+            &variables,
+            "child".to_string(),
+            "root.child".to_string(),
+            "test".to_string(),
+        );
+        problem.constrain_root_to_screen(root);
+        problem.constrain(constraint!(child.start.x == root.start.x));
+        problem.constrain(constraint!(child.end.x == root.end.x));
+        minimize(&mut problem, child.get_dimension(Direction::Horizontal), 0)?;
+
+        let component_tree = Vec::new();
+        let first = problem
+            .solve(Size::new(800.0, 600.0), &component_tree)
+            .await?;
+        assert_eq!(
+            first.eval(&child.get_dimension(Direction::Horizontal)),
+            800.0
+        );
+
+        let second = problem
+            .solve(Size::new(801.0, 600.0), &component_tree)
+            .await?;
+        assert_eq!(
+            second.eval(&child.get_dimension(Direction::Horizontal)),
+            801.0
+        );
+
+        Ok(())
     }
 }

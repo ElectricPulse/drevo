@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::Result;
-use vizual_macros::display;
+use vizual_macros::{display, position};
 
 use super::super::{Focus_provider, Widget, Widget_trait};
 use crate::{
@@ -36,6 +36,7 @@ impl Widget_trait for Container {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        // TODO: I dare you to try to explain why position! isn't used here since self.child.clone could be an align macro which shouldn't try to share its hitbox with the container
         Ok(vec![display!(self.child.clone())])
     }
 }

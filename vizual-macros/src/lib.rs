@@ -9,7 +9,8 @@ use quote::quote;
 use syn::{Data, DeriveInput, Expr, Fields, Member, Type, parse_macro_input, parse_quote};
 
 /// Sets a child in a unique slot and returns it enclosed in a slotted `Full`, assuming the slot
-/// manager is named `slots`.
+/// manager is named `slots`. The returned child's public `layer` defaults to zero and can be
+/// changed before returning it from `layout`.
 #[proc_macro]
 pub fn display(input: TokenStream) -> TokenStream {
     let child = parse_macro_input!(input as Expr);
@@ -29,7 +30,8 @@ pub fn display(input: TokenStream) -> TokenStream {
 }
 
 /// Sets a child in a unique slot and returns it without enclosing it in `Full`, assuming the slot
-/// manager is named `slots`.
+/// manager is named `slots`. The returned child's public `layer` defaults to zero and can be
+/// changed before returning it from `layout`.
 #[proc_macro]
 pub fn position(input: TokenStream) -> TokenStream {
     let child = parse_macro_input!(input as Expr);

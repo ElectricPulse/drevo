@@ -12,7 +12,8 @@ use super::{
 use crate::{
     Render,
     component::{Children, context::Component_context},
-    layouter::hitbox::Hitbox,
+    geometry::Direction,
+    layouter::{constraints::shrink_wrap, hitbox::Hitbox},
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_choice},
@@ -43,9 +44,9 @@ impl Widget_trait for Header {
         _render: Render,
         theme: State<Theme>,
         _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
-        _problem: Component_context,
+        problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
@@ -62,6 +63,9 @@ impl Widget_trait for Header {
             },
         );
 
-        Ok(vec![position!(name), position!(settings)])
+        let children = vec![position!(name), position!(settings)];
+        shrink_wrap(&problem, *hitbox, &children, Direction::Vertical).await?;
+
+        Ok(children)
     }
 }

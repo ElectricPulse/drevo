@@ -67,6 +67,7 @@ impl Component_slot {
         problem.component_path.push(self.name.clone());
         let component_path = problem.component_path.join(".");
         let variables = problem.lock().await?.variables();
+        let hitbox_problem = problem.clone();
 
         let lock = if let Some(lock) = self.reference.upgrade() {
             let mut reference = lock.lock().await?;
@@ -101,6 +102,12 @@ impl Component_slot {
             self.reference = lock.as_reference();
             lock
         };
+
+        // TODO: This blanket hitbox ordering constraint is temporary; widgets should eventually
+        // guarantee valid dimensions through their own explicit layout relationships.
+        hitbox_problem
+            .constrain_hitbox(lock.get_hitbox().await?)
+            .await?;
 
         Ok(lock)
     }

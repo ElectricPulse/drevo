@@ -13,7 +13,6 @@ use color_eyre::eyre::Result;
 pub async fn shrink_wrap(
     problem: &Component_context,
     hitbox: Hitbox,
-    _parent: Hitbox,
     children: &[Child],
     direction: Direction,
 ) -> Result<()> {

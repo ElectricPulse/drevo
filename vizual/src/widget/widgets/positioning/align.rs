@@ -74,6 +74,8 @@ impl Widget_trait for Align {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        hitbox.constrain_smaller_than(parent, &problem).await?;
+
         for direction in [Direction::Horizontal, Direction::Vertical] {
             problem
                 .constrain(constraint!(

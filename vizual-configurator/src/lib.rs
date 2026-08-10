@@ -34,6 +34,7 @@ use vizual::{
         Focus_provider, Shared_widget, Widget, Widget_trait,
         widgets::{
             button::Button,
+            full::Full,
             grid::Grid,
             layout::Layout,
             linebreak::Linebreak,
@@ -588,8 +589,9 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 .set(self.submit.clone(), problem.clone())
                 .await?;
 
-            let popup = Space::full(popup, Objective::default(), 2);
-            let popup = position!(popup);
+            let popup = Full::new(popup);
+            let mut popup = position!(popup);
+            popup.layer = 1;
             return Ok(vec![display!(grid), popup]);
         }
 

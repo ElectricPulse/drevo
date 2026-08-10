@@ -7,19 +7,11 @@ use super::super::{
     button::Button,
     icon::Icon,
     menu::{Menu, Shared_menu_item, get_selector},
-    positioning::anchor::{Anchor, Anchors},
+    positioning::anchor::{Anchor, Anchors, Position},
     text::Text,
 };
 use crate::{
-    Render, Vizual_command, Vizual_msg,
-    component::{Children, context::Component_context},
-    event::Pointer_event,
-    handlers::Retrieve_handler,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::State,
-    theme::{Theme, Theme_choice},
-    widget::{Focus_provider, Widget_trait, custom_widget::Custom_widget_trait},
+    Render, Vizual_command, Vizual_msg, component::{Children, context::Component_context}, event::Pointer_event, geometry::Direction, handlers::Retrieve_handler, layouter::hitbox::Hitbox, slot::manager::Slots, state::State, theme::{Theme, Theme_choice}, widget::{Focus_provider, Widget_trait, custom_widget::Custom_widget_trait, widgets::layout::Layout},
 };
 
 fn label(choice: Theme_choice) -> &'static str {
@@ -113,21 +105,39 @@ impl Widget_trait for Theme_picker {
             Theme_choice::Dark,
             Theme_choice::Light,
         ];
+
         let selected_index = choices
             .iter()
             .position(|candidate| *candidate == *self.choice.load())
             .expect("selected theme choice must be present in the theme menu");
+
         let items = choices
             .into_iter()
             .map(|choice| -> Shared_menu_item<Theme_choice> {
                 Theme_menu_item { choice }.into_shared().into()
             })
             .collect::<Vec<_>>();
+
         let default_item = get_selector(&items[selected_index]);
         let mut menu = Menu::new(items, default_item, render);
         menu.set_submit_state(self.choice.clone());
 
-        Ok(vec![button, display!(menu)])
+        /*let menu = Anchor::new(
+            menu,
+            Anchors {
+                horizontal: Some(Position::End),
+                vertical: Some(Position::Start),
+            },
+        );
+
+        let mut menu = position!(menu);
+        menu.layer = 1;
+
+        */
+
+        let layout = Layout::new(Direction::Horizontal, vec![button, menu]);
+
+        Ok(vec![display!(layout)])
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {

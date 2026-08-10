@@ -164,6 +164,23 @@ struct App_problem {
     component_context: Component_context,
 }
 
+#[derive(Clone, Copy)]
+struct Pointer_rank {
+    layer: usize,
+    area: f64,
+    tree_order: usize,
+}
+
+impl Pointer_rank {
+    fn outranks(self, other: Self) -> bool {
+        self.layer
+            .cmp(&other.layer)
+            .then_with(|| other.area.total_cmp(&self.area))
+            .then_with(|| self.tree_order.cmp(&other.tree_order))
+            .is_gt()
+    }
+}
+
 impl App_problem {
     async fn new<T: Widget_trait>(
         root: Shared_widget<T>,
@@ -208,7 +225,6 @@ impl App_problem {
                 render,
                 theme,
                 children,
-                self.root_hitbox,
                 self.component_context.clone(),
                 text_context,
             )
@@ -264,46 +280,77 @@ impl App_problem {
         Ok(scene)
     }
 
-    #[async_recursion]
+    async fn pointer_target(
+        &self,
+        position: Point,
+        solution: &Solution,
+    ) -> Result<Option<Shared_component>> {
+        let mut target: Option<(Shared_component, Pointer_rank)> = None;
+
+        for candidate in self.root.layered_components().await? {
+            let hitbox = candidate
+                .component
+                .get_hitbox()
+                .await?
+                .get_resolved(solution);
+            if !hitbox.contains(position) {
+                continue;
+            }
+
+            let area = hitbox.size.width * hitbox.size.height;
+            let rank = Pointer_rank {
+                layer: candidate.layer,
+                area,
+                tree_order: candidate.tree_order,
+            };
+            let replace = match target.as_ref() {
+                Some((_, target_rank)) => rank.outranks(*target_rank),
+                None => true,
+            };
+
+            if replace {
+                target = Some((candidate.component, rank));
+            }
+        }
+
+        Ok(target.map(|(component, _)| component))
+    }
+
     async fn handle_pointer_press(
         &mut self,
-        node: Shared_component,
         position: Point,
         event: &Event,
         solution: &Solution,
         focus: &mut Focus,
     ) -> Result<Vizual_msg> {
-        let node_lock = node.lock().await?;
-        let hits = node_lock.hitbox.hits(solution, position);
-        let children = node_lock.children.clone();
-        drop(node_lock);
+        let Some(mut node) = self.pointer_target(position, solution).await? else {
+            return Vizual_msg::none();
+        };
         let mut total_message = Vizual_msg::bare();
 
-        // Overlay children may intentionally extend beyond their parent's normal hitbox.
-        for child in children.iter().rev() {
-            let message = self
-                .handle_pointer_press(child.clone(), position, event, solution, focus)
-                .await?;
-            total_message.join(message);
-            if !total_message.propagate {
-                return Ok(total_message);
+        loop {
+            let mut node_lock = node.lock().await?;
+            let hits = node_lock.hitbox.hits(solution, position);
+            let parent = node_lock.parent.clone();
+
+            if hits {
+                if node_lock.focusable {
+                    focus.set(&node);
+                    return Vizual_msg::new(Vizual_command::Layout);
+                }
+
+                let message = node_lock.widget.forward_event(event).await?;
+                total_message.join(message);
+                if !total_message.propagate {
+                    return Ok(total_message);
+                }
             }
-        }
 
-        if !hits {
-            return Vizual_msg::none();
-        }
-
-        let mut node_lock = node.lock().await?;
-        if node_lock.focusable {
-            focus.set(&node);
-            return Vizual_msg::new(Vizual_command::Layout);
-        }
-
-        let message = node_lock.widget.forward_event(event).await?;
-        match message.propagate {
-            false => Ok(message),
-            true => Vizual_msg::none(),
+            let Some(parent) = parent.and_then(|parent| parent.upgrade()) else {
+                return Ok(total_message);
+            };
+            drop(node_lock);
+            node = Shared_component::new(parent);
         }
     }
 
@@ -447,9 +494,11 @@ impl App_problem {
         solution: &Solution,
         focus: &mut Focus,
     ) -> Result<Vizual_command> {
-        let command = self.drill_event(event, focus).await?;
-        if !matches!(command, Vizual_command::None) {
-            return Ok(command);
+        if !matches!(event, Event::Pointer(_)) {
+            let command = self.drill_event(event, focus).await?;
+            if !matches!(command, Vizual_command::None) {
+                return Ok(command);
+            }
         }
 
         match event {
@@ -470,7 +519,7 @@ impl App_problem {
                 _ => Ok(Vizual_command::None),
             },
             Event::Pointer(pointer) => Ok(self
-                .handle_pointer_press(self.root.clone(), pointer.position, event, solution, focus)
+                .handle_pointer_press(pointer.position, event, solution, focus)
                 .await?
                 .command),
             Event::Close_requested => Ok(Vizual_command::Quit),
@@ -1141,6 +1190,67 @@ fn map_pointer_button(button: MouseButton) -> Pointer_button {
         MouseButton::Back => Pointer_button::Other(4),
         MouseButton::Forward => Pointer_button::Other(5),
         MouseButton::Other(value) => Pointer_button::Other(value),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::widget::widgets::{
+        default_root::Default_root,
+        grid::Grid,
+        positioning::anchor::{Anchor, Anchors},
+        text::Text,
+    };
+
+    #[tokio::test]
+    async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Result<()> {
+        let render_manager = Render_manager::new();
+        let render = render_manager.render;
+        let theme = render.new_state(theme::dark_theme());
+        let body = Anchor::new(Text::new("Body"), Anchors::top_left());
+        let application =
+            Default_root::new("Test", Grid::new(vec![Box::new(body)], 0.0), render.clone())
+                .into_shared();
+        let root = Root::new(application).into_shared();
+        let mut root_slot = Component_slot::new();
+        let variables = Arc::new(Variables::new());
+        let mut text_context = Text_context::new();
+        let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+
+        problem.layout(render, theme, &mut text_context).await?;
+        let minimum = problem.minimum_size().await?;
+        assert!(minimum.width > 0.0);
+        assert!(minimum.height > 0.0);
+        let _ = problem.solve(Size::new(800.0, 600.0)).await?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn pointer_rank_prefers_layer_then_smallest_area_then_paint_order() {
+        let base = Pointer_rank {
+            layer: 1,
+            area: 100.0,
+            tree_order: 2,
+        };
+
+        assert!(
+            Pointer_rank {
+                layer: 2,
+                area: 10_000.0,
+                tree_order: 0,
+            }
+            .outranks(base)
+        );
+        assert!(Pointer_rank { area: 50.0, ..base }.outranks(base));
+        assert!(
+            Pointer_rank {
+                tree_order: 3,
+                ..base
+            }
+            .outranks(base)
+        );
     }
 }
 
