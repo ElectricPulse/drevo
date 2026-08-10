@@ -1,5 +1,3 @@
-pub mod align;
-pub mod anchor;
 pub mod block;
 pub mod button;
 pub mod container;
@@ -15,6 +13,7 @@ pub mod menu;
 pub mod paper;
 pub mod paragraph;
 pub mod popup;
+pub mod positioning;
 pub mod root;
 pub mod screen;
 pub mod space;

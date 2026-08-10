@@ -319,28 +319,26 @@ impl Problem {
             .join("\n")
     }
 
-    fn with_component_paths(
+    fn with_component_tree(
         &self,
         details: String,
         variables: impl IntoIterator<Item = Variable>,
     ) -> String {
         let variables = variables.into_iter().collect::<HashSet<_>>();
-        let mut components = HashSet::new();
-        let paths = self
+        let component_tree = self
             .variables
-            .component_paths(&variables)
-            .filter_map(
-                |(component_path, path)| match components.insert(component_path.clone()) {
-                    true => Some(format!("{component_path}: {path}")),
-                    false => None,
-                },
-            )
+            .component_tree(&variables)
+            .into_iter()
+            .map(|(depth, component, source)| match source {
+                Some(source) => format!("{}{component}: {source}", "  ".repeat(depth)),
+                None => format!("{}{component}", "  ".repeat(depth)),
+            })
             .collect::<Vec<_>>()
             .join("\n");
 
-        match paths.is_empty() {
+        match component_tree.is_empty() {
             true => details,
-            false => format!("{details}\n\n{paths}"),
+            false => format!("{details}\n\nComponent tree:\n{component_tree}"),
         }
     }
 
@@ -400,7 +398,7 @@ impl Problem {
                 details.join("\n")
             ),
         };
-        Ok(self.with_component_paths(details, underconstrained))
+        Ok(self.with_component_tree(details, underconstrained))
     }
 
     async fn priority_solve_with_diagnostics(
@@ -420,7 +418,7 @@ impl Problem {
             Err(ResolutionError::Infeasible) => {
                 let conflict = self.find_conflicting_constraints(constraints).await?;
                 let constraints = self.display_constraints(&conflict);
-                let conflict = self.with_component_paths(
+                let conflict = self.with_component_tree(
                     constraints,
                     conflict
                         .iter()

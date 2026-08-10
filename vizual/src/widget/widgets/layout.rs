@@ -7,13 +7,7 @@ use crate::{
     state::State,
     style::Style,
     theme::Theme,
-    widget::{
-        Focus_provider, Widget_trait,
-        widgets::{
-            anchor::{Anchor, Anchors},
-            container::Container,
-        },
-    },
+    widget::{Focus_provider, Widget_trait, widgets::container::Container},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -74,8 +68,7 @@ impl Widget_trait for Layout {
         // hitbox an Align or Anchor cannot be placed directly in a Layout.
         let mut elements = Vec::with_capacity(self.elements.len());
         for (index, element) in self.elements.iter().enumerate() {
-            let element = Anchor::new(element.clone(), Anchors::top_left());
-            let element = Container::new(element);
+            let element = Container::new(element.clone());
             elements.push(slots.set(index as u64, element).await?);
         }
 

@@ -13,10 +13,10 @@ use vizual::{
         Focus_provider, Widget_trait,
         custom_widget::Custom_widget_trait,
         widgets::{
-            anchor::{Anchor, Anchors},
             icon::Icon,
             layout::Layout,
             menu::{Menu, Shared_menu_item, get_selector},
+            positioning::anchor::{Anchor, Anchors},
             text::Text,
         },
     },
@@ -74,6 +74,8 @@ impl Custom_widget_trait for Target_tree_item {
         }
 
         let details = Layout::new(Direction::Vertical, details, Objective::default(), 2);
+        let details = display!(details);
+        let details = Anchor::new(details, Anchors::top_left());
 
         let row = Layout::new(
             Direction::Horizontal,

@@ -13,9 +13,9 @@ use vizual::{
         Focus_provider, Shared_widget, Widget_trait,
         custom_widget::Custom_widget_trait,
         widgets::{
-            anchor::{Anchor, Anchors},
             layout::Layout,
             menu::{Menu, Shared_menu_item, get_selector},
+            positioning::anchor::{Anchor, Anchors},
             text::Text,
         },
     },
@@ -104,7 +104,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
             false => theme.load().specific.text.subtitle,
         });
         let title = Anchor::new(title, Anchors::top_left());
-        let field = self.field.clone();
+        let field = Anchor::new(self.field.clone(), Anchors::top_left());
         let contents = match selected {
             true => vec![display!(title), display!(field)],
             false => vec![display!(title)],

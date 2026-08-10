@@ -4,8 +4,8 @@ use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Widget_trait},
-    anchor::{Anchor, Anchors},
     block::Block,
+    positioning::anchor::{Anchor, Anchors},
     space::Space,
     text::Text,
 };

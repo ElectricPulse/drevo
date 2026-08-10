@@ -6,9 +6,9 @@ use vizual_macros::display;
 
 use self::header::Header;
 use super::{
-    anchor::{Anchor, Anchors},
     layout::Layout,
     paper::Paper,
+    positioning::anchor::{Anchor, Anchors},
 };
 use crate::{
     component::{Children, context::Component_context},
@@ -58,6 +58,8 @@ impl Widget_trait for Default_root {
         let widget = Anchor::new(self.widget.clone(), Anchors::top_left());
 
         let body = Paper::new(display!(widget));
+        let body = display!(body);
+        let body = Anchor::new(body, Anchors::top_left());
 
         let header = display!(Header::new(
             self.title.clone(),
@@ -67,7 +69,7 @@ impl Widget_trait for Default_root {
 
         let layout = Layout::new(
             Direction::Vertical,
-            vec![display!(header), display!(body)],
+            vec![header, display!(body)],
             Objective::default(),
             2,
         );

@@ -33,13 +33,15 @@ use vizual::{
     widget::{
         Focus_provider, General_widget, Shared_widget, Widget, Widget_trait,
         widgets::{
-            align::{Align, Alignments},
-            anchor::{Anchor, Anchors, Position as Anchor_position},
             button::Button,
             grid::Grid,
             layout::Layout,
             linebreak::Linebreak,
             popup::Popup,
+            positioning::{
+                align::{Align, Alignments},
+                anchor::{Anchor, Anchors, Position as Anchor_position},
+            },
             space::Space,
             text::Text,
             title_block::Title_block,
@@ -253,6 +255,7 @@ impl<T: Tree> Tree_view<T> {
                 Objective::default(),
                 2,
             );
+            let button = Anchor::new(button, Anchors::top_left());
 
             // Since cursor should be unique for every button we can use it to generate id
             let button = slots.set(get_strings_id(&child_cursor), button).await?;
@@ -526,11 +529,12 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             if let Ok(leaf) = tree.get_tree().get_leaf(&cursor) {
                 let description = Text::new(leaf.description);
                 let description = Anchor::new(description, Anchors::top_left());
-                let linebreak = Linebreak::new();
-                let widget = leaf.widget;
+                let linebreak = display!(Linebreak::new());
+                let widget = display!(leaf.widget);
+                let widget = Anchor::new(widget, Anchors::top_left());
                 let layout = Layout::new(
                     Direction::Vertical,
-                    vec![display!(description), display!(linebreak), display!(widget)],
+                    vec![display!(description), linebreak, display!(widget)],
                     Objective::default(),
                     2,
                 );

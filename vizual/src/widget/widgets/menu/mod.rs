@@ -11,6 +11,7 @@ use super::{
     super::{Focus_provider, Shared_widget, Widget_trait, custom_widget::Custom_widget_trait},
     button::Button,
     layout::Layout,
+    positioning::anchor::{Anchor, Anchors},
 };
 use crate::{
     Vizual_command, Vizual_msg,
@@ -58,6 +59,7 @@ pub fn get_selector<Choice: Thread_safe>(
     item.as_reference()
 }
 
+#[derive(Clone)]
 struct Menu_item<Choice: Thread_safe> {
     selected: bool,
     widget: Shared_menu_item<Choice>,
@@ -229,6 +231,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 button_delta,
                 submission: self.submission.clone(),
             };
+            let item = Anchor::new(item, Anchors::top_left());
             rows.push(slots.set(index as u64, item).await?);
         }
 

@@ -4,7 +4,7 @@ use vizual_macros::display;
 
 use super::{
     super::{
-        anchor::{Anchor, Anchors, Position},
+        positioning::anchor::{Anchor, Anchors, Position},
         text::Text,
     },
     theme_picker::Theme_picker,

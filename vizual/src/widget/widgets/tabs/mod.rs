@@ -8,6 +8,7 @@ use vizual_macros::display;
 use super::{
     super::{Focus_provider, General_widget, Shared_widget, Widget_trait},
     layout::Layout,
+    positioning::anchor::{Anchor, Anchors},
 };
 use crate::{
     Render,
@@ -114,10 +115,8 @@ impl Widget_trait for Tab_bar {
         for page in self.pages.iter_mut() {
             let active = self.selected_page.load() == page.tab.id.into();
             page.tab.button.lock().await?.active = active;
-            let button = page
-                .slot
-                .set(page.tab.button.clone(), problem.clone())
-                .await?;
+            let button = Anchor::new(page.tab.button.clone(), Anchors::top_left());
+            let button = page.slot.set(button, problem.clone()).await?;
 
             buttons.push(button);
         }
@@ -178,11 +177,12 @@ impl Widget_trait for Tabs {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let header = self.header.clone();
+        let header = Anchor::new(self.header.clone(), Anchors::top_left());
         let mut elements = vec![display!(header)];
         {
             let selected = self.header.lock().await?.get_selected();
             if let Some(widget) = selected {
+                let widget = Anchor::new(widget, Anchors::top_left());
                 elements.push(display!(widget));
             }
         }

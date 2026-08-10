@@ -6,10 +6,10 @@ use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Shared_widget, Widget_trait},
-    anchor::{Anchor, Anchors},
     button::Button,
     layout::Layout,
     menu::{Menu, Shared_menu_item, get_selector},
+    positioning::anchor::{Anchor, Anchors},
     text::Text,
     title_block::Title_block,
 };
@@ -178,7 +178,9 @@ impl Widget_trait for Popup {
                 submit_handler: self.submit_handler.clone(),
             }),
         );
-        let menu = self.menu.clone();
+        let button = display!(button);
+        let button = Anchor::new(button, Anchors::top_left());
+        let menu = Anchor::new(self.menu.clone(), Anchors::top_left());
         let layout = Layout::new(
             Direction::Vertical,
             vec![display!(menu), display!(button)],

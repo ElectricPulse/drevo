@@ -4,10 +4,10 @@ use lucide_icons::Icon as Lucide_icon;
 use vizual_macros::display;
 
 use super::super::{
-    anchor::{Anchor, Anchors},
     button::Button,
     icon::Icon,
     menu::{Menu, Shared_menu_item, get_selector},
+    positioning::anchor::{Anchor, Anchors},
     text::Text,
 };
 use crate::{

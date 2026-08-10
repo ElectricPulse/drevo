@@ -1,7 +1,10 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     ops::Mul,
-    sync::Mutex,
+    sync::{
+        Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use color_eyre::eyre::{Result, eyre};
@@ -19,6 +22,12 @@ pub struct Variable_definition {
     solver: VariableDefinition,
     static_value: Option<f64>,
     name: String,
+    path: String,
+    component_path: String,
+}
+
+#[derive(Clone)]
+struct Component_definition {
     path: String,
     component_path: String,
 }
@@ -46,6 +55,8 @@ pub(crate) type Resolved_variables = HashMap<usize, Resolved_variable>;
 /// Definitions for stable layout variables shared across relayout-created problems.
 pub struct Variables {
     definitions: Mutex<HashMap<usize, Variable_definition>>,
+    components: Mutex<HashMap<usize, Component_definition>>,
+    next_component: AtomicUsize,
 }
 
 impl Default for Variables {
@@ -71,6 +82,8 @@ impl Default for Variables {
 
         Self {
             definitions: Mutex::new(definitions),
+            components: Mutex::new(HashMap::new()),
+            next_component: AtomicUsize::new(0),
         }
     }
 }
@@ -170,29 +183,47 @@ impl Variables {
         })
     }
 
-    pub(crate) fn component_paths(
+    pub(crate) fn component_tree(
         &self,
         variables: &HashSet<Variable>,
-    ) -> impl Iterator<Item = (String, String)> {
+    ) -> Vec<(usize, String, Option<String>)> {
         let definitions = self
             .definitions
             .lock()
             .expect("layout variable definitions poisoned");
-        definitions
-            .iter()
-            .filter_map(|(index, definition)| {
-                match (
-                    definition.component_path.is_empty(),
-                    variables.contains(&Variable::new(*index)),
-                ) {
-                    (false, true) => {
-                        Some((definition.component_path.clone(), definition.path.clone()))
-                    }
-                    _ => None,
+        let sources = definitions
+            .values()
+            .filter(|definition| !definition.component_path.is_empty())
+            .map(|definition| (definition.component_path.clone(), definition.path.clone()))
+            .collect::<HashMap<_, _>>();
+        let mut component_paths = BTreeSet::new();
+
+        for definition in definitions.iter().filter_map(|(index, definition)| {
+            (!definition.component_path.is_empty() && variables.contains(&Variable::new(*index)))
+                .then_some(definition)
+        }) {
+            let mut component_path = String::new();
+            for component in definition.component_path.split('.') {
+                if !component_path.is_empty() {
+                    component_path.push('.');
                 }
-            })
-            .collect::<Vec<_>>()
+                component_path.push_str(component);
+                let _ = component_paths.insert(component_path.clone());
+            }
+        }
+
+        component_paths
             .into_iter()
+            .map(|component_path| {
+                let depth = component_path.matches('.').count();
+                let component = component_path
+                    .rsplit_once('.')
+                    .map_or(component_path.as_str(), |(_, component)| component)
+                    .to_string();
+                let source = sources.get(&component_path).cloned();
+                (depth, component, source)
+            })
+            .collect()
     }
 
     pub(crate) fn create_solver_variables(
@@ -257,5 +288,31 @@ mod tests {
 
         variables.clear_static();
         assert_eq!(variables.static_value(variable), None);
+    }
+
+    #[test]
+    fn component_tree_includes_parents_of_referenced_components() {
+        let variables = Variables::new();
+        let _parent = variables.add(
+            VariableDefinition::new().min(0),
+            "parent",
+            "parent.rs:1",
+            "c2",
+        );
+        let leaf = variables.add(
+            VariableDefinition::new().min(0),
+            "leaf",
+            "leaf.rs:2",
+            "c2.c3.c4",
+        );
+
+        assert_eq!(
+            variables.component_tree(&HashSet::from([leaf])),
+            vec![
+                (0, "c2".to_string(), Some("parent.rs:1".to_string())),
+                (1, "c3".to_string(), None),
+                (2, "c4".to_string(), Some("leaf.rs:2".to_string())),
+            ]
+        );
     }
 }

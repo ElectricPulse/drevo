@@ -4,9 +4,9 @@ use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Widget_trait},
-    anchor::{Anchor, Anchors},
     layout::{Layout, Layout_style},
     paper::Paper,
+    positioning::anchor::{Anchor, Anchors},
     text::Text,
 };
 use crate::{
@@ -49,10 +49,11 @@ impl Widget_trait for Title_block {
         let mut title = Text::new(self.title.clone());
         title.style.set(theme.load().specific.text.title);
         let title = Anchor::new(title, Anchors::top_left());
+        let child = Anchor::new(self.child.clone(), Anchors::top_left());
 
         let mut layout = Layout::new(
             Direction::Vertical,
-            vec![display!(title), self.child.clone()],
+            vec![display!(title), display!(child)],
             Objective::default(),
             2,
         );
