@@ -28,7 +28,7 @@ use self::{
     variables::{Resolved_variable, Variables},
 };
 use crate::{
-    component::context::Component_context,
+    component::{context::Component_context, debug::Component_tree},
     constraint,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
@@ -323,11 +323,12 @@ impl Problem {
         &self,
         details: String,
         variables: impl IntoIterator<Item = Variable>,
+        tree: &Component_tree,
     ) -> String {
         let variables = variables.into_iter().collect::<HashSet<_>>();
         let component_tree = self
             .variables
-            .component_tree(&variables)
+            .component_tree(&variables, tree)
             .into_iter()
             .map(|(depth, component, source)| match source {
                 Some(source) => format!("{}{component}: {source}", "  ".repeat(depth)),
@@ -361,6 +362,7 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objective: &Expression,
+        component_tree: &Component_tree,
     ) -> Result<String> {
         let mut variables = constraints
             .iter()
@@ -398,13 +400,14 @@ impl Problem {
                 details.join("\n")
             ),
         };
-        Ok(self.with_component_tree(details, underconstrained))
+        Ok(self.with_component_tree(details, underconstrained, component_tree))
     }
 
     async fn priority_solve_with_diagnostics(
         &self,
         constraints: &[Constraint],
         objective: Expression,
+        component_tree: &Component_tree,
     ) -> Result<Solution> {
         match self
             .priority_solve(
@@ -423,6 +426,7 @@ impl Problem {
                     conflict
                         .iter()
                         .flat_map(|constraint| constraint.expression.referenced_variables()),
+                    component_tree,
                 );
 
                 log::error!("layout conflicting constraints:\n{conflict}");
@@ -432,14 +436,19 @@ impl Problem {
             }
             Err(ResolutionError::Unbounded) => Err(eyre!(
                 "{}",
-                self.describe_underconstrained(constraints, &objective)
+                self.describe_underconstrained(constraints, &objective, component_tree)
                     .await?
             )),
             Err(error) => Err(error.into()),
         }
     }
 
-    async fn full_solve(&mut self, constraints: Vec<Constraint>, screen: Size) -> Result<Solution> {
+    async fn full_solve(
+        &mut self,
+        constraints: Vec<Constraint>,
+        screen: Size,
+        component_tree: &Component_tree,
+    ) -> Result<Solution> {
         self.variables.clear_static();
         self.variables.set_static(SCREEN.width, screen.width);
         self.variables.set_static(SCREEN.height, screen.height);
@@ -458,7 +467,11 @@ impl Problem {
                     .fold(Expression::default(), |sum, expression| sum + expression);
 
                 let solution = self
-                    .priority_solve_with_diagnostics(&constraints, priority_objective)
+                    .priority_solve_with_diagnostics(
+                        &constraints,
+                        priority_objective,
+                        component_tree,
+                    )
                     .await?;
 
                 let mut priority_objectives = priority_objectives;
@@ -499,15 +512,24 @@ impl Problem {
         .await
     }
 
-    pub async fn solve(&mut self, screen: Size) -> Result<Solution> {
-        self.full_solve(self.constraints.clone(), screen).await
+    pub(crate) async fn solve(
+        &mut self,
+        screen: Size,
+        component_tree: &Component_tree,
+    ) -> Result<Solution> {
+        self.full_solve(self.constraints.clone(), screen, component_tree)
+            .await
     }
 
-    pub async fn solve_minimum(&self, root: Hitbox) -> Result<Solution> {
+    pub(crate) async fn solve_minimum(
+        &self,
+        root: Hitbox,
+        component_tree: &Component_tree,
+    ) -> Result<Solution> {
         self.variables.clear_static();
         let root_size =
             root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
-        self.priority_solve_with_diagnostics(&self.constraints, root_size * -1.0)
+        self.priority_solve_with_diagnostics(&self.constraints, root_size * -1.0, component_tree)
             .await
     }
 }

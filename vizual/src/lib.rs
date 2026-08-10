@@ -225,11 +225,12 @@ impl App_problem {
     }
 
     async fn minimum_size(&self) -> Result<Size> {
+        let component_tree = self.root.component_tree().await?;
         let solution = self
             .component_context
             .lock()
             .await?
-            .solve_minimum(self.root_hitbox)
+            .solve_minimum(self.root_hitbox, &component_tree)
             .await?;
         let minimum_size = self.root_size(&solution);
         // TODO: Without this padding the user can still push the screen below the required size somehow, causing the layout to crash.
@@ -237,6 +238,15 @@ impl App_problem {
             minimum_size.width + 1.0,
             minimum_size.height + 1.0,
         ))
+    }
+
+    async fn solve(&self, size: Size) -> Result<Solution> {
+        let component_tree = self.root.component_tree().await?;
+        self.component_context
+            .lock()
+            .await?
+            .solve(size, &component_tree)
+            .await
     }
 
     async fn render(
@@ -671,7 +681,7 @@ async fn ui_loop<T: Widget_trait>(
             continue;
         } else if matches!(command, Vizual_command::Resolve) {
             if let Some(problem) = &app_problem {
-                solution = Some(problem.component_context.lock().await?.solve(size).await?);
+                solution = Some(problem.solve(size).await?);
                 command = Vizual_command::Render;
             }
         } else if let Vizual_command::Focus(reference) = &command {

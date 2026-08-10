@@ -11,7 +11,10 @@ use std::{
 use color_eyre::eyre::Result;
 
 use crate::{
-    component::{Child_reference, Component, Shared_component, context::Component_context},
+    component::{
+        Child_reference, Component, Shared_component, context::Component_context,
+        debug::Component_debug,
+    },
     layouter::hitbox::Hitbox,
     sync::Mutex,
     widget::Widget_trait,
@@ -68,6 +71,7 @@ impl Component_slot {
         let lock = if let Some(lock) = self.reference.upgrade() {
             let mut reference = lock.lock().await?;
             reference.name = self.name.clone();
+            reference.debug.source_path = self.path.clone();
             reference.widget = widget;
             reference.slot_manager.set_problem(problem);
             reference
@@ -85,6 +89,7 @@ impl Component_slot {
 
             let lock = Shared_component::new(Arc::new(Mutex::new(Component {
                 name: self.name.clone(),
+                debug: Component_debug::new(self.path.clone()),
                 hitbox,
                 widget,
                 focusable: false,

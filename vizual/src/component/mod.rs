@@ -1,4 +1,5 @@
 pub mod context;
+pub(crate) mod debug;
 
 use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
@@ -18,7 +19,7 @@ use crate::{
     widget::{Focus_provider, Widget, Widget_trait},
 };
 
-use self::context::Component_context;
+use self::{context::Component_context, debug::Component_debug};
 
 pub type Id = u64;
 
@@ -30,6 +31,7 @@ pub type Parent = Option<Child_reference>;
 
 pub struct Component {
     pub name: String,
+    pub(crate) debug: Component_debug,
     pub hitbox: Hitbox,
     pub widget: Widget,
     pub focusable: bool,
@@ -83,6 +85,8 @@ impl Shared_component {
     }
 
     /// Maximizes this component in both directions at priority 1.
+    /// Shouldn't be used as a replacement for Full instead it should actively try to take advantage of the priority
+    /// and in some cases shouldn't occupy the same space as Full would
     pub async fn fill(self) -> Result<Self> {
         let (hitbox, problem) = {
             let component = self.lock().await?;
