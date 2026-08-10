@@ -13,15 +13,10 @@ use crate::{
     utils::{bind_index, get_next_index, get_previous_index},
 };
 
+#[derive(Default)]
 pub struct List {
     selected: usize,
     items: Vec<String>,
-}
-
-impl Default for List {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl List {

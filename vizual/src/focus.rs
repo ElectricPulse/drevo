@@ -2,7 +2,7 @@ use std::sync::Weak;
 
 use crate::component::{Child_reference, Shared_component};
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Focus(pub Child_reference);
 
 #[derive(Clone, Copy)]
@@ -38,11 +38,5 @@ impl Focus {
 
     pub fn set(&mut self, focus: &Shared_component) {
         self.set_with_reference(&focus.as_reference());
-    }
-}
-
-impl Default for Focus {
-    fn default() -> Self {
-        Self::new()
     }
 }

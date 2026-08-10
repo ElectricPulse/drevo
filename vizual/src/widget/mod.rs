@@ -3,6 +3,7 @@ pub mod widgets;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use derive_where::derive_where;
 use std::sync::{Arc, Weak};
 use tokio::sync::mpsc;
 
@@ -23,6 +24,7 @@ use crate::{
 use super::{Render, Vizual_msg};
 
 pub type Widget = Box<dyn Widget_trait>;
+pub type General_widget = Box<dyn General_widget_trait>;
 
 pub struct Focus_provider {
     focused: bool,
@@ -139,8 +141,26 @@ pub trait Widget_trait: Thread_safe {
     }
 }
 
-// Basically a cloneable widget
-pub type General_shared_widget = Shared_widget<dyn Widget_trait>;
+pub trait General_widget_trait: Widget_trait {
+    fn clone_box(&self) -> General_widget;
+}
+
+impl<T> General_widget_trait for T
+where
+    T: Widget_trait + Clone,
+{
+    fn clone_box(&self) -> General_widget {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for General_widget {
+    fn clone(&self) -> Self {
+        (**self).clone_box()
+    }
+}
+
+#[derive_where(Clone)]
 pub struct Shared_widget<T: Thread_safe + ?Sized>(Arc<Mutex<T>>);
 
 #[async_trait]
@@ -201,9 +221,61 @@ impl Widget_trait for Widget {
     }
 }
 
-impl<T: Thread_safe + ?Sized> Clone for Shared_widget<T> {
-    fn clone(&self) -> Self {
-        Self(Arc::clone(&self.0))
+#[async_trait]
+impl Widget_trait for General_widget {
+    async fn layout(
+        &mut self,
+        render: Render,
+        theme: State<Theme>,
+        focus: &mut Focus_provider,
+        hitbox: &mut Hitbox,
+        parent: Hitbox,
+        problem: Component_context,
+        text_context: &mut Text_context,
+        slots: &mut Slots,
+    ) -> Result<Children> {
+        (**self)
+            .layout(
+                render,
+                theme,
+                focus,
+                hitbox,
+                parent,
+                problem,
+                text_context,
+                slots,
+            )
+            .await
+    }
+
+    async fn render(
+        &mut self,
+        theme: State<Theme>,
+        focus: &mut Focus_provider,
+        hitbox: Rect,
+        display: &mut Display<'_>,
+    ) -> Result<Option<Hitbox>> {
+        (**self).render(theme, focus, hitbox, display).await
+    }
+
+    async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
+        (**self).on_all_events(event).await
+    }
+
+    async fn on_mouse_click(&mut self, mouse: &Pointer_event) -> Result<Vizual_msg> {
+        (**self).on_mouse_click(mouse).await
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+        (**self).on_key_press(key).await
+    }
+
+    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+        (**self).on_other_event(event).await
+    }
+
+    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+        (**self).forward_event(event).await
     }
 }
 
@@ -308,13 +380,6 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
     async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
         let mut inner = self.0.lock().await?;
         inner.forward_event(event).await
-    }
-}
-
-impl<T: Widget_trait> From<Shared_widget<T>> for General_shared_widget {
-    fn from(value: Shared_widget<T>) -> Self {
-        let inner: Arc<Mutex<dyn Widget_trait>> = value.0;
-        Self(inner)
     }
 }
 

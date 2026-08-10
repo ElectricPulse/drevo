@@ -5,16 +5,17 @@ use crate::{
     component::{Children, context::Component_context},
     layouter::{constraints::prohibit_overlap, hitbox::Hitbox},
     slot::manager::Slots,
-    widget::{Focus_provider, General_shared_widget, Widget_trait},
+    widget::{Focus_provider, General_widget, Widget_trait},
 };
 
+#[derive(Clone)]
 pub struct Grid {
-    children: Vec<General_shared_widget>,
+    children: Vec<General_widget>,
     gap: f64,
 }
 
 impl Grid {
-    pub fn new(children: Vec<General_shared_widget>, gap: f64) -> Self {
+    pub fn new(children: Vec<General_widget>, gap: f64) -> Self {
         Self { children, gap }
     }
 }

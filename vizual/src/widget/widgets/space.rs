@@ -9,7 +9,7 @@ use crate::{
         objective::{Delta, Objective},
     },
     slot::manager::Slots,
-    widget::General_shared_widget,
+    widget::{General_widget, General_widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -38,8 +38,9 @@ impl Spaces {
     }
 }
 
+#[derive(Clone)]
 pub struct Space {
-    child: General_shared_widget,
+    child: General_widget,
     spaces: Spaces,
     objective: Objective,
     pub delta: Delta,
@@ -49,7 +50,7 @@ pub struct Space {
 
 impl Space {
     pub fn new(
-        child: General_shared_widget,
+        child: impl General_widget_trait,
         left: Option<f64>,
         right: Option<f64>,
         top: Option<f64>,
@@ -58,7 +59,7 @@ impl Space {
         priority: usize,
     ) -> Self {
         Self {
-            child,
+            child: Box::new(child),
             spaces: Spaces {
                 left,
                 right,
@@ -72,7 +73,7 @@ impl Space {
     }
 
     pub fn inline(
-        child: General_shared_widget,
+        child: impl General_widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -89,7 +90,7 @@ impl Space {
     }
 
     pub fn left(
-        child: General_shared_widget,
+        child: impl General_widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -98,7 +99,7 @@ impl Space {
     }
 
     pub fn right(
-        child: General_shared_widget,
+        child: impl General_widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -107,7 +108,7 @@ impl Space {
     }
 
     pub fn top(
-        child: General_shared_widget,
+        child: impl General_widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -116,7 +117,7 @@ impl Space {
     }
 
     pub fn bottom(
-        child: General_shared_widget,
+        child: impl General_widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -125,7 +126,7 @@ impl Space {
     }
 
     pub fn uniform(
-        child: General_shared_widget,
+        child: impl General_widget_trait,
         value: f64,
         objective: Objective,
         priority: usize,
@@ -141,7 +142,7 @@ impl Space {
         )
     }
 
-    pub fn full(child: General_shared_widget, objective: Objective, priority: usize) -> Self {
+    pub fn full(child: impl General_widget_trait, objective: Objective, priority: usize) -> Self {
         Self::new(child, None, None, None, None, objective, priority)
     }
 

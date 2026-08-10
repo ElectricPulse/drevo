@@ -58,7 +58,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Default_leaf_value<Value> {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
-        let text = Anchor::new(Widget_trait::into_shared(text).into(), Anchors::top_left());
+        let text = Anchor::new(text, Anchors::top_left());
 
         Ok(vec![display!(text)])
     }
@@ -103,7 +103,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
-        let title = Anchor::new(Widget_trait::into_shared(title).into(), Anchors::top_left());
+        let title = Anchor::new(title, Anchors::top_left());
         let field = self.field.clone();
         let contents = match selected {
             true => vec![display!(title), display!(field)],

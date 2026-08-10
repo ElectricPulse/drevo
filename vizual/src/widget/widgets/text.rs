@@ -36,6 +36,7 @@ impl From<Theme> for Text_style {
     }
 }
 
+#[derive(Clone)]
 pub struct Text {
     content: String,
     pub style: Style<Text_style>,

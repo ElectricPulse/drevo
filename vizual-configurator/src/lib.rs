@@ -9,6 +9,7 @@ pub mod widgets;
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, WrapErr, eyre};
+use derive_where::derive_where;
 use indexmap::IndexMap;
 use serde::Serialize;
 use std::{
@@ -30,7 +31,7 @@ use vizual::{
     theme::Theme,
     utils::get_strings_id,
     widget::{
-        Focus_provider, General_shared_widget, Shared_widget, Widget, Widget_trait,
+        Focus_provider, General_widget, Shared_widget, Widget, Widget_trait,
         widgets::{
             align::{Align, Alignments},
             anchor::{Anchor, Anchors, Position as Anchor_position},
@@ -192,6 +193,7 @@ impl Configuration_tree {
     }
 }
 
+#[derive_where(Clone)]
 struct Tree_view<T: Tree> {
     tree: Arc<Mutex<T>>,
     configurator_state: Arc<Mutex<Configurator_state>>,
@@ -246,7 +248,7 @@ impl<T: Tree> Tree_view<T> {
             button.delta = Some(button_delta);
 
             let button = Space::left(
-                button.into_shared().into(),
+                button.into_shared(),
                 (INDENT * depth) as f64,
                 Objective::default(),
                 2,
@@ -406,16 +408,9 @@ pub struct Config_manager<T: Tree> {
     submit_handler: Box<dyn Submit_handler<bool>>,
 }
 
+#[derive_where(Clone)]
 struct Config_manager_handle<T: Tree> {
     manager: Arc<Mutex<Config_manager<T>>>,
-}
-
-impl<T: Tree> Clone for Config_manager_handle<T> {
-    fn clone(&self) -> Self {
-        Self {
-            manager: Arc::clone(&self.manager),
-        }
-    }
 }
 
 struct Configurator_state {
@@ -525,13 +520,12 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         let cursor = self.configurator_state.lock().await?.cursor.clone();
 
         //TODO: this menu could later be moved into the menu item of the tree to make it clearer
-        let field: Option<General_shared_widget> = {
+        let field: Option<General_widget> = {
             let tree = self.tree.lock().await?;
 
             if let Ok(leaf) = tree.get_tree().get_leaf(&cursor) {
                 let description = Text::new(leaf.description);
-                let description =
-                    Anchor::new(description.into_shared().into(), Anchors::top_left());
+                let description = Anchor::new(description, Anchors::top_left());
                 let linebreak = Linebreak::new();
                 let widget = leaf.widget;
                 let layout = Layout::new(
@@ -543,7 +537,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
 
                 let leaf = Title_block::new(display!(layout), format!("Value - {}", leaf.name));
 
-                Some(leaf.into_shared().into())
+                Some(Box::new(leaf))
             } else {
                 None
             }
@@ -557,7 +551,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 vertical: Some(Anchor_position::Start),
             },
         );
-        let mut children: Vec<General_shared_widget> = vec![tree_view.into_shared().into()];
+        let mut children: Vec<General_widget> = vec![Box::new(tree_view)];
 
         if let Some(field) = field {
             let field = Align::new(
@@ -568,20 +562,20 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 },
             );
 
-            children.push(field.into_shared().into());
+            children.push(Box::new(field));
         }
 
         let button = Button::new("Apply", Box::new(self.config_manager.clone()));
 
-        let button = Align::new(
-            button.into_shared().into(),
+        let button: Align = Align::new(
+            button.into_shared(),
             Alignments {
                 horizontal: Some(Objective::Maximize),
                 vertical: Some(Objective::Maximize),
             },
         );
 
-        children.push(button.into_shared().into());
+        children.push(Box::new(button));
 
         let grid = Grid::new(children, gap);
 
@@ -591,7 +585,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 .set(self.submit.clone(), problem.clone())
                 .await?;
 
-            let popup = Space::full(popup.into_shared().into(), Objective::default(), 2);
+            let popup = Space::full(popup, Objective::default(), 2);
             return Ok(vec![display!(grid), display!(popup)]);
         }
 

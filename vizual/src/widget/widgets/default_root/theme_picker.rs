@@ -62,12 +62,13 @@ impl Custom_widget_trait for Theme_menu_item {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
-        let text = Anchor::new(Widget_trait::into_shared(text).into(), Anchors::top_left());
+        let text = Anchor::new(text, Anchors::top_left());
 
         Ok(vec![display!(text)])
     }
 }
 
+#[derive(Clone)]
 pub(super) struct Theme_picker {
     open: State<bool>,
     choice: State<Theme_choice>,

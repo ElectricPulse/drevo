@@ -2,6 +2,7 @@ pub mod text_input;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use derive_where::derive_where;
 use std::future::Future;
 use std::pin::Pin;
 use vizual_macros::display;
@@ -88,14 +89,9 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
 
 pub type Shared_field<Config> = Shared_widget<Box<dyn Field<Config>>>;
 
+#[derive_where(Default)]
 pub struct Fields<Config: 'static> {
     fields: Vec<Shared_field<Config>>,
-}
-
-impl<Config: 'static> Default for Fields<Config> {
-    fn default() -> Self {
-        Self { fields: Vec::new() }
-    }
 }
 
 impl<Config: 'static> Fields<Config> {

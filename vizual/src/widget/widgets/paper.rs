@@ -56,12 +56,7 @@ impl Widget_trait for Paper {
         slots: &mut Slots,
     ) -> Result<Children> {
         let style = self.style.get(&theme);
-        let space = Space::uniform(
-            self.child.clone().into_shared().into(),
-            style.padding,
-            Objective::default(),
-            2,
-        );
+        let space = Space::uniform(self.child.clone(), style.padding, Objective::default(), 2);
 
         let mut block = Block::new(display!(space));
         block.style.set(style.block);

@@ -21,6 +21,7 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::Theme,
+    widget::General_widget,
 };
 
 enum Button_content {
@@ -71,7 +72,7 @@ impl Widget_trait for Button {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let content = match &self.content {
+        let content: General_widget = match &self.content {
             Button_content::Label(label) => {
                 let active = self.active;
                 let mut text = Text::new(label.clone());
@@ -79,10 +80,10 @@ impl Widget_trait for Button {
                     true => theme.load().specific.text.selected_subtitle,
                     false => theme.load().specific.text.subtitle,
                 });
-                let text = Anchor::new(text.into_shared().into(), Anchors::top_left());
-                text.into_shared().into()
+                let text = Anchor::new(text, Anchors::top_left());
+                Box::new(text)
             }
-            Button_content::Child(content) => content.clone().into_shared().into(),
+            Button_content::Child(content) => Box::new(content.clone()),
         };
 
         let mut space = Space::uniform(

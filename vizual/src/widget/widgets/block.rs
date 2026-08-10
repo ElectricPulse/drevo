@@ -27,6 +27,7 @@ pub struct Block_style {
     pub focused_border: Border_style,
 }
 
+#[derive(Clone)]
 pub struct Block {
     child: Child,
     pub style: Style<Block_style>,

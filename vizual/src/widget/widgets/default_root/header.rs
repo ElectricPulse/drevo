@@ -50,11 +50,11 @@ impl Widget_trait for Header {
     ) -> Result<Children> {
         let mut name = Text::new(self.name.clone());
         name.style.set(theme.load().specific.text.title);
-        let name = Anchor::new(name.into_shared().into(), Anchors::top_left());
+        let name = Anchor::new(name, Anchors::top_left());
         let settings = Theme_picker::new(self.open.clone(), self.choice.clone());
 
         let settings = Anchor::new(
-            settings.into_shared().into(),
+            settings,
             Anchors {
                 horizontal: Some(Position::End),
                 vertical: Some(Position::Middle),

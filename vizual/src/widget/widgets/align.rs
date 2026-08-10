@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::Result;
+use vizual_macros::display;
 
 use crate::{
     component::{Children, context::Component_context},
@@ -11,28 +12,33 @@ use crate::{
         objective::{Objective, minimize},
     },
     slot::manager::Slots,
-    widget::{Focus_provider, General_shared_widget, Widget_trait},
+    widget::{Focus_provider, General_widget, General_widget_trait, Widget_trait},
 };
 
+#[derive(Clone)]
 pub struct Alignments {
     pub horizontal: Option<Objective>,
     pub vertical: Option<Objective>,
 }
 
+#[derive(Clone)]
 pub struct Align {
-    child: General_shared_widget,
+    child: General_widget,
     alignments: Alignments,
 }
 
 impl Align {
-    pub fn new(child: General_shared_widget, alignments: Alignments) -> Self {
-        Self { child, alignments }
+    pub fn new(child: impl General_widget_trait, alignments: Alignments) -> Self {
+        Self {
+            child: Box::new(child),
+            alignments,
+        }
     }
 
     async fn align(
         problem: &Component_context,
+        parent: Hitbox,
         hitbox: Hitbox,
-        child_hitbox: Hitbox,
         objective: Objective,
         direction: Direction,
     ) -> Result<()> {
@@ -41,14 +47,13 @@ impl Align {
         match objective {
             Objective::Minimize => {
                 let start_margin = Expression::from(
-                    child_hitbox.get_start_position(direction)
-                        - hitbox.get_start_position(direction),
+                    hitbox.get_start_position(direction) - parent.get_start_position(direction),
                 );
                 minimize(&mut *problem.lock().await?, start_margin, priority)
             }
             Objective::Maximize => {
                 let end_margin =
-                    hitbox.get_end_position(direction) - child_hitbox.get_end_position(direction);
+                    parent.get_end_position(direction) - hitbox.get_end_position(direction);
                 minimize(&mut *problem.lock().await?, end_margin, priority)
             }
             Objective::Minimize_delta => Ok(()),
@@ -64,49 +69,31 @@ impl Widget_trait for Align {
         _theme: crate::state::State<crate::theme::Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
-        _parent: Hitbox,
+        parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let child = slots.set(0, self.child.clone()).await?;
-        let child_hitbox = child.get_hitbox().await?;
-
         for direction in [Direction::Horizontal, Direction::Vertical] {
             problem
                 .constrain(constraint!(
-                    child_hitbox.get_start_position(direction)
-                        >= hitbox.get_start_position(direction)
+                    hitbox.get_start_position(direction) >= parent.get_start_position(direction)
                 ))
                 .await?;
             problem
                 .constrain(constraint!(
-                    child_hitbox.get_end_position(direction) <= hitbox.get_end_position(direction)
+                    hitbox.get_end_position(direction) <= parent.get_end_position(direction)
                 ))
                 .await?;
         }
 
         if let Some(horizontal) = self.alignments.horizontal {
-            Self::align(
-                &problem,
-                *hitbox,
-                child_hitbox,
-                horizontal,
-                Direction::Horizontal,
-            )
-            .await?;
+            Self::align(&problem, parent, *hitbox, horizontal, Direction::Horizontal).await?;
         }
         if let Some(vertical) = self.alignments.vertical {
-            Self::align(
-                &problem,
-                *hitbox,
-                child_hitbox,
-                vertical,
-                Direction::Vertical,
-            )
-            .await?;
+            Self::align(&problem, parent, *hitbox, vertical, Direction::Vertical).await?;
         }
 
-        Ok(vec![child])
+        Ok(vec![display!(self.child.clone())])
     }
 }

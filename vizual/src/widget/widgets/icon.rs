@@ -17,6 +17,7 @@ use crate::{
     theme::Theme,
 };
 
+#[derive(Clone)]
 pub struct Icon {
     icon: Lucide_icon,
     pub style: Style<Text_style>,

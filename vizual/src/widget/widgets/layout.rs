@@ -9,7 +9,10 @@ use crate::{
     theme::Theme,
     widget::{
         Focus_provider, Widget_trait,
-        widgets::anchor::{Anchor, Anchors},
+        widgets::{
+            anchor::{Anchor, Anchors},
+            container::Container,
+        },
     },
 };
 use async_trait::async_trait;
@@ -67,11 +70,12 @@ impl Widget_trait for Layout {
         slots: &mut Slots,
     ) -> Result<Children> {
         let direction = self.direction;
-        // TODO: A separate Anchor for every item wastes performance, but without its independent
+        // TODO: A separate Container for every item wastes performance, but without its independent
         // hitbox an Align or Anchor cannot be placed directly in a Layout.
         let mut elements = Vec::with_capacity(self.elements.len());
         for (index, element) in self.elements.iter().enumerate() {
-            let element = Anchor::new(element.clone().into_shared().into(), Anchors::top_left());
+            let element = Anchor::new(element.clone(), Anchors::top_left());
+            let element = Container::new(element);
             elements.push(slots.set(index as u64, element).await?);
         }
 

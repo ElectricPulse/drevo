@@ -17,21 +17,25 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_choice},
-    widget::{Focus_provider, Shared_widget, Widget_trait},
+    widget::{Focus_provider, General_widget, General_widget_trait, Widget_trait},
 };
 
-pub struct Default_root<T: Widget_trait> {
+pub struct Default_root {
     title: String,
-    widget: Shared_widget<T>,
+    widget: General_widget,
     header_open: State<bool>,
     theme_choice: State<Theme_choice>,
 }
 
-impl<T: Widget_trait> Default_root<T> {
-    pub fn new(title: impl Into<String>, widget: Shared_widget<T>, render: crate::Render) -> Self {
+impl Default_root {
+    pub fn new(
+        title: impl Into<String>,
+        widget: impl General_widget_trait,
+        render: crate::Render,
+    ) -> Self {
         Self {
             title: title.into(),
-            widget,
+            widget: Box::new(widget),
             header_open: render.new_state(false),
             theme_choice: render.new_state(Theme_choice::System),
         }
@@ -39,7 +43,7 @@ impl<T: Widget_trait> Default_root<T> {
 }
 
 #[async_trait::async_trait]
-impl<T: Widget_trait> Widget_trait for Default_root<T> {
+impl Widget_trait for Default_root {
     async fn layout(
         &mut self,
         _render: crate::Render,
@@ -51,7 +55,7 @@ impl<T: Widget_trait> Widget_trait for Default_root<T> {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let widget = Anchor::new(self.widget.clone().into(), Anchors::top_left());
+        let widget = Anchor::new(self.widget.clone(), Anchors::top_left());
 
         let body = Paper::new(display!(widget));
 

@@ -1,24 +1,29 @@
-use color_eyre::eyre::Result;
-use vizual_macros::display;
+use async_trait::async_trait;
+use color_eyre::Result;
 
 use super::super::{Focus_provider, General_widget, General_widget_trait, Widget_trait};
 use crate::{
     component::{Children, context::Component_context},
-    event::Key_event,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
 };
 
-pub struct Root(General_widget);
+/// Gives a child an independent intermediate hitbox.
+#[derive(Clone)]
+pub struct Container {
+    child: General_widget,
+}
 
-impl Root {
-    pub fn new(widget: impl General_widget_trait) -> Self {
-        Self(Box::new(widget))
+impl Container {
+    pub fn new(child: impl General_widget_trait) -> Self {
+        Self {
+            child: Box::new(child),
+        }
     }
 }
 
-#[async_trait::async_trait]
-impl Widget_trait for Root {
+#[async_trait]
+impl Widget_trait for Container {
     async fn layout(
         &mut self,
         _render: crate::Render,
@@ -30,14 +35,7 @@ impl Widget_trait for Root {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        Ok(vec![display!(self.0.clone())])
-    }
-
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
-        if crate::check_quit_event(key) {
-            return crate::Vizual_msg::new(crate::Vizual_command::Quit);
-        }
-
-        crate::Vizual_msg::none()
+        let child = slots.set(0, self.child.clone()).await?;
+        Ok(vec![child])
     }
 }

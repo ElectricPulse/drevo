@@ -6,7 +6,7 @@ use uuid::Uuid;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, General_shared_widget, Shared_widget, Widget_trait},
+    super::{Focus_provider, General_widget, Shared_widget, Widget_trait},
     layout::Layout,
 };
 use crate::{
@@ -88,7 +88,7 @@ impl Tab_bar {
         }
     }
 
-    fn get_selected(&self) -> Option<General_shared_widget> {
+    fn get_selected(&self) -> Option<General_widget> {
         let index = self.find_id(*self.selected_page.load())?;
 
         Some(self.pages[index].tab.specification.widget.clone())

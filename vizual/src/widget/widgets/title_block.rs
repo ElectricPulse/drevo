@@ -18,6 +18,7 @@ use crate::{
     theme::Theme,
 };
 
+#[derive(Clone)]
 pub struct Title_block {
     child: Child,
     pub title: String,
@@ -47,7 +48,7 @@ impl Widget_trait for Title_block {
     ) -> Result<Children> {
         let mut title = Text::new(self.title.clone());
         title.style.set(theme.load().specific.text.title);
-        let title = Anchor::new(title.into_shared().into(), Anchors::top_left());
+        let title = Anchor::new(title, Anchors::top_left());
 
         let mut layout = Layout::new(
             Direction::Vertical,

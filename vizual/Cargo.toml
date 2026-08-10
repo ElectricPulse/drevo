@@ -8,6 +8,7 @@ license = "Apache-2.0"
 readme = "README.md"
 
 [dependencies]
+derive-where.workspace = true
 ambassador = "0.5.0"
 async-trait = "0.1.89"
 vizual-macros = { path = "../vizual-macros" }

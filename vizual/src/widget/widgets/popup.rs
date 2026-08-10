@@ -86,7 +86,7 @@ impl Custom_widget_trait for Popup_menu_item {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
-        let text = Anchor::new(Widget_trait::into_shared(text).into(), Anchors::top_left());
+        let text = Anchor::new(text, Anchors::top_left());
 
         Ok(vec![display!(text)])
     }
@@ -186,7 +186,7 @@ impl Widget_trait for Popup {
             2,
         );
         let block = Title_block::new(display!(layout), "Are you sure you want to quit?");
-        let anchor = Anchor::new(Widget_trait::into_shared(block).into(), Anchors::middle());
+        let anchor = Anchor::new(block, Anchors::middle());
         Ok(vec![display!(anchor)])
     }
 

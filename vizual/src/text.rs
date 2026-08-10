@@ -356,7 +356,7 @@ struct Styled_span {
     style: Ansi_style,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct Ansi_style {
     foreground: Color,
     background: Option<Color>,
@@ -367,22 +367,6 @@ struct Ansi_style {
     strikethrough: bool,
     reverse: bool,
     hidden: bool,
-}
-
-impl Default for Ansi_style {
-    fn default() -> Self {
-        Self {
-            foreground: Color::White,
-            background: None,
-            bold: false,
-            dim: false,
-            italic: false,
-            underline: false,
-            strikethrough: false,
-            reverse: false,
-            hidden: false,
-        }
-    }
 }
 
 fn build_layout(

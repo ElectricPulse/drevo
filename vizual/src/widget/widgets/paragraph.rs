@@ -15,14 +15,9 @@ use crate::{
     style::Color,
 };
 
+#[derive(Default)]
 pub struct Paragraph {
     viewport: Text_viewport,
-}
-
-impl Default for Paragraph {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl Paragraph {

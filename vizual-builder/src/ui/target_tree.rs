@@ -58,10 +58,10 @@ impl Custom_widget_trait for Target_tree_item {
         let metadata = self.target.get_metadata().await?;
 
         let icon = Icon::new(metadata.status.get_icon());
-        let icon = Anchor::center(Widget_trait::into_shared(icon).into());
+        let icon = Anchor::center(icon);
 
         let name = Text::new(metadata.name);
-        let name = Anchor::new(Widget_trait::into_shared(name).into(), Anchors::top_left());
+        let name = Anchor::new(name, Anchors::top_left());
         let mut details = vec![display!(name)];
         if let Some(path) = metadata.path {
             let path = path
@@ -69,7 +69,7 @@ impl Custom_widget_trait for Target_tree_item {
                 .unwrap_or(path.as_path());
             let path = display_relative_path(path);
             let path = Text::new(format!("Working directory: {path}"));
-            let path = Anchor::new(Widget_trait::into_shared(path).into(), Anchors::top_left());
+            let path = Anchor::new(path, Anchors::top_left());
             details.push(display!(path));
         }
 
