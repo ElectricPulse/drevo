@@ -212,11 +212,6 @@ impl Hitbox {
         )
     }
 
-    pub(crate) fn remove_variables(self, variables: &Variables) {
-        remove_position_variables(self.start, variables);
-        remove_position_variables(self.end, variables);
-    }
-
     pub(crate) fn make_independent(
         &mut self,
         variables: &Variables,
@@ -264,15 +259,6 @@ impl Default for Hitbox {
     }
 }
 
-fn remove_position_variables(position: Variable_position, variables: &Variables) {
-    if position.owned_x {
-        variables.remove(position.x);
-    }
-    if position.owned_y {
-        variables.remove(position.y);
-    }
-}
-
 fn make_position_independent(
     position: &mut Variable_position,
     variables: &Variables,
@@ -309,7 +295,7 @@ fn share_variable(
     if *variable == parent {
         return;
     }
-    problem.replace_variable(*variable, parent, *owned);
+    problem.replace_variable(*variable, parent);
     *variable = parent;
     *owned = false;
 }
@@ -330,7 +316,7 @@ fn add_variable(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{collections::HashSet, sync::Arc};
 
     use super::*;
     use crate::{
@@ -434,6 +420,38 @@ mod tests {
             );
         }
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn shared_variables_remain_registered_when_owner_moves() -> Result<()> {
+        let variables = Arc::new(Variables::new());
+        let replacement = Hitbox::new(
+            &variables,
+            "replacement".to_string(),
+            "replacement".to_string(),
+            "test".to_string(),
+        );
+        let mut owner = Hitbox::new(
+            &variables,
+            "owner".to_string(),
+            "owner".to_string(),
+            "test".to_string(),
+        );
+        let mut alias = Hitbox::new(
+            &variables,
+            "alias".to_string(),
+            "alias".to_string(),
+            "test".to_string(),
+        );
+        let context =
+            Component_context::new(Arc::new(Mutex::new(Problem::new(Arc::clone(&variables)))));
+
+        alias.full(owner, &context).await?;
+        let shared = alias.start.x;
+        owner.full(replacement, &context).await?;
+
+        let _ = variables.create_solver_variables(&HashSet::from([shared]))?;
         Ok(())
     }
 }

@@ -16,6 +16,7 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::Theme,
+    widget::widgets::container::Container,
 };
 
 #[derive(Clone)]
@@ -49,9 +50,8 @@ impl Widget_trait for Title_block {
         let mut title = Text::new(self.title.clone());
         title.style.set(theme.load().specific.text.title);
         let title = Anchor::new(title, Anchors::top_left());
-        let child = Anchor::new(self.child.clone(), Anchors::top_left());
         let title = position!(title);
-        let child = position!(child);
+        let child = display!(self.child.clone());
 
         let mut layout = Layout::new(
             Direction::Vertical,
@@ -59,6 +59,7 @@ impl Widget_trait for Title_block {
             Objective::default(),
             2,
         );
+
         layout
             .style
             .set(Layout_style::Gap(theme.load().units.em * 0.45));

@@ -8,7 +8,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use color_eyre::Result;
-use vizual_macros::{display, position};
+use vizual_macros::display;
 
 #[derive(Clone, Copy)]
 pub enum Position {

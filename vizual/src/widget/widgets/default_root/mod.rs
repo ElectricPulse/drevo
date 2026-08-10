@@ -2,14 +2,10 @@ pub mod header;
 mod theme_picker;
 
 use color_eyre::eyre::Result;
-use vizual_macros::{display, position};
+use vizual_macros::display;
 
 use self::header::Header;
-use super::{
-    layout::Layout,
-    paper::Paper,
-    positioning::anchor::{Anchor, Anchors},
-};
+use super::{layout::Layout, paper::Paper};
 use crate::{
     component::{Children, context::Component_context},
     geometry::Direction,

@@ -45,6 +45,8 @@ impl Mul<f64> for Resolved_variable {
 pub(crate) type Resolved_variables = HashMap<usize, Resolved_variable>;
 
 /// Definitions for stable layout variables shared across relayout-created problems.
+// TODO: Add variable reuse with `Arc`-backed definitions so shared hitbox aliases keep a variable
+// alive until the last reference is dropped and its index can be safely reused.
 pub struct Variables {
     definitions: Mutex<HashMap<usize, Variable_definition>>,
 }
@@ -130,18 +132,6 @@ impl Variables {
         {
             definition.static_value = None;
         }
-    }
-
-    pub fn remove(&self, variable: Variable) {
-        if variable.index() < FIRST_DYNAMIC_VARIABLE_INDEX {
-            return;
-        }
-
-        let _ = self
-            .definitions
-            .lock()
-            .expect("layout variable definitions poisoned")
-            .remove(&variable.index());
     }
 
     pub(crate) fn name(&self, variable: Variable) -> String {
@@ -296,19 +286,12 @@ mod tests {
     #[test]
     fn component_tree_includes_parents_of_referenced_components() {
         let variables = Variables::new();
-        let parent = variables.add(
-            VariableDefinition::new().min(0),
-            "parent",
-            "parent.rs:1",
-            "c2",
-        );
         let leaf = variables.add(
             VariableDefinition::new().min(0),
             "leaf",
             "leaf.rs:3",
             "c2.c3.c4",
         );
-        variables.remove(parent);
         let tree = vec![
             crate::component::debug::Component_source {
                 component_path: "c2".to_string(),

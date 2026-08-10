@@ -530,9 +530,8 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 let description = Anchor::new(description, Anchors::top_left());
                 let linebreak = display!(Linebreak::new());
                 let widget = display!(leaf.widget);
-                let widget = Anchor::new(widget, Anchors::top_left());
                 let description = position!(description);
-                let widget = position!(widget);
+
                 let layout = Layout::new(
                     Direction::Vertical,
                     vec![description, linebreak, widget],
@@ -540,7 +539,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                     2,
                 );
 
-                let leaf = Title_block::new(display!(layout), format!("Value - {}", leaf.name));
+                let leaf = Title_block::new(display!(layout), leaf.name);
 
                 Some(Box::new(leaf))
             } else {

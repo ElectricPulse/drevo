@@ -96,7 +96,6 @@ impl Component_slot {
                 children: Vec::new(),
                 parent: None,
                 slot_manager: Slot_records::new(problem),
-                variables,
             })));
 
             self.reference = lock.as_reference();

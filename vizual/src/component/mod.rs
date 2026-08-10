@@ -10,7 +10,7 @@ use crate::{
     Render,
     focus::Focus,
     geometry::Direction,
-    layouter::{Solution, constraints::shrink_wrap, hitbox::Hitbox, variables::Variables},
+    layouter::{Solution, constraints::shrink_wrap, hitbox::Hitbox},
     slot::manager::{Slot_records, Slots},
     state::State,
     sync::{Mutex, MutexGuard},
@@ -38,7 +38,6 @@ pub struct Component {
     pub parent: Parent,
     pub children: Children,
     pub slot_manager: Slot_records,
-    pub(crate) variables: Arc<Variables>,
 }
 
 #[derive(Clone, new)]
@@ -144,16 +143,8 @@ impl Shared_component {
 
     #[async_recursion]
     pub(crate) async fn dismount(&mut self) -> Result<()> {
-        let (children, hitbox, variables) = {
-            let component = self.lock().await?;
-            (
-                component.children.clone(),
-                component.hitbox,
-                Arc::clone(&component.variables),
-            )
-        };
+        let children = self.lock().await?.children.clone();
 
-        hitbox.remove_variables(&variables);
         for mut child in children {
             child.dismount().await?;
         }

@@ -107,7 +107,7 @@ impl Problem {
         Arc::clone(&self.variables)
     }
 
-    pub(crate) fn replace_variable(&mut self, old: Variable, new: Variable, remove_old: bool) {
+    pub(crate) fn replace_variable(&mut self, old: Variable, new: Variable) {
         if old == new {
             return;
         }
@@ -117,9 +117,8 @@ impl Problem {
         for objective in self.objectives.iter_mut().flatten() {
             objective.replace_variable(old, new);
         }
-        if remove_old {
-            self.variables.remove(old);
-        }
+        // Hitboxes can share this variable index. Keep its definition registered even after the
+        // current owner moves to another variable so those aliases remain valid.
     }
 
     pub(crate) fn constrain(&mut self, constraint: Constraint) {
