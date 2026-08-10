@@ -7,11 +7,24 @@ use super::super::{
     button::Button,
     icon::Icon,
     menu::{Menu, Shared_menu_item, get_selector},
-    positioning::anchor::{Anchor, Anchors, Position},
+    positioning::anchor::{Anchor, Anchors},
     text::Text,
 };
 use crate::{
-    Render, Vizual_command, Vizual_msg, component::{Children, context::Component_context}, event::Pointer_event, geometry::Direction, handlers::Retrieve_handler, layouter::hitbox::Hitbox, slot::manager::Slots, state::State, theme::{Theme, Theme_choice}, widget::{Focus_provider, Widget_trait, custom_widget::Custom_widget_trait, widgets::layout::Layout},
+    Render, Vizual_command, Vizual_msg,
+    component::{Children, context::Component_context},
+    event::Pointer_event,
+    geometry::Direction,
+    handlers::Retrieve_handler,
+    layouter::hitbox::Hitbox,
+    slot::manager::Slots,
+    state::State,
+    theme::{Theme, Theme_choice},
+    widget::{
+        Focus_provider, Widget_trait,
+        custom_widget::Custom_widget_trait,
+        widgets::{layout::Layout, positioning::anchor::Position},
+    },
 };
 
 fn label(choice: Theme_choice) -> &'static str {
@@ -51,10 +64,12 @@ impl Custom_widget_trait for Theme_menu_item {
         selected: bool,
     ) -> Result<Children> {
         let mut text = Text::new(label(self.choice));
+
         text.style.set(match selected {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
+
         let text = Anchor::new(text, Anchors::top_left());
 
         Ok(vec![position!(text)])
@@ -93,11 +108,10 @@ impl Widget_trait for Theme_picker {
         }
 
         let icon = Icon::new(Lucide_icon::Settings);
-        let button = Button::around(display!(icon));
-        let button = display!(button);
+        let button = Button::around(icon);
 
         if !*self.open.load() {
-            return Ok(vec![button]);
+            return Ok(vec![display!(button)]);
         }
 
         let choices = [
@@ -119,10 +133,11 @@ impl Widget_trait for Theme_picker {
             .collect::<Vec<_>>();
 
         let default_item = get_selector(&items[selected_index]);
-        let mut menu = Menu::new(items, default_item, render);
-        menu.set_submit_state(self.choice.clone());
 
-        /*let menu = Anchor::new(
+        let mut menu = Menu::new(items, default_item, render);
+        //menu.set_submit_state(self.choice.clone());
+
+        let menu = Anchor::new(
             menu,
             Anchors {
                 horizontal: Some(Position::End),
@@ -130,12 +145,18 @@ impl Widget_trait for Theme_picker {
             },
         );
 
+        let button = Anchor::new(
+            button,
+            Anchors {
+                horizontal: Some(Position::Start),
+                vertical: Some(Position::Start),
+            },
+        );
+
         let mut menu = position!(menu);
         menu.layer = 1;
 
-        */
-
-        let layout = Layout::new(Direction::Horizontal, vec![button, menu]);
+        let layout = Layout::new(Direction::Horizontal, vec![position!(button.clone())]);
 
         Ok(vec![display!(layout)])
     }

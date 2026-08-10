@@ -39,18 +39,13 @@ pub struct Layout {
 }
 
 impl Layout {
-    pub fn new(
-        direction: Direction,
-        elements: Vec<Child>,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
+    pub fn new(direction: Direction, elements: Vec<Child>) -> Self {
         Self {
             direction,
             elements,
             style: Style::default(),
-            objective,
-            priority,
+            objective: Objective::Minimize_delta,
+            priority: 2,
         }
     }
 }

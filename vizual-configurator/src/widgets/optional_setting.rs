@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::{Result, eyre};
 use derive_where::derive_where;
 use std::marker::PhantomData;
+use vizual::geometry::Direction;
 use vizual::{
     component::{Children, context::Component_context},
     handlers::Retrieve_handler,
@@ -21,7 +22,6 @@ use vizual::{
         },
     },
 };
-use vizual::{geometry::Direction, layouter::objective::Objective};
 use vizual_macros::{display, position};
 
 use crate::Field;
@@ -113,7 +113,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
             true => vec![title, position!(field)],
             false => vec![title],
         };
-        let layout = Layout::new(Direction::Vertical, contents, Objective::default(), 2);
+        let layout = Layout::new(Direction::Vertical, contents);
 
         Ok(vec![display!(layout)])
     }

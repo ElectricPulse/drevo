@@ -12,7 +12,7 @@ use super::{
 use crate::{
     component::{Child, Children, context::Component_context},
     geometry::Direction,
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -52,12 +52,7 @@ impl Widget_trait for Title_block {
         let title = position!(title);
         let child = display!(self.child.clone());
 
-        let mut layout = Layout::new(
-            Direction::Vertical,
-            vec![title, child],
-            Objective::default(),
-            2,
-        );
+        let mut layout = Layout::new(Direction::Vertical, vec![title, child]);
 
         layout
             .style

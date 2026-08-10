@@ -24,7 +24,6 @@ impl Tab_specification {
 #[derive(Clone)]
 pub struct Tab {
     pub specification: Tab_specification,
-    pub button: Button,
     pub id: Uuid,
 }
 
@@ -43,19 +42,19 @@ impl Submit_handler<String> for Tab_button_click_handler {
 }
 
 impl Tab {
-    pub fn new(specification: Tab_specification, selected_page: State<Uuid>) -> Self {
+    pub fn new(specification: Tab_specification) -> Self {
         let id = Uuid::new_v4();
 
-        Self {
-            button: Button::new(
-                &specification.name,
-                Tab_button_click_handler {
-                    state: selected_page,
-                    id,
-                },
-            ),
-            specification,
-            id,
-        }
+        Self { specification, id }
+    }
+
+    pub(super) fn button(&self, content: impl Widget_trait, selected_page: State<Uuid>) -> Button {
+        Button::new(
+            content,
+            Tab_button_click_handler {
+                state: selected_page,
+                id: self.id,
+            },
+        )
     }
 }

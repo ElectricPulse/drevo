@@ -17,7 +17,7 @@ use crate::{
     event::{Event, Key_event, Pointer_event},
     geometry::Direction,
     handlers::{Retrieve_handler, Submit_handler},
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -156,7 +156,7 @@ impl Widget_trait for Popup {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -164,8 +164,10 @@ impl Widget_trait for Popup {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        let mut text = Text::new("Submit");
+        text.style.set(theme.load().specific.text.selected_subtitle);
         let button = Button::new(
-            "Submit",
+            text,
             Popup_button_handler {
                 menu: self.menu.clone(),
                 submit_handler: self.submit_handler.clone(),
@@ -176,12 +178,7 @@ impl Widget_trait for Popup {
         let menu = Anchor::new(self.menu.clone(), Anchors::top_left());
         let menu = position!(menu);
         let button = position!(button);
-        let layout = Layout::new(
-            Direction::Vertical,
-            vec![menu, button],
-            Objective::default(),
-            2,
-        );
+        let layout = Layout::new(Direction::Vertical, vec![menu, button]);
         let block = Title_block::new(display!(layout), "Are you sure you want to quit?");
         let anchor = Anchor::new(block, Anchors::middle());
         Ok(vec![position!(anchor)])

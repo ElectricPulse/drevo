@@ -5,15 +5,11 @@ use vizual_macros::{display, position};
 use super::{
     super::{Focus_provider, Widget_trait},
     block::Block,
-    positioning::{
-        anchor::{Anchor, Anchors},
-        space::Space,
-    },
-    text::Text,
+    positioning::space::Space,
 };
 use crate::{
     Vizual_msg,
-    component::{Child, Children, context::Component_context},
+    component::{Children, context::Component_context},
     event::Pointer_event,
     handlers::Submit_handler,
     layouter::{
@@ -27,36 +23,27 @@ use crate::{
 };
 
 #[derive(Clone)]
-enum Button_content {
-    Label(String),
-    Child(Child),
-}
-
-#[derive(Clone)]
 pub struct Button {
-    content: Button_content,
+    content: Widget,
     click_handler: Option<Box<dyn Submit_handler<String>>>,
-    pub active: bool,
     pub highlighted: bool,
     pub delta: Option<Delta>,
 }
 
 impl Button {
-    pub fn new(label: impl Into<String>, click_handler: impl Submit_handler<String>) -> Self {
+    pub fn new(content: impl Widget_trait, click_handler: impl Submit_handler<String>) -> Self {
         Self {
-            content: Button_content::Label(label.into()),
+            content: Box::new(content),
             click_handler: Some(Box::new(click_handler)),
-            active: true,
             highlighted: false,
             delta: None,
         }
     }
 
-    pub fn around(content: Child) -> Self {
+    pub fn around(content: impl Widget_trait) -> Self {
         Self {
-            content: Button_content::Child(content),
+            content: Box::new(content),
             click_handler: None,
-            active: true,
             highlighted: false,
             delta: None,
         }
@@ -76,22 +63,8 @@ impl Widget_trait for Button {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let content: Widget = match &self.content {
-            Button_content::Label(label) => {
-                let active = self.active;
-                let mut text = Text::new(label.clone());
-                text.style.set(match active {
-                    true => theme.load().specific.text.selected_subtitle,
-                    false => theme.load().specific.text.subtitle,
-                });
-                let text = Anchor::new(text, Anchors::top_left());
-                Box::new(text)
-            }
-            Button_content::Child(content) => Box::new(content.clone()),
-        };
-
         let mut space = Space::uniform(
-            content,
+            self.content.clone(),
             theme.load().units.em * 0.75,
             Objective::default(),
             2,
@@ -106,11 +79,9 @@ impl Widget_trait for Button {
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
-        match (&mut self.click_handler, &self.content) {
-            (Some(click_handler), Button_content::Label(label)) => {
-                click_handler.on_submit(Some(label.clone())).await
-            }
-            _ => Vizual_msg::none(),
+        match &mut self.click_handler {
+            Some(click_handler) => click_handler.on_submit(None).await,
+            None => Vizual_msg::none(),
         }
     }
 }

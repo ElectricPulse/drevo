@@ -6,7 +6,7 @@ use vizual::{
     component::{Children, context::Component_context},
     geometry::Direction,
     handlers::Retrieve_handler,
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     widget::{
@@ -74,17 +74,12 @@ impl Custom_widget_trait for Target_tree_item {
             details.push(position!(path));
         }
 
-        let details = Layout::new(Direction::Vertical, details, Objective::default(), 2);
+        let details = Layout::new(Direction::Vertical, details);
         let details = Anchor::new(details, Anchors::top_left());
         let details = position!(details);
         let icon = position!(icon);
 
-        let row = Layout::new(
-            Direction::Horizontal,
-            vec![details, icon],
-            Objective::default(),
-            2,
-        );
+        let row = Layout::new(Direction::Horizontal, vec![details, icon]);
 
         Ok(vec![display!(row)])
     }

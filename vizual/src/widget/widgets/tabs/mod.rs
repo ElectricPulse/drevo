@@ -9,6 +9,7 @@ use super::{
     super::{Focus_provider, Shared_widget, Widget, Widget_trait},
     layout::Layout,
     positioning::anchor::{Anchor, Anchors},
+    text::Text,
 };
 use crate::{
     Render,
@@ -16,7 +17,7 @@ use crate::{
     display::Display,
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::hitbox::Hitbox,
     slot::{Component_slot, manager::Slots},
     state::State,
     theme::Theme,
@@ -33,10 +34,7 @@ pub struct Tabs {
 impl Tabs {
     pub fn new(render: Render, pages: Vec<Tab_specification>) -> Self {
         let selected_page = render.new_state(Uuid::default());
-        let pages: Vec<Tab> = pages
-            .into_iter()
-            .map(|page| Tab::new(page, selected_page.clone()))
-            .collect();
+        let pages: Vec<Tab> = pages.into_iter().map(Tab::new).collect();
 
         if let Some(initial_page) = pages.first().map(|page| page.id) {
             selected_page.store(initial_page);
@@ -104,7 +102,7 @@ impl Widget_trait for Tab_bar {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -117,14 +115,19 @@ impl Widget_trait for Tab_bar {
 
         for page in self.pages.iter_mut() {
             let active = self.selected_page.load() == page.tab.id.into();
-            page.tab.button.active = active;
-            let button = Anchor::new(page.tab.button.clone(), Anchors::top_left());
+            let mut text = Text::new(&page.tab.specification.name);
+            text.style.set(match active {
+                true => theme.load().specific.text.selected_subtitle,
+                false => theme.load().specific.text.subtitle,
+            });
+            let button = page.tab.button(text, self.selected_page.clone());
+            let button = Anchor::new(button, Anchors::top_left());
             let button = page.slot.set(button, problem.clone()).await?;
 
             buttons.push(button);
         }
 
-        let layout = Layout::new(Direction::Horizontal, buttons, Objective::default(), 2);
+        let layout = Layout::new(Direction::Horizontal, buttons);
         Ok(vec![display!(layout)])
     }
 
@@ -191,7 +194,7 @@ impl Widget_trait for Tabs {
             }
         }
 
-        let layout = Layout::new(Direction::Vertical, elements, Objective::default(), 2);
+        let layout = Layout::new(Direction::Vertical, elements);
         Ok(vec![display!(layout)])
     }
 }

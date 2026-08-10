@@ -229,6 +229,7 @@ impl<T: Tree> Tree_view<T> {
         node: &Configuration_tree_branch,
         selected_cursor: &[String],
         cursor: &[String],
+        theme: State<Theme>,
         problem: &Component_context,
         button_delta: vizual::layouter::variable::Variable,
     ) -> Result<Vec<Child>> {
@@ -241,15 +242,20 @@ impl<T: Tree> Tree_view<T> {
             child_cursor.push(name.clone());
             let depth = cursor.len();
 
+            let mut text = Text::new(name);
+            text.style.set(match selected_cursor == child_cursor {
+                true => theme.load().specific.text.selected_subtitle,
+                false => theme.load().specific.text.subtitle,
+            });
+
             let mut button = Button::new(
-                name,
+                text,
                 Field_click_handler {
                     configurator_state: self.configurator_state.clone(),
                     cursor: child_cursor.clone(),
                 },
             );
 
-            button.active = selected_cursor == child_cursor;
             button.delta = Some(button_delta);
 
             let button = Space::left(button, (INDENT * depth) as f64, Objective::default(), 2);
@@ -267,6 +273,7 @@ impl<T: Tree> Tree_view<T> {
                         branch,
                         selected_cursor,
                         &child_cursor,
+                        theme.clone(),
                         problem,
                         button_delta,
                     )
@@ -317,7 +324,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
     async fn layout(
         &mut self,
         _render: vizual::Render,
-        _theme: State<Theme>,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -333,10 +340,10 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
 
         let tree = self.tree.lock().await?.get_tree();
         let buttons = self
-            .render_tree(slots, &tree, &cursor, &[], &problem, button_delta)
+            .render_tree(slots, &tree, &cursor, &[], theme, &problem, button_delta)
             .await?;
 
-        let layout = Layout::new(Direction::Vertical, buttons, Objective::default(), 2);
+        let layout = Layout::new(Direction::Vertical, buttons);
 
         let block = Title_block::new(display!(layout), "Config");
         Ok(vec![display!(block)])
@@ -533,12 +540,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 let widget = display!(leaf.widget);
                 let description = position!(description);
 
-                let layout = Layout::new(
-                    Direction::Vertical,
-                    vec![description, linebreak, widget],
-                    Objective::default(),
-                    2,
-                );
+                let layout = Layout::new(Direction::Vertical, vec![description, linebreak, widget]);
 
                 let leaf = Title_block::new(display!(layout), leaf.name);
 
@@ -570,7 +572,9 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             children.push(Box::new(field));
         }
 
-        let button = Button::new("Apply", self.config_manager.clone());
+        let mut text = Text::new("Apply");
+        text.style.set(theme.load().specific.text.selected_subtitle);
+        let button = Button::new(text, self.config_manager.clone());
         let button = Anchor::new(
             button,
             Anchors {

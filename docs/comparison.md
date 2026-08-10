@@ -122,7 +122,7 @@ impl Widget_trait for Hello {
         let title = Anchor::center(display!(title));
 
         let goodbye = Button::new(
-            "Goodbye!",
+            Text::new("Goodbye!"),
             Box::new(Command_submit_handler::new(Vizual_command::Quit)),
         );
         let goodbye = Space::left(display!(goodbye), 5.0, Objective::default(), 1);

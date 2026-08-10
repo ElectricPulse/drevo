@@ -9,7 +9,7 @@ use super::{layout::Layout, paper::Paper};
 use crate::{
     component::{Children, context::Component_context},
     geometry::Direction,
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_choice},
@@ -58,12 +58,7 @@ impl Widget_trait for Default_root {
             self.theme_choice.clone(),
         ));
 
-        let layout = Layout::new(
-            Direction::Vertical,
-            vec![header, display!(body)],
-            Objective::default(),
-            2,
-        );
+        let layout = Layout::new(Direction::Vertical, vec![header, display!(body)]);
 
         let mut root = Paper::new(display!(layout));
         root.style.set(theme.load().specific.root);

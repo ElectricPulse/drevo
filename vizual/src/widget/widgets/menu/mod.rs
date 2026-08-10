@@ -20,7 +20,7 @@ use crate::{
     event::{Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
     handlers::Retrieve_handler,
-    layouter::{hitbox::Hitbox, objective::Objective, variable::Variable},
+    layouter::{hitbox::Hitbox, variable::Variable},
     slot::manager::Slots,
     state::State,
     sync::{Mutex, Thread_safe},
@@ -236,12 +236,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
             rows.push(slots.set(index as u64, item).await?);
         }
 
-        Ok(vec![display!(Layout::new(
-            Direction::Vertical,
-            rows,
-            Objective::default(),
-            2,
-        ))])
+        Ok(vec![display!(Layout::new(Direction::Vertical, rows,))])
     }
 
     async fn render(
