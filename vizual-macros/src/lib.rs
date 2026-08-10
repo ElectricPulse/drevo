@@ -28,6 +28,18 @@ pub fn display(input: TokenStream) -> TokenStream {
     .into()
 }
 
+/// Sets a child in a unique slot and returns it without enclosing it in `Full`, assuming the slot
+/// manager is named `slots`.
+#[proc_macro]
+pub fn position(input: TokenStream) -> TokenStream {
+    let child = parse_macro_input!(input as Expr);
+
+    quote! {
+        slots.set(::vizual::id!(), #child).await?
+    }
+    .into()
+}
+
 #[proc_macro_derive(Widget_trait, attributes(widget_trait))]
 /// Derives `vizual::widget::Widget_trait` by delegating to a field.
 pub fn derive_widget_trait(input: TokenStream) -> TokenStream {

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::display;
+use vizual_macros::position;
 
 use super::{
     super::{
@@ -55,7 +55,7 @@ impl Custom_widget_trait for String_menu_item {
         });
         let text = Anchor::new(text, Anchors::top_left());
 
-        Ok(vec![display!(text)])
+        Ok(vec![position!(text)])
     }
 }
 

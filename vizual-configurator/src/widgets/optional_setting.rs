@@ -22,7 +22,7 @@ use vizual::{
     },
 };
 use vizual::{geometry::Direction, layouter::objective::Objective};
-use vizual_macros::display;
+use vizual_macros::{display, position};
 
 use crate::Field;
 
@@ -62,7 +62,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Default_leaf_value<Value> {
         });
         let text = Anchor::new(text, Anchors::top_left());
 
-        Ok(vec![display!(text)])
+        Ok(vec![position!(text)])
     }
 }
 
@@ -108,9 +108,10 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
         });
         let title = Anchor::new(title, Anchors::top_left());
         let field = Anchor::new(self.field.clone(), Anchors::top_left());
+        let title = position!(title);
         let contents = match selected {
-            true => vec![display!(title), display!(field)],
-            false => vec![display!(title)],
+            true => vec![title, position!(field)],
+            false => vec![title],
         };
         let layout = Layout::new(Direction::Vertical, contents, Objective::default(), 2);
 

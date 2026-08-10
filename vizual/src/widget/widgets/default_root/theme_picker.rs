@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use lucide_icons::Icon as Lucide_icon;
-use vizual_macros::display;
+use vizual_macros::{display, position};
 
 use super::super::{
     button::Button,
@@ -65,7 +65,7 @@ impl Custom_widget_trait for Theme_menu_item {
         });
         let text = Anchor::new(text, Anchors::top_left());
 
-        Ok(vec![display!(text)])
+        Ok(vec![position!(text)])
     }
 }
 

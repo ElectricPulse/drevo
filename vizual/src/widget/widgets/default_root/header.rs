@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use vizual_macros::position;
 
 use super::{
     super::{
@@ -61,6 +62,6 @@ impl Widget_trait for Header {
             },
         );
 
-        Ok(vec![slots.set(0, name).await?])
+        Ok(vec![position!(name)])
     }
 }

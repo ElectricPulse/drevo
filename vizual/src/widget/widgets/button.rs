@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::Result;
-use vizual_macros::display;
+use vizual_macros::{display, position};
 
 use super::{
     super::{Focus_provider, Widget_trait},
@@ -97,7 +97,7 @@ impl Widget_trait for Button {
             2,
         );
         space.delta = self.delta;
-        let space = slots.set(0, space).await?;
+        let space = position!(space);
 
         let mut block = Block::new(space);
         block.highlighted = self.highlighted;

@@ -47,7 +47,7 @@ use vizual::{
         },
     },
 };
-use vizual_macros::display;
+use vizual_macros::{display, position};
 
 #[async_trait]
 /// Supplies the fields displayed by a [`Configurator`].
@@ -531,9 +531,11 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 let linebreak = display!(Linebreak::new());
                 let widget = display!(leaf.widget);
                 let widget = Anchor::new(widget, Anchors::top_left());
+                let description = position!(description);
+                let widget = position!(widget);
                 let layout = Layout::new(
                     Direction::Vertical,
-                    vec![display!(description), linebreak, display!(widget)],
+                    vec![description, linebreak, widget],
                     Objective::default(),
                     2,
                 );
@@ -588,7 +590,8 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 .await?;
 
             let popup = Space::full(popup, Objective::default(), 2);
-            return Ok(vec![display!(grid), display!(popup)]);
+            let popup = position!(popup);
+            return Ok(vec![display!(grid), popup]);
         }
 
         Ok(vec![display!(grid)])

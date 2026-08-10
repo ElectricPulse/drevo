@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::Result;
-use vizual_macros::display;
+use vizual_macros::{display, position};
 
 use crate::{
     component::{Children, context::Component_context},

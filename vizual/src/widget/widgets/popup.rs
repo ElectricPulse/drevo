@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::display;
+use vizual_macros::{display, position};
 
 use super::{
     super::{Focus_provider, Shared_widget, Widget_trait},
@@ -86,7 +86,7 @@ impl Custom_widget_trait for Popup_menu_item {
         });
         let text = Anchor::new(text, Anchors::top_left());
 
-        Ok(vec![display!(text)])
+        Ok(vec![position!(text)])
     }
 }
 
@@ -174,15 +174,17 @@ impl Widget_trait for Popup {
         let button = display!(button);
         let button = Anchor::new(button, Anchors::top_left());
         let menu = Anchor::new(self.menu.clone(), Anchors::top_left());
+        let menu = position!(menu);
+        let button = position!(button);
         let layout = Layout::new(
             Direction::Vertical,
-            vec![display!(menu), display!(button)],
+            vec![menu, button],
             Objective::default(),
             2,
         );
         let block = Title_block::new(display!(layout), "Are you sure you want to quit?");
         let anchor = Anchor::new(block, Anchors::middle());
-        Ok(vec![display!(anchor)])
+        Ok(vec![position!(anchor)])
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {

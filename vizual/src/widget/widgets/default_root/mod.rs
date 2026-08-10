@@ -2,7 +2,7 @@ pub mod header;
 mod theme_picker;
 
 use color_eyre::eyre::Result;
-use vizual_macros::display;
+use vizual_macros::{display, position};
 
 use self::header::Header;
 use super::{
@@ -52,9 +52,9 @@ impl Widget_trait for Default_root {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let widget = Anchor::new(self.widget.clone(), Anchors::top_left());
+        let widget = display!(self.widget.clone());
 
-        let body = Paper::new(display!(widget));
+        let body = Paper::new(widget);
 
         let header = display!(Header::new(
             self.title.clone(),

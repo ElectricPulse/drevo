@@ -3,7 +3,7 @@ pub mod tab;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use uuid::Uuid;
-use vizual_macros::display;
+use vizual_macros::{display, position};
 
 use super::{
     super::{Focus_provider, Shared_widget, Widget, Widget_trait},
@@ -181,12 +181,13 @@ impl Widget_trait for Tabs {
         slots: &mut Slots,
     ) -> Result<Children> {
         let header = Anchor::new(self.header.clone(), Anchors::top_left());
-        let mut elements = vec![display!(header)];
+        let header = position!(header);
+        let mut elements = vec![header];
         {
             let selected = self.header.lock().await?.get_selected();
             if let Some(widget) = selected {
                 let widget = Anchor::new(widget, Anchors::top_left());
-                elements.push(display!(widget));
+                elements.push(position!(widget));
             }
         }
 
