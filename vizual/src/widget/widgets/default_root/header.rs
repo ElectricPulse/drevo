@@ -61,6 +61,6 @@ impl Widget_trait for Header {
             },
         );
 
-        Ok(vec![display!(name), display!(settings)])
+        Ok(vec![display!(name)])
     }
 }

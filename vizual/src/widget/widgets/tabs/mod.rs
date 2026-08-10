@@ -114,7 +114,7 @@ impl Widget_trait for Tab_bar {
 
         for page in self.pages.iter_mut() {
             let active = self.selected_page.load() == page.tab.id.into();
-            page.tab.button.lock().await?.active = active;
+            page.tab.button.active = active;
             let button = Anchor::new(page.tab.button.clone(), Anchors::top_left());
             let button = page.slot.set(button, problem.clone()).await?;
 

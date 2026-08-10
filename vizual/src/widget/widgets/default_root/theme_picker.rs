@@ -80,6 +80,8 @@ impl Theme_picker {
     }
 }
 
+// This is a piece of trash code
+
 #[async_trait]
 impl Widget_trait for Theme_picker {
     async fn layout(

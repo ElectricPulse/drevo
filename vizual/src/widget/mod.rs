@@ -24,6 +24,12 @@ use crate::{
 use super::{Render, Vizual_msg};
 
 pub type Widget = Box<dyn Widget_trait>;
+
+// In the future only elements whose state changed will need to be relayouted that means that a
+// layout() might get called multiple times on a component. In case of something like align where a
+// child is provided and returned - it will need to get returned multiple times - cloned from self.
+// In that case the child of align is General_widget and it either means that the button be in an Arc
+// or button itself just be clonable which is much cleaner and should be preffered.
 pub type General_widget = Box<dyn General_widget_trait>;
 
 pub struct Focus_provider {

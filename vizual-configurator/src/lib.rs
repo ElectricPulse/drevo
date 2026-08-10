@@ -201,6 +201,7 @@ struct Tree_view<T: Tree> {
     configurator_state: Arc<Mutex<Configurator_state>>,
 }
 
+#[derive(Clone)]
 struct Field_click_handler {
     cursor: Vec<String>,
     configurator_state: Arc<Mutex<Configurator_state>>,
@@ -240,21 +241,16 @@ impl<T: Tree> Tree_view<T> {
 
             let mut button = Button::new(
                 name,
-                Box::new(Field_click_handler {
+                Field_click_handler {
                     configurator_state: self.configurator_state.clone(),
                     cursor: child_cursor.clone(),
-                }),
+                },
             );
 
             button.active = selected_cursor == child_cursor;
             button.delta = Some(button_delta);
 
-            let button = Space::left(
-                button.into_shared(),
-                (INDENT * depth) as f64,
-                Objective::default(),
-                2,
-            );
+            let button = Space::left(button, (INDENT * depth) as f64, Objective::default(), 2);
             let button = Anchor::new(button, Anchors::top_left());
 
             // Since cursor should be unique for every button we can use it to generate id
@@ -569,13 +565,12 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             children.push(Box::new(field));
         }
 
-        let button = Button::new("Apply", Box::new(self.config_manager.clone()));
-
-        let button: Align = Align::new(
-            button.into_shared(),
-            Alignments {
-                horizontal: Some(Objective::Maximize),
-                vertical: Some(Objective::Maximize),
+        let button = Button::new("Apply", self.config_manager.clone());
+        let button = Anchor::new(
+            button,
+            Anchors {
+                horizontal: Some(Anchor_position::End),
+                vertical: Some(Anchor_position::End),
             },
         );
 

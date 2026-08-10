@@ -3017,6 +3017,7 @@ dependencies = [
  "delegate",
  "derive-new",
  "derive-where",
+ "dyn-clone",
  "futures",
  "good_lp",
  "log",

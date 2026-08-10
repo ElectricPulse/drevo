@@ -3,7 +3,7 @@ use color_eyre::eyre::Result;
 use uuid::Uuid;
 
 use super::super::button::Button;
-use crate::widget::{General_widget, General_widget_trait, Shared_widget, Widget_trait};
+use crate::widget::{General_widget, General_widget_trait};
 use crate::{Vizual_command, Vizual_msg, handlers::Submit_handler, state::State};
 
 pub struct Tab_specification {
@@ -22,10 +22,11 @@ impl Tab_specification {
 
 pub struct Tab {
     pub specification: Tab_specification,
-    pub button: Shared_widget<Button>,
+    pub button: Button,
     pub id: Uuid,
 }
 
+#[derive(Clone)]
 struct Tab_button_click_handler {
     state: State<Uuid>,
     id: Uuid,
@@ -46,12 +47,11 @@ impl Tab {
         Self {
             button: Button::new(
                 &specification.name,
-                Box::new(Tab_button_click_handler {
+                Tab_button_click_handler {
                     state: selected_page,
                     id,
-                }),
-            )
-            .into_shared(),
+                },
+            ),
             specification,
             id,
         }

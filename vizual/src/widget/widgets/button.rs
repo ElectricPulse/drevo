@@ -24,24 +24,35 @@ use crate::{
     widget::General_widget,
 };
 
+#[derive(Clone)]
 enum Button_content {
     Label(String),
     Child(Child),
 }
 
+trait Button_handler: Submit_handler<String> + dyn_clone::DynClone {}
+
+impl<Handler> Button_handler for Handler where Handler: Submit_handler<String> + Clone {}
+
+dyn_clone::clone_trait_object!(Button_handler);
+
+#[derive(Clone)]
 pub struct Button {
     content: Button_content,
-    click_handler: Option<Box<dyn Submit_handler<String>>>,
+    click_handler: Option<Box<dyn Button_handler>>,
     pub active: bool,
     pub highlighted: bool,
     pub delta: Delta,
 }
 
 impl Button {
-    pub fn new(label: impl Into<String>, click_handler: Box<dyn Submit_handler<String>>) -> Self {
+    pub fn new(
+        label: impl Into<String>,
+        click_handler: impl Submit_handler<String> + Clone,
+    ) -> Self {
         Self {
             content: Button_content::Label(label.into()),
-            click_handler: Some(click_handler),
+            click_handler: Some(Box::new(click_handler)),
             active: true,
             highlighted: false,
             delta: Delta::default(),

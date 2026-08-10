@@ -114,6 +114,7 @@ impl<Subhandler: Submit_handler<bool>> Submit_handler<Popup_options>
 
 type Shared_popup_submit_handler = Arc<Mutex<dyn Submit_handler<Popup_options>>>;
 
+#[derive(Clone)]
 struct Popup_button_handler {
     menu: Shared_widget<Menu<Popup_options>>,
     submit_handler: Shared_popup_submit_handler,
@@ -173,10 +174,10 @@ impl Widget_trait for Popup {
     ) -> Result<Children> {
         let button = Button::new(
             "Submit",
-            Box::new(Popup_button_handler {
+            Popup_button_handler {
                 menu: self.menu.clone(),
                 submit_handler: self.submit_handler.clone(),
-            }),
+            },
         );
         let button = display!(button);
         let button = Anchor::new(button, Anchors::top_left());
