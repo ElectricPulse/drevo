@@ -1,5 +1,5 @@
 use crate::{
-    component::{Child, Children, context::Component_context},
+    component::{Children, context::Component_context},
     constraint,
     geometry::Direction,
     layouter::{
@@ -11,7 +11,7 @@ use crate::{
     state::State,
     style::Style,
     theme::Theme,
-    widget::{Focus_provider, Widget_trait, widgets::container::Container},
+    widget::{Focus_provider, Widget, Widget_trait, widgets::container::Container},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -31,7 +31,7 @@ impl From<Theme> for Layout_style {
 #[derive(Clone)]
 pub struct Layout {
     direction: Direction,
-    elements: Vec<Child>,
+    elements: Vec<Widget>,
     pub style: Style<Layout_style>,
     objective: Objective,
     // TODO: Keep priority manual until there is a way to set it automatically.
@@ -39,10 +39,16 @@ pub struct Layout {
 }
 
 impl Layout {
-    pub fn new(direction: Direction, elements: Vec<Child>) -> Self {
+    pub fn new<Element>(direction: Direction, elements: Vec<Element>) -> Self
+    where
+        Element: Widget_trait,
+    {
         Self {
             direction,
-            elements,
+            elements: elements
+                .into_iter()
+                .map(|element| Box::new(element) as Widget)
+                .collect(),
             style: Style::default(),
             objective: Objective::Minimize_delta,
             priority: 2,
@@ -79,15 +85,6 @@ impl Widget_trait for Layout {
                 .await?;
             element
                 .share_end(*hitbox, &problem, cross_direction)
-                .await?;
-        }
-        for element in &self.elements {
-            let element_hitbox = element.get_hitbox().await?;
-            problem
-                .constrain(constraint!(
-                    hitbox.get_dimension(cross_direction)
-                        >= element_hitbox.get_dimension(cross_direction)
-                ))
                 .await?;
         }
         minimize(

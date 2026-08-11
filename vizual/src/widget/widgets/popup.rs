@@ -179,7 +179,7 @@ impl Widget_trait for Popup {
         let menu = position!(menu);
         let button = position!(button);
         let layout = Layout::new(Direction::Vertical, vec![menu, button]);
-        let block = Title_block::new(display!(layout), "Are you sure you want to quit?");
+        let block = Title_block::new(layout, "Are you sure you want to quit?");
         let anchor = Anchor::new(block, Anchors::middle());
         Ok(vec![position!(anchor)])
     }

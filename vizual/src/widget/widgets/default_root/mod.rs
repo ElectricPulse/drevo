@@ -48,9 +48,7 @@ impl Widget_trait for Default_root {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let widget = display!(self.widget.clone());
-
-        let body = Paper::new(widget);
+        let body = Paper::new(self.widget.clone());
 
         let header = display!(Header::new(
             self.title.clone(),
@@ -60,7 +58,7 @@ impl Widget_trait for Default_root {
 
         let layout = Layout::new(Direction::Vertical, vec![header, display!(body)]);
 
-        let mut root = Paper::new(display!(layout));
+        let mut root = Paper::new(layout);
         root.style.set(theme.load().specific.root);
 
         Ok(vec![display!(root)])

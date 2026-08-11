@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::{display, position};
+use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Widget_trait},
@@ -8,11 +8,12 @@ use super::{
     positioning::space::Space,
 };
 use crate::{
-    component::{Child, Children, context::Component_context},
+    component::{Children, context::Component_context},
     layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     theme::Theme,
+    widget::Widget,
     widget::widgets::block::Block_style,
 };
 
@@ -24,14 +25,14 @@ pub struct Paper_style {
 
 #[derive(Clone)]
 pub struct Paper {
-    child: Child,
+    child: Widget,
     pub style: crate::style::Style<Paper_style>,
 }
 
 impl Paper {
-    pub fn new(child: Child) -> Self {
+    pub fn new(child: impl Widget_trait) -> Self {
         Self {
-            child,
+            child: Box::new(child),
             style: crate::style::Style::default(),
         }
     }
@@ -58,7 +59,6 @@ impl Widget_trait for Paper {
     ) -> Result<Children> {
         let style = self.style.get(&theme);
         let space = Space::uniform(self.child.clone(), style.padding, Objective::default(), 2);
-        let space = position!(space);
 
         let mut block = Block::new(space);
         block.style.set(style.block);

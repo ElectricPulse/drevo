@@ -8,23 +8,20 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Expr, Fields, Member, Type, parse_macro_input, parse_quote};
 
-/// Sets a child in a unique slot and returns it enclosed in a slotted `Full`, assuming the slot
-/// manager is named `slots`. The returned child's public `layer` defaults to zero and can be
-/// changed before returning it from `layout`.
+/// Encloses a widget in `Full`, sets that wrapper in a unique slot, and returns it, assuming the
+/// slot manager is named `slots`. The returned component's public `layer` defaults to zero and can
+/// be changed before returning it from `layout`.
 #[proc_macro]
 pub fn display(input: TokenStream) -> TokenStream {
     let child = parse_macro_input!(input as Expr);
 
     quote! {
-        {
-            let child = slots.set(::vizual::id!(), #child).await?;
-            slots
-                .set(
-                    ::vizual::id!(),
-                    ::vizual::widget::widgets::full::Full::new(child),
-                )
-                .await?
-        }
+        slots
+            .set(
+                ::vizual::id!(),
+                ::vizual::widget::widgets::full::Full::new(#child),
+            )
+            .await?
     }
     .into()
 }

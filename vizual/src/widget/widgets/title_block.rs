@@ -10,24 +10,25 @@ use super::{
     text::Text,
 };
 use crate::{
-    component::{Child, Children, context::Component_context},
+    component::{Children, context::Component_context},
     geometry::Direction,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     theme::Theme,
+    widget::Widget,
 };
 
 #[derive(Clone)]
 pub struct Title_block {
-    child: Child,
+    child: Widget,
     pub title: String,
 }
 
 impl Title_block {
-    pub fn new(child: Child, title: impl Into<String>) -> Self {
+    pub fn new(child: impl Widget_trait, title: impl Into<String>) -> Self {
         Self {
-            child,
+            child: Box::new(child),
             title: title.into(),
         }
     }
@@ -58,7 +59,7 @@ impl Widget_trait for Title_block {
             .style
             .set(Layout_style::Gap(theme.load().units.em * 0.45));
 
-        let paper = Paper::new(display!(layout));
+        let paper = Paper::new(layout);
         Ok(vec![display!(paper)])
     }
 }

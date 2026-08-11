@@ -38,7 +38,7 @@ impl Widget_trait for Linebreak {
         slots: &mut Slots,
     ) -> Result<Children> {
         let line = Linebreak_unsized;
-        let full = Full::width(display!(line));
+        let full = Full::width(line);
 
         Ok(vec![display!(full)])
     }

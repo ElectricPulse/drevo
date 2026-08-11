@@ -2,11 +2,11 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use crate::{
-    component::{Child, Children, context::Component_context},
+    component::{Children, context::Component_context},
     geometry::Direction,
     layouter::{constraints::shrink_wrap, hitbox::Hitbox},
     slot::manager::Slots,
-    widget::{Focus_provider, Widget_trait},
+    widget::{Focus_provider, Widget, Widget_trait},
 };
 
 /// Shares both this component and its child across the entire parent hitbox.
@@ -15,31 +15,31 @@ use crate::{
 /// calling [`Hitbox::full`] on both layers.
 #[derive(Clone)]
 pub struct Full {
-    child: Child,
+    child: Widget,
     width: bool,
     height: bool,
 }
 
 impl Full {
-    pub fn new(child: Child) -> Self {
+    pub fn new(child: impl Widget_trait) -> Self {
         Self {
-            child,
+            child: Box::new(child),
             width: true,
             height: true,
         }
     }
 
-    pub fn width(child: Child) -> Self {
+    pub fn width(child: impl Widget_trait) -> Self {
         Self {
-            child,
+            child: Box::new(child),
             width: true,
             height: false,
         }
     }
 
-    pub fn height(child: Child) -> Self {
+    pub fn height(child: impl Widget_trait) -> Self {
         Self {
-            child,
+            child: Box::new(child),
             width: false,
             height: true,
         }
@@ -57,17 +57,14 @@ impl Widget_trait for Full {
         parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
-        _slots: &mut Slots,
+        slots: &mut Slots,
     ) -> Result<Children> {
+        let child = slots.set(0, self.child.clone()).await?;
+
         match (self.width, self.height) {
             (true, true) => {
                 hitbox.full(parent, &problem).await?;
-                self.child
-                    .lock()
-                    .await?
-                    .hitbox
-                    .full(parent, &problem)
-                    .await?;
+                child.lock().await?.hitbox.full(parent, &problem).await?;
             }
             (width, height) => {
                 for (enabled, direction) in [
@@ -77,21 +74,16 @@ impl Widget_trait for Full {
                     if enabled {
                         hitbox.share_start(parent, &problem, direction).await?;
                         hitbox.share_end(parent, &problem, direction).await?;
-                        self.child.share_start(*hitbox, &problem, direction).await?;
-                        self.child.share_end(*hitbox, &problem, direction).await?;
+                        child.share_start(*hitbox, &problem, direction).await?;
+                        child.share_end(*hitbox, &problem, direction).await?;
                     } else {
-                        shrink_wrap(
-                            &problem,
-                            *hitbox,
-                            std::slice::from_ref(&self.child),
-                            direction,
-                        )
-                        .await?;
+                        shrink_wrap(&problem, *hitbox, std::slice::from_ref(&child), direction)
+                            .await?;
                     }
                 }
             }
         }
 
-        Ok(vec![self.child.clone()])
+        Ok(vec![child])
     }
 }

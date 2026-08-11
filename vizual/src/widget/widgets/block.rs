@@ -3,7 +3,7 @@ use super::{
     positioning::space::Space,
 };
 use crate::{
-    component::{Child, Children, context::Component_context},
+    component::{Children, context::Component_context},
     display::Display,
     geometry::Rect,
     layouter::{hitbox::Hitbox, objective::Objective},
@@ -11,6 +11,7 @@ use crate::{
     state::State,
     style::{Color, Style},
     theme::Theme,
+    widget::Widget,
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -32,15 +33,15 @@ pub struct Block_style {
 
 #[derive(Clone)]
 pub struct Block {
-    child: Child,
+    child: Widget,
     pub style: Style<Block_style>,
     pub highlighted: bool,
 }
 
 impl Block {
-    pub fn new(child: Child) -> Self {
+    pub fn new(child: impl Widget_trait) -> Self {
         Self {
-            child,
+            child: Box::new(child),
             style: Style::default(),
             highlighted: false,
         }

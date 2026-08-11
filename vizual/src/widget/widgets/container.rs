@@ -1,11 +1,12 @@
 use async_trait::async_trait;
 use color_eyre::Result;
-use vizual_macros::{display, position};
+use vizual_macros::position;
 
 use super::super::{Focus_provider, Widget, Widget_trait};
 use crate::{
     component::{Children, context::Component_context},
-    layouter::hitbox::Hitbox,
+    geometry::Direction,
+    layouter::{constraints::shrink_wrap, hitbox::Hitbox},
     slot::manager::Slots,
 };
 
@@ -30,13 +31,17 @@ impl Widget_trait for Container {
         _render: crate::Render,
         _theme: crate::state::State<crate::theme::Theme>,
         _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
-        _problem: Component_context,
+        problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        // TODO: I dare you to try to explain why position! isn't used here since self.child.clone could be an align macro which shouldn't try to share its hitbox with the container
-        Ok(vec![display!(self.child.clone())])
+        let child = position!(self.child.clone());
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            shrink_wrap(&problem, *hitbox, std::slice::from_ref(&child), direction).await?;
+        }
+
+        Ok(vec![child])
     }
 }

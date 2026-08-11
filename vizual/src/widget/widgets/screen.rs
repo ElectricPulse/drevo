@@ -332,7 +332,7 @@ impl Widget_trait for Screen {
             format!("{}{}", self.command, content.status())
         };
 
-        let block = Title_block::new(display!(self.content.clone()), title);
+        let block = Title_block::new(self.content.clone(), title);
         Ok(vec![display!(block)])
     }
 

@@ -134,11 +134,9 @@ impl Widget_trait for Theme_picker {
 
         let default_item = get_selector(&items[selected_index]);
 
-        let mut menu = Paper::new(
-            Menu::new(items, default_item, render)
-        );
-        
+        let mut menu = Menu::new(items, default_item, render);
         menu.set_submit_state(self.choice.clone());
+        let menu = Paper::new(menu);
 
         let menu = Anchor::new(
             menu,
