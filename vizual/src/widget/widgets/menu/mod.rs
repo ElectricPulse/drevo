@@ -10,7 +10,7 @@ use vizual_macros::display;
 use super::{
     super::{Focus_provider, Shared_widget, Widget_trait, custom_widget::Custom_widget_trait},
     button::Button,
-    layout::Layout,
+    layout::axis::Axis,
     positioning::anchor::{Anchor, Anchors},
 };
 use crate::{
@@ -236,7 +236,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
             rows.push(slots.set(index as u64, item).await?);
         }
 
-        Ok(vec![display!(Layout::new(Direction::Vertical, rows,))])
+        Ok(vec![display!(Axis::new(Direction::Vertical, rows,))])
     }
 
     async fn render(

@@ -7,7 +7,11 @@
 //! overlap behaviour.
 //!
 //! Positioning widgets repoint the parts of their inherited hitbox which need independent layout.
-//! internally and negates any effect these widgets have.
+//!
+//! Under normal widget composition, these are the only widgets allowed to create or repoint
+//! hitbox variables or to perform manual shrink-wrapping. The layout infrastructure in
+//! `widgets::layout` and its internal `Container` are structural exceptions, `Linebreak` owns one
+//! intrinsic edge variable, and the header's popup menu is the deliberate UI exception.
 
 pub mod align;
 pub mod anchor;

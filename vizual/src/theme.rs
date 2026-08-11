@@ -27,13 +27,13 @@ pub struct Semantic_tokens {
     pub background: Color,
     pub surface: Color,
     pub border: Color,
-    pub layout: Layout_theme,
+    pub axis: Axis_theme,
     pub text: Text_semantic,
     pub focus: Color,
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct Layout_theme {
+pub struct Axis_theme {
     pub gap: f64,
 }
 
@@ -116,7 +116,7 @@ fn dark_tokens() -> Theme {
         background: Color::Rgb(30, 31, 34),
         surface: Color::Rgb(49, 51, 56),
         border: Color::Rgb(78, 80, 88),
-        layout: Layout_theme {
+        axis: Axis_theme {
             gap: units.em * 0.625,
         },
         text: Text_semantic {
@@ -134,7 +134,7 @@ fn light_tokens() -> Theme {
         background: Color::Rgb(245, 246, 248),
         surface: Color::White,
         border: Color::Rgb(210, 212, 218),
-        layout: Layout_theme {
+        axis: Axis_theme {
             gap: units.em * 0.625,
         },
         text: Text_semantic {

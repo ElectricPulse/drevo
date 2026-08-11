@@ -5,7 +5,7 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use self::header::Header;
-use super::{layout::Layout, paper::Paper};
+use super::{layout::axis::Axis, paper::Paper};
 use crate::{
     component::{Children, context::Component_context},
     geometry::Direction,
@@ -62,9 +62,9 @@ impl Widget_trait for Default_root {
             self.theme_choice.clone(),
         ));
 
-        let layout = Layout::new(Direction::Vertical, vec![header]);
+        let axis = Axis::new(Direction::Vertical, vec![header]);
 
-        let mut root = Paper::new(layout);
+        let mut root = Paper::new(axis);
         root.style.set(theme.load().specific.root);
 
         Ok(vec![display!(root)])

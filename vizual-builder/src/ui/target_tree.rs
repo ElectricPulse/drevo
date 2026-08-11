@@ -14,7 +14,7 @@ use vizual::{
         custom_widget::Custom_widget_trait,
         widgets::{
             icon::Icon,
-            layout::Layout,
+            layout::axis::Axis,
             menu::{Menu, Shared_menu_item, get_selector},
             positioning::anchor::{Anchor, Anchors},
             text::Text,
@@ -74,12 +74,12 @@ impl Custom_widget_trait for Target_tree_item {
             details.push(display!(path));
         }
 
-        let details = Layout::new(Direction::Vertical, details);
+        let details = Axis::new(Direction::Vertical, details);
         let details = Anchor::new(details, Anchors::top_left());
         let details = display!(details);
         let icon = display!(icon);
 
-        let row = Layout::new(Direction::Horizontal, vec![details, icon]);
+        let row = Axis::new(Direction::Horizontal, vec![details, icon]);
 
         Ok(vec![display!(row)])
     }

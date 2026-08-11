@@ -7,7 +7,7 @@ use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Shared_widget, Widget, Widget_trait},
-    layout::Layout,
+    layout::axis::Axis,
     positioning::anchor::{Anchor, Anchors},
     text::Text,
 };
@@ -127,8 +127,8 @@ impl Widget_trait for Tab_bar {
             buttons.push(button);
         }
 
-        let layout = Layout::new(Direction::Horizontal, buttons);
-        Ok(vec![display!(layout)])
+        let axis = Axis::new(Direction::Horizontal, buttons);
+        Ok(vec![display!(axis)])
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
@@ -194,7 +194,7 @@ impl Widget_trait for Tabs {
             }
         }
 
-        let layout = Layout::new(Direction::Vertical, elements);
-        Ok(vec![display!(layout)])
+        let axis = Axis::new(Direction::Vertical, elements);
+        Ok(vec![display!(axis)])
     }
 }

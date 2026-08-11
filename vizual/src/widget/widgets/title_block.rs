@@ -4,7 +4,7 @@ use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Widget_trait},
-    layout::{Layout, Layout_style},
+    layout::axis::{Axis, Axis_style},
     paper::Paper,
     positioning::anchor::{Anchor, Anchors},
     text::Text,
@@ -53,13 +53,12 @@ impl Widget_trait for Title_block {
         let title = display!(title);
         let child = display!(self.child.clone());
 
-        let mut layout = Layout::new(Direction::Vertical, vec![title, child]);
+        let mut axis = Axis::new(Direction::Vertical, vec![title, child]);
 
-        layout
-            .style
-            .set(Layout_style::Gap(theme.load().units.em * 0.45));
+        axis.style
+            .set(Axis_style::Gap(theme.load().units.em * 0.45));
 
-        let paper = Paper::new(layout);
+        let paper = Paper::new(axis);
         Ok(vec![display!(paper)])
     }
 }

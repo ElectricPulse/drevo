@@ -90,18 +90,18 @@ impl Widget_trait for Builder {
             detail_elements.push(display!(error));
         }
 
-        let detail = Layout::new(
+        let detail = Axis::new(
             Direction::Vertical,
             detail_elements,
-            Layout_style::default(self.theme.clone()),
+            Axis_style::default(self.theme.clone()),
             Objective::default(),
             2,
         );
 
-        let main = Layout::new(
+        let main = Axis::new(
             Direction::Horizontal,
             vec![display!(target_menu), display!(detail)],
-            Layout_style::default(self.theme.clone()),
+            Axis_style::default(self.theme.clone()),
             Objective::default(),
             2,
         );
@@ -118,10 +118,10 @@ impl Widget_trait for Builder {
             rows.push(display!(linebreak));
         }
         rows.push(display!(main));
-        let layout = Layout::new(
+        let axis = Axis::new(
             Direction::Vertical,
             rows,
-            Layout_style::default(self.theme.clone()),
+            Axis_style::default(self.theme.clone()),
             Objective::default(),
             2,
         );*/

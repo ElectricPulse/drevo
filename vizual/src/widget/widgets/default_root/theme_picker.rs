@@ -23,7 +23,7 @@ use crate::{
     widget::{
         Focus_provider, Widget_trait,
         custom_widget::Custom_widget_trait,
-        widgets::{layout::Layout, paper::Paper, positioning::anchor::Position},
+        widgets::{layout::axis::Axis, paper::Paper, positioning::anchor::Position},
     },
 };
 
@@ -157,9 +157,9 @@ impl Widget_trait for Theme_picker {
             },
         );
 
-        let layout = Layout::new(Direction::Vertical, vec![display!(button), display!(menu)]);
+        let axis = Axis::new(Direction::Vertical, vec![display!(button), display!(menu)]);
 
-        Ok(vec![display!(layout)])
+        Ok(vec![display!(axis)])
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {

@@ -15,7 +15,7 @@ use vizual::{
         Focus_provider, Shared_widget, Widget_trait,
         custom_widget::Custom_widget_trait,
         widgets::{
-            layout::Layout,
+            layout::axis::Axis,
             menu::{Menu, Shared_menu_item, get_selector},
             positioning::anchor::{Anchor, Anchors},
             text::Text,
@@ -113,9 +113,9 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
             true => vec![title, display!(field)],
             false => vec![title],
         };
-        let layout = Layout::new(Direction::Vertical, contents);
+        let axis = Axis::new(Direction::Vertical, contents);
 
-        Ok(vec![display!(layout)])
+        Ok(vec![display!(axis)])
     }
 }
 

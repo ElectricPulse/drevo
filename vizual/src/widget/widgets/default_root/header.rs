@@ -4,7 +4,7 @@ use vizual_macros::display;
 
 use super::{
     super::{
-        grid::Grid,
+        layout::grid::Grid,
         positioning::anchor::{Anchor, Anchors, Position},
         text::Text,
     },

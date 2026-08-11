@@ -15,31 +15,29 @@ use crate::{
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::display;
-
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Layout_style {
+pub enum Axis_style {
     Gap(f64),
     // TODO: Implement Start, Center, End, Space_between, Space_around, and Space_evenly.
 }
 
-impl From<Theme> for Layout_style {
+impl From<Theme> for Axis_style {
     fn from(theme: Theme) -> Self {
-        Self::Gap(theme.semantic.layout.gap)
+        Self::Gap(theme.semantic.axis.gap)
     }
 }
 
 #[derive(Clone)]
-pub struct Layout {
+pub struct Axis {
     direction: Direction,
     elements: Vec<Widget>,
-    pub style: Style<Layout_style>,
+    pub style: Style<Axis_style>,
     objective: Objective,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
 }
 
-impl Layout {
+impl Axis {
     pub fn new<Element>(direction: Direction, elements: Vec<Element>) -> Self
     where
         Element: Widget_trait,
@@ -58,7 +56,7 @@ impl Layout {
 }
 
 #[async_trait]
-impl Widget_trait for Layout {
+impl Widget_trait for Axis {
     async fn layout(
         &mut self,
         _render: crate::Render,
@@ -86,13 +84,13 @@ impl Widget_trait for Layout {
             if index > 0 {
                 element.start.point_to_variable(
                     direction,
-                    problem.make_independent_variable("layout-item-start"),
+                    problem.make_independent_variable("axis-item-start"),
                 );
             }
             if index < last_index {
                 element.end.point_to_variable(
                     direction,
-                    problem.make_independent_variable("layout-item-end"),
+                    problem.make_independent_variable("axis-item-end"),
                 );
             }
         }
@@ -105,8 +103,8 @@ impl Widget_trait for Layout {
         )?;
 
         if elements.len() >= 2 {
-            let Layout_style::Gap(gap) = self.style.get(&theme);
-            let gap_delta = problem.add_delta("layout-gap-delta", self.priority).await?;
+            let Axis_style::Gap(gap) = self.style.get(&theme);
+            let gap_delta = problem.add_delta("axis-gap-delta", self.priority).await?;
 
             for pair in elements.windows(2) {
                 let [previous, current] = pair else {

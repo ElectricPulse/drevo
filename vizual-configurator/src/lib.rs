@@ -34,8 +34,7 @@ use vizual::{
         Focus_provider, Shared_widget, Widget, Widget_trait,
         widgets::{
             button::Button,
-            grid::Grid,
-            layout::Layout,
+            layout::{axis::Axis, grid::Grid},
             linebreak::Linebreak,
             popup::Popup,
             positioning::{
@@ -342,9 +341,9 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
             .render_tree(slots, &tree, &cursor, &[], theme, &problem, button_delta)
             .await?;
 
-        let layout = Layout::new(Direction::Vertical, buttons);
+        let axis = Axis::new(Direction::Vertical, buttons);
 
-        let block = Title_block::new(display!(layout), "Config");
+        let block = Title_block::new(display!(axis), "Config");
         Ok(vec![display!(block)])
     }
 
@@ -539,9 +538,9 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 let widget = display!(leaf.widget);
                 let description = display!(description);
 
-                let layout = Layout::new(Direction::Vertical, vec![description, linebreak, widget]);
+                let axis = Axis::new(Direction::Vertical, vec![description, linebreak, widget]);
 
-                let leaf = Title_block::new(display!(layout), leaf.name);
+                let leaf = Title_block::new(display!(axis), leaf.name);
 
                 Some(Box::new(leaf))
             } else {
@@ -549,7 +548,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             }
         };
 
-        let gap = theme.load().semantic.layout.gap;
+        let gap = theme.load().semantic.axis.gap;
         let tree_view = Anchor::new(
             tree_view,
             Anchors {

@@ -5,7 +5,7 @@ use vizual_macros::display;
 use super::{
     super::{Focus_provider, Shared_widget, Widget_trait},
     button::Button,
-    layout::Layout,
+    layout::axis::Axis,
     menu::{Menu, Shared_menu_item, get_selector},
     positioning::anchor::{Anchor, Anchors},
     text::Text,
@@ -178,8 +178,8 @@ impl Widget_trait for Popup {
         let menu = Anchor::new(self.menu.clone(), Anchors::top_left());
         let menu = display!(menu);
         let button = display!(button);
-        let layout = Layout::new(Direction::Vertical, vec![menu, button]);
-        let block = Title_block::new(layout, "Are you sure you want to quit?");
+        let axis = Axis::new(Direction::Vertical, vec![menu, button]);
+        let block = Title_block::new(axis, "Are you sure you want to quit?");
         let anchor = Anchor::new(block, Anchors::middle());
         Ok(vec![display!(anchor)])
     }
