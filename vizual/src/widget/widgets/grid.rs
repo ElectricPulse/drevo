@@ -52,7 +52,7 @@ impl Widget_trait for Grid {
         }
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
-            shrink_wrap(&problem, *hitbox, &children, direction).await?;
+            shrink_wrap(&problem, hitbox.clone(), &children, direction).await?;
         }
 
         Ok(children)

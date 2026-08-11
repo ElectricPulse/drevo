@@ -106,6 +106,10 @@ runtime remains active for asynchronous widget and background work.
 - Reconsider using `General_shared_widget` as a generic layout-composition
   escape hatch. Erasing and remounting widgets this way makes it impossible to
   reliably track which widget owns focus.
+- Reconcile the extra state-preserving behavior of `Child_slot` with the rest
+  of the widget API. Reusing a child slot can preserve component state such as
+  focus when replacing one widget with another, but many widgets do not expose
+  child-slot support even though that transition is possible.
 - for no focus components I don't think they need to have stable known lifetime in between
  layout() calls
 

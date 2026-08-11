@@ -15,7 +15,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::position;
+use vizual_macros::display;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Border_style {
@@ -70,7 +70,7 @@ impl Widget_trait for Block {
             2,
         );
 
-        Ok(vec![position!(space)])
+        Ok(vec![display!(space)])
     }
 
     async fn render(

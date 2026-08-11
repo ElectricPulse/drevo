@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::position;
+use vizual_macros::display;
 
 use super::{
     super::{
+        grid::Grid,
         positioning::anchor::{Anchor, Anchors, Position},
         text::Text,
     },
@@ -12,12 +13,11 @@ use super::{
 use crate::{
     Render,
     component::{Children, context::Component_context},
-    geometry::Direction,
-    layouter::{constraints::shrink_wrap, hitbox::Hitbox},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_choice},
-    widget::{Focus_provider, Widget_trait},
+    widget::{Focus_provider, Widget, Widget_trait},
 };
 
 #[derive(Clone)]
@@ -44,9 +44,9 @@ impl Widget_trait for Header {
         _render: Render,
         theme: State<Theme>,
         _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
-        problem: Component_context,
+        _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
@@ -63,9 +63,7 @@ impl Widget_trait for Header {
             },
         );
 
-        let children = vec![position!(name), position!(settings)];
-        shrink_wrap(&problem, *hitbox, &children, Direction::Vertical).await?;
-
-        Ok(children)
+        let items: Vec<Widget> = vec![Box::new(name), Box::new(settings)];
+        Ok(vec![display!(Grid::new(items, 0.0))])
     }
 }

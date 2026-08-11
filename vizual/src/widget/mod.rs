@@ -67,9 +67,9 @@ impl Focus_provider {
 pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
     /// Configures this widget's mutable hitbox and returns its visual children.
     ///
-    /// A widget can reuse parent variables through [`Hitbox::share_start`],
-    /// [`Hitbox::share_end`], [`Hitbox::share_dimension`], or [`Hitbox::full`]. Widgets that derive
-    /// their size from returned children must add those relationships explicitly.
+    /// Every child initially points to its parent's hitbox definitions. Positioning widgets can
+    /// repoint individual variables through the mutable hitbox. Widgets that derive their size
+    /// from returned children must add those relationships explicitly.
     async fn layout(
         &mut self,
         _render: Render,

@@ -5,6 +5,7 @@ use color_eyre::eyre::{Result, eyre};
 
 use crate::{
     component::{Shared_component, context::Component_context},
+    layouter::hitbox::Hitbox,
     widget::Widget_trait,
 };
 
@@ -24,6 +25,7 @@ pub struct Slot_records {
 
 pub struct Slots<'a> {
     slot_manager: &'a mut Slot_records,
+    parent: Hitbox,
     used: HashMap<u64, bool>,
     used_at: HashMap<u64, &'static Location<'static>>,
 }
@@ -43,9 +45,10 @@ impl Slot_records {
         self.problem = problem;
     }
 
-    pub fn slots(&mut self) -> Slots<'_> {
+    pub fn slots(&mut self, parent: &Hitbox) -> Slots<'_> {
         Slots {
             slot_manager: self,
+            parent: parent.clone(),
             used: HashMap::new(),
             used_at: HashMap::new(),
         }
@@ -116,7 +119,7 @@ impl Slots<'_> {
         let problem = self.slot_manager.problem.clone();
         self.slot_manager
             .get_at(id, location)
-            .set(widget, problem)
+            .set_child(widget, problem, &self.parent)
             .await
     }
 }

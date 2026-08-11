@@ -5,11 +5,10 @@ use crate::{
 };
 use color_eyre::eyre::Result;
 
-/// Shrink-wraps each unshared edge of a component around its unshared child edges.
+/// Shrink-wraps each component edge around the corresponding child edges.
 ///
-/// An edge needs no containment constraint or objective only when it directly reuses the
-/// corresponding parent edge variable. A child edge is skipped only when it directly reuses the
-/// corresponding component edge variable.
+/// A child handle which currently points to the component definition still receives a constraint:
+/// a positioning widget can repoint that stable handle later in its own layout.
 pub async fn shrink_wrap(
     problem: &Component_context,
     hitbox: Hitbox,
@@ -34,7 +33,9 @@ pub async fn shrink_wrap(
     let mut constrained_end = false;
 
     for child_hitbox in child_hitboxes {
-        if child_hitbox.get_start_position(direction) != hitbox.get_start_position(direction) {
+        let child_start = child_hitbox.get_start_position(direction);
+        let hitbox_start = hitbox.get_start_position(direction);
+        if child_start != hitbox_start {
             problem
                 .constrain(
                     constraint!(
@@ -46,7 +47,9 @@ pub async fn shrink_wrap(
                 .await?;
             constrained_start = true;
         }
-        if child_hitbox.end.get(direction) != hitbox.end.get(direction) {
+        let child_end = child_hitbox.end.get(direction);
+        let hitbox_end = hitbox.end.get(direction);
+        if child_end != hitbox_end {
             problem
                 .constrain(
                     constraint!(
@@ -98,7 +101,10 @@ pub async fn prohibit_overlap(
 
     problem
         .constrain(constraint!(
-            first_left_of_second + second_left_of_first + first_above_second + second_above_first
+            first_left_of_second.clone()
+                + second_left_of_first.clone()
+                + first_above_second.clone()
+                + second_above_first.clone()
                 == 1
         ))
         .await?;
@@ -154,28 +160,34 @@ mod tests {
             "test".to_string(),
         );
         let direction = Direction::Horizontal;
+        assert!(
+            !child
+                .get_start_position(direction)
+                .points_to(&parent.get_start_position(direction))
+        );
+        assert!(
+            !child
+                .end
+                .get(direction)
+                .points_to(&parent.end.get(direction))
+        );
+
+        child.start.x = parent.end.x.clone();
         assert_ne!(
             child.get_start_position(direction),
             parent.get_start_position(direction)
         );
-        assert_ne!(child.end.get(direction), parent.end.get(direction));
 
-        child.start.x = parent.end.x;
-        assert_ne!(
-            child.get_start_position(direction),
-            parent.get_start_position(direction)
-        );
-
-        child.start.x = parent.start.x;
+        child.start.x = parent.start.x.clone();
         assert_eq!(
             child.get_start_position(direction),
             parent.get_start_position(direction)
         );
 
-        child.end.x = parent.start.x;
+        child.end.x = parent.start.x.clone();
         assert_ne!(child.end.get(direction), parent.end.get(direction));
 
-        child.end.x = parent.end.x;
+        child.end.x = parent.end.x.clone();
         assert_eq!(child.end.get(direction), parent.end.get(direction));
     }
 }

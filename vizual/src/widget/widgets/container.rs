@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::Result;
-use vizual_macros::position;
+use vizual_macros::display;
 
 use super::super::{Focus_provider, Widget, Widget_trait};
 use crate::{
@@ -37,9 +37,16 @@ impl Widget_trait for Container {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let child = position!(self.child.clone());
+        let child = display!(self.child.clone());
+
         for direction in [Direction::Horizontal, Direction::Vertical] {
-            shrink_wrap(&problem, *hitbox, std::slice::from_ref(&child), direction).await?;
+            shrink_wrap(
+                &problem,
+                hitbox.clone(),
+                std::slice::from_ref(&child),
+                direction,
+            )
+            .await?;
         }
 
         Ok(vec![child])

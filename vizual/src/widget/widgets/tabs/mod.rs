@@ -3,7 +3,7 @@ pub mod tab;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use uuid::Uuid;
-use vizual_macros::{display, position};
+use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Shared_widget, Widget, Widget_trait},
@@ -104,7 +104,7 @@ impl Widget_trait for Tab_bar {
         _render: crate::Render,
         theme: State<Theme>,
         focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::text::Text_context,
@@ -122,7 +122,7 @@ impl Widget_trait for Tab_bar {
             });
             let button = page.tab.button(text, self.selected_page.clone());
             let button = Anchor::new(button, Anchors::top_left());
-            let button = page.slot.set(button, problem.clone()).await?;
+            let button = page.slot.set_child(button, problem.clone(), hitbox).await?;
 
             buttons.push(button);
         }
@@ -184,13 +184,13 @@ impl Widget_trait for Tabs {
         slots: &mut Slots,
     ) -> Result<Children> {
         let header = Anchor::new(self.header.clone(), Anchors::top_left());
-        let header = position!(header);
+        let header = display!(header);
         let mut elements = vec![header];
         {
             let selected = self.header.lock().await?.get_selected();
             if let Some(widget) = selected {
                 let widget = Anchor::new(widget, Anchors::top_left());
-                elements.push(position!(widget));
+                elements.push(display!(widget));
             }
         }
 

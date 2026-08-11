@@ -157,11 +157,11 @@ impl Space {
 
         match target {
             Some(target) => {
-                let delta = match *delta {
-                    Some(delta) => delta,
+                let delta = match delta.as_ref() {
+                    Some(delta) => delta.clone(),
                     None => {
                         let new_delta = problem.add_delta("space-delta", self.priority).await?;
-                        *delta = Some(new_delta);
+                        *delta = Some(new_delta.clone());
                         new_delta
                     }
                 };
@@ -193,10 +193,20 @@ impl Widget_trait for Space {
         slots: &mut Slots,
     ) -> Result<Children> {
         let spaces = self.spaces;
-        let mut delta = self.delta;
-        hitbox.constrain_smaller_than(parent, &problem).await?;
+        let mut delta = self.delta.clone();
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
+            if spaces.start(direction).is_some() {
+                hitbox
+                    .start
+                    .point_to_variable(direction, problem.make_independent_variable("space-start"));
+            }
+            if spaces.end(direction).is_some() {
+                hitbox
+                    .end
+                    .point_to_variable(direction, problem.make_independent_variable("space-end"));
+            }
+
             let start_space = Expression::from(
                 hitbox.get_start_position(direction) - parent.get_start_position(direction),
             );
@@ -211,6 +221,8 @@ impl Widget_trait for Space {
             self.apply_objective(&problem, end_space, spaces.end(direction), &mut delta)
                 .await?;
         }
+
+        hitbox.constrain_smaller_than(&parent, &problem).await?;
 
         Ok(vec![display!(self.child.clone())])
     }

@@ -80,7 +80,7 @@ impl Problem {
 
         let expression = expression.into();
         let difference = (Expression::from(target) - expression) / target;
-        self.constrain(constraint!(difference == delta));
+        self.constrain(constraint!(difference == delta.clone()));
 
         // Workaround: goals at the same priority are summed together at the end, so minimizing
         // the same delta multiple times increases its weight.
@@ -94,14 +94,14 @@ impl Problem {
         component_path: String,
         priority: usize,
     ) -> Result<Delta> {
-        let delta = self.variables.add(
+        let delta = self.variables.make_independent(
             VariableDefinition::new().min(0).max(1).name(name.clone()),
             name,
             path,
             component_path,
         );
 
-        minimize(self, Expression::from(delta), priority)?;
+        minimize(self, Expression::from(delta.clone()), priority)?;
         Ok(delta)
     }
 }
@@ -131,8 +131,8 @@ mod tests {
             Some(&-1.0)
         );
 
-        problem.minimize_delta(Expression::from(0.0), 1.0, delta, 2)?;
-        problem.minimize_delta(Expression::from(0.0), 1.0, delta, 2)?;
+        problem.minimize_delta(Expression::from(0.0), 1.0, delta.clone(), 2)?;
+        problem.minimize_delta(Expression::from(0.0), 1.0, delta.clone(), 2)?;
 
         assert_eq!(problem.objectives[2].len(), 3);
         assert!(

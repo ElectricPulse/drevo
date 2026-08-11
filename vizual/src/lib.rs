@@ -194,7 +194,7 @@ impl App_problem {
         component_context
             .lock()
             .await?
-            .constrain_root_to_screen(root_hitbox);
+            .constrain_root_to_screen(&root_hitbox);
 
         Ok(Self {
             root,
@@ -215,7 +215,7 @@ impl App_problem {
                 render.clone(),
                 theme.clone(),
                 None,
-                self.root_hitbox,
+                self.root_hitbox.clone(),
                 self.component_context.clone(),
                 text_context,
             )
@@ -235,8 +235,8 @@ impl App_problem {
 
     fn root_size(&self, solution: &Solution) -> Size {
         Size::new(
-            solution.value(self.root_hitbox.end.x) - solution.value(self.root_hitbox.start.x),
-            solution.value(self.root_hitbox.end.y) - solution.value(self.root_hitbox.start.y),
+            solution.value(&self.root_hitbox.end.x) - solution.value(&self.root_hitbox.start.x),
+            solution.value(&self.root_hitbox.end.y) - solution.value(&self.root_hitbox.start.y),
         )
     }
 
@@ -246,7 +246,7 @@ impl App_problem {
             .component_context
             .lock()
             .await?
-            .solve_minimum(self.root_hitbox, &component_tree)
+            .solve_minimum(self.root_hitbox.clone(), &component_tree)
             .await?;
         let minimum_size = self.root_size(&solution);
         // TODO: Without this padding the user can still push the screen below the required size somehow, causing the layout to crash.

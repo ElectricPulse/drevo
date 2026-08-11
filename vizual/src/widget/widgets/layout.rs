@@ -15,6 +15,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use vizual_macros::display;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Layout_style {
@@ -70,36 +71,38 @@ impl Widget_trait for Layout {
         slots: &mut Slots,
     ) -> Result<Children> {
         let direction = self.direction;
-        // TODO: A separate Container for every item wastes performance, but without its independent
-        // hitbox an Align or Anchor cannot be placed directly in a Layout.
         let mut elements = Vec::with_capacity(self.elements.len());
         for (index, element) in self.elements.iter().enumerate() {
-            let element = Container::new(element.clone());
-            elements.push(slots.set(index as u64, element).await?);
+            let container = Container::new(element.clone());
+            let container = slots.set(index as u64, container).await?;
+            elements.push(container);
+        }
+
+        // A container around each item lets Align, Anchor, and Space position that item. The cross
+        // direction always remains shared, so only the main-axis start/end edges need independence.
+        let last_index = elements.len().saturating_sub(1);
+        for (index, element) in elements.iter().enumerate() {
+            let element = &mut element.lock().await?.hitbox;
+            if index > 0 {
+                element.start.point_to_variable(
+                    direction,
+                    problem.make_independent_variable("layout-item-start"),
+                );
+            }
+            if index < last_index {
+                element.end.point_to_variable(
+                    direction,
+                    problem.make_independent_variable("layout-item-end"),
+                );
+            }
         }
 
         let cross_direction = direction.flip();
-        for element in &elements {
-            element
-                .share_start(*hitbox, &problem, cross_direction)
-                .await?;
-            element
-                .share_end(*hitbox, &problem, cross_direction)
-                .await?;
-        }
         minimize(
             &mut *problem.lock().await?,
             hitbox.get_dimension(cross_direction),
             0,
         )?;
-
-        match (elements.first(), elements.last()) {
-            (Some(first), Some(last)) => {
-                first.share_start(*hitbox, &problem, direction).await?;
-                last.share_end(*hitbox, &problem, direction).await?;
-            }
-            _ => {}
-        }
 
         if elements.len() >= 2 {
             let Layout_style::Gap(gap) = self.style.get(&theme);
@@ -119,7 +122,7 @@ impl Widget_trait for Layout {
                 );
                 problem.constrain(constraint!(space.clone() >= 0)).await?;
                 self.objective
-                    .apply(&problem, space, gap, gap_delta, self.priority)
+                    .apply(&problem, space, gap, gap_delta.clone(), self.priority)
                     .await?;
             }
         }

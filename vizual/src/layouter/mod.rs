@@ -23,9 +23,8 @@ use self::{
     constraint::Constraint,
     expression::Expression,
     hitbox::Hitbox,
-    screen::SCREEN,
     variable::Variable,
-    variables::{Resolved_variable, Variables},
+    variables::{Variable_type, Variables},
 };
 use crate::{
     component::{context::Component_context, debug::Component_tree},
@@ -75,12 +74,15 @@ impl Field for f64 {
 
 #[derive(Clone)]
 pub struct Solution {
-    values: HashMap<Variable, f64>,
+    values: HashMap<usize, f64>,
 }
 
 impl Solution {
-    pub fn value(&self, variable: Variable) -> f64 {
-        self.values.get(&variable).copied().unwrap_or_default()
+    pub fn value(&self, variable: &Variable) -> f64 {
+        self.values
+            .get(&variable.definition_id())
+            .copied()
+            .unwrap_or_default()
     }
 
     fn eval(&self, expression: &Expression) -> f64 {
@@ -107,25 +109,11 @@ impl Problem {
         Arc::clone(&self.variables)
     }
 
-    pub(crate) fn replace_variable(&mut self, old: Variable, new: Variable) {
-        if old == new {
-            return;
-        }
-        for constraint in &mut self.constraints {
-            constraint.expression.replace_variable(old, new);
-        }
-        for objective in self.objectives.iter_mut().flatten() {
-            objective.replace_variable(old, new);
-        }
-        // Hitboxes can share this variable index. Keep its definition registered even after the
-        // current owner moves to another variable so those aliases remain valid.
-    }
-
     pub(crate) fn constrain(&mut self, constraint: Constraint) {
         self.constraints.push(constraint);
     }
 
-    pub(crate) fn constrain_root_to_screen(&mut self, root: Hitbox) {
+    pub(crate) fn constrain_root_to_screen(&mut self, root: &Hitbox) {
         for direction in [Direction::Horizontal, Direction::Vertical] {
             self.constrain(Component_context::name_constraint(
                 constraint!(root.get_start_position(direction) == 0),
@@ -138,8 +126,8 @@ impl Problem {
                 constraint!(
                     root.get_dimension(direction)
                         == match direction {
-                            Direction::Horizontal => SCREEN.width,
-                            Direction::Vertical => SCREEN.height,
+                            Direction::Horizontal => self.variables.screen.width.clone(),
+                            Direction::Vertical => self.variables.screen.height.clone(),
                         }
                 ),
                 match direction {
@@ -181,8 +169,8 @@ impl Problem {
                     .referenced_variables()
                     .any(|variable| {
                         matches!(
-                            solver_variables.get(&variable.index()),
-                            Some(Resolved_variable::Variable(_))
+                            solver_variables.get(&variable),
+                            Some(Variable_type::Solver(_))
                         )
                     })
             })
@@ -190,9 +178,13 @@ impl Problem {
             .collect::<Result<Vec<_>>>()
             .map_err(|error| ResolutionError::Str(error.to_string()))?;
         let non_static_variables = solver_variables
-            .values()
-            .filter(|variable| matches!(variable, Resolved_variable::Variable(_)))
-            .count();
+            .iter()
+            .filter_map(|(variable, variable_type)| {
+                matches!(variable_type, Variable_type::Solver(_))
+                    .then_some(variable.definition_id())
+            })
+            .collect::<HashSet<_>>()
+            .len();
 
         log_info(
             4,
@@ -213,12 +205,12 @@ impl Problem {
         let solved = log_duration(4, "priority solve", || async { model.solve() }).await?;
         let values = solver_variables
             .iter()
-            .map(|(index, variable)| {
-                let value = match variable {
-                    Resolved_variable::Constant(value) => *value,
-                    Resolved_variable::Variable(variable) => solved.value(*variable),
+            .map(|(variable, variable_type)| {
+                let value = match variable_type {
+                    Variable_type::Static(value) => *value,
+                    Variable_type::Solver(variable) => solved.value(*variable),
                 };
-                (Variable::new(*index), value)
+                (variable.definition_id(), value)
             })
             .collect::<HashMap<_, _>>();
 
@@ -267,8 +259,8 @@ impl Problem {
         let mut terms = coefficients
             .into_iter()
             .map(|(variable, coefficient)| {
-                let mut name = self.variables.name(variable);
-                if let Some(value) = self.variables.static_value(variable) {
+                let mut name = self.variables.name(&variable);
+                if let Variable_type::Static(value) = self.variables.get_type(&variable) {
                     name = format!("{name} [static = {value}]");
                 }
 
@@ -295,8 +287,8 @@ impl Problem {
 
         for (variable, coefficient) in &constraint.expression.coefficients {
             match coefficient {
-                coefficient if *coefficient > 0.0 => left.push((*variable, *coefficient)),
-                coefficient if *coefficient < 0.0 => right.push((*variable, -*coefficient)),
+                coefficient if *coefficient > 0.0 => left.push((variable.clone(), *coefficient)),
+                coefficient if *coefficient < 0.0 => right.push((variable.clone(), -*coefficient)),
                 _ => {}
             }
         }
@@ -382,16 +374,16 @@ impl Problem {
             .collect::<HashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>();
-        variables.sort_unstable();
+        variables.sort_unstable_by_key(Variable::id);
 
         let mut underconstrained = Vec::new();
         let mut details = Vec::new();
         for variable in variables {
             let has_no_upper_bound = self
-                .is_unbounded(constraints, Expression::from(variable))
+                .is_unbounded(constraints, Expression::from(&variable))
                 .await?;
             let has_no_lower_bound = self
-                .is_unbounded(constraints, Expression::from(variable) * -1.0)
+                .is_unbounded(constraints, Expression::from(&variable) * -1.0)
                 .await?;
             let range = match (has_no_lower_bound, has_no_upper_bound) {
                 (true, true) => "has neither a lower nor an upper bound",
@@ -400,8 +392,8 @@ impl Problem {
                 (false, false) => continue,
             };
 
+            details.push(format!("{} {range}", self.variables.name(&variable)));
             underconstrained.push(variable);
-            details.push(format!("{} {range}", self.variables.name(variable)));
         }
 
         let details = match details.is_empty() {
@@ -460,9 +452,14 @@ impl Problem {
         screen: Size,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
-        self.variables.clear_static();
-        self.variables.set_static(SCREEN.width, screen.width);
-        self.variables.set_static(SCREEN.height, screen.height);
+        self.variables.set_type(
+            &self.variables.screen.width,
+            Variable_type::Static(screen.width),
+        );
+        self.variables.set_type(
+            &self.variables.screen.height,
+            Variable_type::Static(screen.height),
+        );
 
         log_duration(0, "layout full solve", || async {
             let mut maybe_solution: Option<Solution> = None;
@@ -484,31 +481,6 @@ impl Problem {
                         component_tree,
                     )
                     .await?;
-
-                let mut priority_objectives = priority_objectives;
-
-                loop {
-                    let previous_length = priority_objectives.len();
-                    priority_objectives.retain(|objective| {
-                        let mut variables = objective
-                            .referenced_variables()
-                            .filter(|variable| self.variables.static_value(*variable).is_none());
-                        let Some(variable) = variables.next() else {
-                            return false;
-                        };
-                        if variables.next().is_some() {
-                            return true;
-                        }
-
-                        let value = solution.eval(&Expression::from(variable));
-                        self.variables.set_static(variable, value);
-                        false
-                    });
-
-                    if priority_objectives.len() == previous_length {
-                        break;
-                    }
-                }
 
                 for objective in priority_objectives {
                     let objective_solution = solution.eval(&objective);
@@ -537,7 +509,22 @@ impl Problem {
         root: Hitbox,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
-        self.variables.clear_static();
+        self.variables.set_type(
+            &self.variables.screen.width,
+            Variable_type::Solver(
+                good_lp::VariableDefinition::new()
+                    .min(0)
+                    .name("screen width"),
+            ),
+        );
+        self.variables.set_type(
+            &self.variables.screen.height,
+            Variable_type::Solver(
+                good_lp::VariableDefinition::new()
+                    .min(0)
+                    .name("screen height"),
+            ),
+        );
         let root_size =
             root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
         self.priority_solve_with_diagnostics(&self.constraints, root_size * -1.0, component_tree)
@@ -566,9 +553,9 @@ mod tests {
             "root.child".to_string(),
             "test".to_string(),
         );
-        problem.constrain_root_to_screen(root);
-        problem.constrain(constraint!(child.start.x == root.start.x));
-        problem.constrain(constraint!(child.end.x == root.end.x));
+        problem.constrain_root_to_screen(&root);
+        problem.constrain(constraint!(child.start.x.clone() == root.start.x.clone()));
+        problem.constrain(constraint!(child.end.x.clone() == root.end.x.clone()));
         minimize(&mut problem, child.get_dimension(Direction::Horizontal), 0)?;
 
         let component_tree = Vec::new();

@@ -60,7 +60,25 @@ impl Component_slot {
     pub async fn set(
         &mut self,
         widget: impl Widget_trait,
+        problem: Component_context,
+    ) -> Result<Shared_component> {
+        self.set_with_parent(widget, problem, None).await
+    }
+
+    pub async fn set_child(
+        &mut self,
+        widget: impl Widget_trait,
+        problem: Component_context,
+        parent: &Hitbox,
+    ) -> Result<Shared_component> {
+        self.set_with_parent(widget, problem, Some(parent)).await
+    }
+
+    async fn set_with_parent(
+        &mut self,
+        widget: impl Widget_trait,
         mut problem: Component_context,
+        parent: Option<&Hitbox>,
     ) -> Result<Shared_component> {
         let widget = Box::new(widget);
 
@@ -75,18 +93,27 @@ impl Component_slot {
             reference.debug.source_path = self.path.clone();
             reference.widget = widget;
             reference.slot_manager.set_problem(problem);
-            reference
-                .hitbox
-                .make_independent(&variables, &self.name, &component_path, &self.path);
+            match parent {
+                Some(parent) => reference.hitbox.point_to(parent),
+                None => reference.hitbox.make_independent_at(
+                    &variables,
+                    &self.name,
+                    &component_path,
+                    &self.path,
+                ),
+            }
 
             Shared_component::new(lock.clone())
         } else {
-            let hitbox = Hitbox::new(
-                &variables,
-                self.name.clone(),
-                component_path,
-                self.path.clone(),
-            );
+            let hitbox = match parent {
+                Some(parent) => Hitbox::shared(parent),
+                None => Hitbox::new(
+                    &variables,
+                    self.name.clone(),
+                    component_path,
+                    self.path.clone(),
+                ),
+            };
 
             let lock = Shared_component::new(Arc::new(Mutex::new(Component {
                 name: self.name.clone(),

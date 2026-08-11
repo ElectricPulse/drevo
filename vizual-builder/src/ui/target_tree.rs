@@ -21,7 +21,7 @@ use vizual::{
         },
     },
 };
-use vizual_macros::{display, position};
+use vizual_macros::display;
 
 use crate::target::Dependency;
 use crate::utils::get_targets;
@@ -62,7 +62,7 @@ impl Custom_widget_trait for Target_tree_item {
 
         let name = Text::new(metadata.name);
         let name = Anchor::new(name, Anchors::top_left());
-        let name = position!(name);
+        let name = display!(name);
         let mut details = vec![name];
         if let Some(path) = metadata.path {
             let path = path
@@ -71,13 +71,13 @@ impl Custom_widget_trait for Target_tree_item {
             let path = display_relative_path(path);
             let path = Text::new(format!("Working directory: {path}"));
             let path = Anchor::new(path, Anchors::top_left());
-            details.push(position!(path));
+            details.push(display!(path));
         }
 
         let details = Layout::new(Direction::Vertical, details);
         let details = Anchor::new(details, Anchors::top_left());
-        let details = position!(details);
-        let icon = position!(icon);
+        let details = display!(details);
+        let icon = display!(icon);
 
         let row = Layout::new(Direction::Horizontal, vec![details, icon]);
 

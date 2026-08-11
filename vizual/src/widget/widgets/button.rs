@@ -69,7 +69,7 @@ impl Widget_trait for Button {
             Objective::default(),
             2,
         );
-        space.delta = self.delta;
+        space.delta = self.delta.clone();
 
         let mut block = Block::new(space);
         block.highlighted = self.highlighted;

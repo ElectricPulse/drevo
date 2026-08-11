@@ -40,17 +40,21 @@ impl Component_context {
     }
 
     #[track_caller]
-    pub async fn add_non_negative_variable(&self, name: impl Into<String>) -> Result<Variable> {
+    pub fn make_independent_variable(&self, name: impl Into<String>) -> Variable {
         let name = name.into();
         let path = Self::path(Location::caller());
         let component_path = self.component_path.join(".");
-        let problem = self.lock().await?;
-        Ok(problem.variables.add(
+        Variable::solver(
             VariableDefinition::new().min(0).name(name.clone()),
             name,
             path,
             component_path,
-        ))
+        )
+    }
+
+    #[track_caller]
+    pub async fn add_non_negative_variable(&self, name: impl Into<String>) -> Result<Variable> {
+        Ok(self.make_independent_variable(name))
     }
 
     #[track_caller]
@@ -59,7 +63,7 @@ impl Component_context {
         let path = Self::path(Location::caller());
         let component_path = self.component_path.join(".");
         let problem = self.lock().await?;
-        Ok(problem.variables.add(
+        Ok(problem.variables.make_independent(
             VariableDefinition::new().binary().name(name.clone()),
             name,
             path,

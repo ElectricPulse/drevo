@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::{display, position};
+use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Widget_trait},
@@ -50,7 +50,7 @@ impl Widget_trait for Title_block {
         let mut title = Text::new(self.title.clone());
         title.style.set(theme.load().specific.text.title);
         let title = Anchor::new(title, Anchors::top_left());
-        let title = position!(title);
+        let title = display!(title);
         let child = display!(self.child.clone());
 
         let mut layout = Layout::new(Direction::Vertical, vec![title, child]);

@@ -112,7 +112,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
         let content = contents.pop().expect("menu item child count checked above");
         let mut button = Button::around(content);
         button.highlighted = self.selected;
-        button.delta = Some(self.button_delta);
+        button.delta = Some(self.button_delta.clone());
         Ok(vec![display!(button)])
     }
 
@@ -229,7 +229,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 selected: item.compare(&selected),
                 widget: item.clone(),
                 menu_selector: self.selected.clone(),
-                button_delta,
+                button_delta: button_delta.clone(),
                 submission: self.submission.clone(),
             };
             let item = Anchor::new(item, Anchors::top_left());

@@ -13,7 +13,13 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_choice},
-    widget::{Focus_provider, Widget, Widget_trait},
+    widget::{
+        Focus_provider, Widget, Widget_trait,
+        widgets::{
+            positioning::anchor::{Anchor, Anchors},
+            text::Text,
+        },
+    },
 };
 
 #[derive(Clone)]
@@ -56,7 +62,7 @@ impl Widget_trait for Default_root {
             self.theme_choice.clone(),
         ));
 
-        let layout = Layout::new(Direction::Vertical, vec![header, display!(body)]);
+        let layout = Layout::new(Direction::Vertical, vec![header]);
 
         let mut root = Paper::new(layout);
         root.style.set(theme.load().specific.root);

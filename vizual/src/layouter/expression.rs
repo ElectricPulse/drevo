@@ -6,9 +6,9 @@ use std::{
 use color_eyre::eyre::{Result, eyre};
 use good_lp::Expression as Solver_expression;
 
-use super::{variable::Variable, variables::Resolved_variables};
+use super::{variable::Variable, variables::Solver_variables};
 
-/// A symbolic affine expression over stable [`Variable`] indices.
+/// A symbolic affine expression over stable [`Variable`] handles.
 #[derive(Clone, Debug, Default)]
 pub struct Expression {
     pub(crate) coefficients: HashMap<Variable, f64>,
@@ -17,58 +17,46 @@ pub struct Expression {
 
 impl Expression {
     pub(crate) fn referenced_variables(&self) -> impl Iterator<Item = Variable> + '_ {
-        self.coefficients.keys().copied()
+        self.coefficients.keys().cloned()
     }
 
-    pub(crate) fn replace_variable(&mut self, old: Variable, new: Variable) {
-        if old == new {
-            return;
-        }
-        let Some(coefficient) = self.coefficients.remove(&old) else {
-            return;
-        };
-        let remove = {
-            let stored = self.coefficients.entry(new).or_default();
-            *stored += coefficient;
-            *stored == 0.0
-        };
-        if remove {
-            let _ = self.coefficients.remove(&new);
-        }
-    }
-
-    pub(crate) fn eval_with(&self, values: &HashMap<Variable, f64>) -> f64 {
+    pub(crate) fn eval_with(&self, values: &HashMap<usize, f64>) -> f64 {
         self.constant
             + self
                 .coefficients
                 .iter()
                 .map(|(variable, coefficient)| {
-                    coefficient * values.get(variable).copied().unwrap_or_default()
+                    coefficient
+                        * values
+                            .get(&variable.definition_id())
+                            .copied()
+                            .unwrap_or_default()
                 })
                 .sum::<f64>()
     }
 
     pub(crate) fn into_solver(
         &self,
-        solver_variables: &Resolved_variables,
+        solver_variables: &Solver_variables,
     ) -> Result<Solver_expression> {
         let mut expression = Solver_expression::from(self.constant);
 
         for (variable, coefficient) in &self.coefficients {
             let solver_variable = solver_variables
-                .get(&variable.index())
-                .copied()
-                .ok_or_else(|| {
-                    eyre!(
-                        "Layout variable {} has no solve-time variable",
-                        variable.index()
-                    )
-                })?;
+                .get(variable)
+                .cloned()
+                .ok_or_else(|| eyre!("Layout variable {} was not materialized", variable.id()))?;
 
             expression += solver_variable * *coefficient;
         }
 
         Ok(expression)
+    }
+}
+
+impl From<&Variable> for Expression {
+    fn from(variable: &Variable) -> Self {
+        Self::from(variable.clone())
     }
 }
 
@@ -110,7 +98,7 @@ impl<T: Into<Expression>> Add<T> for Expression {
         self.constant += rhs.constant;
         for (variable, coefficient) in rhs.coefficients {
             let remove = {
-                let stored = self.coefficients.entry(variable).or_default();
+                let stored = self.coefficients.entry(variable.clone()).or_default();
                 *stored += coefficient;
                 *stored == 0.0
             };

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use lucide_icons::Icon as Lucide_icon;
-use vizual_macros::{display, position};
+use vizual_macros::display;
 
 use super::super::{
     button::Button,
@@ -72,7 +72,7 @@ impl Custom_widget_trait for Theme_menu_item {
 
         let text = Anchor::new(text, Anchors::top_left());
 
-        Ok(vec![position!(text)])
+        Ok(vec![display!(text)])
     }
 }
 
@@ -146,7 +146,7 @@ impl Widget_trait for Theme_picker {
             },
         );
 
-        let mut menu = position!(menu);
+        let mut menu = display!(menu);
         menu.layer = 1;
 
         let button = Anchor::new(
@@ -157,7 +157,7 @@ impl Widget_trait for Theme_picker {
             },
         );
 
-        let layout = Layout::new(Direction::Vertical, vec![position!(button), display!(menu)]);
+        let layout = Layout::new(Direction::Vertical, vec![display!(button), display!(menu)]);
 
         Ok(vec![display!(layout)])
     }

@@ -60,16 +60,25 @@ impl Anchor {
     /// Applies the selected anchor to this hitbox within its parent.
     async fn anchor(
         problem: &Component_context,
-        parent: Hitbox,
+        parent: &Hitbox,
         hitbox: &mut Hitbox,
         position: Option<Position>,
         direction: Direction,
     ) -> Result<()> {
         match position {
             Some(Position::Start) => {
-                hitbox.share_start(parent, problem, direction).await?;
+                hitbox
+                    .end
+                    .point_to_variable(direction, problem.make_independent_variable("anchor-end"));
             }
             Some(Position::Middle) => {
+                hitbox.start.point_to_variable(
+                    direction,
+                    problem.make_independent_variable("anchor-start"),
+                );
+                hitbox
+                    .end
+                    .point_to_variable(direction, problem.make_independent_variable("anchor-end"));
                 problem
                     .constrain(constraint!(
                         hitbox.get_start_position(direction)
@@ -93,7 +102,10 @@ impl Anchor {
                 minimize(&mut *problem.lock().await?, start_margin, 0)?;
             }
             Some(Position::End) => {
-                hitbox.share_end(parent, problem, direction).await?;
+                hitbox.start.point_to_variable(
+                    direction,
+                    problem.make_independent_variable("anchor-start"),
+                );
             }
             None => {}
         }
@@ -115,11 +127,9 @@ impl Widget_trait for Anchor {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        hitbox.constrain_smaller_than(parent, &problem).await?;
-
         Self::anchor(
             &problem,
-            parent,
+            &parent,
             hitbox,
             self.anchors.horizontal,
             Direction::Horizontal,
@@ -128,12 +138,14 @@ impl Widget_trait for Anchor {
 
         Self::anchor(
             &problem,
-            parent,
+            &parent,
             hitbox,
             self.anchors.vertical,
             Direction::Vertical,
         )
         .await?;
+
+        hitbox.constrain_smaller_than(&parent, &problem).await?;
 
         Ok(vec![display!(self.child.clone())])
     }

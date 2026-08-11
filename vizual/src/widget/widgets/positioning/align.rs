@@ -37,8 +37,8 @@ impl Align {
 
     async fn align(
         problem: &Component_context,
-        parent: Hitbox,
-        hitbox: Hitbox,
+        parent: &Hitbox,
+        hitbox: &Hitbox,
         objective: Objective,
         direction: Direction,
     ) -> Result<()> {
@@ -74,7 +74,21 @@ impl Widget_trait for Align {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        hitbox.constrain_smaller_than(parent, &problem).await?;
+        for (direction, objective) in [
+            (Direction::Horizontal, self.alignments.horizontal),
+            (Direction::Vertical, self.alignments.vertical),
+        ] {
+            if objective.is_some() {
+                hitbox
+                    .start
+                    .point_to_variable(direction, problem.make_independent_variable("align-start"));
+                hitbox
+                    .end
+                    .point_to_variable(direction, problem.make_independent_variable("align-end"));
+            }
+        }
+
+        hitbox.constrain_smaller_than(&parent, &problem).await?;
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
             problem
@@ -90,10 +104,10 @@ impl Widget_trait for Align {
         }
 
         if let Some(horizontal) = self.alignments.horizontal {
-            Self::align(&problem, parent, *hitbox, horizontal, Direction::Horizontal).await?;
+            Self::align(&problem, &parent, hitbox, horizontal, Direction::Horizontal).await?;
         }
         if let Some(vertical) = self.alignments.vertical {
-            Self::align(&problem, parent, *hitbox, vertical, Direction::Vertical).await?;
+            Self::align(&problem, &parent, hitbox, vertical, Direction::Vertical).await?;
         }
 
         Ok(vec![display!(self.child.clone())])

@@ -43,7 +43,7 @@ pub struct Component {
 ///
 /// `layer` belongs to this child relationship rather than the component allocation. This keeps a
 /// component's default layer at zero whenever a slot returns it while allowing callers to adjust
-/// the value immediately after `display!()` or `position!()`.
+/// the value immediately after `display!()`.
 #[derive(Clone)]
 pub struct Shared_component {
     component: Arc<Mutex<Component>>,
@@ -101,16 +101,18 @@ impl Shared_component {
     }
 
     pub async fn get_hitbox(&self) -> Result<Hitbox> {
-        Ok(self.lock().await?.hitbox)
+        Ok(self.lock().await?.hitbox.clone())
     }
 
     /// Maximizes this component in both directions at priority 1.
-    /// Shouldn't be used as a replacement for Full instead it should actively try to take advantage of the priority
-    /// and in some cases shouldn't occupy the same space as Full would
+    /// Uses priority-based expansion and may leave room for higher-priority layout objectives.
     pub async fn fill(self) -> Result<Self> {
         let (hitbox, problem) = {
             let component = self.lock().await?;
-            (component.hitbox, component.slot_manager.problem.clone())
+            (
+                component.hitbox.clone(),
+                component.slot_manager.problem.clone(),
+            )
         };
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
@@ -123,32 +125,6 @@ impl Shared_component {
         Ok(self)
     }
 
-    pub async fn share_start(
-        &self,
-        parent: Hitbox,
-        problem: &Component_context,
-        direction: Direction,
-    ) -> Result<()> {
-        self.lock()
-            .await?
-            .hitbox
-            .share_start(parent, problem, direction)
-            .await
-    }
-
-    pub async fn share_end(
-        &self,
-        parent: Hitbox,
-        problem: &Component_context,
-        direction: Direction,
-    ) -> Result<()> {
-        self.lock()
-            .await?
-            .hitbox
-            .share_end(parent, problem, direction)
-            .await
-    }
-
     pub async fn share_dimension(
         &self,
         parent: Hitbox,
@@ -158,7 +134,7 @@ impl Shared_component {
         self.lock()
             .await?
             .hitbox
-            .share_dimension(parent, problem, direction)
+            .share_dimension(&parent, problem, direction)
             .await
     }
 
@@ -234,7 +210,7 @@ impl Shared_component {
             let mut focus = Focus_provider::new(false);
 
             let children = {
-                let mut slots = slot_manager.slots();
+                let mut slots = slot_manager.slots(hitbox);
                 let children = widget
                     .layout(
                         render,
@@ -273,7 +249,7 @@ impl Shared_component {
         let hitbox = {
             let component = self.lock().await?;
             problem.component_path.push(component.name.clone());
-            component.hitbox
+            component.hitbox.clone()
         };
 
         for child in &children {
@@ -284,7 +260,7 @@ impl Shared_component {
                     render.clone(),
                     theme.clone(),
                     self.clone().into(),
-                    hitbox,
+                    hitbox.clone(),
                     problem.clone(),
                     text_context,
                 )

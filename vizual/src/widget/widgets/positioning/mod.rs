@@ -6,8 +6,7 @@
 //! the whole grid - it cannot access the children of these a&a and hence cannot provide the no
 //! overlap behaviour.
 //!
-//! Positioning widgets must be mounted with `position!()` or directly through a keyed slot.
-//! Rendering them with `display!()` wraps them in `Full`, which does `hitbox = parent_hitbox`
+//! Positioning widgets repoint the parts of their inherited hitbox which need independent layout.
 //! internally and negates any effect these widgets have.
 
 pub mod align;

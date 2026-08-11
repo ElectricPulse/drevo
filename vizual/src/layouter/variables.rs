@@ -1,79 +1,50 @@
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     ops::Mul,
-    sync::Mutex,
+    sync::Arc,
 };
 
-use color_eyre::eyre::{Result, eyre};
+use color_eyre::eyre::Result;
 use good_lp::{
     Expression as Solver_expression, ProblemVariables, Variable as Solver_variable,
     VariableDefinition,
 };
 
-use super::{screen::SCREEN, variable::Variable};
+use super::{
+    screen::Screen,
+    variable::{Shared_variable_definition, Variable},
+};
 use crate::component::debug::Component_tree;
 
-const FIRST_DYNAMIC_VARIABLE_INDEX: usize = 3;
-
 #[derive(Clone)]
-pub struct Variable_definition {
-    solver: VariableDefinition,
-    static_value: Option<f64>,
-    name: String,
-    path: String,
-    component_path: String,
+pub(crate) enum Variable_type<Variable> {
+    Static(f64),
+    Solver(Variable),
 }
 
-#[derive(Clone, Copy)]
-pub(crate) enum Resolved_variable {
-    Constant(f64),
-    Variable(Solver_variable),
-}
-
-// Only used in expression.rs to multiply resolved variables by their coefficients.
-impl Mul<f64> for Resolved_variable {
+impl Mul<f64> for Variable_type<Solver_variable> {
     type Output = Solver_expression;
 
     fn mul(self, rhs: f64) -> Self::Output {
         match self {
-            Self::Constant(value) => Solver_expression::from(value * rhs),
-            Self::Variable(variable) => variable * rhs,
+            Self::Static(value) => Solver_expression::from(value * rhs),
+            Self::Solver(variable) => variable * rhs,
         }
     }
 }
 
-pub(crate) type Resolved_variables = HashMap<usize, Resolved_variable>;
+pub(crate) type Solver_variables = HashMap<Variable, Variable_type<Solver_variable>>;
 
-/// Definitions for stable layout variables shared across relayout-created problems.
-// TODO: Add variable reuse with `Arc`-backed definitions so shared hitbox aliases keep a variable
-// alive until the last reference is dropped and its index can be safely reused.
+/// Creates layout variables. Definitions are owned by the returned variables rather than stored
+/// in a central registry.
 pub struct Variables {
-    definitions: Mutex<HashMap<usize, Variable_definition>>,
+    pub(crate) screen: Screen,
 }
 
 impl Default for Variables {
     fn default() -> Self {
-        let definitions = [
-            (SCREEN.width, "screen width"),
-            (SCREEN.height, "screen height"),
-        ]
-        .into_iter()
-        .map(|(variable, name)| {
-            (
-                variable.index(),
-                Variable_definition {
-                    solver: VariableDefinition::new().min(0).name(name),
-                    static_value: None,
-                    name: name.to_string(),
-                    path: String::new(),
-                    component_path: String::new(),
-                },
-            )
-        })
-        .collect();
-
         Self {
-            definitions: Mutex::new(definitions),
+            screen: Screen::new(),
         }
     }
 }
@@ -83,82 +54,44 @@ impl Variables {
         Self::default()
     }
 
-    pub fn add(
+    pub fn make_independent(
         &self,
         definition: VariableDefinition,
         name: impl Into<String>,
         path: impl Into<String>,
         component_path: impl Into<String>,
     ) -> Variable {
-        let mut definitions = self
-            .definitions
-            .lock()
-            .expect("layout variable definitions poisoned");
-        let index = (FIRST_DYNAMIC_VARIABLE_INDEX..)
-            .find(|index| !definitions.contains_key(index))
-            .expect("layout variable index space exhausted");
-
-        let _ = definitions.insert(
-            index,
-            Variable_definition {
-                solver: definition,
-                static_value: None,
-                name: name.into(),
-                path: path.into(),
-                component_path: component_path.into(),
-            },
-        );
-        Variable::new(index)
+        Variable::solver(definition, name, path, component_path)
     }
 
-    pub fn set_static(&self, variable: Variable, value: f64) {
-        let mut definitions = self
-            .definitions
+    pub(crate) fn set_type(
+        &self,
+        variable: &Variable,
+        variable_type: Variable_type<VariableDefinition>,
+    ) {
+        variable
+            .definition()
             .lock()
-            .expect("Layout variable definitions poisoned");
-
-        let record = definitions
-            .get_mut(&variable.index())
-            .expect("Layout variables are broken");
-        record.static_value = Some(value);
+            .expect("layout variable definition poisoned")
+            .variable_type = variable_type;
     }
 
-    pub(crate) fn clear_static(&self) {
-        for definition in self
-            .definitions
+    pub(crate) fn get_type(&self, variable: &Variable) -> Variable_type<VariableDefinition> {
+        variable
+            .definition()
             .lock()
-            .expect("layout variable definitions poisoned")
-            .values_mut()
-        {
-            definition.static_value = None;
-        }
+            .expect("layout variable definition poisoned")
+            .variable_type
+            .clone()
     }
 
-    pub(crate) fn name(&self, variable: Variable) -> String {
-        match variable {
-            variable if variable == SCREEN.width => "screen width".to_string(),
-            variable if variable == SCREEN.height => "screen height".to_string(),
-            variable => self
-                .definitions
-                .lock()
-                .expect("layout variable definitions poisoned")
-                .get(&variable.index())
-                .map(|definition| definition.name.clone())
-                .unwrap_or_else(|| format!("variable {}", variable.index())),
-        }
-    }
-
-    pub(crate) fn static_value(&self, variable: Variable) -> Option<f64> {
-        let definitions = self
-            .definitions
+    pub(crate) fn name(&self, variable: &Variable) -> String {
+        variable
+            .definition()
             .lock()
-            .expect("layout variable definitions poisoned");
-        let definition = definitions.get(&variable.index())?;
-
-        definition.static_value.or_else(|| {
-            (definition.solver.get_min() == definition.solver.get_max())
-                .then_some(definition.solver.get_min())
-        })
+            .expect("layout variable definition poisoned")
+            .name
+            .clone()
     }
 
     pub(crate) fn component_tree(
@@ -166,16 +99,17 @@ impl Variables {
         variables: &HashSet<Variable>,
         tree: &Component_tree,
     ) -> Vec<(usize, String, Option<String>)> {
-        let definitions = self
-            .definitions
-            .lock()
-            .expect("layout variable definitions poisoned");
+        let definitions = unique_definitions(variables);
         let mut component_paths = BTreeSet::new();
 
-        for definition in definitions.iter().filter_map(|(index, definition)| {
-            (!definition.component_path.is_empty() && variables.contains(&Variable::new(*index)))
-                .then_some(definition)
-        }) {
+        for definition in &definitions {
+            let definition = definition
+                .lock()
+                .expect("layout variable definition poisoned");
+            if definition.component_path.is_empty() {
+                continue;
+            }
+
             let mut component_path = String::new();
             for component in definition.component_path.split('.') {
                 if !component_path.is_empty() {
@@ -188,9 +122,14 @@ impl Variables {
 
         if tree.is_empty() {
             let sources = definitions
-                .values()
-                .filter(|definition| !definition.component_path.is_empty())
-                .map(|definition| (definition.component_path.clone(), definition.path.clone()))
+                .iter()
+                .filter_map(|definition| {
+                    let definition = definition
+                        .lock()
+                        .expect("layout variable definition poisoned");
+                    (!definition.component_path.is_empty())
+                        .then(|| (definition.component_path.clone(), definition.path.clone()))
+                })
                 .collect::<HashMap<_, _>>();
 
             return component_paths
@@ -222,104 +161,55 @@ impl Variables {
     pub(crate) fn create_solver_variables(
         &self,
         referenced: &HashSet<Variable>,
-    ) -> Result<(ProblemVariables, Resolved_variables)> {
-        // Dismounting should keep stale definitions out of this registry already. Filtering again
-        // is probably unnecessary, but it guarantees that a priority solve only materializes
-        // variables referenced by the current symbolic layout.
-        let definitions = self
-            .definitions
-            .lock()
-            .expect("layout variable definitions poisoned");
-
+    ) -> Result<(ProblemVariables, Solver_variables)> {
         let mut problem_variables = ProblemVariables::new();
         let mut solver_variables = HashMap::new();
-        let mut referenced = referenced.iter().copied().collect::<Vec<_>>();
-        referenced.sort_unstable();
+        let mut materialized =
+            Vec::<(Shared_variable_definition, Variable_type<Solver_variable>)>::new();
+        let mut referenced = referenced.iter().cloned().collect::<Vec<_>>();
+        referenced.sort_unstable_by_key(Variable::id);
 
-        for indexed_variable in referenced {
-            let definition = match indexed_variable {
-                variable => definitions.get(&variable.index()).ok_or_else(|| {
-                    eyre!(
-                        "Layout variable {} is referenced but no longer registered",
-                        variable.index()
-                    )
-                })?,
+        for variable in referenced {
+            let definition = variable.definition();
+            let variable_type = match materialized
+                .iter()
+                .find(|(existing, _)| Arc::ptr_eq(existing, &definition))
+            {
+                Some((_, variable_type)) => variable_type.clone(),
+                None => {
+                    let variable_type = match &definition
+                        .lock()
+                        .expect("layout variable definition poisoned")
+                        .variable_type
+                    {
+                        Variable_type::Static(value) => Variable_type::Static(*value),
+                        Variable_type::Solver(definition) => {
+                            Variable_type::Solver(problem_variables.add(definition.clone()))
+                        }
+                    };
+                    materialized.push((definition, variable_type.clone()));
+                    variable_type
+                }
             };
 
-            let solver_variable = 'value: {
-                if let Some(value) = definition.static_value {
-                    break 'value Resolved_variable::Constant(value);
-                }
-
-                let definition = definition.solver.clone();
-                if definition.get_min() == definition.get_max() {
-                    break 'value Resolved_variable::Constant(definition.get_min());
-                }
-
-                let solver_variable = problem_variables.add(definition);
-                Resolved_variable::Variable(solver_variable)
-            };
-
-            let _ = solver_variables.insert(indexed_variable.index(), solver_variable);
+            let _ = solver_variables.insert(variable, variable_type);
         }
 
         Ok((problem_variables, solver_variables))
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn static_values_can_be_cleared_between_solves() {
-        let variables = Variables::new();
-        let variable = variables.add(VariableDefinition::new().min(0), "test", "", "");
-
-        variables.set_static(variable, 42.0);
-        assert_eq!(variables.static_value(variable), Some(42.0));
-
-        variables.clear_static();
-        assert_eq!(variables.static_value(variable), None);
+fn unique_definitions(variables: &HashSet<Variable>) -> Vec<Shared_variable_definition> {
+    let mut definitions = Vec::new();
+    for variable in variables {
+        let definition = variable.definition();
+        if definitions
+            .iter()
+            .any(|existing| Arc::ptr_eq(existing, &definition))
+        {
+            continue;
+        }
+        definitions.push(definition);
     }
-
-    #[test]
-    fn component_tree_includes_parents_of_referenced_components() {
-        let variables = Variables::new();
-        let leaf = variables.add(
-            VariableDefinition::new().min(0),
-            "leaf",
-            "leaf.rs:3",
-            "c2.c3.c4",
-        );
-        let tree = vec![
-            crate::component::debug::Component_source {
-                component_path: "c2".to_string(),
-                name: "c2".to_string(),
-                source_path: "parent.rs:1".to_string(),
-                depth: 0,
-            },
-            crate::component::debug::Component_source {
-                component_path: "c2.c3".to_string(),
-                name: "c3".to_string(),
-                source_path: "middle.rs:2".to_string(),
-                depth: 1,
-            },
-            crate::component::debug::Component_source {
-                component_path: "c2.c3.c4".to_string(),
-                name: "c4".to_string(),
-                source_path: "leaf.rs:3".to_string(),
-                depth: 2,
-            },
-        ];
-
-        assert_eq!(
-            variables.component_tree(&HashSet::from([leaf]), &tree),
-            vec![
-                (0, "c2".to_string(), Some("parent.rs:1".to_string())),
-                (1, "c3".to_string(), Some("middle.rs:2".to_string())),
-                (2, "c4".to_string(), Some("leaf.rs:3".to_string())),
-            ]
-        );
-    }
+    definitions
 }

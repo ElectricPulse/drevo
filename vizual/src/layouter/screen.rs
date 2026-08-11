@@ -1,16 +1,28 @@
+use good_lp::VariableDefinition;
+
 use super::variable::Variable;
 
-/// The variables reserved for the application screen.
-///
-/// Index `0` is intentionally unused. Screen width permanently owns index `1`, screen height
-/// permanently owns index `2`, and dynamically allocated layout variables start at index `3`.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Screen {
     pub width: Variable,
     pub height: Variable,
 }
 
-pub static SCREEN: Screen = Screen {
-    width: Variable::new(1),
-    height: Variable::new(2),
-};
+impl Screen {
+    pub(crate) fn new() -> Self {
+        Self {
+            width: Variable::solver(
+                VariableDefinition::new().min(0).name("screen width"),
+                "screen width",
+                "",
+                "",
+            ),
+            height: Variable::solver(
+                VariableDefinition::new().min(0).name("screen height"),
+                "screen height",
+                "",
+                "",
+            ),
+        }
+    }
+}

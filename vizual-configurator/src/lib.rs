@@ -34,7 +34,6 @@ use vizual::{
         Focus_provider, Shared_widget, Widget, Widget_trait,
         widgets::{
             button::Button,
-            full::Full,
             grid::Grid,
             layout::Layout,
             linebreak::Linebreak,
@@ -48,7 +47,7 @@ use vizual::{
         },
     },
 };
-use vizual_macros::{display, position};
+use vizual_macros::display;
 
 #[async_trait]
 /// Supplies the fields displayed by a [`Configurator`].
@@ -256,7 +255,7 @@ impl<T: Tree> Tree_view<T> {
                 },
             );
 
-            button.delta = Some(button_delta);
+            button.delta = Some(button_delta.clone());
 
             let button = Space::left(button, (INDENT * depth) as f64, Objective::default(), 2);
             let button = Anchor::new(button, Anchors::top_left());
@@ -275,7 +274,7 @@ impl<T: Tree> Tree_view<T> {
                         &child_cursor,
                         theme.clone(),
                         problem,
-                        button_delta,
+                        button_delta.clone(),
                     )
                     .await?;
                 buttons.append(&mut child_tree);
@@ -517,7 +516,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         _render: vizual::Render,
         theme: State<Theme>,
         _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut vizual::text::Text_context,
@@ -538,7 +537,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 let description = Anchor::new(description, Anchors::top_left());
                 let linebreak = display!(Linebreak::new());
                 let widget = display!(leaf.widget);
-                let description = position!(description);
+                let description = display!(description);
 
                 let layout = Layout::new(Direction::Vertical, vec![description, linebreak, widget]);
 
@@ -590,11 +589,10 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         if self.submitting {
             let popup = self
                 .popup_slot
-                .set(self.submit.clone(), problem.clone())
+                .set_child(self.submit.clone(), problem.clone(), hitbox)
                 .await?;
 
-            let popup = Full::new(popup);
-            let mut popup = position!(popup);
+            let mut popup = popup;
             popup.layer = 1;
             return Ok(vec![display!(grid), popup]);
         }
