@@ -53,7 +53,7 @@ impl Widget_trait for Title_block {
         let title = display!(title);
         let child = display!(self.child.clone());
 
-        let mut axis = Axis::new(Direction::Vertical, vec![title, child]);
+        let mut axis = Axis::new(Direction::Vertical, vec![Box::new(title), Box::new(child)]);
 
         axis.style
             .set(Axis_style::Gap(theme.load().units.em * 0.45));

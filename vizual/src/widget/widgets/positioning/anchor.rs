@@ -24,6 +24,13 @@ pub struct Anchors {
 }
 
 impl Anchors {
+    pub fn left() -> Self {
+        Self {
+            horizontal: Some(Position::Start),
+            vertical: None,
+        }
+    }
+
     pub fn top_left() -> Self {
         Self {
             horizontal: Some(Position::Start),
@@ -51,10 +58,6 @@ impl Anchor {
             child: Box::new(child),
             anchors,
         }
-    }
-
-    pub fn center(child: impl Widget_trait) -> Self {
-        Self::new(child, Anchors::middle())
     }
 
     /// Applies the selected anchor to this hitbox within its parent.

@@ -19,7 +19,7 @@ use std::{
 };
 use vizual::{
     Vizual_command, Vizual_msg, check_quit_event,
-    component::{Child, Children, context::Component_context},
+    component::{Children, context::Component_context},
     display::Display,
     event::{Event, Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
@@ -230,10 +230,10 @@ impl<T: Tree> Tree_view<T> {
         theme: State<Theme>,
         problem: &Component_context,
         button_delta: vizual::layouter::variable::Variable,
-    ) -> Result<Vec<Child>> {
+    ) -> Result<Vec<Widget>> {
         const INDENT: usize = 50;
 
-        let mut buttons: Vec<Child> = vec![];
+        let mut buttons: Vec<Widget> = vec![];
 
         for (name, child) in &node.0 {
             let mut child_cursor = cursor.to_vec();
@@ -262,7 +262,7 @@ impl<T: Tree> Tree_view<T> {
             // Since cursor should be unique for every button we can use it to generate id
             let button = slots.set(get_strings_id(&child_cursor), button).await?;
 
-            buttons.push(button);
+            buttons.push(Box::new(button));
 
             if let Configuration_tree::Branch(branch) = child {
                 let mut child_tree = self
@@ -538,7 +538,10 @@ impl<T: Tree> Widget_trait for Configurator<T> {
                 let widget = display!(leaf.widget);
                 let description = display!(description);
 
-                let axis = Axis::new(Direction::Vertical, vec![description, linebreak, widget]);
+                let axis = Axis::new(
+                    Direction::Vertical,
+                    vec![Box::new(description), Box::new(linebreak), Box::new(widget)],
+                );
 
                 let leaf = Title_block::new(display!(axis), leaf.name);
 

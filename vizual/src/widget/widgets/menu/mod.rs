@@ -8,7 +8,9 @@ use color_eyre::eyre::{Result, eyre};
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Shared_widget, Widget_trait, custom_widget::Custom_widget_trait},
+    super::{
+        Focus_provider, Shared_widget, Widget, Widget_trait, custom_widget::Custom_widget_trait,
+    },
     button::Button,
     layout::axis::Axis,
     positioning::anchor::{Anchor, Anchors},
@@ -221,7 +223,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         }
 
         let selected = self.get_selected_item()?;
-        let mut rows = Vec::with_capacity(self.items.len());
+        let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());
         let button_delta = problem.add_delta("menu-item-button-delta", 2).await?;
 
         for (index, item) in self.items.iter().enumerate() {
@@ -233,7 +235,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 submission: self.submission.clone(),
             };
             let item = Anchor::new(item, Anchors::top_left());
-            rows.push(slots.set(index as u64, item).await?);
+            rows.push(Box::new(slots.set(index as u64, item).await?));
         }
 
         Ok(vec![display!(Axis::new(Direction::Vertical, rows,))])

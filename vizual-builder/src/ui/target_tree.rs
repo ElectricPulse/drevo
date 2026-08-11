@@ -10,7 +10,7 @@ use vizual::{
     slot::manager::Slots,
     state::State,
     widget::{
-        Focus_provider, Widget_trait,
+        Focus_provider, Widget, Widget_trait,
         custom_widget::Custom_widget_trait,
         widgets::{
             icon::Icon,
@@ -63,7 +63,7 @@ impl Custom_widget_trait for Target_tree_item {
         let name = Text::new(metadata.name);
         let name = Anchor::new(name, Anchors::top_left());
         let name = display!(name);
-        let mut details = vec![name];
+        let mut details: Vec<Widget> = vec![Box::new(name)];
         if let Some(path) = metadata.path {
             let path = path
                 .strip_prefix(&self.working_directory)
@@ -71,7 +71,7 @@ impl Custom_widget_trait for Target_tree_item {
             let path = display_relative_path(path);
             let path = Text::new(format!("Working directory: {path}"));
             let path = Anchor::new(path, Anchors::top_left());
-            details.push(display!(path));
+            details.push(Box::new(display!(path)));
         }
 
         let details = Axis::new(Direction::Vertical, details);
@@ -79,7 +79,10 @@ impl Custom_widget_trait for Target_tree_item {
         let details = display!(details);
         let icon = display!(icon);
 
-        let row = Axis::new(Direction::Horizontal, vec![details, icon]);
+        let row = Axis::new(
+            Direction::Horizontal,
+            vec![Box::new(details), Box::new(icon)],
+        );
 
         Ok(vec![display!(row)])
     }

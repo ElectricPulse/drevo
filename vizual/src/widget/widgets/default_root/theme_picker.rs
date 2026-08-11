@@ -157,7 +157,10 @@ impl Widget_trait for Theme_picker {
             },
         );
 
-        let axis = Axis::new(Direction::Vertical, vec![display!(button), display!(menu)]);
+        let axis = Axis::new(
+            Direction::Vertical,
+            vec![Box::new(display!(button)), Box::new(display!(menu))],
+        );
 
         Ok(vec![display!(axis)])
     }

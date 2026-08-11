@@ -111,7 +111,7 @@ impl Widget_trait for Tab_bar {
         slots: &mut Slots,
     ) -> Result<Children> {
         focus.set_active(true);
-        let mut buttons = Vec::with_capacity(self.pages.len());
+        let mut buttons: Vec<Widget> = Vec::with_capacity(self.pages.len());
 
         for page in self.pages.iter_mut() {
             let active = self.selected_page.load() == page.tab.id.into();
@@ -124,7 +124,7 @@ impl Widget_trait for Tab_bar {
             let button = Anchor::new(button, Anchors::top_left());
             let button = page.slot.set_child(button, problem.clone(), hitbox).await?;
 
-            buttons.push(button);
+            buttons.push(Box::new(button));
         }
 
         let axis = Axis::new(Direction::Horizontal, buttons);
@@ -185,12 +185,12 @@ impl Widget_trait for Tabs {
     ) -> Result<Children> {
         let header = Anchor::new(self.header.clone(), Anchors::top_left());
         let header = display!(header);
-        let mut elements = vec![header];
+        let mut elements: Vec<Widget> = vec![Box::new(header)];
         {
             let selected = self.header.lock().await?.get_selected();
             if let Some(widget) = selected {
                 let widget = Anchor::new(widget, Anchors::top_left());
-                elements.push(display!(widget));
+                elements.push(Box::new(display!(widget)));
             }
         }
 

@@ -16,6 +16,7 @@ use crate::{
     widget::{
         Focus_provider, Widget, Widget_trait,
         widgets::{
+            button::Button,
             positioning::anchor::{Anchor, Anchors},
             text::Text,
         },
@@ -56,13 +57,13 @@ impl Widget_trait for Default_root {
     ) -> Result<Children> {
         let body = Paper::new(self.widget.clone());
 
-        let header = display!(Header::new(
+        let header = Header::new(
             self.title.clone(),
             self.header_open.clone(),
             self.theme_choice.clone(),
-        ));
+        );
 
-        let axis = Axis::new(Direction::Vertical, vec![header]);
+        let axis = Axis::new(Direction::Vertical, vec![Box::new(header), Box::new(body)]);
 
         let mut root = Paper::new(axis);
         root.style.set(theme.load().specific.root);

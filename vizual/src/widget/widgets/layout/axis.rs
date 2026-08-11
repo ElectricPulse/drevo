@@ -38,16 +38,10 @@ pub struct Axis {
 }
 
 impl Axis {
-    pub fn new<Element>(direction: Direction, elements: Vec<Element>) -> Self
-    where
-        Element: Widget_trait,
-    {
+    pub fn new(direction: Direction, elements: Vec<Widget>) -> Self {
         Self {
             direction,
-            elements: elements
-                .into_iter()
-                .map(|element| Box::new(element) as Widget)
-                .collect(),
+            elements,
             style: Style::default(),
             objective: Objective::Minimize_delta,
             priority: 2,
@@ -102,9 +96,10 @@ impl Widget_trait for Axis {
             0,
         )?;
 
+        let gap_delta = problem.add_delta("axis-gap-delta", self.priority).await?;
+
         if elements.len() >= 2 {
             let Axis_style::Gap(gap) = self.style.get(&theme);
-            let gap_delta = problem.add_delta("axis-gap-delta", self.priority).await?;
 
             for pair in elements.windows(2) {
                 let [previous, current] = pair else {

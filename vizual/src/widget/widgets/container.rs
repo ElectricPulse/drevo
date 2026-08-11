@@ -39,16 +39,6 @@ impl Widget_trait for Container {
     ) -> Result<Children> {
         let child = display!(self.child.clone());
 
-        for direction in [Direction::Horizontal, Direction::Vertical] {
-            shrink_wrap(
-                &problem,
-                hitbox.clone(),
-                std::slice::from_ref(&child),
-                direction,
-            )
-            .await?;
-        }
-
         Ok(vec![child])
     }
 }
