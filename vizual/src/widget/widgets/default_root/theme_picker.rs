@@ -23,7 +23,7 @@ use crate::{
     widget::{
         Focus_provider, Widget_trait,
         custom_widget::Custom_widget_trait,
-        widgets::{layout::Layout, positioning::anchor::Position},
+        widgets::{layout::Layout, paper::Paper, positioning::anchor::Position},
     },
 };
 
@@ -134,8 +134,11 @@ impl Widget_trait for Theme_picker {
 
         let default_item = get_selector(&items[selected_index]);
 
-        let mut menu = Menu::new(items, default_item, render);
-        //menu.set_submit_state(self.choice.clone());
+        let mut menu = Paper::new(
+            Menu::new(items, default_item, render)
+        );
+        
+        menu.set_submit_state(self.choice.clone());
 
         let menu = Anchor::new(
             menu,
@@ -145,18 +148,18 @@ impl Widget_trait for Theme_picker {
             },
         );
 
+        let mut menu = position!(menu);
+        menu.layer = 1;
+
         let button = Anchor::new(
             button,
             Anchors {
-                horizontal: Some(Position::Start),
+                horizontal: Some(Position::End),
                 vertical: Some(Position::Start),
             },
         );
 
-        let mut menu = position!(menu);
-        menu.layer = 1;
-
-        let layout = Layout::new(Direction::Horizontal, vec![position!(button.clone())]);
+        let layout = Layout::new(Direction::Vertical, vec![position!(button), display!(menu)]);
 
         Ok(vec![display!(layout)])
     }
