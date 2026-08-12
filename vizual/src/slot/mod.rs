@@ -85,7 +85,6 @@ impl Component_slot {
         problem.component_path.push(self.name.clone());
         let component_path = problem.component_path.join(".");
         let variables = problem.lock().await?.variables();
-        let hitbox_problem = problem.clone();
 
         let lock = if let Some(lock) = self.reference.upgrade() {
             let mut reference = lock.lock().await?;

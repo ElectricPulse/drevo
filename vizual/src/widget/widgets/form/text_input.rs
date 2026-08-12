@@ -12,11 +12,12 @@ use super::super::title_block::Title_block;
 use crate::{
     Vizual_command, Vizual_msg,
     component::{Children, context::Component_context},
+    constraint,
     display::Display,
     event::{Event, Key_code, Key_event},
     geometry::{Direction, Point, Rect, Size},
     handlers::Submit_handler,
-    layouter::hitbox::Hitbox,
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     state::State,
     style::Color,
@@ -24,7 +25,11 @@ use crate::{
     text::{Styled_text, Text_window},
     theme::Theme,
     widget::widgets::{
-        positioning::anchor::{Anchor, Anchors},
+        block::Block,
+        positioning::{
+            anchor::{Anchor, Anchors},
+            space::Space,
+        },
         text::Text,
     },
 };
@@ -123,7 +128,7 @@ impl Widget_trait for Text_input_content {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -131,8 +136,17 @@ impl Widget_trait for Text_input_content {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        hitbox.set_static_dimension(&problem, Direction::Vertical, 20.0);
-        hitbox.set_static_dimension(&problem, Direction::Horizontal, 10.0);
+        problem
+            .constrain(constraint!(
+                hitbox.get_dimension(Direction::Vertical) >= theme.load().units.em
+            ))
+            .await?;
+
+        problem
+            .constrain(constraint!(
+                hitbox.get_dimension(Direction::Horizontal) >= 10.0 * theme.load().units.em
+            ))
+            .await?;
 
         Ok(vec![])
     }
@@ -186,7 +200,7 @@ impl Widget_trait for Text_input {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -203,7 +217,14 @@ impl Widget_trait for Text_input {
             focused: self.focused.clone(),
         };
 
-        let block = Title_block::new(Text::new("hi"), self.title.clone());
+        let mut content = Block::new(Space::uniform(
+            content,
+            theme.load().units.em * 0.5,
+            Objective::default(),
+            2,
+        ));
+
+        let block = Title_block::new(content, self.title.clone());
 
         Ok(vec![display!(block)])
     }
