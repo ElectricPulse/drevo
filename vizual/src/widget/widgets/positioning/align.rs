@@ -88,8 +88,6 @@ impl Widget_trait for Align {
             }
         }
 
-        hitbox.constrain_smaller_than(&parent, &problem).await?;
-
         for direction in [Direction::Horizontal, Direction::Vertical] {
             problem
                 .constrain(constraint!(

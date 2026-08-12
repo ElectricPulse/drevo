@@ -52,7 +52,13 @@ impl Widget_trait for Header {
     ) -> Result<Children> {
         let mut name = Text::new(self.name.clone());
         name.style.set(theme.load().specific.text.title);
-        let name = Anchor::new(name, Anchors::left());
+        let name = Anchor::new(
+            name,
+            Anchors {
+                horizontal: Some(Position::Start),
+                vertical: Some(Position::Middle),
+            },
+        );
         let settings = Settings::new(self.open.clone(), self.choice.clone());
 
         let settings = Anchor::new(

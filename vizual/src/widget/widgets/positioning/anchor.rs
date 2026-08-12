@@ -148,8 +148,6 @@ impl Widget_trait for Anchor {
         )
         .await?;
 
-        hitbox.constrain_smaller_than(&parent, &problem).await?;
-
         Ok(vec![display!(self.child.clone())])
     }
 }

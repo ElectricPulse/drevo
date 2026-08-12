@@ -138,23 +138,6 @@ impl Hitbox {
             .await
     }
 
-    /// Constrains this hitbox to be no larger than its parent on either axis.
-    pub async fn constrain_smaller_than(
-        &self,
-        parent: &Hitbox,
-        problem: &Component_context,
-    ) -> Result<()> {
-        for direction in [Direction::Horizontal, Direction::Vertical] {
-            problem
-                .constrain(crate::constraint!(
-                    parent.get_dimension(direction) >= self.get_dimension(direction)
-                ))
-                .await?;
-        }
-
-        Ok(())
-    }
-
     /// Constrains one derived dimension to a static value.
     pub async fn set_static_dimension(
         &mut self,

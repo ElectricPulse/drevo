@@ -13,7 +13,13 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_choice},
-    widget::{Focus_provider, Widget, Widget_trait},
+    widget::{
+        Focus_provider, Widget, Widget_trait,
+        widgets::{
+            positioning::anchor::{Anchor, Anchors},
+            text::Text,
+        },
+    },
 };
 
 #[derive(Clone)]
@@ -48,7 +54,9 @@ impl Widget_trait for Default_root {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let body = Paper::new(self.widget.clone());
+        let body = Anchor::new(Text::new("Hi"), Anchors::top_left());
+
+        let body = Paper::new(body);
 
         let header = Header::new(
             self.title.clone(),
