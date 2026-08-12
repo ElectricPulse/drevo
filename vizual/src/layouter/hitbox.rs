@@ -198,10 +198,26 @@ impl Hitbox {
             .await
     }
 
-    /// Defines one end position as a static offset from its shared start position.
-    pub fn set_static_dimension(&self, direction: Direction, value: f64) {
-        self.end
-            .set(direction, self.get_start_position(direction) + value);
+    /// Constrains one derived dimension without replacing either shared edge expression.
+    ///
+    /// Despite its name, this does not change a position expression to a constant or mark its
+    /// variables as static. Hitbox positions are nested shared expressions so positioning widgets,
+    /// such as nested [`Space`](crate::widget::widgets::positioning::space::Space) wrappers, can
+    /// edit equations in place without allocating an independent solver variable for every layer.
+    ///
+    /// Consequently, an intrinsically sized leaf inside those wrappers (for example, text) must
+    /// express `end - start == value` as a constraint. Replacing its end expression with
+    /// `start + value` would sever the inherited expression chain, so the fixed size would no
+    /// longer propagate outward through the surrounding spaces and layout widgets.
+    pub async fn set_static_dimension(
+        &self,
+        problem: &Component_context,
+        direction: Direction,
+        value: f64,
+    ) -> Result<()> {
+        problem
+            .constrain(crate::constraint!(self.get_dimension(direction) == value))
+            .await
     }
 
     /// Returns the derived `end - start` dimension for one axis.
@@ -307,24 +323,42 @@ mod tests {
         assert_eq!(width.coefficients.len(), 2);
     }
 
-    #[test]
-    fn static_dimensions_replace_end_variables_with_expressions() {
-        let variables = Variables::new();
-        let hitbox = Hitbox::new(
+    #[tokio::test]
+    async fn static_dimensions_constrain_inherited_expressions() -> Result<()> {
+        let variables = Arc::new(Variables::new());
+        let parent = Hitbox::new(
             &variables,
-            "hitbox".to_string(),
-            "hitbox".to_string(),
+            "parent".to_string(),
+            "parent".to_string(),
             "test".to_string(),
         );
+        let hitbox = Hitbox::shared(&parent);
+        let problem =
+            Component_context::new(Arc::new(Mutex::new(Problem::new(Arc::clone(&variables)))));
 
-        hitbox.set_static_dimension(Direction::Horizontal, 42.0);
+        hitbox
+            .set_static_dimension(&problem, Direction::Horizontal, 42.0)
+            .await?;
 
-        let width = hitbox
-            .get_dimension(Direction::Horizontal)
+        let constraint = problem.lock().await?.constraints[0]
+            .expression()
             .resolved()
             .unwrap();
-        assert!(width.coefficients.is_empty());
-        assert_eq!(width.constant, 42.0);
+        assert_eq!(constraint.coefficients.len(), 2);
+        assert_eq!(constraint.constant, -42.0);
+        assert_eq!(
+            constraint
+                .coefficients
+                .get(&parent.start_variable(Direction::Horizontal)),
+            Some(&-1.0)
+        );
+        assert_eq!(
+            constraint
+                .coefficients
+                .get(&parent.end_variable(Direction::Horizontal)),
+            Some(&1.0)
+        );
+        Ok(())
     }
 
     #[tokio::test]

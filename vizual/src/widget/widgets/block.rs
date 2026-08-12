@@ -68,10 +68,6 @@ impl Widget_trait for Block {
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
         let mut space = Space::uniform(self.child.clone(), style.padding + border_thickness, 2);
         space.delta = self.delta.clone();
-
-        // Block owns the padding Space so callers can configure padding without introducing an
-        // additional Space layer. The border thickness is both included in the preferred spacing
-        // and installed as its hard minimum, keeping content outside the painted border.
         space.minimum = border_thickness;
 
         Ok(vec![display!(space)])

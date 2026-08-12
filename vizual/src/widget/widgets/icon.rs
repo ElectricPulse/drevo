@@ -41,13 +41,17 @@ impl Widget_trait for Icon {
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
-        _problem: Component_context,
+        problem: Component_context,
         text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
         let size = text_context.measure_icon(self.icon, self.style.get(&theme).size);
-        hitbox.set_static_dimension(Direction::Horizontal, size.width);
-        hitbox.set_static_dimension(Direction::Vertical, size.height);
+        hitbox
+            .set_static_dimension(&problem, Direction::Horizontal, size.width)
+            .await?;
+        hitbox
+            .set_static_dimension(&problem, Direction::Vertical, size.height)
+            .await?;
 
         Ok(Vec::new())
     }
