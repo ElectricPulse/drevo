@@ -207,7 +207,7 @@ impl Widget_trait for Text_input {
             focused: self.focused.clone(),
         };
 
-        let block = Title_block::new(display!(content), self.title.clone());
+        let block = Title_block::new(content, self.title.clone());
         Ok(vec![display!(block)])
     }
 

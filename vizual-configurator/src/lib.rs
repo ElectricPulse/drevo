@@ -29,7 +29,6 @@ use vizual::{
     state::State,
     sync::{Mutex, Thread_safe},
     theme::Theme,
-    utils::get_strings_id,
     widget::{
         Focus_provider, Shared_widget, Widget, Widget_trait,
         widgets::{
@@ -223,7 +222,6 @@ impl<T: Tree> Tree_view<T> {
     #[async_recursion]
     async fn render_tree(
         &mut self,
-        slots: &mut Slots,
         node: &Configuration_tree_branch,
         selected_cursor: &[String],
         cursor: &[String],
@@ -259,15 +257,11 @@ impl<T: Tree> Tree_view<T> {
             let button = Space::left(button, (INDENT * depth) as f64, Objective::default(), 2);
             let button = Anchor::new(button, Anchors::top_left());
 
-            // Since cursor should be unique for every button we can use it to generate id
-            let button = slots.set(get_strings_id(&child_cursor), button).await?;
-
             buttons.push(Box::new(button));
 
             if let Configuration_tree::Branch(branch) = child {
                 let mut child_tree = self
                     .render_tree(
-                        slots,
                         branch,
                         selected_cursor,
                         &child_cursor,
@@ -338,11 +332,10 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
 
         let tree = self.tree.lock().await?.get_tree();
         let buttons = self
-            .render_tree(slots, &tree, &cursor, &[], theme, &problem, button_delta)
+            .render_tree(&tree, &cursor, &[], theme, &problem, button_delta)
             .await?;
 
-        //let axis = Axis::new(Direction::Vertical, buttons);
-        let axis = Anchor::new(Text::new("hi"), Anchors::top_left());
+        let axis = Axis::new(Direction::Vertical, buttons);
 
         let block = Title_block::new(axis, "Config");
         Ok(vec![display!(block)])
@@ -535,16 +528,17 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             if let Ok(leaf) = tree.get_tree().get_leaf(&cursor) {
                 let description = Text::new(leaf.description);
                 let description = Anchor::new(description, Anchors::top_left());
-                let linebreak = display!(Linebreak::new());
-                let widget = display!(leaf.widget);
-                let description = display!(description);
 
                 let axis = Axis::new(
                     Direction::Vertical,
-                    vec![Box::new(description), Box::new(linebreak), Box::new(widget)],
+                    vec![
+                        Box::new(description),
+                        Box::new(Linebreak::new()),
+                        leaf.widget,
+                    ],
                 );
 
-                let leaf = Title_block::new(display!(axis), leaf.name);
+                let leaf = Title_block::new(axis, leaf.name);
 
                 Some(Box::new(leaf))
             } else {
@@ -562,7 +556,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         );
         let mut children: Vec<Widget> = vec![Box::new(tree_view)];
 
-        /*if let Some(field) = field {
+        if let Some(field) = field {
             let field = Anchor::new(
                 field,
                 Anchors {
@@ -572,7 +566,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             );
 
             children.push(Box::new(field));
-        }*/
+        }
 
         let mut text = Text::new("Apply");
         text.style.set(theme.load().specific.text.selected_subtitle);

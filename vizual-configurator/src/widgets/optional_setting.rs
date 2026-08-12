@@ -108,9 +108,8 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
         });
         let title = Anchor::new(title, Anchors::top_left());
         let field = Anchor::new(self.field.clone(), Anchors::top_left());
-        let title = display!(title);
         let contents: Vec<Widget> = match selected {
-            true => vec![Box::new(title), Box::new(display!(field))],
+            true => vec![Box::new(title), Box::new(field)],
             false => vec![Box::new(title)],
         };
         let axis = Axis::new(Direction::Vertical, contents);

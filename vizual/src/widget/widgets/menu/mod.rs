@@ -71,13 +71,13 @@ struct Menu_item<Choice: Thread_safe> {
 }
 
 #[derive(Clone)]
-enum Submission<Choice> {
-    None,
-    State(State<Choice>),
+struct Menu_item_content<Choice: Thread_safe + Clone> {
+    selected: bool,
+    widget: Shared_menu_item<Choice>,
 }
 
 #[async_trait]
-impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
+impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_content<Choice> {
     async fn layout(
         &mut self,
         render: crate::Render,
@@ -89,7 +89,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
         text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let mut contents = self
+        let contents = self
             .widget
             .lock()
             .await?
@@ -99,19 +99,47 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
                 focus,
                 hitbox,
                 parent,
-                problem.clone(),
+                problem,
                 text_context,
                 slots,
                 self.selected,
             )
             .await?;
+
+        // TODO: handle this some other way
         if contents.len() != 1 {
             return Err(eyre!(
                 "Menu item layout must return exactly one child, got {}",
                 contents.len()
             ));
         }
-        let content = contents.pop().expect("menu item child count checked above");
+        Ok(contents)
+    }
+}
+
+#[derive(Clone)]
+enum Submission<Choice> {
+    None,
+    State(State<Choice>),
+}
+
+#[async_trait]
+impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
+    async fn layout(
+        &mut self,
+        _render: crate::Render,
+        _theme: State<Theme>,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
+        slots: &mut Slots,
+    ) -> Result<Children> {
+        let content = Menu_item_content {
+            selected: self.selected,
+            widget: self.widget.clone(),
+        };
         let mut button = Button::around(content);
         button.highlighted = self.selected;
         button.delta = Some(self.button_delta.clone());
@@ -226,7 +254,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());
         let button_delta = problem.add_delta("menu-item-button-delta", 2).await?;
 
-        for (index, item) in self.items.iter().enumerate() {
+        for item in &self.items {
             let item = Menu_item {
                 selected: item.compare(&selected),
                 widget: item.clone(),
@@ -235,7 +263,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 submission: self.submission.clone(),
             };
             let item = Anchor::new(item, Anchors::top_left());
-            rows.push(Box::new(slots.set(index as u64, item).await?));
+            rows.push(Box::new(item));
         }
 
         Ok(vec![display!(Axis::new(Direction::Vertical, rows,))])

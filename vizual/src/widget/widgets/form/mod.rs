@@ -7,7 +7,7 @@ use std::future::Future;
 use std::pin::Pin;
 use vizual_macros::display;
 
-use super::super::{Focus_provider, Shared_widget, Widget_trait};
+use super::super::{Focus_provider, Shared_widget, Widget, Widget_trait};
 use super::menu::Menu;
 use super::title_block::Title_block;
 use crate::{
@@ -213,12 +213,12 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
         slots: &mut Slots,
     ) -> Result<Children> {
         focus.set_active(true);
-        let child = if self.exitting {
+        let child: Widget = if self.exitting {
             let exit_menu = self.exit_menu.clone();
-            display!(exit_menu)
+            Box::new(exit_menu)
         } else {
             let field = self.get_current_field().clone();
-            display!(field)
+            Box::new(field)
         };
 
         let block = Title_block::new(child, self.title().await?);

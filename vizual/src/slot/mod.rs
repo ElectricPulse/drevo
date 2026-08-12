@@ -130,12 +130,6 @@ impl Component_slot {
             lock
         };
 
-        // TODO: This blanket hitbox ordering constraint is temporary; widgets should eventually
-        // guarantee valid dimensions through their own explicit layout relationships.
-        hitbox_problem
-            .constrain_hitbox(lock.get_hitbox().await?)
-            .await?;
-
         Ok(lock)
     }
 }

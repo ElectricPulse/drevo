@@ -6,6 +6,7 @@ use vizual_macros::display;
 use super::super::{
     button::Button,
     icon::Icon,
+    layer::Layer,
     menu::{Menu, Shared_menu_item, get_selector},
     positioning::anchor::{Anchor, Anchors},
     text::Text,
@@ -146,8 +147,7 @@ impl Widget_trait for Theme_picker {
             },
         );
 
-        let mut menu = display!(menu);
-        menu.layer = 1;
+        let menu = Layer::new(menu, 1);
 
         let button = Anchor::new(
             button,
@@ -157,10 +157,7 @@ impl Widget_trait for Theme_picker {
             },
         );
 
-        let axis = Axis::new(
-            Direction::Vertical,
-            vec![Box::new(display!(button)), Box::new(display!(menu))],
-        );
+        let axis = Axis::new(Direction::Vertical, vec![Box::new(button), Box::new(menu)]);
 
         Ok(vec![display!(axis)])
     }

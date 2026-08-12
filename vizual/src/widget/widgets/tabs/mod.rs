@@ -18,7 +18,7 @@ use crate::{
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
     layouter::hitbox::Hitbox,
-    slot::{Component_slot, manager::Slots},
+    slot::manager::Slots,
     state::State,
     theme::Theme,
 };
@@ -50,7 +50,6 @@ impl Tabs {
 
 #[derive(Clone)]
 struct Page {
-    slot: Component_slot,
     tab: Tab,
 }
 
@@ -63,13 +62,7 @@ struct Tab_bar {
 impl Tab_bar {
     fn new(selected_page: State<Uuid>, tabs: Vec<Tab>) -> Self {
         Self {
-            pages: tabs
-                .into_iter()
-                .map(|tab| Page {
-                    tab,
-                    slot: Component_slot::new(),
-                })
-                .collect(),
+            pages: tabs.into_iter().map(|tab| Page { tab }).collect(),
             selected_page,
         }
     }
@@ -104,9 +97,9 @@ impl Widget_trait for Tab_bar {
         _render: crate::Render,
         theme: State<Theme>,
         focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
+        _hitbox: &mut Hitbox,
         _parent: Hitbox,
-        problem: Component_context,
+        _problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
@@ -122,8 +115,6 @@ impl Widget_trait for Tab_bar {
             });
             let button = page.tab.button(text, self.selected_page.clone());
             let button = Anchor::new(button, Anchors::top_left());
-            let button = page.slot.set_child(button, problem.clone(), hitbox).await?;
-
             buttons.push(Box::new(button));
         }
 
@@ -184,13 +175,12 @@ impl Widget_trait for Tabs {
         slots: &mut Slots,
     ) -> Result<Children> {
         let header = Anchor::new(self.header.clone(), Anchors::top_left());
-        let header = display!(header);
         let mut elements: Vec<Widget> = vec![Box::new(header)];
         {
             let selected = self.header.lock().await?.get_selected();
             if let Some(widget) = selected {
                 let widget = Anchor::new(widget, Anchors::top_left());
-                elements.push(Box::new(display!(widget)));
+                elements.push(Box::new(widget));
             }
         }
 

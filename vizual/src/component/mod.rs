@@ -10,12 +10,12 @@ use crate::{
     focus::Focus,
     geometry::Direction,
     layouter::{Solution, hitbox::Hitbox},
-    slot::manager::{Slot_records, Slots},
+    slot::manager::Slot_records,
     state::State,
     sync::{Mutex, MutexGuard},
     text::Text_context,
     theme::Theme,
-    widget::{Focus_provider, Widget, Widget_trait},
+    widget::{Focus_provider, Widget},
 };
 
 use self::{context::Component_context, debug::Component_debug};
@@ -55,23 +55,6 @@ pub(crate) struct Layered_component {
     pub component: Shared_component,
     pub layer: usize,
     pub tree_order: usize,
-}
-
-#[async_trait::async_trait]
-impl Widget_trait for Shared_component {
-    async fn layout(
-        &mut self,
-        _render: Render,
-        _theme: State<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut Text_context,
-        _slots: &mut Slots,
-    ) -> Result<Children> {
-        Ok(vec![self.clone()])
-    }
 }
 
 impl From<Shared_component> for Parent {

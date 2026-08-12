@@ -35,11 +35,6 @@ impl Widget_trait for Linebreak {
         _text_context: &mut crate::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
-        hitbox.end.point_to_variable(
-            Direction::Vertical,
-            problem.make_independent_variable("linebreak-end"),
-        );
-        problem.constrain_hitbox(hitbox.clone()).await?;
         problem
             .constrain(constraint!(
                 hitbox.get_dimension(Direction::Vertical) == BORDER_SIZE

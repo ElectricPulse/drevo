@@ -91,20 +91,6 @@ impl Component_context {
         Ok(())
     }
 
-    // TODO: To save solver performance, only add these constraints where they are necessary.
-    // Linebreak is one of those cases.
-    #[track_caller]
-    pub async fn constrain_hitbox(&self, hitbox: Hitbox) -> Result<()> {
-        for direction in [Direction::Horizontal, Direction::Vertical] {
-            self.constrain(constraint!(
-                hitbox.get_end_position(direction) >= hitbox.get_start_position(direction)
-            ))
-            .await?;
-        }
-
-        Ok(())
-    }
-
     #[track_caller]
     pub async fn minimize_delta(
         &self,
