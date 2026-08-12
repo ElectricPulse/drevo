@@ -113,6 +113,7 @@ runtime remains active for asynchronous widget and background work.
     You can pass display!() widget into a impl Widget_trait - how does that work? - the first child is just never used probably 
   Right now estabilishing a component lifetime also sets its hitbox (from the current parent) - these two would have to be seperated - one is lifetime creation,
   second is mounting and hitbox creation
+- add some cool animations to elements to showcase the real time capabilities
 
 - for no focus components I don't think they need to have stable known lifetime in between
  layout() calls

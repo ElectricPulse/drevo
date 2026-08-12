@@ -1,8 +1,3 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
-
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual_macros::display;
@@ -12,43 +7,25 @@ use super::super::title_block::Title_block;
 use crate::{
     Vizual_command, Vizual_msg,
     component::{Children, context::Component_context},
-    constraint,
-    display::Display,
     event::{Event, Key_code, Key_event},
-    geometry::{Direction, Point, Rect, Size},
     handlers::Submit_handler,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     style::Color,
-    sync::Mutex,
-    text::{Styled_text, Text_window},
     theme::Theme,
     widget::widgets::{
         block::{Block, Block_style, Border_style},
-        positioning::{
-            anchor::{Anchor, Anchors},
-            space::Space,
-        },
+        positioning::space::Space,
         text::Text,
     },
 };
-
-#[derive(Clone)]
-struct Text_input_content {
-    input: String,
-    cursor: usize,
-    scroll_x: Arc<Mutex<f64>>,
-    focused: Arc<AtomicBool>,
-}
 
 #[derive(Clone)]
 pub struct Text_input {
     title: String,
     input: String,
     cursor: usize,
-    scroll_x: Arc<Mutex<f64>>,
-    focused: Arc<AtomicBool>,
     submit_handler: Box<dyn Submit_handler<String>>,
 }
 
@@ -58,8 +35,6 @@ impl Text_input {
             title: title.into(),
             input: String::new(),
             cursor: 0,
-            scroll_x: Arc::new(Mutex::new(0.0)),
-            focused: Arc::new(AtomicBool::new(false)),
             submit_handler,
         }
     }
@@ -124,78 +99,6 @@ impl Text_input {
 }
 
 #[async_trait]
-impl Widget_trait for Text_input_content {
-    async fn layout(
-        &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
-        slots: &mut Slots,
-    ) -> Result<Children> {
-        problem
-            .constrain(constraint!(
-                hitbox.get_dimension(Direction::Vertical) >= theme.load().units.em
-            ))
-            .await?;
-
-        problem
-            .constrain(constraint!(
-                hitbox.get_dimension(Direction::Horizontal) >= 10.0 * theme.load().units.em
-            ))
-            .await?;
-
-        Ok(vec![])
-    }
-    async fn render(
-        &mut self,
-        _theme: State<Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: Rect,
-        display: &mut Display<'_>,
-    ) -> Result<Option<Hitbox>> {
-        let color = match self.input.is_empty() {
-            true => Color::White,
-            false => Color::Light_green,
-        };
-        let cursor_x = display.measure_text(&self.input[..self.cursor]).width;
-        let mut scroll_x = self.scroll_x.lock().await?;
-        if cursor_x < *scroll_x {
-            *scroll_x = cursor_x;
-        } else if cursor_x + 1.0 > *scroll_x + hitbox.size.width {
-            *scroll_x = (cursor_x + 1.0 - hitbox.size.width).max(0.0);
-        }
-
-        let styled = Styled_text::plain(&self.input, color);
-        let layout = display.build_layout(&styled);
-        display.paint_layout(
-            &layout,
-            hitbox.origin,
-            Some(Text_window {
-                offset: Point::new(*scroll_x, 0.0),
-                size: hitbox.size,
-            }),
-        );
-
-        if self.focused.load(Ordering::Relaxed) {
-            let height = display.measure_text(" ").height.min(hitbox.size.height);
-            display.fill_rect(
-                Rect {
-                    origin: Point::new(hitbox.origin.x + cursor_x - *scroll_x, hitbox.origin.y),
-                    size: Size::new(1.0, height),
-                },
-                color,
-            );
-        }
-
-        Ok(None)
-    }
-}
-
-#[async_trait]
 impl Widget_trait for Text_input {
     async fn layout(
         &mut self,
@@ -209,14 +112,8 @@ impl Widget_trait for Text_input {
         slots: &mut Slots,
     ) -> Result<Children> {
         let theme = theme.load();
-        focus.set_active(true);
 
-        let content = Text_input_content {
-            input: self.input.clone(),
-            cursor: self.cursor,
-            scroll_x: self.scroll_x.clone(),
-            focused: self.focused.clone(),
-        };
+        let content = Text::new(self.input.clone());
 
         let mut content = Block::new(Space::uniform(content, theme.units.em * 0.0, 2));
 
@@ -237,17 +134,6 @@ impl Widget_trait for Text_input {
         let block = Title_block::new(content, self.title.clone());
 
         Ok(vec![display!(block)])
-    }
-
-    async fn render(
-        &mut self,
-        _theme: State<Theme>,
-        focus: &mut Focus_provider,
-        _hitbox: Rect,
-        _display: &mut Display<'_>,
-    ) -> Result<Option<Hitbox>> {
-        self.focused.store(focus.get(), Ordering::Relaxed);
-        Ok(None)
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
