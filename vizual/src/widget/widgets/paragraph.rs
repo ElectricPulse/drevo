@@ -37,6 +37,20 @@ impl Paragraph {
 
 #[async_trait]
 impl Widget_trait for Paragraph {
+    async fn layout(
+        &mut self,
+        _render: crate::Render,
+        _theme: crate::state::State<crate::theme::Theme>,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: crate::component::context::Component_context,
+        _text_context: &mut crate::text::Text_context,
+        _slots: &mut crate::slot::manager::Slots,
+    ) -> Result<crate::component::Children> {
+        Ok(vec![])
+    }
+
     async fn render(
         &mut self,
         _theme: crate::state::State<crate::theme::Theme>,

@@ -280,6 +280,20 @@ impl Screen_content {
 
 #[async_trait]
 impl Widget_trait for Screen_content {
+    async fn layout(
+        &mut self,
+        _render: crate::Render,
+        _theme: State<Theme>,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
+        _slots: &mut Slots,
+    ) -> Result<Children> {
+        Ok(vec![])
+    }
+
     async fn render(
         &mut self,
         _theme: State<Theme>,

@@ -313,7 +313,21 @@ mod tests {
     struct Empty_widget;
 
     #[async_trait::async_trait]
-    impl Widget_trait for Empty_widget {}
+    impl Widget_trait for Empty_widget {
+        async fn layout(
+            &mut self,
+            _render: crate::Render,
+            _theme: crate::state::State<crate::theme::Theme>,
+            _focus: &mut crate::widget::Focus_provider,
+            _hitbox: &mut Hitbox,
+            _parent: Hitbox,
+            _problem: Component_context,
+            _text_context: &mut crate::text::Text_context,
+            _slots: &mut crate::slot::manager::Slots,
+        ) -> Result<Children> {
+            Ok(vec![])
+        }
+    }
 
     fn component(name: &str, problem: Component_context) -> Shared_component {
         Shared_component::new(Arc::new(Mutex::new(Component {

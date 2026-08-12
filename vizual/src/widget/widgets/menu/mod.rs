@@ -304,7 +304,21 @@ mod tests {
     struct Ordinary_menu_item;
 
     #[async_trait]
-    impl Widget_trait for Ordinary_menu_item {}
+    impl Widget_trait for Ordinary_menu_item {
+        async fn layout(
+            &mut self,
+            _render: crate::Render,
+            _theme: State<Theme>,
+            _focus: &mut Focus_provider,
+            _hitbox: &mut Hitbox,
+            _parent: Hitbox,
+            _problem: Component_context,
+            _text_context: &mut crate::text::Text_context,
+            _slots: &mut Slots,
+        ) -> Result<Children> {
+            Ok(vec![])
+        }
+    }
 
     #[async_trait]
     impl Retrieve_handler<usize> for Ordinary_menu_item {
