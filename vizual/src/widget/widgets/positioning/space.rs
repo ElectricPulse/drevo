@@ -5,13 +5,13 @@ use crate::{
     layouter::{
         expression::Expression,
         hitbox::Hitbox,
-        objective::{Delta, Objective},
+        objective::{Delta, minimize},
     },
     slot::manager::Slots,
     widget::{Focus_provider, Widget, Widget_trait},
 };
 use async_trait::async_trait;
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Result, ensure};
 use vizual_macros::display;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -110,17 +110,13 @@ impl Space {
         Self::new(child, None, None, None, None, priority)
     }
 
-    async fn apply_objective(
+    async fn expression(
         &self,
         problem: &Component_context,
-        space: Expression,
         target: f64,
         delta: &mut Option<Delta>,
-    ) -> Result<()> {
-        problem
-            .constrain(constraint!(space.clone() >= self.minimum))
-            .await?;
-
+    ) -> Result<Expression> {
+        ensure!(target > 0.0, "space target must be greater than zero");
         let delta = match delta.as_ref() {
             Some(delta) => delta.clone(),
             None => {
@@ -129,10 +125,20 @@ impl Space {
                 new_delta
             }
         };
+        let space = target * (1 - delta.clone());
 
-        Objective::Minimize_delta
-            .apply(problem, space, target, delta, self.priority)
-            .await
+        if self.minimum > 0.0 {
+            problem
+                .constrain(constraint!(space.clone() >= self.minimum))
+                .await?;
+        }
+        minimize(
+            &mut *problem.lock().await?,
+            Expression::from(delta),
+            self.priority,
+        )?;
+
+        Ok(space)
     }
 }
 
@@ -156,31 +162,15 @@ impl Widget_trait for Space {
             if let Some(space) = spaces.start(direction)
                 && space != 0.0
             {
-                hitbox
-                    .start
-                    .point_to_variable(direction, problem.make_independent_variable("space-start"));
-
-                let start_space = Expression::from(
-                    hitbox.get_start_position(direction) - parent.get_start_position(direction),
-                );
-
-                self.apply_objective(&problem, start_space, space, &mut delta)
-                    .await?;
+                let space = self.expression(&problem, space, &mut delta).await?;
+                hitbox.point_start(direction, parent.get_start_position(direction) + space);
             }
 
             if let Some(space) = spaces.end(direction)
                 && space != 0.0
             {
-                hitbox
-                    .end
-                    .point_to_variable(direction, problem.make_independent_variable("space-end"));
-
-                let end_space = Expression::from(
-                    parent.get_end_position(direction) - hitbox.get_end_position(direction),
-                );
-
-                self.apply_objective(&problem, end_space, space, &mut delta)
-                    .await?;
+                let space = self.expression(&problem, space, &mut delta).await?;
+                hitbox.point_end(direction, parent.get_end_position(direction) - space);
             }
         }
 

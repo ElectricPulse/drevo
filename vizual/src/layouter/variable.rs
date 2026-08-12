@@ -8,8 +8,6 @@ use good_lp::VariableDefinition;
 
 use super::variables::Variable_type;
 
-pub(crate) type Shared_variable_definition = Arc<Mutex<Variable_definition>>;
-
 #[derive(Clone)]
 pub struct Variable_definition {
     pub(crate) variable_type: Variable_type<VariableDefinition>,
@@ -18,25 +16,17 @@ pub struct Variable_definition {
     pub(crate) component_path: String,
 }
 
-/// A stable symbolic variable whose shared definition can be replaced.
-///
-/// The outer `Arc<Mutex<_>>` is the stable handle stored in expressions. The inner
-/// `Arc<Mutex<Variable_definition>>` lets that handle be repointed while other variables continue
-/// to share the old definition. A registry `HashMap` was also a valid design, but it added extra
-/// complexity to track whether a `Variable_definition` was still used; direct `Arc` ownership
-/// makes that lifetime explicit.
+/// A symbolic variable backed directly by its shared definition.
 ///
 /// These deliberately use `std::sync::Mutex`, not the crate's Tokio mutex: definition lookup and
-/// repointing are synchronous operations used while constructing expressions and solver state.
-/// Each critical section only clones or replaces an `Arc`, and no guard may live across an
-/// `.await`. Tokio does not warn about this safe use of a synchronous mutex; it would only become
-/// a runtime concern if locking could block an executor thread.
+/// mutation are synchronous operations used while constructing expressions and solver state. No
+/// guard may live across an `.await`.
 #[derive(Clone)]
-pub struct Variable(Arc<Mutex<Shared_variable_definition>>);
+pub struct Variable(Arc<Mutex<Variable_definition>>);
 
 impl Variable {
     pub(crate) fn new(definition: Variable_definition) -> Self {
-        Self(Arc::new(Mutex::new(Arc::new(Mutex::new(definition)))))
+        Self(Arc::new(Mutex::new(definition)))
     }
 
     pub(crate) fn solver(
@@ -65,28 +55,17 @@ impl Variable {
             .variable_type = Variable_type::Static(value);
     }
 
-    /// Creates a distinct symbolic handle which initially points to the same definition.
-    pub(crate) fn shared(&self) -> Self {
-        Self(Arc::new(Mutex::new(self.definition())))
-    }
-
-    /// Repoints this symbolic handle and every expression holding it to another definition.
-    pub(crate) fn point_to(&self, variable: &Self) {
-        let definition = variable.definition();
-        *self.0.lock().expect("layout variable handle poisoned") = definition;
-    }
-
     #[cfg(test)]
     pub(crate) fn points_to(&self, variable: &Self) -> bool {
-        Arc::ptr_eq(&self.definition(), &variable.definition())
+        Arc::ptr_eq(&self.0, &variable.0)
     }
 
-    pub(crate) fn definition(&self) -> Shared_variable_definition {
-        Arc::clone(&self.0.lock().expect("layout variable handle poisoned"))
+    pub(crate) fn definition(&self) -> Arc<Mutex<Variable_definition>> {
+        Arc::clone(&self.0)
     }
 
     pub(crate) fn definition_id(&self) -> usize {
-        Arc::as_ptr(&self.definition()) as usize
+        self.id()
     }
 
     pub(crate) fn id(&self) -> usize {

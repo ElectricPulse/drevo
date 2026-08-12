@@ -1,12 +1,7 @@
 use crate::{
     component::{Children, context::Component_context},
-    constraint,
     geometry::Direction,
-    layouter::{
-        expression::Expression,
-        hitbox::Hitbox,
-        objective::{Objective, minimize},
-    },
+    layouter::{hitbox::Hitbox, objective::minimize},
     slot::manager::Slots,
     state::State,
     style::Style,
@@ -32,7 +27,6 @@ pub struct Axis {
     direction: Direction,
     elements: Vec<Widget>,
     pub style: Style<Axis_style>,
-    objective: Objective,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
 }
@@ -43,7 +37,6 @@ impl Axis {
             direction,
             elements,
             style: Style::default(),
-            objective: Objective::Minimize_delta,
             priority: 2,
         }
     }
@@ -72,19 +65,13 @@ impl Widget_trait for Axis {
         }
 
         // A container around each item lets Align, Anchor, and Space position that item. The cross
-        // direction always remains shared, so only the main-axis start/end edges need independence.
+        // direction always remains shared. Intermediate ends need solver variables, while every
+        // later start is derived from the previous end and the shared gap expression below.
         let last_index = elements.len().saturating_sub(1);
         for (index, element) in elements.iter().enumerate() {
             let element = &mut element.lock().await?.hitbox;
-            if index > 0 {
-                element.start.point_to_variable(
-                    direction,
-                    problem.make_independent_variable("axis-item-start"),
-                );
-            }
-
             if index < last_index {
-                element.end.point_to_variable(
+                element.point_end(
                     direction,
                     problem.make_independent_variable("axis-item-end"),
                 );
@@ -98,10 +85,11 @@ impl Widget_trait for Axis {
             0,
         )?;
 
-        let gap_delta = problem.add_delta("axis-gap-delta", self.priority).await?;
-
         if elements.len() >= 2 {
             let Axis_style::Gap(gap) = self.style.get(&theme);
+            // One delta controls every gap belonging to this axis.
+            let gap_delta = problem.add_delta("axis-gap-delta", self.priority).await?;
+            let gap = gap * (1 - gap_delta);
 
             for pair in elements.windows(2) {
                 let [previous, current] = pair else {
@@ -111,15 +99,10 @@ impl Widget_trait for Axis {
                 let previous_hitbox = previous.get_hitbox().await?;
                 let current_hitbox = current.get_hitbox().await?;
 
-                let space = Expression::from(
-                    current_hitbox.get_start_position(direction)
-                        - previous_hitbox.get_end_position(direction),
+                current_hitbox.point_start(
+                    direction,
+                    previous_hitbox.get_end_position(direction) + gap.clone(),
                 );
-
-                problem.constrain(constraint!(space.clone() >= 0)).await?;
-                self.objective
-                    .apply(&problem, space, gap, gap_delta.clone(), self.priority)
-                    .await?;
             }
         }
 

@@ -1,9 +1,10 @@
-use super::{expression::Expression, hitbox::Hitbox, objective::minimize};
+use super::{hitbox::Hitbox, objective::minimize};
 use crate::{
     component::Child, component::context::Component_context, config::MAXIMUM_LAYOUT_VALUE,
     constraint, geometry::Direction,
 };
 use color_eyre::eyre::Result;
+use std::sync::Arc;
 
 /// Shrink-wraps each component edge around the corresponding child edges.
 ///
@@ -33,9 +34,9 @@ pub async fn shrink_wrap(
     let mut constrained_end = false;
 
     for child_hitbox in child_hitboxes {
-        let child_start = child_hitbox.get_start_position(direction);
-        let hitbox_start = hitbox.get_start_position(direction);
-        if child_start != hitbox_start {
+        let child_start = child_hitbox.start_expression(direction);
+        let hitbox_start = hitbox.start_expression(direction);
+        if !Arc::ptr_eq(&child_start, &hitbox_start) {
             problem
                 .constrain(
                     constraint!(
@@ -47,9 +48,9 @@ pub async fn shrink_wrap(
                 .await?;
             constrained_start = true;
         }
-        let child_end = child_hitbox.end.get(direction);
-        let hitbox_end = hitbox.end.get(direction);
-        if child_end != hitbox_end {
+        let child_end = child_hitbox.end_expression(direction);
+        let hitbox_end = hitbox.end_expression(direction);
+        if !Arc::ptr_eq(&child_end, &hitbox_end) {
             problem
                 .constrain(
                     constraint!(
@@ -67,7 +68,7 @@ pub async fn shrink_wrap(
         problem
             .lock()
             .await?
-            .maximize(Expression::from(hitbox.get_start_position(direction)), 0)?;
+            .maximize(hitbox.get_start_position(direction), 0)?;
     }
     if constrained_end {
         minimize(
@@ -145,7 +146,7 @@ mod tests {
     use crate::layouter::variables::Variables;
 
     #[test]
-    fn only_corresponding_parent_edges_suppress_shrink_wrap() {
+    fn child_edges_are_distinct_handles_which_reference_parent_edges() {
         let variables = Variables::new();
         let parent = Hitbox::new(
             &variables,
@@ -153,41 +154,34 @@ mod tests {
             "parent".to_string(),
             "test".to_string(),
         );
-        let mut child = Hitbox::new(
-            &variables,
-            "child".to_string(),
-            "child".to_string(),
-            "test".to_string(),
-        );
+        let child = Hitbox::shared(&parent);
         let direction = Direction::Horizontal;
-        assert!(
-            !child
-                .get_start_position(direction)
-                .points_to(&parent.get_start_position(direction))
-        );
-        assert!(
-            !child
-                .end
-                .get(direction)
-                .points_to(&parent.end.get(direction))
-        );
+        assert!(!Arc::ptr_eq(
+            &child.start_expression(direction),
+            &parent.start_expression(direction)
+        ));
+        assert!(!Arc::ptr_eq(
+            &child.end_expression(direction),
+            &parent.end_expression(direction)
+        ));
 
-        child.start.x = parent.end.x.clone();
-        assert_ne!(
-            child.get_start_position(direction),
-            parent.get_start_position(direction)
-        );
-
-        child.start.x = parent.start.x.clone();
         assert_eq!(
-            child.get_start_position(direction),
-            parent.get_start_position(direction)
+            child
+                .get_start_position(direction)
+                .resolved()
+                .unwrap()
+                .single_variable()
+                .unwrap(),
+            parent.start_variable(direction)
         );
-
-        child.end.x = parent.start.x.clone();
-        assert_ne!(child.end.get(direction), parent.end.get(direction));
-
-        child.end.x = parent.end.x.clone();
-        assert_eq!(child.end.get(direction), parent.end.get(direction));
+        assert_eq!(
+            child
+                .get_end_position(direction)
+                .resolved()
+                .unwrap()
+                .single_variable()
+                .unwrap(),
+            parent.end_variable(direction)
+        );
     }
 }

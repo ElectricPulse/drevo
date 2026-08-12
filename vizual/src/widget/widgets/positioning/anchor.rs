@@ -2,7 +2,7 @@ use crate::{
     component::{Children, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{expression::Expression, hitbox::Hitbox, objective::minimize},
+    layouter::{hitbox::Hitbox, objective::minimize},
     slot::manager::Slots,
     widget::{Focus_provider, Widget, Widget_trait},
 };
@@ -70,9 +70,7 @@ impl Anchor {
     ) -> Result<()> {
         match position {
             Some(Position::Start) => {
-                hitbox
-                    .end
-                    .point_to_variable(direction, problem.make_independent_variable("anchor-end"));
+                hitbox.point_end(direction, problem.make_independent_variable("anchor-end"));
                 problem
                     .constrain(constraint!(
                         hitbox.get_end_position(direction) <= parent.get_end_position(direction)
@@ -80,13 +78,8 @@ impl Anchor {
                     .await?;
             }
             Some(Position::Middle) => {
-                hitbox.start.point_to_variable(
-                    direction,
-                    problem.make_independent_variable("anchor-start"),
-                );
-                hitbox
-                    .end
-                    .point_to_variable(direction, problem.make_independent_variable("anchor-end"));
+                hitbox.point_start(direction, problem.make_independent_variable("anchor-start"));
+                hitbox.point_end(direction, problem.make_independent_variable("anchor-end"));
                 problem
                     .constrain(constraint!(
                         hitbox.get_start_position(direction)
@@ -99,9 +92,8 @@ impl Anchor {
                     ))
                     .await?;
 
-                let start_margin = Expression::from(
-                    hitbox.get_start_position(direction) - parent.get_start_position(direction),
-                );
+                let start_margin =
+                    hitbox.get_start_position(direction) - parent.get_start_position(direction);
                 let end_margin =
                     parent.get_end_position(direction) - hitbox.get_end_position(direction);
                 problem
@@ -110,10 +102,7 @@ impl Anchor {
                 minimize(&mut *problem.lock().await?, start_margin, 0)?;
             }
             Some(Position::End) => {
-                hitbox.start.point_to_variable(
-                    direction,
-                    problem.make_independent_variable("anchor-start"),
-                );
+                hitbox.point_start(direction, problem.make_independent_variable("anchor-start"));
             }
             None => {}
         }

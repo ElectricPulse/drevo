@@ -1,7 +1,6 @@
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     ops::Mul,
-    sync::Arc,
 };
 
 use color_eyre::eyre::Result;
@@ -10,10 +9,7 @@ use good_lp::{
     VariableDefinition,
 };
 
-use super::{
-    screen::Screen,
-    variable::{Shared_variable_definition, Variable},
-};
+use super::{screen::Screen, variable::Variable};
 use crate::component::debug::Component_tree;
 
 #[derive(Clone)]
@@ -99,7 +95,10 @@ impl Variables {
         variables: &HashSet<Variable>,
         tree: &Component_tree,
     ) -> Vec<(usize, String, Option<String>)> {
-        let definitions = unique_definitions(variables);
+        let definitions = variables
+            .iter()
+            .map(Variable::definition)
+            .collect::<Vec<_>>();
         let mut component_paths = BTreeSet::new();
 
         for definition in &definitions {
@@ -164,31 +163,19 @@ impl Variables {
     ) -> Result<(ProblemVariables, Solver_variables)> {
         let mut problem_variables = ProblemVariables::new();
         let mut solver_variables = HashMap::new();
-        let mut materialized =
-            Vec::<(Shared_variable_definition, Variable_type<Solver_variable>)>::new();
         let mut referenced = referenced.iter().cloned().collect::<Vec<_>>();
         referenced.sort_unstable_by_key(Variable::id);
 
         for variable in referenced {
             let definition = variable.definition();
-            let variable_type = match materialized
-                .iter()
-                .find(|(existing, _)| Arc::ptr_eq(existing, &definition))
+            let variable_type = match &definition
+                .lock()
+                .expect("layout variable definition poisoned")
+                .variable_type
             {
-                Some((_, variable_type)) => variable_type.clone(),
-                None => {
-                    let variable_type = match &definition
-                        .lock()
-                        .expect("layout variable definition poisoned")
-                        .variable_type
-                    {
-                        Variable_type::Static(value) => Variable_type::Static(*value),
-                        Variable_type::Solver(definition) => {
-                            Variable_type::Solver(problem_variables.add(definition.clone()))
-                        }
-                    };
-                    materialized.push((definition, variable_type.clone()));
-                    variable_type
+                Variable_type::Static(value) => Variable_type::Static(*value),
+                Variable_type::Solver(definition) => {
+                    Variable_type::Solver(problem_variables.add(definition.clone()))
                 }
             };
 
@@ -197,19 +184,4 @@ impl Variables {
 
         Ok((problem_variables, solver_variables))
     }
-}
-
-fn unique_definitions(variables: &HashSet<Variable>) -> Vec<Shared_variable_definition> {
-    let mut definitions = Vec::new();
-    for variable in variables {
-        let definition = variable.definition();
-        if definitions
-            .iter()
-            .any(|existing| Arc::ptr_eq(existing, &definition))
-        {
-            continue;
-        }
-        definitions.push(definition);
-    }
-    definitions
 }

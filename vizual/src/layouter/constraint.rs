@@ -3,7 +3,7 @@ use good_lp::constraint as solver_constraint;
 
 use super::{expression::Expression, variables::Solver_variables};
 
-/// A symbolic equality or inequality over stable layout variables.
+/// A symbolic equality or inequality over layout expressions.
 #[derive(Clone, Debug)]
 pub struct Constraint {
     pub(crate) expression: Expression,
@@ -47,6 +47,14 @@ impl Constraint {
 
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
+    }
+
+    pub(crate) fn resolved(&self) -> Result<Self> {
+        Ok(Self {
+            expression: self.expression.resolved()?,
+            equality: self.equality,
+            name: self.name.clone(),
+        })
     }
 
     pub(crate) fn into_solver(

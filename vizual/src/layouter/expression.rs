@@ -1,6 +1,7 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     ops::{Add, AddAssign, Div, Mul, Neg, Sub},
+    sync::{Arc, Mutex},
 };
 
 use color_eyre::eyre::{Result, eyre};
@@ -8,14 +9,99 @@ use good_lp::Expression as Solver_expression;
 
 use super::{variable::Variable, variables::Solver_variables};
 
-/// A symbolic affine expression over stable [`Variable`] handles.
+pub type Shared_expression = Arc<Mutex<Expression>>;
+
+/// A symbolic affine expression over [`Variable`] definitions and shared hitbox positions.
+///
+/// Shared expressions are retained as leaves until the solver model is built. This allows a
+/// positioning widget to replace a hitbox coordinate after a parent has already constructed a
+/// constraint which references that coordinate.
 #[derive(Clone, Debug, Default)]
 pub struct Expression {
     pub(crate) coefficients: HashMap<Variable, f64>,
+    shared_expressions: Vec<(Shared_expression, f64)>,
     pub(crate) constant: f64,
 }
 
 impl Expression {
+    pub fn shared(self) -> Shared_expression {
+        Arc::new(Mutex::new(self))
+    }
+
+    pub(crate) fn resolved(&self) -> Result<Self> {
+        let mut resolved = Self::default();
+        self.resolve_into(1.0, &mut HashSet::new(), &mut resolved)?;
+        Ok(resolved)
+    }
+
+    pub(crate) fn single_variable(&self) -> Result<Variable> {
+        let resolved = self.resolved()?;
+        if resolved.constant != 0.0 || resolved.coefficients.len() != 1 {
+            return Err(eyre!("Expected layout position to contain one variable"));
+        }
+
+        let (variable, coefficient) = resolved.coefficients.into_iter().next().unwrap();
+        if coefficient != 1.0 {
+            return Err(eyre!(
+                "Expected layout position variable to have coefficient 1"
+            ));
+        }
+        Ok(variable)
+    }
+
+    fn resolve_into(
+        &self,
+        scale: f64,
+        visiting: &mut HashSet<usize>,
+        resolved: &mut Self,
+    ) -> Result<()> {
+        resolved.constant += self.constant * scale;
+        for (variable, coefficient) in &self.coefficients {
+            resolved.add_variable(variable.clone(), coefficient * scale);
+        }
+
+        for (expression, coefficient) in &self.shared_expressions {
+            let id = Arc::as_ptr(expression) as usize;
+            if !visiting.insert(id) {
+                return Err(eyre!("Layout position expressions contain a cycle"));
+            }
+
+            let expression = expression
+                .lock()
+                .map_err(|_| eyre!("Layout position expression poisoned"))?
+                .clone();
+            expression.resolve_into(scale * coefficient, visiting, resolved)?;
+            let _ = visiting.remove(&id);
+        }
+
+        Ok(())
+    }
+
+    fn add_variable(&mut self, variable: Variable, coefficient: f64) {
+        let remove = {
+            let stored = self.coefficients.entry(variable.clone()).or_default();
+            *stored += coefficient;
+            *stored == 0.0
+        };
+        if remove {
+            let _ = self.coefficients.remove(&variable);
+        }
+    }
+
+    fn add_shared_expression(&mut self, expression: Shared_expression, coefficient: f64) {
+        let existing = self
+            .shared_expressions
+            .iter_mut()
+            .find(|(stored, _)| Arc::ptr_eq(stored, &expression));
+
+        match existing {
+            Some((_, stored)) => *stored += coefficient,
+            None => self.shared_expressions.push((expression, coefficient)),
+        }
+        self.shared_expressions
+            .retain(|(_, coefficient)| *coefficient != 0.0);
+    }
+
     pub(crate) fn referenced_variables(&self) -> impl Iterator<Item = Variable> + '_ {
         self.coefficients.keys().cloned()
     }
@@ -64,6 +150,23 @@ impl From<Variable> for Expression {
     fn from(variable: Variable) -> Self {
         Self {
             coefficients: HashMap::from([(variable, 1.0)]),
+            shared_expressions: Vec::new(),
+            constant: 0.0,
+        }
+    }
+}
+
+impl From<&Shared_expression> for Expression {
+    fn from(expression: &Shared_expression) -> Self {
+        Self::from(Arc::clone(expression))
+    }
+}
+
+impl From<Shared_expression> for Expression {
+    fn from(expression: Shared_expression) -> Self {
+        Self {
+            coefficients: HashMap::new(),
+            shared_expressions: vec![(expression, 1.0)],
             constant: 0.0,
         }
     }
@@ -73,6 +176,7 @@ impl From<f64> for Expression {
     fn from(constant: f64) -> Self {
         Self {
             coefficients: HashMap::new(),
+            shared_expressions: Vec::new(),
             constant,
         }
     }
@@ -97,14 +201,10 @@ impl<T: Into<Expression>> Add<T> for Expression {
         let rhs = rhs.into();
         self.constant += rhs.constant;
         for (variable, coefficient) in rhs.coefficients {
-            let remove = {
-                let stored = self.coefficients.entry(variable.clone()).or_default();
-                *stored += coefficient;
-                *stored == 0.0
-            };
-            if remove {
-                let _ = self.coefficients.remove(&variable);
-            }
+            self.add_variable(variable, coefficient);
+        }
+        for (expression, coefficient) in rhs.shared_expressions {
+            self.add_shared_expression(expression, coefficient);
         }
         self
     }
@@ -124,6 +224,9 @@ impl Mul<f64> for Expression {
     fn mul(mut self, rhs: f64) -> Self::Output {
         self.constant *= rhs;
         for coefficient in self.coefficients.values_mut() {
+            *coefficient *= rhs;
+        }
+        for (_, coefficient) in &mut self.shared_expressions {
             *coefficient *= rhs;
         }
         self

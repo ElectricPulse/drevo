@@ -230,10 +230,7 @@ impl App_problem {
     }
 
     fn root_size(&self, solution: &Solution) -> Size {
-        Size::new(
-            solution.value(&self.root_hitbox.end.x) - solution.value(&self.root_hitbox.start.x),
-            solution.value(&self.root_hitbox.end.y) - solution.value(&self.root_hitbox.start.y),
-        )
+        self.root_hitbox.get_resolved(solution).size
     }
 
     async fn minimum_size(&self) -> Result<Size> {

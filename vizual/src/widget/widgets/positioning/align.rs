@@ -7,7 +7,6 @@ use crate::{
     constraint,
     geometry::Direction,
     layouter::{
-        expression::Expression,
         hitbox::Hitbox,
         objective::{Objective, minimize},
     },
@@ -46,9 +45,8 @@ impl Align {
 
         match objective {
             Objective::Minimize => {
-                let start_margin = Expression::from(
-                    hitbox.get_start_position(direction) - parent.get_start_position(direction),
-                );
+                let start_margin =
+                    hitbox.get_start_position(direction) - parent.get_start_position(direction);
                 minimize(&mut *problem.lock().await?, start_margin, priority)
             }
             Objective::Maximize => {
@@ -79,12 +77,8 @@ impl Widget_trait for Align {
             (Direction::Vertical, self.alignments.vertical),
         ] {
             if objective.is_some() {
-                hitbox
-                    .start
-                    .point_to_variable(direction, problem.make_independent_variable("align-start"));
-                hitbox
-                    .end
-                    .point_to_variable(direction, problem.make_independent_variable("align-end"));
+                hitbox.point_start(direction, problem.make_independent_variable("align-start"));
+                hitbox.point_end(direction, problem.make_independent_variable("align-end"));
             }
         }
 

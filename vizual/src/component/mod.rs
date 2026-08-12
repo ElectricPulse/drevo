@@ -31,7 +31,7 @@ pub type Parent = Option<Child_reference>;
 pub struct Component {
     pub name: String,
     pub(crate) debug: Component_debug,
-    pub hitbox: Hitbox,
+    pub(crate) hitbox: Hitbox,
     pub widget: Widget,
     pub focusable: bool,
     pub parent: Parent,
@@ -292,7 +292,7 @@ impl Shared_component {
         this.focusable = focus.is_active();
 
         if let Some(hitbox) = maybe_hitbox {
-            this.hitbox = hitbox;
+            this.hitbox.point_to(&hitbox);
         };
 
         Ok(())

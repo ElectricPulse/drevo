@@ -86,7 +86,10 @@ impl Solution {
     }
 
     fn eval(&self, expression: &Expression) -> f64 {
-        expression.eval_with(&self.values)
+        expression
+            .resolved()
+            .expect("layout expression must resolve")
+            .eval_with(&self.values)
     }
 }
 
@@ -114,10 +117,12 @@ impl Problem {
     }
 
     pub(crate) fn constrain_root_to_screen(&mut self, root: &Hitbox, screen: Size) {
-        root.start.x.set_static(0.0);
-        root.start.y.set_static(0.0);
-        root.end.x.set_static(screen.width);
-        root.end.y.set_static(screen.height);
+        root.start_variable(Direction::Horizontal).set_static(0.0);
+        root.start_variable(Direction::Vertical).set_static(0.0);
+        root.end_variable(Direction::Horizontal)
+            .set_static(screen.width);
+        root.end_variable(Direction::Vertical)
+            .set_static(screen.height);
     }
 
     async fn priority_solve(
@@ -126,6 +131,14 @@ impl Problem {
         direction: ObjectiveDirection,
         objective: Expression,
     ) -> std::result::Result<Solution, ResolutionError> {
+        let constraints = constraints
+            .iter()
+            .map(Constraint::resolved)
+            .collect::<Result<Vec<_>>>()
+            .map_err(|error| ResolutionError::Str(error.to_string()))?;
+        let objective = objective
+            .resolved()
+            .map_err(|error| ResolutionError::Str(error.to_string()))?;
         let referenced = constraints
             .iter()
             .flat_map(|constraint| constraint.expression.referenced_variables())
@@ -263,11 +276,12 @@ impl Problem {
         }
     }
 
-    fn display_constraint(&self, constraint: &Constraint) -> String {
+    fn display_constraint(&self, constraint: &Constraint) -> Result<String> {
+        let expression = constraint.expression.resolved()?;
         let mut left = Vec::new();
         let mut right = Vec::new();
 
-        for (variable, coefficient) in &constraint.expression.coefficients {
+        for (variable, coefficient) in &expression.coefficients {
             match coefficient {
                 coefficient if *coefficient > 0.0 => left.push((variable.clone(), *coefficient)),
                 coefficient if *coefficient < 0.0 => right.push((variable.clone(), -*coefficient)),
@@ -275,7 +289,7 @@ impl Problem {
             }
         }
 
-        let (left_constant, right_constant) = match constraint.expression.constant {
+        let (left_constant, right_constant) = match expression.constant {
             constant if constant > 0.0 => (constant, 0.0),
             constant if constant < 0.0 => (0.0, -constant),
             _ => (0.0, 0.0),
@@ -287,21 +301,21 @@ impl Problem {
             false => "<=",
         };
 
-        format!("{left} {comparison} {right}")
+        Ok(format!("{left} {comparison} {right}"))
     }
 
-    fn display_constraints(&self, constraints: &[Constraint]) -> String {
+    fn display_constraints(&self, constraints: &[Constraint]) -> Result<String> {
         constraints
             .iter()
             .map(|constraint| {
-                format!(
+                Ok(format!(
                     "{}: {}",
                     constraint.name().unwrap_or("unknown constraint"),
-                    self.display_constraint(constraint),
-                )
+                    self.display_constraint(constraint)?,
+                ))
             })
-            .collect::<Vec<_>>()
-            .join("\n")
+            .collect::<Result<Vec<_>>>()
+            .map(|constraints| constraints.join("\n"))
     }
 
     fn with_component_tree(
@@ -349,6 +363,11 @@ impl Problem {
         objective: &Expression,
         component_tree: &Component_tree,
     ) -> Result<String> {
+        let constraints = constraints
+            .iter()
+            .map(Constraint::resolved)
+            .collect::<Result<Vec<_>>>()?;
+        let objective = objective.resolved()?;
         let mut variables = constraints
             .iter()
             .flat_map(|constraint| constraint.expression.referenced_variables())
@@ -362,10 +381,10 @@ impl Problem {
         let mut details = Vec::new();
         for variable in variables {
             let has_no_upper_bound = self
-                .is_unbounded(constraints, Expression::from(&variable))
+                .is_unbounded(&constraints, Expression::from(&variable))
                 .await?;
             let has_no_lower_bound = self
-                .is_unbounded(constraints, Expression::from(&variable) * -1.0)
+                .is_unbounded(&constraints, Expression::from(&variable) * -1.0)
                 .await?;
             let range = match (has_no_lower_bound, has_no_upper_bound) {
                 (true, true) => "has neither a lower nor an upper bound",
@@ -405,10 +424,14 @@ impl Problem {
             Ok(solution) => Ok(solution),
             Err(ResolutionError::Infeasible) => {
                 let conflict = self.find_conflicting_constraints(constraints).await?;
-                let constraints = self.display_constraints(&conflict);
+                let displayed_constraints = self.display_constraints(&conflict)?;
+                let resolved_conflict = conflict
+                    .iter()
+                    .map(Constraint::resolved)
+                    .collect::<Result<Vec<_>>>()?;
                 let conflict = self.with_component_tree(
-                    constraints,
-                    conflict
+                    displayed_constraints,
+                    resolved_conflict
                         .iter()
                         .flat_map(|constraint| constraint.expression.referenced_variables()),
                     component_tree,
@@ -494,8 +517,8 @@ impl Problem {
         root: Hitbox,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
-        root.start.x.set_static(0.0);
-        root.start.y.set_static(0.0);
+        root.start_variable(Direction::Horizontal).set_static(0.0);
+        root.start_variable(Direction::Vertical).set_static(0.0);
         self.variables.set_type(
             &self.variables.screen.width,
             Variable_type::Solver(
@@ -540,8 +563,14 @@ mod tests {
             "root.child".to_string(),
             "test".to_string(),
         );
-        problem.constrain(constraint!(child.start.x.clone() == root.start.x.clone()));
-        problem.constrain(constraint!(child.end.x.clone() == root.end.x.clone()));
+        problem.constrain(constraint!(
+            child.get_start_position(Direction::Horizontal)
+                == root.get_start_position(Direction::Horizontal)
+        ));
+        problem.constrain(constraint!(
+            child.get_end_position(Direction::Horizontal)
+                == root.get_end_position(Direction::Horizontal)
+        ));
         minimize(&mut problem, child.get_dimension(Direction::Horizontal), 0)?;
 
         let component_tree = Vec::new();
