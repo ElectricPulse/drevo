@@ -92,27 +92,22 @@ impl Component_slot {
             reference.debug.source_path = self.path.clone();
             reference.widget = widget;
             reference.slot_manager.set_problem(problem);
-            match parent {
-                Some(parent) => reference.hitbox.point_to(parent),
-                None => reference.hitbox.make_independent_at(
-                    &variables,
-                    &self.name,
-                    &component_path,
-                    &self.path,
-                ),
+            reference.hitbox.reset_shared();
+            if parent.is_none() {
+                reference.hitbox.make_independent();
             }
 
             Shared_component::new(lock.clone())
         } else {
-            let hitbox = match parent {
-                Some(parent) => Hitbox::shared(parent),
-                None => Hitbox::new(
-                    &variables,
-                    self.name.clone(),
-                    component_path,
-                    self.path.clone(),
-                ),
-            };
+            let mut hitbox = Hitbox::new(
+                &variables,
+                self.name.clone(),
+                component_path,
+                self.path.clone(),
+            );
+            if parent.is_none() {
+                hitbox.make_independent();
+            }
 
             let lock = Shared_component::new(Arc::new(Mutex::new(Component {
                 name: self.name.clone(),

@@ -1,7 +1,6 @@
-use color_eyre::eyre::Result;
 use good_lp::constraint as solver_constraint;
 
-use super::{expression::Expression, variables::Solver_variables};
+use super::expression::Expression;
 
 /// A symbolic equality or inequality over layout expressions.
 #[derive(Clone, Debug)]
@@ -49,28 +48,17 @@ impl Constraint {
         self.name.as_deref()
     }
 
-    pub(crate) fn resolved(&self) -> Result<Self> {
-        Ok(Self {
-            expression: self.expression.resolved()?,
-            equality: self.equality,
-            name: self.name.clone(),
-        })
-    }
-
-    pub(crate) fn into_solver(
-        &self,
-        solver_variables: &Solver_variables,
-    ) -> Result<good_lp::Constraint> {
-        let expression = self.expression.into_solver(solver_variables)?;
+    pub(crate) fn into_solver(&self) -> good_lp::Constraint {
+        let expression = self.expression.into_solver();
         let constraint = match self.equality {
             true => solver_constraint::eq(expression, 0),
             false => solver_constraint::leq(expression, 0),
         };
 
-        Ok(match &self.name {
+        match &self.name {
             Some(name) => constraint.set_name(name.clone()),
             None => constraint,
-        })
+        }
     }
 }
 

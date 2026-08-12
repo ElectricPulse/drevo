@@ -66,6 +66,11 @@ runtime remains active for asynchronous widget and background work.
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
 ## To-Do list
+- Switch to microlp once it adds presolve and priorities
+  microlp is already a pretty slow solver since its single threaded and a presolve step is badly needed to optimize out all the equality constraints I have
+  if you want wasm compatibility just switch to microlp in its current state - it would be nice to have this library in the browser in the FUTURE
+  right now I would jeporadize its desktop performance because of some microlp presolve + lexigraphic priorites miracle
+  The library should grow on the desktop and if it's momentum becomes big enough should fix microlp to become on par with highs
 - disable default decorations in winit
 - optimize state managment relayouting/rerendering - there is no reason to relayout if the state of a parent changed
 - dont use color eyre for everything

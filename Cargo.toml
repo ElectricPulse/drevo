@@ -10,7 +10,3 @@ non_camel_case_types = "allow"
 non_upper_case_globals = "allow"
 unused_must_use = "warn"
 unused_results = "warn"
-
-# Optimizing MicroLP makes the layout solver about 10 times faster in development builds.
-[profile.dev.package.microlp]
-opt-level = 3

@@ -140,7 +140,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
             selected: self.selected,
             widget: self.widget.clone(),
         };
-        let mut button = Button::around(content);
+        let mut button = Button::around(Anchor::new(content, Anchors::left()));
         button.highlighted = self.selected;
         button.delta = Some(self.button_delta.clone());
         Ok(vec![display!(button)])
@@ -262,7 +262,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 button_delta: button_delta.clone(),
                 submission: self.submission.clone(),
             };
-            let item = Anchor::new(item, Anchors::top_left());
+            let item = Anchor::new(item, Anchors::left());
             rows.push(Box::new(item));
         }
 

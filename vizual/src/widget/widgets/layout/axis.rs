@@ -1,5 +1,6 @@
 use crate::{
     component::{Children, context::Component_context},
+    constraint,
     geometry::Direction,
     layouter::{hitbox::Hitbox, objective::minimize},
     slot::manager::Slots,
@@ -64,20 +65,6 @@ impl Widget_trait for Axis {
             elements.push(container);
         }
 
-        // A container around each item lets Align, Anchor, and Space position that item. The cross
-        // direction always remains shared. Intermediate ends need solver variables, while every
-        // later start is derived from the previous end and the shared gap expression below.
-        let last_index = elements.len().saturating_sub(1);
-        for (index, element) in elements.iter().enumerate() {
-            let element = &mut element.lock().await?.hitbox;
-            if index < last_index {
-                element.point_end(
-                    direction,
-                    problem.make_independent_variable("axis-item-end"),
-                );
-            }
-        }
-
         let cross_direction = direction.flip();
         minimize(
             &mut *problem.lock().await?,
@@ -96,13 +83,20 @@ impl Widget_trait for Axis {
                     continue;
                 };
 
-                let previous_hitbox = previous.get_hitbox().await?;
-                let current_hitbox = current.get_hitbox().await?;
+                let previous_end = {
+                    let mut previous = previous.lock().await?;
+                    previous.hitbox.make_end_independent(direction);
+                    previous.hitbox.get_end_position(direction)
+                };
+                let current_start = {
+                    let mut current = current.lock().await?;
+                    current.hitbox.make_start_independent(direction);
+                    current.hitbox.get_start_position(direction)
+                };
 
-                current_hitbox.point_start(
-                    direction,
-                    previous_hitbox.get_end_position(direction) + gap.clone(),
-                );
+                problem
+                    .constrain(constraint!(current_start - previous_end == gap.clone()))
+                    .await?;
             }
         }
 

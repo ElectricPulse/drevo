@@ -3,28 +3,27 @@ pub mod constraints;
 pub mod expression;
 pub mod hitbox;
 pub mod objective;
-pub mod screen;
 pub mod variable;
 pub mod variables;
 
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
+    time::Instant,
 };
 
 use color_eyre::eyre::{Result, eyre};
 use futures::future::BoxFuture;
 use good_lp::{
-    Solution as Good_lp_solution, SolverModel as _, microlp,
+    Solution as Good_lp_solution, SolverModel as _, Variable as Solver_variable,
+    highs as highs_solver,
     solvers::{ObjectiveDirection, ResolutionError},
 };
+use highs::{HighsModelStatus, HighsSolutionStatus, HighsStatus};
 
 use self::{
-    constraint::Constraint,
-    expression::Expression,
-    hitbox::Hitbox,
-    variable::Variable,
-    variables::{Variable_type, Variables},
+    constraint::Constraint, expression::Expression, hitbox::Hitbox, variable::Variable,
+    variables::Variables,
 };
 use crate::{
     component::debug::Component_tree,
@@ -74,22 +73,20 @@ impl Field for f64 {
 
 #[derive(Clone)]
 pub struct Solution {
-    values: HashMap<usize, f64>,
+    values: HashMap<Solver_variable, f64>,
 }
 
 impl Solution {
     pub fn value(&self, variable: &Variable) -> f64 {
         self.values
-            .get(&variable.definition_id())
+            .get(&variable.variable)
             .copied()
             .unwrap_or_default()
     }
 
+    #[cfg(test)]
     fn eval(&self, expression: &Expression) -> f64 {
-        expression
-            .resolved()
-            .expect("layout expression must resolve")
-            .eval_with(&self.values)
+        expression.eval_with(&self.values)
     }
 }
 
@@ -116,102 +113,231 @@ impl Problem {
         self.constraints.push(constraint);
     }
 
-    pub(crate) fn constrain_root_to_screen(&mut self, root: &Hitbox, screen: Size) {
-        root.start_variable(Direction::Horizontal).set_static(0.0);
-        root.start_variable(Direction::Vertical).set_static(0.0);
-        root.end_variable(Direction::Horizontal)
-            .set_static(screen.width);
-        root.end_variable(Direction::Vertical)
-            .set_static(screen.height);
+    fn constrain_root_to_screen(constraints: &mut Vec<Constraint>, root: &Hitbox, screen: Size) {
+        constraints.push(
+            constraint!(root.get_start_position(Direction::Horizontal) == 0)
+                .set_name("root_horizontal_start".to_string()),
+        );
+        constraints.push(
+            constraint!(root.get_start_position(Direction::Vertical) == 0)
+                .set_name("root_vertical_start".to_string()),
+        );
+        constraints.push(
+            constraint!(root.get_end_position(Direction::Horizontal) == screen.width)
+                .set_name("root_horizontal_end".to_string()),
+        );
+        constraints.push(
+            constraint!(root.get_end_position(Direction::Vertical) == screen.height)
+                .set_name("root_vertical_end".to_string()),
+        );
     }
 
-    async fn priority_solve(
+    async fn solve_objective(
         &self,
         constraints: &[Constraint],
         direction: ObjectiveDirection,
         objective: Expression,
     ) -> std::result::Result<Solution, ResolutionError> {
-        let constraints = constraints
-            .iter()
-            .map(Constraint::resolved)
-            .collect::<Result<Vec<_>>>()
-            .map_err(|error| ResolutionError::Str(error.to_string()))?;
-        let objective = objective
-            .resolved()
-            .map_err(|error| ResolutionError::Str(error.to_string()))?;
-        let referenced = constraints
-            .iter()
-            .flat_map(|constraint| constraint.expression.referenced_variables())
-            .chain(objective.referenced_variables())
-            .collect::<HashSet<_>>();
-
-        let (problem_variables, solver_variables) = self
-            .variables
-            .create_solver_variables(&referenced)
-            .map_err(|error| ResolutionError::Str(error.to_string()))?;
-
-        let solver_objective = objective
-            .into_solver(&solver_variables)
-            .map_err(|error| ResolutionError::Str(error.to_string()))?;
-
+        let problem_variables = self.variables.problem();
+        let solver_objective = objective.into_solver();
         let solver_constraints = constraints
             .iter()
-            // Fully static constraints cannot affect optimization. Dropping them also prevents
-            // solver infeasibility caused solely by rounding differences between solved values.
-            .filter(|constraint| {
-                constraint
-                    .expression
-                    .referenced_variables()
-                    .any(|variable| {
-                        matches!(
-                            solver_variables.get(&variable),
-                            Some(Variable_type::Solver(_))
-                        )
-                    })
-            })
-            .map(|constraint| constraint.into_solver(&solver_variables))
-            .collect::<Result<Vec<_>>>()
-            .map_err(|error| ResolutionError::Str(error.to_string()))?;
-        let non_static_variables = solver_variables
-            .iter()
-            .filter_map(|(variable, variable_type)| {
-                matches!(variable_type, Variable_type::Solver(_))
-                    .then_some(variable.definition_id())
-            })
-            .collect::<HashSet<_>>()
-            .len();
+            .map(Constraint::into_solver)
+            .collect::<Vec<_>>();
+        let variable_count = self.variables.len();
 
         log_info(
             4,
             format_args!(
-                "priority model: {non_static_variables} non-static variables, {} constraints",
+                "solver model: {variable_count} variables, {} constraints",
                 solver_constraints.len(),
             ),
         );
 
-        let model = log_duration(4, "priority model recreation", || async {
+        let model = log_duration(4, "solver model recreation", || async {
             problem_variables
                 .optimise(direction, solver_objective)
-                .using(microlp)
+                .using(highs_solver)
                 .with_all(solver_constraints)
+                .set_option("presolve", "on")
+                .set_option("parallel", "on")
+                .set_option("mip_rel_gap", 0.0)
+                .set_option("mip_abs_gap", 0.0)
         })
         .await;
 
-        let solved = log_duration(4, "priority solve", || async { model.solve() }).await?;
-        let values = solver_variables
-            .iter()
-            .map(|(variable, variable_type)| {
-                let value = match variable_type {
-                    Variable_type::Static(value) => *value,
-                    Variable_type::Solver(variable) => solved.value(*variable),
-                };
-                (variable.definition_id(), value)
-            })
+        let solved = log_duration(4, "solver solve", || async { model.solve() }).await?;
+        let values = self
+            .variables
+            .all()
+            .into_iter()
+            .map(|variable| (variable, solved.value(variable)))
             .collect::<HashMap<_, _>>();
 
-        log_info(4, format_args!("stats: {:?}", solved.into_inner().stats()));
-
         Ok(Solution { values })
+    }
+
+    fn solution_from_highs(
+        &self,
+        solved: highs::SolvedModel,
+    ) -> std::result::Result<Solution, ResolutionError> {
+        match solved.status() {
+            HighsModelStatus::Infeasible | HighsModelStatus::UnboundedOrInfeasible => {
+                return Err(ResolutionError::Infeasible);
+            }
+            HighsModelStatus::Unbounded => return Err(ResolutionError::Unbounded),
+            HighsModelStatus::Optimal
+            | HighsModelStatus::ObjectiveBound
+            | HighsModelStatus::ObjectiveTarget
+            | HighsModelStatus::ReachedTimeLimit
+            | HighsModelStatus::ReachedSolutionLimit
+            | HighsModelStatus::ReachedInterrupt
+            | HighsModelStatus::ReachedIterationLimit
+            | HighsModelStatus::ReachedMemoryLimit => {}
+            status => {
+                return Err(ResolutionError::Str(format!(
+                    "HiGHS returned model status {status:?}"
+                )));
+            }
+        }
+
+        if solved.primal_solution_status() != HighsSolutionStatus::Feasible {
+            return Err(ResolutionError::Other("NoSolutionFound"));
+        }
+
+        let solver_solution = solved.get_solution();
+        let variables = self.variables.all();
+        if variables.len() != solver_solution.columns().len() {
+            return Err(ResolutionError::Str(format!(
+                "HiGHS returned {} values for {} layout variables",
+                solver_solution.columns().len(),
+                variables.len(),
+            )));
+        }
+
+        let values = variables
+            .into_iter()
+            .zip(solver_solution.columns().iter().copied())
+            .collect::<HashMap<_, _>>();
+        Ok(Solution { values })
+    }
+
+    fn solve_objectives(
+        &self,
+        constraints: &[Constraint],
+        objectives: &[(usize, Expression)],
+    ) -> std::result::Result<Solution, ResolutionError> {
+        let problem_variables = self.variables.problem();
+        let solver_constraints = constraints
+            .iter()
+            .map(Constraint::into_solver)
+            .collect::<Vec<_>>();
+        let variables = self.variables.all();
+        let variable_count = variables.len();
+
+        let weights = vec![-1.0; objectives.len()];
+        let offsets = objectives
+            .iter()
+            .map(|(_, objective)| objective.constant)
+            .collect::<Vec<_>>();
+        let coefficients = objectives
+            .iter()
+            .flat_map(|(_, objective)| {
+                variables.iter().map(|variable| {
+                    objective
+                        .coefficients
+                        .get(variable)
+                        .copied()
+                        .unwrap_or_default()
+                })
+            })
+            .collect::<Vec<_>>();
+        let absolute_tolerances = vec![0.0; objectives.len()];
+        let relative_tolerances = vec![-1.0; objectives.len()];
+        let priorities = objectives
+            .iter()
+            .map(|(priority, _)| {
+                highs_sys::HighsInt::try_from(*priority).map_err(|_| {
+                    ResolutionError::Str(format!(
+                        "layout priority {priority} does not fit HiGHS' priority type"
+                    ))
+                })
+            })
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        let objective_count = highs_sys::HighsInt::try_from(objectives.len()).map_err(|_| {
+            ResolutionError::Str("too many layout priorities for HiGHS".to_string())
+        })?;
+
+        log_info(
+            2,
+            format_args!(
+                "lexicographic model: {variable_count} variables, {} constraints, {} priorities",
+                solver_constraints.len(),
+                objectives.len(),
+            ),
+        );
+
+        let model_started = Instant::now();
+        let mut model = problem_variables
+            .optimise(ObjectiveDirection::Maximisation, 0)
+            .using(highs_solver)
+            .with_all(solver_constraints)
+            .try_into_inner()?;
+
+        model.set_option("presolve", "on");
+        model.set_option("parallel", "on");
+        model.set_option("mip_rel_gap", 0.0);
+        model.set_option("mip_abs_gap", 0.0);
+
+        if !objectives.is_empty() {
+            model.set_option("blend_multi_objectives", false);
+
+            // SAFETY: `model` owns a live HiGHS instance. Every objective vector remains alive
+            // for this call, and `coefficients` has exactly objective_count * variable_count
+            // entries in the objective-major order required by HiGHS.
+            let status = unsafe {
+                highs_sys::Highs_passLinearObjectives(
+                    model.as_ptr(),
+                    objective_count,
+                    weights.as_ptr(),
+                    offsets.as_ptr(),
+                    coefficients.as_ptr(),
+                    absolute_tolerances.as_ptr(),
+                    relative_tolerances.as_ptr(),
+                    priorities.as_ptr(),
+                )
+            };
+            match HighsStatus::try_from(status) {
+                Ok(HighsStatus::OK) => {}
+                Ok(status) => {
+                    return Err(ResolutionError::Str(format!(
+                        "HiGHS rejected the lexicographic objectives with status {status:?}"
+                    )));
+                }
+                Err(status) => {
+                    return Err(ResolutionError::Str(format!(
+                        "HiGHS returned an invalid status while loading lexicographic objectives: {status:?}"
+                    )));
+                }
+            }
+        }
+        log_info(
+            4,
+            format_args!(
+                "lexicographic model recreation took {:?}",
+                model_started.elapsed()
+            ),
+        );
+
+        let solve_started = Instant::now();
+        let solved = model.try_solve().map_err(|error| {
+            ResolutionError::Str(format!("HiGHS error while solving model: {error:?}"))
+        });
+        log_info(
+            2,
+            format_args!("lexicographic solve took {:?}", solve_started.elapsed()),
+        );
+        self.solution_from_highs(solved?)
     }
 
     async fn find_conflicting_constraints(
@@ -226,7 +352,7 @@ impl Problem {
             let _ = candidate.remove(index);
 
             match self
-                .priority_solve(
+                .solve_objective(
                     &candidate,
                     ObjectiveDirection::Maximisation,
                     Expression::from(0),
@@ -248,16 +374,13 @@ impl Problem {
 
     fn display_constraint_side(
         &self,
-        coefficients: impl IntoIterator<Item = (Variable, f64)>,
+        coefficients: impl IntoIterator<Item = (Solver_variable, f64)>,
         constant: f64,
     ) -> String {
         let mut terms = coefficients
             .into_iter()
             .map(|(variable, coefficient)| {
-                let mut name = self.variables.name(&variable);
-                if let Variable_type::Static(value) = self.variables.get_type(&variable) {
-                    name = format!("{name} [static = {value}]");
-                }
+                let name = self.variables.name(variable);
 
                 match coefficient {
                     1.0 => name,
@@ -277,14 +400,14 @@ impl Problem {
     }
 
     fn display_constraint(&self, constraint: &Constraint) -> Result<String> {
-        let expression = constraint.expression.resolved()?;
+        let expression = &constraint.expression;
         let mut left = Vec::new();
         let mut right = Vec::new();
 
         for (variable, coefficient) in &expression.coefficients {
             match coefficient {
-                coefficient if *coefficient > 0.0 => left.push((variable.clone(), *coefficient)),
-                coefficient if *coefficient < 0.0 => right.push((variable.clone(), -*coefficient)),
+                coefficient if *coefficient > 0.0 => left.push((*variable, *coefficient)),
+                coefficient if *coefficient < 0.0 => right.push((*variable, -*coefficient)),
                 _ => {}
             }
         }
@@ -321,7 +444,7 @@ impl Problem {
     fn with_component_tree(
         &self,
         details: String,
-        variables: impl IntoIterator<Item = Variable>,
+        variables: impl IntoIterator<Item = Solver_variable>,
         tree: &Component_tree,
     ) -> String {
         let variables = variables.into_iter().collect::<HashSet<_>>();
@@ -348,7 +471,7 @@ impl Problem {
         objective: Expression,
     ) -> Result<bool> {
         match self
-            .priority_solve(constraints, ObjectiveDirection::Maximisation, objective)
+            .solve_objective(constraints, ObjectiveDirection::Maximisation, objective)
             .await
         {
             Err(ResolutionError::Unbounded) => Ok(true),
@@ -363,11 +486,6 @@ impl Problem {
         objective: &Expression,
         component_tree: &Component_tree,
     ) -> Result<String> {
-        let constraints = constraints
-            .iter()
-            .map(Constraint::resolved)
-            .collect::<Result<Vec<_>>>()?;
-        let objective = objective.resolved()?;
         let mut variables = constraints
             .iter()
             .flat_map(|constraint| constraint.expression.referenced_variables())
@@ -375,16 +493,16 @@ impl Problem {
             .collect::<HashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>();
-        variables.sort_unstable_by_key(Variable::id);
+        variables.sort_unstable_by_key(|variable| self.variables.name(*variable));
 
         let mut underconstrained = Vec::new();
         let mut details = Vec::new();
         for variable in variables {
             let has_no_upper_bound = self
-                .is_unbounded(&constraints, Expression::from(&variable))
+                .is_unbounded(constraints, Expression::from(variable))
                 .await?;
             let has_no_lower_bound = self
-                .is_unbounded(&constraints, Expression::from(&variable) * -1.0)
+                .is_unbounded(constraints, Expression::from(variable) * -1.0)
                 .await?;
             let range = match (has_no_lower_bound, has_no_upper_bound) {
                 (true, true) => "has neither a lower nor an upper bound",
@@ -393,7 +511,7 @@ impl Problem {
                 (false, false) => continue,
             };
 
-            details.push(format!("{} {range}", self.variables.name(&variable)));
+            details.push(format!("{} {range}", self.variables.name(variable)));
             underconstrained.push(variable);
         }
 
@@ -407,14 +525,14 @@ impl Problem {
         Ok(self.with_component_tree(details, underconstrained, component_tree))
     }
 
-    async fn priority_solve_with_diagnostics(
+    async fn solve_objective_with_diagnostics(
         &self,
         constraints: &[Constraint],
         objective: Expression,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
         match self
-            .priority_solve(
+            .solve_objective(
                 constraints,
                 ObjectiveDirection::Maximisation,
                 objective.clone(),
@@ -422,16 +540,47 @@ impl Problem {
             .await
         {
             Ok(solution) => Ok(solution),
-            Err(ResolutionError::Infeasible) => {
+            Err(error) => {
+                self.describe_resolution_error(error, constraints, &objective, component_tree)
+                    .await
+            }
+        }
+    }
+
+    async fn solve_objectives_with_diagnostics(
+        &self,
+        constraints: &[Constraint],
+        objectives: &[(usize, Expression)],
+        component_tree: &Component_tree,
+    ) -> Result<Solution> {
+        match self.solve_objectives(constraints, objectives) {
+            Ok(solution) => Ok(solution),
+            Err(error) => {
+                let objective = objectives
+                    .iter()
+                    .fold(Expression::default(), |sum, (_, objective)| {
+                        sum + objective.clone()
+                    });
+                self.describe_resolution_error(error, constraints, &objective, component_tree)
+                    .await
+            }
+        }
+    }
+
+    async fn describe_resolution_error(
+        &self,
+        error: ResolutionError,
+        constraints: &[Constraint],
+        objective: &Expression,
+        component_tree: &Component_tree,
+    ) -> Result<Solution> {
+        match error {
+            ResolutionError::Infeasible => {
                 let conflict = self.find_conflicting_constraints(constraints).await?;
                 let displayed_constraints = self.display_constraints(&conflict)?;
-                let resolved_conflict = conflict
-                    .iter()
-                    .map(Constraint::resolved)
-                    .collect::<Result<Vec<_>>>()?;
                 let conflict = self.with_component_tree(
                     displayed_constraints,
-                    resolved_conflict
+                    conflict
                         .iter()
                         .flat_map(|constraint| constraint.expression.referenced_variables()),
                     component_tree,
@@ -442,12 +591,12 @@ impl Problem {
                     "Layout is overconstrained; conflicting constraints:\n{conflict}"
                 ))
             }
-            Err(ResolutionError::Unbounded) => Err(eyre!(
+            ResolutionError::Unbounded => Err(eyre!(
                 "{}",
-                self.describe_underconstrained(constraints, &objective, component_tree)
+                self.describe_underconstrained(constraints, objective, component_tree)
                     .await?
             )),
-            Err(error) => Err(error.into()),
+            error => Err(error.into()),
         }
     }
 
@@ -458,46 +607,24 @@ impl Problem {
         screen: Size,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
-        self.constrain_root_to_screen(&root, screen);
-        self.variables.set_type(
-            &self.variables.screen.width,
-            Variable_type::Static(screen.width),
-        );
-        self.variables.set_type(
-            &self.variables.screen.height,
-            Variable_type::Static(screen.height),
-        );
+        Self::constrain_root_to_screen(&mut constraints, &root, screen);
 
         log_duration(0, "layout full solve", || async {
-            let mut maybe_solution: Option<Solution> = None;
+            let objectives = self
+                .objectives
+                .iter()
+                .enumerate()
+                .filter_map(|(priority, priority_objectives)| {
+                    let objective = priority_objectives
+                        .iter()
+                        .cloned()
+                        .fold(Expression::default(), |sum, expression| sum + expression);
+                    (!objective.coefficients.is_empty()).then_some((priority, objective))
+                })
+                .collect::<Vec<_>>();
 
-            for (priority, priority_objectives) in
-                self.objectives.clone().into_iter().enumerate().rev()
-            {
-                log_info(2, format_args!("priority solve {priority}"));
-
-                let priority_objective = priority_objectives
-                    .clone()
-                    .into_iter()
-                    .fold(Expression::default(), |sum, expression| sum + expression);
-
-                let solution = self
-                    .priority_solve_with_diagnostics(
-                        &constraints,
-                        priority_objective,
-                        component_tree,
-                    )
-                    .await?;
-
-                for objective in priority_objectives {
-                    let objective_solution = solution.eval(&objective);
-                    constraints.push(constraint!(objective == objective_solution));
-                }
-
-                maybe_solution = Some(solution);
-            }
-
-            maybe_solution.ok_or(eyre!("Expected solution"))
+            self.solve_objectives_with_diagnostics(&constraints, &objectives, component_tree)
+                .await
         })
         .await
     }
@@ -517,27 +644,18 @@ impl Problem {
         root: Hitbox,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
-        root.start_variable(Direction::Horizontal).set_static(0.0);
-        root.start_variable(Direction::Vertical).set_static(0.0);
-        self.variables.set_type(
-            &self.variables.screen.width,
-            Variable_type::Solver(
-                good_lp::VariableDefinition::new()
-                    .min(0)
-                    .name("screen width"),
-            ),
+        let mut constraints = self.constraints.clone();
+        constraints.push(
+            constraint!(root.get_start_position(Direction::Horizontal) == 0)
+                .set_name("minimum_root_horizontal_start".to_string()),
         );
-        self.variables.set_type(
-            &self.variables.screen.height,
-            Variable_type::Solver(
-                good_lp::VariableDefinition::new()
-                    .min(0)
-                    .name("screen height"),
-            ),
+        constraints.push(
+            constraint!(root.get_start_position(Direction::Vertical) == 0)
+                .set_name("minimum_root_vertical_start".to_string()),
         );
         let root_size =
             root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
-        self.priority_solve_with_diagnostics(&self.constraints, root_size * -1.0, component_tree)
+        self.solve_objective_with_diagnostics(&constraints, root_size * -1.0, component_tree)
             .await
     }
 }
@@ -546,6 +664,36 @@ impl Problem {
 mod tests {
     use super::*;
     use crate::layouter::objective::minimize;
+    use good_lp::VariableDefinition;
+
+    #[test]
+    fn higher_objective_priority_wins_lexicographically() -> Result<()> {
+        let variables = Arc::new(Variables::new());
+        let problem = Problem::new(Arc::clone(&variables));
+        let x = variables.make_independent(
+            VariableDefinition::new().min(0).max(10),
+            "x",
+            "test",
+            "test",
+        );
+        let y = variables.make_independent(
+            VariableDefinition::new().min(0).max(10),
+            "y",
+            "test",
+            "test",
+        );
+        let constraints = vec![constraint!(x.clone() + y.clone() <= 10)];
+        let objectives = vec![
+            (2, Expression::from(x.clone())),
+            (1, Expression::from(y.clone())),
+        ];
+
+        let solution = problem.solve_objectives(&constraints, &objectives)?;
+
+        assert_eq!(solution.value(&x), 10.0);
+        assert_eq!(solution.value(&y), 0.0);
+        Ok(())
+    }
 
     #[tokio::test]
     async fn priority_results_do_not_persist_between_solves() -> Result<()> {

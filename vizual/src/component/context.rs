@@ -38,19 +38,6 @@ impl Component_context {
     }
 
     #[track_caller]
-    pub fn make_independent_variable(&self, name: impl Into<String>) -> Variable {
-        let name = name.into();
-        let path = Self::path(Location::caller());
-        let component_path = self.component_path.join(".");
-        Variable::solver(
-            VariableDefinition::new().min(0).name(name.clone()),
-            name,
-            path,
-            component_path,
-        )
-    }
-
-    #[track_caller]
     pub async fn add_binary_variable(&self, name: impl Into<String>) -> Result<Variable> {
         let name = name.into();
         let path = Self::path(Location::caller());

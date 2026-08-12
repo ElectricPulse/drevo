@@ -163,14 +163,26 @@ impl Widget_trait for Space {
                 && space != 0.0
             {
                 let space = self.expression(&problem, space, &mut delta).await?;
-                hitbox.point_start(direction, parent.get_start_position(direction) + space);
+                hitbox.make_start_independent(direction);
+                problem
+                    .constrain(constraint!(
+                        hitbox.get_start_position(direction)
+                            == parent.get_start_position(direction) + space
+                    ))
+                    .await?;
             }
 
             if let Some(space) = spaces.end(direction)
                 && space != 0.0
             {
                 let space = self.expression(&problem, space, &mut delta).await?;
-                hitbox.point_end(direction, parent.get_end_position(direction) - space);
+                hitbox.make_end_independent(direction);
+                problem
+                    .constrain(constraint!(
+                        hitbox.get_end_position(direction)
+                            == parent.get_end_position(direction) - space
+                    ))
+                    .await?;
             }
         }
 

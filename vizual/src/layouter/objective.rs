@@ -127,7 +127,7 @@ mod tests {
         assert_eq!(
             problem.objectives[2]
                 .first()
-                .and_then(|objective| objective.coefficients.get(&delta)),
+                .and_then(|objective| objective.coefficients.get(&delta.variable)),
             Some(&-1.0)
         );
 
@@ -138,7 +138,7 @@ mod tests {
         assert!(
             problem.objectives[2]
                 .iter()
-                .all(|objective| objective.coefficients.get(&delta) == Some(&-1.0))
+                .all(|objective| objective.coefficients.get(&delta.variable) == Some(&-1.0))
         );
         Ok(())
     }

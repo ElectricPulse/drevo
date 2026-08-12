@@ -192,12 +192,14 @@ impl Shared_component {
                         theme,
                         &mut focus,
                         hitbox,
-                        parent,
+                        parent.clone(),
                         problem.clone(),
                         text_context,
                         &mut slots,
                     )
                     .await?;
+
+                hitbox.constrain_shared(&parent, &problem).await?;
 
                 children
             };
@@ -329,11 +331,20 @@ mod tests {
         }
     }
 
-    fn component(name: &str, problem: Component_context) -> Shared_component {
+    fn component(
+        name: &str,
+        variables: &Variables,
+        problem: Component_context,
+    ) -> Shared_component {
         Shared_component::new(Arc::new(Mutex::new(Component {
             name: name.to_string(),
             debug: Component_debug::new("test".to_string()),
-            hitbox: Hitbox::default(),
+            hitbox: Hitbox::new(
+                variables,
+                name.to_string(),
+                name.to_string(),
+                "test".to_string(),
+            ),
             widget: Box::new(Empty_widget),
             focusable: false,
             parent: None,
@@ -345,16 +356,16 @@ mod tests {
     #[tokio::test]
     async fn child_layers_are_inherited_by_their_subtrees() -> Result<()> {
         let variables = Arc::new(Variables::new());
-        let problem = Arc::new(Mutex::new(Problem::new(variables)));
+        let problem = Arc::new(Mutex::new(Problem::new(Arc::clone(&variables))));
         let context = Component_context::new(problem);
 
-        let root = component("root", context.clone());
-        let mut layer_two = component("layer-two", context.clone());
+        let root = component("root", &variables, context.clone());
+        let mut layer_two = component("layer-two", &variables, context.clone());
         layer_two.layer = 2;
-        let layer_two_child = component("layer-two-child", context.clone());
+        let layer_two_child = component("layer-two-child", &variables, context.clone());
         layer_two.lock().await?.children = vec![layer_two_child];
 
-        let mut layer_one = component("layer-one", context);
+        let mut layer_one = component("layer-one", &variables, context);
         layer_one.layer = 1;
         root.lock().await?.children = vec![layer_two, layer_one];
 

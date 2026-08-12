@@ -37,7 +37,7 @@ impl Align {
     async fn align(
         problem: &Component_context,
         parent: &Hitbox,
-        hitbox: &Hitbox,
+        hitbox: &mut Hitbox,
         objective: Objective,
         direction: Direction,
     ) -> Result<()> {
@@ -77,8 +77,8 @@ impl Widget_trait for Align {
             (Direction::Vertical, self.alignments.vertical),
         ] {
             if objective.is_some() {
-                hitbox.point_start(direction, problem.make_independent_variable("align-start"));
-                hitbox.point_end(direction, problem.make_independent_variable("align-end"));
+                hitbox.make_start_independent(direction);
+                hitbox.make_end_independent(direction);
             }
         }
 

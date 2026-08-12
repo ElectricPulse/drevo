@@ -66,9 +66,10 @@ impl Focus_provider {
 pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
     /// Configures this widget's mutable hitbox and returns its visual children.
     ///
-    /// Every child initially points to its parent's hitbox definitions. Positioning widgets can
-    /// repoint individual variables through the mutable hitbox. Widgets that derive their size
-    /// from returned children must add those relationships explicitly.
+    /// Every child receives four solver variables which are shared with its parent by default.
+    /// Positioning widgets make individual edges independent when they add another equation for
+    /// that edge. Widgets that derive their size from returned children must add those
+    /// relationships explicitly.
     async fn layout(
         &mut self,
         _render: Render,

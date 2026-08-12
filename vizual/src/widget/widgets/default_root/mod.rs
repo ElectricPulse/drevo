@@ -13,13 +13,7 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_choice},
-    widget::{
-        Focus_provider, Widget, Widget_trait,
-        widgets::{
-            positioning::anchor::{Anchor, Anchors},
-            text::Text,
-        },
-    },
+    widget::{Focus_provider, Widget, Widget_trait},
 };
 
 #[derive(Clone)]
@@ -61,8 +55,6 @@ impl Widget_trait for Default_root {
             self.settings_open.clone(),
             self.theme_choice.clone(),
         );
-
-        let body = Paper::new(Anchor::new(Text::new("hi"), Anchors::top_left()));
 
         let axis = Axis::new(Direction::Vertical, vec![Box::new(header), Box::new(body)]);
 

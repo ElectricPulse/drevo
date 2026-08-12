@@ -70,7 +70,7 @@ impl Anchor {
     ) -> Result<()> {
         match position {
             Some(Position::Start) => {
-                hitbox.point_end(direction, problem.make_independent_variable("anchor-end"));
+                hitbox.make_end_independent(direction);
                 problem
                     .constrain(constraint!(
                         hitbox.get_end_position(direction) <= parent.get_end_position(direction)
@@ -78,8 +78,9 @@ impl Anchor {
                     .await?;
             }
             Some(Position::Middle) => {
-                hitbox.point_start(direction, problem.make_independent_variable("anchor-start"));
-                hitbox.point_end(direction, problem.make_independent_variable("anchor-end"));
+                hitbox.make_start_independent(direction);
+                hitbox.make_end_independent(direction);
+
                 problem
                     .constrain(constraint!(
                         hitbox.get_start_position(direction)
@@ -102,7 +103,7 @@ impl Anchor {
                 minimize(&mut *problem.lock().await?, start_margin, 0)?;
             }
             Some(Position::End) => {
-                hitbox.point_start(direction, problem.make_independent_variable("anchor-start"));
+                hitbox.make_start_independent(direction);
             }
             None => {}
         }

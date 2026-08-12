@@ -1,187 +1,142 @@
-use std::sync::Arc;
-
 use color_eyre::eyre::Result;
 use good_lp::VariableDefinition;
 
-use super::{
-    Solution,
-    expression::{Expression, Shared_expression},
-    variable::Variable,
-    variables::Variables,
-};
+use super::{Solution, expression::Expression, variable::Variable, variables::Variables};
 use crate::{
     component::context::Component_context,
     geometry::{Direction, Point, Rect},
 };
 
+// A little bit needs to be said about hitbox and the storage of variables
+// Some obvious optimizations I had tried doing but ended up removing in favour of just waiting till my solver implements a presolve step for them
+// basically first you can share variables via Arc<Mutex<Variable>> where you then have Variable_position contain pointer to those shared variables via Arc<Mutex<Arc<Mutex<Variable>>>
+// this makes parent/child variable sharing as easy as copying the Arc<Mutex<Variable>> into the Arc<Mutex<...>>
+// Next you can replace Variable with an Expression so that things like nested spaces dont really create new variables instead make the hitboxes be expressions
+// All of these things get fixed by a good pre solver and added too much complexity - for example:
+// if a text has a static size it should logically set its variable to an expression of that size - but if that text is inside a triply nested space - it would make sense
+// for the hitbox of that text to in the end be an expression to optimize that out and not have extra hitboxes - that then means that the static box width/height must
+// be an equality constraint
+// but if no space exists it would be best to set it as a value
+// so if you want performance switch to a competent solver and leave microlp only where WASM capability is needed
+
 #[derive(Clone)]
-struct Expression_position {
-    x: Shared_expression,
-    y: Shared_expression,
+pub struct Variable_position {
+    pub x: Variable,
+    pub y: Variable,
 }
 
-impl Expression_position {
+impl Variable_position {
     fn new(variables: &Variables, name: &str, component_path: &str, path: &str) -> Self {
         Self {
-            x: Expression::from(add_variable(
+            x: add_variable(
                 variables,
                 format!("{name}.x"),
                 path.to_string(),
                 component_path.to_string(),
-            ))
-            .shared(),
-            y: Expression::from(add_variable(
+            ),
+            y: add_variable(
                 variables,
                 format!("{name}.y"),
                 path.to_string(),
                 component_path.to_string(),
-            ))
-            .shared(),
+            ),
         }
     }
 
-    fn shared(&self) -> Self {
-        Self {
-            x: Expression::from(&self.x).shared(),
-            y: Expression::from(&self.y).shared(),
-        }
-    }
-
-    fn get(&self, direction: Direction) -> Shared_expression {
+    pub fn get(&self, direction: Direction) -> Variable {
         match direction {
-            Direction::Horizontal => Arc::clone(&self.x),
-            Direction::Vertical => Arc::clone(&self.y),
+            Direction::Horizontal => self.x,
+            Direction::Vertical => self.y,
         }
     }
 
-    fn set(&self, direction: Direction, expression: impl Into<Expression>) {
-        *self
-            .get(direction)
-            .lock()
-            .expect("layout position expression poisoned") = expression.into();
-    }
-
-    pub(crate) fn point_to(&self, position: &Self) {
-        for direction in [Direction::Horizontal, Direction::Vertical] {
-            let expression = position.get(direction);
-            if !Arc::ptr_eq(&self.get(direction), &expression) {
-                self.set(direction, expression);
-            }
+    fn get_mut(&mut self, direction: Direction) -> &mut Variable {
+        match direction {
+            Direction::Horizontal => &mut self.x,
+            Direction::Vertical => &mut self.y,
         }
     }
 
-    pub(crate) fn variable(&self, direction: Direction) -> Variable {
-        clone_expression(&self.get(direction))
-            .single_variable()
-            .expect("layout position must contain one variable")
+    fn reset_shared(&mut self) {
+        self.x.reset_shared();
+        self.y.reset_shared();
+    }
+
+    fn make_independent(&mut self) {
+        self.x.make_independent();
+        self.y.make_independent();
     }
 }
 
-/// A rectangular layout region stored as independent start and end positions.
+/// A rectangular layout region whose four coordinates are direct solver variables.
 ///
-/// Dimensions are derived from these positions. No blanket `end >= start` constraints are added:
-/// widgets add ordering directly or inherit it through their explicit child relationships.
+/// A new coordinate is shared by default. After its widget has completed layout, a shared
+/// coordinate is constrained equal to the corresponding coordinate of the parent. Positioning
+/// widgets call [`Variable::make_independent`] on only the coordinates for which they provide
+/// another equation.
 #[derive(Clone)]
 pub struct Hitbox {
     // TODO: add a shape to the hitbox
     //pub shape: Vec<bool>,
-    start: Expression_position,
-    end: Expression_position,
+    pub start: Variable_position,
+    pub end: Variable_position,
 }
 
 impl Hitbox {
     pub fn new(variables: &Variables, name: String, component_path: String, path: String) -> Self {
         Self {
-            start: Expression_position::new(
+            start: Variable_position::new(
                 variables,
                 &format!("{name}.start"),
                 &component_path,
                 &path,
             ),
-            end: Expression_position::new(
-                variables,
-                &format!("{name}.end"),
-                &component_path,
-                &path,
-            ),
+            end: Variable_position::new(variables, &format!("{name}.end"), &component_path, &path),
         }
     }
 
-    /// Creates child-owned expressions initialized from the parent's current positions.
-    pub(crate) fn shared(parent: &Self) -> Self {
-        Self {
-            start: parent.start.shared(),
-            end: parent.end.shared(),
-        }
+    /// Restores the default sharing state when a retained component begins a new layout.
+    pub(crate) fn reset_shared(&mut self) {
+        self.start.reset_shared();
+        self.end.reset_shared();
     }
 
-    /// Replaces this hitbox's position expressions without invalidating expressions which already
-    /// reference its shared handles.
-    pub(crate) fn point_to(&self, parent: &Self) {
-        self.start.point_to(&parent.start);
-        self.end.point_to(&parent.end);
+    /// Makes all four existing coordinates independent without allocating replacements.
+    pub fn make_independent(&mut self) {
+        self.start.make_independent();
+        self.end.make_independent();
     }
 
-    pub fn point_start(&self, direction: Direction, expression: impl Into<Expression>) {
-        self.start.set(direction, expression);
+    pub fn make_start_independent(&mut self, direction: Direction) {
+        self.start.get_mut(direction).make_independent();
     }
 
-    pub fn point_end(&self, direction: Direction, expression: impl Into<Expression>) {
-        self.end.set(direction, expression);
+    pub fn make_end_independent(&mut self, direction: Direction) {
+        self.end.get_mut(direction).make_independent();
     }
 
-    pub(crate) fn start_variable(&self, direction: Direction) -> Variable {
-        self.start.variable(direction)
-    }
-
-    pub(crate) fn end_variable(&self, direction: Direction) -> Variable {
-        self.end.variable(direction)
-    }
-
-    pub(crate) fn start_expression(&self, direction: Direction) -> Shared_expression {
-        self.start.get(direction)
-    }
-
-    pub(crate) fn end_expression(&self, direction: Direction) -> Shared_expression {
-        self.end.get(direction)
-    }
-
-    /// Replaces every position expression in this hitbox with a fresh solver variable.
-    pub fn make_independent(&self, problem: &Component_context, name: &str) {
-        for (position_name, position) in [("start", &self.start), ("end", &self.end)] {
-            for direction in [Direction::Horizontal, Direction::Vertical] {
-                position.set(
-                    direction,
-                    problem.make_independent_variable(format!("{name}.{position_name}")),
-                );
-            }
-        }
-    }
-
-    pub(crate) fn make_independent_at(
+    /// Adds the delayed parent equalities for every coordinate that remains shared.
+    pub(crate) async fn constrain_shared(
         &self,
-        variables: &Variables,
-        name: &str,
-        component_path: &str,
-        path: &str,
-    ) {
-        for (position_name, position) in [("start", &self.start), ("end", &self.end)] {
-            for direction in [Direction::Horizontal, Direction::Vertical] {
-                let direction_name = match direction {
-                    Direction::Horizontal => "x",
-                    Direction::Vertical => "y",
-                };
-                position.set(
-                    direction,
-                    add_variable(
-                        variables,
-                        format!("{name}.{position_name}.{direction_name}"),
-                        path.to_string(),
-                        component_path.to_string(),
-                    ),
-                );
-            }
+        parent: &Self,
+        problem: &Component_context,
+    ) -> Result<()> {
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            constrain_shared_variable(
+                self.start.get(direction),
+                parent.start.get(direction),
+                problem,
+            )
+            .await?;
+            constrain_shared_variable(self.end.get(direction), parent.end.get(direction), problem)
+                .await?;
         }
+        Ok(())
+    }
+
+    /// Replaces this resolved render-time hitbox with another hitbox.
+    pub(crate) fn point_to(&mut self, hitbox: &Self) {
+        *self = hitbox.clone();
     }
 
     /// Constrains the derived dimension to match the parent's dimension on one axis.
@@ -198,17 +153,7 @@ impl Hitbox {
             .await
     }
 
-    /// Constrains one derived dimension without replacing either shared edge expression.
-    ///
-    /// Despite its name, this does not change a position expression to a constant or mark its
-    /// variables as static. Hitbox positions are nested shared expressions so positioning widgets,
-    /// such as nested [`Space`](crate::widget::widgets::positioning::space::Space) wrappers, can
-    /// edit equations in place without allocating an independent solver variable for every layer.
-    ///
-    /// Consequently, an intrinsically sized leaf inside those wrappers (for example, text) must
-    /// express `end - start == value` as a constraint. Replacing its end expression with
-    /// `start + value` would sever the inherited expression chain, so the fixed size would no
-    /// longer propagate outward through the surrounding spaces and layout widgets.
+    /// Constrains one derived dimension to a fixed value.
     pub async fn set_static_dimension(
         &self,
         problem: &Component_context,
@@ -229,19 +174,18 @@ impl Hitbox {
         Expression::from(self.start.get(direction))
     }
 
-    /// Returns an expression which follows the shared end position.
     pub fn get_end_position(&self, direction: Direction) -> Expression {
         Expression::from(self.end.get(direction))
     }
 
     pub fn get_resolved(&self, solution: &Solution) -> Rect {
-        let x = solution.eval(&self.get_start_position(Direction::Horizontal));
-        let y = solution.eval(&self.get_start_position(Direction::Vertical));
+        let x = solution.value(&self.start.x);
+        let y = solution.value(&self.start.y);
         Rect::new(
             x,
             y,
-            solution.eval(&self.get_end_position(Direction::Horizontal)) - x,
-            solution.eval(&self.get_end_position(Direction::Vertical)) - y,
+            solution.value(&self.end.x) - x,
+            solution.value(&self.end.y) - y,
         )
     }
 
@@ -251,16 +195,17 @@ impl Hitbox {
     }
 }
 
-impl Default for Hitbox {
-    fn default() -> Self {
-        let variables = Variables::new();
-        Self::new(
-            &variables,
-            "empty".to_string(),
-            String::new(),
-            String::new(),
-        )
+async fn constrain_shared_variable(
+    variable: Variable,
+    parent: Variable,
+    problem: &Component_context,
+) -> Result<()> {
+    if variable.is_shared() && variable != parent {
+        problem
+            .constrain(crate::constraint!(variable == parent))
+            .await?;
     }
+    Ok(())
 }
 
 fn add_variable(
@@ -269,7 +214,7 @@ fn add_variable(
     path: String,
     component_path: String,
 ) -> Variable {
-    variables.make_independent(
+    variables.make(
         VariableDefinition::new().min(0).name(name.clone()),
         name,
         path,
@@ -277,22 +222,12 @@ fn add_variable(
     )
 }
 
-fn clone_expression(expression: &Shared_expression) -> Expression {
-    expression
-        .lock()
-        .expect("layout position expression poisoned")
-        .clone()
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::{
-        layouter::{Problem, expression::Expression},
-        sync::Mutex,
-    };
+    use crate::{layouter::Problem, sync::Mutex};
 
     #[test]
     fn dimensions_are_derived_from_start_and_end() {
@@ -304,65 +239,17 @@ mod tests {
             "test".to_string(),
         );
 
-        let width = hitbox
-            .get_dimension(Direction::Horizontal)
-            .resolved()
-            .unwrap();
+        let width = hitbox.get_dimension(Direction::Horizontal);
         assert_eq!(
-            width
-                .coefficients
-                .get(&hitbox.start.variable(Direction::Horizontal)),
+            width.coefficients.get(&hitbox.start.x.variable),
             Some(&-1.0)
         );
-        assert_eq!(
-            width
-                .coefficients
-                .get(&hitbox.end.variable(Direction::Horizontal)),
-            Some(&1.0)
-        );
+        assert_eq!(width.coefficients.get(&hitbox.end.x.variable), Some(&1.0));
         assert_eq!(width.coefficients.len(), 2);
     }
 
     #[tokio::test]
-    async fn static_dimensions_constrain_inherited_expressions() -> Result<()> {
-        let variables = Arc::new(Variables::new());
-        let parent = Hitbox::new(
-            &variables,
-            "parent".to_string(),
-            "parent".to_string(),
-            "test".to_string(),
-        );
-        let hitbox = Hitbox::shared(&parent);
-        let problem =
-            Component_context::new(Arc::new(Mutex::new(Problem::new(Arc::clone(&variables)))));
-
-        hitbox
-            .set_static_dimension(&problem, Direction::Horizontal, 42.0)
-            .await?;
-
-        let constraint = problem.lock().await?.constraints[0]
-            .expression()
-            .resolved()
-            .unwrap();
-        assert_eq!(constraint.coefficients.len(), 2);
-        assert_eq!(constraint.constant, -42.0);
-        assert_eq!(
-            constraint
-                .coefficients
-                .get(&parent.start_variable(Direction::Horizontal)),
-            Some(&-1.0)
-        );
-        assert_eq!(
-            constraint
-                .coefficients
-                .get(&parent.end_variable(Direction::Horizontal)),
-            Some(&1.0)
-        );
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn sharing_dimension_does_not_share_positions() -> Result<()> {
+    async fn shared_edges_are_constrained_to_the_parent_after_layout() -> Result<()> {
         let variables = Arc::new(Variables::new());
         let parent = Hitbox::new(
             &variables,
@@ -376,90 +263,70 @@ mod tests {
             "child".to_string(),
             "test".to_string(),
         );
-        let child_positions = [
-            child.start.get(Direction::Horizontal),
-            child.end.get(Direction::Horizontal),
-        ];
         let context =
             Component_context::new(Arc::new(Mutex::new(Problem::new(Arc::clone(&variables)))));
 
-        child
-            .share_dimension(&parent, &context, Direction::Horizontal)
-            .await?;
+        child.constrain_shared(&parent, &context).await?;
 
-        assert!(Arc::ptr_eq(
-            &child.start.get(Direction::Horizontal),
-            &child_positions[0]
-        ));
-        assert!(Arc::ptr_eq(
-            &child.end.get(Direction::Horizontal),
-            &child_positions[1]
-        ));
-        assert_eq!(context.lock().await?.constraints.len(), 1);
+        let problem = context.lock().await?;
+        assert_eq!(problem.constraints.len(), 4);
+        let horizontal_start = problem.constraints[0].expression();
+        assert_eq!(
+            horizontal_start.coefficients.get(&child.start.x.variable),
+            Some(&1.0)
+        );
+        assert_eq!(
+            horizontal_start.coefficients.get(&parent.start.x.variable),
+            Some(&-1.0)
+        );
         Ok(())
     }
 
-    #[test]
-    fn repointing_updates_existing_expressions() {
-        let variables = Variables::new();
+    #[tokio::test]
+    async fn independent_edges_do_not_receive_parent_equalities() -> Result<()> {
+        let variables = Arc::new(Variables::new());
         let parent = Hitbox::new(
             &variables,
             "parent".to_string(),
             "parent".to_string(),
             "test".to_string(),
         );
-        let child = Hitbox::shared(&parent);
-        let expression = Expression::from(child.end.get(Direction::Horizontal));
-        let independent = variables.make_independent(
-            VariableDefinition::new().min(0),
-            "independent",
-            "test",
-            "child",
+        let mut child = Hitbox::new(
+            &variables,
+            "child".to_string(),
+            "child".to_string(),
+            "test".to_string(),
         );
+        child.make_start_independent(Direction::Horizontal);
+        let context =
+            Component_context::new(Arc::new(Mutex::new(Problem::new(Arc::clone(&variables)))));
 
-        child.end.set(Direction::Horizontal, independent.clone());
+        child.constrain_shared(&parent, &context).await?;
 
-        let referenced = expression
-            .resolved()
-            .unwrap()
-            .referenced_variables()
-            .next()
-            .unwrap();
-        assert!(referenced.points_to(&independent));
-        assert!(
-            !parent
-                .end
-                .variable(Direction::Horizontal)
-                .points_to(&independent)
-        );
+        assert_eq!(context.lock().await?.constraints.len(), 3);
+        Ok(())
     }
 
-    #[test]
-    fn editing_positions_never_replaces_their_shared_expression() {
-        let variables = Variables::new();
-        let parent = Hitbox::new(
+    #[tokio::test]
+    async fn static_dimensions_add_a_constraint_over_the_existing_edges() -> Result<()> {
+        let variables = Arc::new(Variables::new());
+        let hitbox = Hitbox::new(
             &variables,
-            "parent".to_string(),
-            "parent".to_string(),
+            "child".to_string(),
+            "child".to_string(),
             "test".to_string(),
         );
-        let child = Hitbox::shared(&parent);
-        let child_start = child.start.get(Direction::Horizontal);
-        let child_end = child.end.get(Direction::Horizontal);
+        let context =
+            Component_context::new(Arc::new(Mutex::new(Problem::new(Arc::clone(&variables)))));
 
-        child.start.set(
-            Direction::Horizontal,
-            parent.get_start_position(Direction::Horizontal) + 10.0,
-        );
-        child.end.point_to(&parent.end);
+        hitbox
+            .set_static_dimension(&context, Direction::Horizontal, 42.0)
+            .await?;
 
-        assert!(Arc::ptr_eq(
-            &child_start,
-            &child.start.get(Direction::Horizontal)
-        ));
-        assert!(Arc::ptr_eq(
-            &child_end,
-            &child.end.get(Direction::Horizontal)
-        ));
+        let problem = context.lock().await?;
+        let constraint = problem.constraints[0].expression();
+        assert_eq!(constraint.coefficients.len(), 2);
+        assert_eq!(constraint.constant, -42.0);
+        Ok(())
     }
 }
