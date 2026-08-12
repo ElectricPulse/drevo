@@ -132,14 +132,6 @@ impl Shared_component {
         Ok(())
     }
 
-    pub fn compare_with_reference(&self, node: &Child_reference) -> bool {
-        let Some(node) = node.upgrade() else {
-            return false;
-        };
-
-        self.compare(&Shared_component::new(node))
-    }
-
     pub(crate) async fn layered_components(&self) -> Result<Vec<Layered_component>> {
         let mut components = Vec::new();
         self.collect_layered_components(0, &mut components).await?;

@@ -102,16 +102,21 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
         selected: bool,
     ) -> Result<Children> {
         let mut title = Text::new("Custom");
+
         title.style.set(match selected {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
+
         let title = Anchor::new(title, Anchors::top_left());
+
+        if !selected {
+            return Ok(vec![display!(title)]);
+        }
+
         let field = Anchor::new(self.field.clone(), Anchors::top_left());
-        let contents: Vec<Widget> = match selected {
-            true => vec![Box::new(title), Box::new(field)],
-            false => vec![Box::new(title)],
-        };
+
+        let contents: Vec<Widget> = vec![Box::new(title), Box::new(field)];
         let axis = Axis::new(Direction::Vertical, contents);
 
         Ok(vec![display!(axis)])

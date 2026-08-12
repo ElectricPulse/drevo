@@ -3024,7 +3024,6 @@ dependencies = [
  "lucide-icons",
  "parley",
  "pollster",
- "regex",
  "simplelog",
  "skrifa 0.42.1",
  "tokio",

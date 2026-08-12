@@ -4,10 +4,8 @@ use color_eyre::eyre::Result;
 use good_lp::VariableDefinition;
 
 use crate::{
-    constraint,
-    geometry::Direction,
     layouter::{
-        Problem, constraint::Constraint, expression::Expression, hitbox::Hitbox, objective::Delta,
+        Problem, constraint::Constraint, expression::Expression, objective::Delta,
         variable::Variable,
     },
     sync::{Mutex, MutexGuard},
@@ -50,11 +48,6 @@ impl Component_context {
             path,
             component_path,
         )
-    }
-
-    #[track_caller]
-    pub async fn add_non_negative_variable(&self, name: impl Into<String>) -> Result<Variable> {
-        Ok(self.make_independent_variable(name))
     }
 
     #[track_caller]

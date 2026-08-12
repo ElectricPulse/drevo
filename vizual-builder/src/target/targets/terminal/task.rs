@@ -55,7 +55,10 @@ impl task::Task_trait for Task {
 
     async fn run(&self, manager: &mut task::Manager<'_>) -> task::Task_result {
         let mut screen = Screen::new(manager.view.render.clone());
-        let handle = screen.run_maybe_in_dir(self.command.clone(), self.working_dir.clone())?;
+        let handle = match &self.working_dir {
+            Some(working_dir) => screen.run_in_dir(self.command.clone(), working_dir),
+            None => screen.run(self.command.clone()),
+        }?;
 
         task::set_widget(&self.widget, screen).await?;
         manager.view.refresh();

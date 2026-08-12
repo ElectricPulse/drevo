@@ -44,13 +44,3 @@ pub fn get_string_id(s: impl Into<String>) -> u64 {
     s.into().hash(&mut hasher);
     hasher.finish()
 }
-
-pub fn get_strings_id<I, S>(strings: I) -> u64
-where
-    I: IntoIterator<Item = S>,
-    S: Into<String>,
-{
-    let strings: Vec<String> = strings.into_iter().map(Into::into).collect();
-    // NUL preserves string boundaries so ["ab", "c"] differs from ["a", "bc"].
-    get_string_id(strings.join("\0"))
-}

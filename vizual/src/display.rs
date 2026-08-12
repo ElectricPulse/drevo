@@ -33,20 +33,6 @@ impl<'a> Display<'a> {
         );
     }
 
-    pub fn stroke_rect(&mut self, rect: Rect, color: Color, width: f64) {
-        if rect.size.is_empty() || width <= 0.0 {
-            return;
-        }
-
-        self.scene.stroke(
-            &Stroke::new(width),
-            Affine::IDENTITY,
-            color.to_peniko(),
-            None,
-            &to_kurbo_rect(rect),
-        );
-    }
-
     pub fn fill_rounded_rect(&mut self, rect: Rect, color: Color, radius: f64) {
         if rect.size.is_empty() {
             return;

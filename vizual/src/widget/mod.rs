@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use derive_where::derive_where;
 use std::sync::{Arc, Weak};
-use tokio::sync::mpsc;
 
 use crate::{
     component::{Children, context::Component_context},
@@ -80,9 +79,7 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
         _problem: Component_context,
         _text_context: &mut Text_context,
         _slots: &mut Slots,
-    ) -> Result<Children> {
-        Ok(Vec::new())
-    }
+    ) -> Result<Children>;
 
     // The hitbox must be a resolved hitbox returned by the layouter.
     async fn render(
@@ -321,52 +318,4 @@ impl<T: Widget_trait + ?Sized> From<Shared_widget<T>> for Widget {
     fn from(value: Shared_widget<T>) -> Self {
         Box::new(value)
     }
-}
-
-pub type View_receiver = Widget_receiver;
-pub type View_sender = Widget_sender;
-
-type Message = Option<Widget>;
-
-#[derive(Clone)]
-pub struct Widget_sender {
-    pub channel: mpsc::Sender<Message>,
-    pub render: Render,
-}
-
-impl Widget_sender {
-    pub async fn set(&self, widget: impl Widget_trait) {
-        let _ = self.channel.send(Some(Box::new(widget))).await;
-        self.render.send();
-    }
-
-    pub async fn reset(&self) {
-        let _ = self.channel.send(None).await;
-    }
-}
-
-pub struct Widget_receiver {
-    pub channel: mpsc::Receiver<Message>,
-}
-
-impl Widget_receiver {
-    pub fn get(&mut self) -> Message {
-        match self.channel.try_recv() {
-            Err(err) => match err {
-                mpsc::error::TryRecvError::Empty => None,
-                mpsc::error::TryRecvError::Disconnected => None,
-            },
-            Ok(value) => value,
-        }
-    }
-}
-
-pub fn new_view(render: Render) -> (Widget_receiver, Widget_sender) {
-    let (tx, rx) = mpsc::channel(1);
-    let sender = Widget_sender {
-        channel: tx,
-        render,
-    };
-    let receiver = Widget_receiver { channel: rx };
-    (receiver, sender)
 }

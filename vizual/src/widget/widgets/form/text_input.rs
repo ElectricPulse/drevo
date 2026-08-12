@@ -5,7 +5,6 @@ use std::sync::{
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use regex::Regex;
 use vizual_macros::display;
 
 use super::super::super::{Focus_provider, Widget_trait};
@@ -15,7 +14,7 @@ use crate::{
     component::{Children, context::Component_context},
     display::Display,
     event::{Event, Key_code, Key_event},
-    geometry::{Point, Rect, Size},
+    geometry::{Direction, Point, Rect, Size},
     handlers::Submit_handler,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
@@ -24,6 +23,10 @@ use crate::{
     sync::Mutex,
     text::{Styled_text, Text_window},
     theme::Theme,
+    widget::widgets::{
+        positioning::anchor::{Anchor, Anchors},
+        text::Text,
+    },
 };
 
 #[derive(Clone)]
@@ -31,7 +34,6 @@ struct Text_input_content {
     input: String,
     cursor: usize,
     scroll_x: Arc<Mutex<f64>>,
-    valid: bool,
     focused: Arc<AtomicBool>,
 }
 
@@ -41,8 +43,6 @@ pub struct Text_input {
     input: String,
     cursor: usize,
     scroll_x: Arc<Mutex<f64>>,
-    input_pattern: Option<Regex>,
-    valid: bool,
     focused: Arc<AtomicBool>,
     submit_handler: Box<dyn Submit_handler<String>>,
 }
@@ -54,33 +54,18 @@ impl Text_input {
             input: String::new(),
             cursor: 0,
             scroll_x: Arc::new(Mutex::new(0.0)),
-            input_pattern: None,
-            valid: true,
             focused: Arc::new(AtomicBool::new(false)),
             submit_handler,
         }
     }
 
-    pub fn set_pattern(&mut self, pattern: Regex) {
-        self.input_pattern = Some(pattern);
-        self.validate();
-    }
-
     pub fn set_selected(&mut self, text: impl Into<String>) {
         self.input = text.into();
         self.cursor = self.input.len();
-        self.validate();
     }
 
     pub fn get_selected(&self) -> String {
         self.input.clone()
-    }
-
-    fn validate(&mut self) {
-        self.valid = self
-            .input_pattern
-            .as_ref()
-            .is_none_or(|pattern| pattern.is_match(&self.input));
     }
 
     fn previous_boundary(&self) -> usize {
@@ -102,7 +87,6 @@ impl Text_input {
     fn insert(&mut self, text: &str) {
         self.input.insert_str(self.cursor, text);
         self.cursor += text.len();
-        self.validate();
     }
 
     fn edit_key(&mut self, key: &Key_event) -> bool {
@@ -115,12 +99,10 @@ impl Text_input {
                 let previous = self.previous_boundary();
                 self.input.replace_range(previous..self.cursor, "");
                 self.cursor = previous;
-                self.validate();
             }
             Key_code::Delete if self.cursor < self.input.len() => {
                 self.input
                     .replace_range(self.cursor..self.next_boundary(), "");
-                self.validate();
             }
             Key_code::Character(_) | Key_code::Space
                 if !key.modifiers.control && !key.modifiers.alt =>
@@ -138,6 +120,22 @@ impl Text_input {
 
 #[async_trait]
 impl Widget_trait for Text_input_content {
+    async fn layout(
+        &mut self,
+        _render: crate::Render,
+        _theme: State<Theme>,
+        focus: &mut Focus_provider,
+        hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        problem: Component_context,
+        _text_context: &mut crate::text::Text_context,
+        slots: &mut Slots,
+    ) -> Result<Children> {
+        hitbox.set_static_dimension(&problem, Direction::Vertical, 20.0);
+        hitbox.set_static_dimension(&problem, Direction::Horizontal, 10.0);
+
+        Ok(vec![])
+    }
     async fn render(
         &mut self,
         _theme: State<Theme>,
@@ -145,10 +143,9 @@ impl Widget_trait for Text_input_content {
         hitbox: Rect,
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        let color = match (self.input.is_empty(), self.valid) {
-            (true, _) => Color::White,
-            (false, true) => Color::Light_green,
-            (false, false) => Color::Light_red,
+        let color = match self.input.is_empty() {
+            true => Color::White,
+            false => Color::Light_green,
         };
         let cursor_x = display.measure_text(&self.input[..self.cursor]).width;
         let mut scroll_x = self.scroll_x.lock().await?;
@@ -203,11 +200,11 @@ impl Widget_trait for Text_input {
             input: self.input.clone(),
             cursor: self.cursor,
             scroll_x: self.scroll_x.clone(),
-            valid: self.valid,
             focused: self.focused.clone(),
         };
 
-        let block = Title_block::new(content, self.title.clone());
+        let block = Title_block::new(Text::new("hi"), self.title.clone());
+
         Ok(vec![display!(block)])
     }
 

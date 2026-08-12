@@ -229,17 +229,6 @@ impl Screen {
         }
     }
 
-    pub fn run_maybe_in_dir(
-        &mut self,
-        args: impl Into<String>,
-        maybe_working_dir: Option<impl AsRef<Path>>,
-    ) -> Result<Command_handle> {
-        match maybe_working_dir {
-            Some(working_dir) => self.run_in_dir(args, working_dir),
-            None => self.run(args),
-        }
-    }
-
     pub fn run_in_dir(
         &mut self,
         args: impl Into<String>,

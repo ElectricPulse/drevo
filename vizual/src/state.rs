@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use arc_swap::{ArcSwap, ArcSwapOption};
+use arc_swap::ArcSwap;
 
 use crate::Render;
 
@@ -42,34 +42,5 @@ impl<Value> State<Value> {
 
     pub fn set(&self, value: Value) {
         self.store(value);
-    }
-}
-
-impl<Value: Clone + Send + Sync + 'static> State<Value> {
-    pub fn project<Field, Get_field>(&self, field: Get_field) -> State<Field>
-    where
-        Field: Clone + Send + Sync + 'static,
-        Get_field: for<'a> Fn(&'a Value) -> &'a Field + Send + Sync + 'static,
-    {
-        let field = Arc::new(field);
-        let parent_load = self.load.clone();
-        let override_value = Arc::new(ArcSwapOption::empty());
-        let load = {
-            let field = field.clone();
-            let parent_load = parent_load.clone();
-            let override_value = override_value.clone();
-            Arc::new(move || {
-                override_value
-                    .load_full()
-                    .unwrap_or_else(|| Arc::new(field(&parent_load()).clone()))
-            }) as Load<Field>
-        };
-        let store = Arc::new(move |value| override_value.store(Some(Arc::new(value))));
-
-        State {
-            load,
-            store,
-            render: self.render.clone(),
-        }
     }
 }
