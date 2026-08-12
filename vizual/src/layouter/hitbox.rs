@@ -140,7 +140,7 @@ impl Hitbox {
 
     /// Constrains one derived dimension to a static value.
     pub async fn set_static_dimension(
-        &mut self,
+        &self,
         problem: &Component_context,
         direction: Direction,
         value: f64,

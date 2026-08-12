@@ -43,6 +43,7 @@ pub struct Space {
     child: Widget,
     spaces: Spaces,
     pub delta: Option<Delta>,
+    pub fixed: bool,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
 }
@@ -65,6 +66,7 @@ impl Space {
                 bottom,
             },
             delta: None,
+            fixed: false,
             priority,
         }
     }
@@ -111,6 +113,10 @@ impl Space {
         target: f64,
         delta: &mut Option<Delta>,
     ) -> Result<()> {
+        if self.fixed {
+            return problem.constrain(constraint!(space == target)).await;
+        }
+
         problem.constrain(constraint!(space.clone() >= 0)).await?;
 
         let delta = match delta.as_ref() {

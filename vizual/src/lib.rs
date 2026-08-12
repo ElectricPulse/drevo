@@ -191,10 +191,6 @@ impl App_problem {
         let component_context = Component_context::new(shared_problem);
         let root = root_slot.set(root, component_context.clone()).await?;
         let root_hitbox = root.get_hitbox().await?;
-        component_context
-            .lock()
-            .await?
-            .constrain_root_to_screen(&root_hitbox);
 
         Ok(Self {
             root,
@@ -261,7 +257,7 @@ impl App_problem {
         self.component_context
             .lock()
             .await?
-            .solve(size, &component_tree)
+            .solve(self.root_hitbox.clone(), size, &component_tree)
             .await
     }
 

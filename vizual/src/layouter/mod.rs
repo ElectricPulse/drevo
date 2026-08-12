@@ -27,7 +27,7 @@ use self::{
     variables::{Variable_type, Variables},
 };
 use crate::{
-    component::{context::Component_context, debug::Component_tree},
+    component::debug::Component_tree,
     constraint,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
@@ -113,29 +113,11 @@ impl Problem {
         self.constraints.push(constraint);
     }
 
-    pub(crate) fn constrain_root_to_screen(&mut self, root: &Hitbox) {
-        for direction in [Direction::Horizontal, Direction::Vertical] {
-            self.constrain(Component_context::name_constraint(
-                constraint!(root.get_start_position(direction) == 0),
-                match direction {
-                    Direction::Horizontal => "root_horizontal_start",
-                    Direction::Vertical => "root_vertical_start",
-                },
-            ));
-            self.constrain(Component_context::name_constraint(
-                constraint!(
-                    root.get_dimension(direction)
-                        == match direction {
-                            Direction::Horizontal => self.variables.screen.width.clone(),
-                            Direction::Vertical => self.variables.screen.height.clone(),
-                        }
-                ),
-                match direction {
-                    Direction::Horizontal => "root_width",
-                    Direction::Vertical => "root_height",
-                },
-            ));
-        }
+    pub(crate) fn constrain_root_to_screen(&mut self, root: &Hitbox, screen: Size) {
+        root.start.x.set_static(0.0);
+        root.start.y.set_static(0.0);
+        root.end.x.set_static(screen.width);
+        root.end.y.set_static(screen.height);
     }
 
     async fn priority_solve(
@@ -449,9 +431,11 @@ impl Problem {
     async fn full_solve(
         &mut self,
         mut constraints: Vec<Constraint>,
+        root: Hitbox,
         screen: Size,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
+        self.constrain_root_to_screen(&root, screen);
         self.variables.set_type(
             &self.variables.screen.width,
             Variable_type::Static(screen.width),
@@ -497,10 +481,11 @@ impl Problem {
 
     pub(crate) async fn solve(
         &mut self,
+        root: Hitbox,
         screen: Size,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
-        self.full_solve(self.constraints.clone(), screen, component_tree)
+        self.full_solve(self.constraints.clone(), root, screen, component_tree)
             .await
     }
 
@@ -509,6 +494,8 @@ impl Problem {
         root: Hitbox,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
+        root.start.x.set_static(0.0);
+        root.start.y.set_static(0.0);
         self.variables.set_type(
             &self.variables.screen.width,
             Variable_type::Solver(
@@ -553,14 +540,13 @@ mod tests {
             "root.child".to_string(),
             "test".to_string(),
         );
-        problem.constrain_root_to_screen(&root);
         problem.constrain(constraint!(child.start.x.clone() == root.start.x.clone()));
         problem.constrain(constraint!(child.end.x.clone() == root.end.x.clone()));
         minimize(&mut problem, child.get_dimension(Direction::Horizontal), 0)?;
 
         let component_tree = Vec::new();
         let first = problem
-            .solve(Size::new(800.0, 600.0), &component_tree)
+            .solve(root.clone(), Size::new(800.0, 600.0), &component_tree)
             .await?;
         assert_eq!(
             first.eval(&child.get_dimension(Direction::Horizontal)),
@@ -568,7 +554,7 @@ mod tests {
         );
 
         let second = problem
-            .solve(Size::new(801.0, 600.0), &component_tree)
+            .solve(root, Size::new(801.0, 600.0), &component_tree)
             .await?;
         assert_eq!(
             second.eval(&child.get_dimension(Direction::Horizontal)),

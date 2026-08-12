@@ -3,7 +3,6 @@ use crate::{
     component::Children,
     component::context::Component_context,
     config::DEFAULT_FONT_SIZE,
-    constraint,
     display::Display,
     geometry::{Direction, Rect},
     layouter::hitbox::Hitbox,
@@ -65,15 +64,11 @@ impl Widget_trait for Text {
         _slots: &mut Slots,
     ) -> Result<Children> {
         let size = text_context.measure(&self.content, self.style.get(&theme).size);
-        problem
-            .constrain(constraint!(
-                hitbox.get_dimension(Direction::Horizontal) == size.width
-            ))
+        hitbox
+            .set_static_dimension(&problem, Direction::Horizontal, size.width)
             .await?;
-        problem
-            .constrain(constraint!(
-                hitbox.get_dimension(Direction::Vertical) == size.height
-            ))
+        hitbox
+            .set_static_dimension(&problem, Direction::Vertical, size.height)
             .await?;
 
         Ok(Vec::new())

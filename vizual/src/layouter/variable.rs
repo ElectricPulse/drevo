@@ -58,6 +58,13 @@ impl Variable {
         })
     }
 
+    pub fn set_static(&self, value: f64) {
+        self.definition()
+            .lock()
+            .expect("layout variable definition poisoned")
+            .variable_type = Variable_type::Static(value);
+    }
+
     /// Creates a distinct symbolic handle which initially points to the same definition.
     pub(crate) fn shared(&self) -> Self {
         Self(Arc::new(Mutex::new(self.definition())))

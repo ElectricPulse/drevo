@@ -64,7 +64,7 @@ impl Widget_trait for Axis {
     ) -> Result<Children> {
         let direction = self.direction;
         let mut elements = Vec::with_capacity(self.elements.len());
-        
+
         for (index, element) in self.elements.iter().enumerate() {
             let container = Container::new(element.clone());
             let container = slots.set(index as u64, container).await?;

@@ -63,7 +63,8 @@ impl Widget_trait for Block {
     ) -> Result<Children> {
         let style = self.style.get(&theme);
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
-        let space = Space::uniform(self.child.clone(), border_thickness, 2);
+        let mut space = Space::uniform(self.child.clone(), border_thickness, 2);
+        space.fixed = true;
 
         Ok(vec![display!(space)])
     }
