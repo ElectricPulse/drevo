@@ -48,12 +48,11 @@ dyn_clone::clone_trait_object!(Setter_callback);
 
 pub type Setter = Box<dyn Setter_callback>;
 
-const PRIORITY_LEVELS: usize = 3;
+const PRIORITY_LEVELS: usize = 2;
 type Priority_objective = Vec<Expression>;
 // As of this moment the usage of priorities has crystalized like this:
-// 3 is for calculating minimum screen size as that will just minimize root hitbox - but you cannot access it
-// 2 is for gaps, spaces, margins, paddings
-// 1 is for elements that just want to fill the surrounding space after content looks like it wants to look like and for align
+// Minimum screen size is solved separately before these layout objectives.
+// 1 is for gaps, spaces, margins, and paddings.
 // 0 is for shrink wrap of parents around their children
 
 pub trait Field: Send {
@@ -684,8 +683,8 @@ mod tests {
         );
         let constraints = vec![constraint!(x.clone() + y.clone() <= 10)];
         let objectives = vec![
-            (2, Expression::from(x.clone())),
-            (1, Expression::from(y.clone())),
+            (1, Expression::from(x.clone())),
+            (0, Expression::from(y.clone())),
         ];
 
         let solution = problem.solve_objectives(&constraints, &objectives)?;

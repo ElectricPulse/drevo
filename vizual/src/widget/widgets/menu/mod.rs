@@ -252,7 +252,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
 
         let selected = self.get_selected_item()?;
         let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());
-        let button_delta = problem.add_delta("menu-item-button-delta", 2).await?;
+        let button_delta = problem.add_delta("menu-item-button-delta", 1).await?;
 
         for item in &self.items {
             let item = Menu_item {

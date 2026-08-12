@@ -254,8 +254,8 @@ impl<T: Tree> Tree_view<T> {
 
             button.delta = Some(button_delta.clone());
 
-            let button = Space::left(button, (INDENT * depth) as f64, 2);
-            let button = Anchor::new(button, Anchors::top_left());
+            let button = Space::left(button, (INDENT * depth) as f64, 1);
+            let button = Anchor::new(button, Anchors::left());
 
             buttons.push(Box::new(button));
 
@@ -327,7 +327,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         focus.set_active(true);
         let cursor = self.configurator_state.lock().await?.cursor.clone();
         let button_delta = problem
-            .add_delta("configurator-tree-button-delta", 2)
+            .add_delta("configurator-tree-button-delta", 1)
             .await?;
 
         let tree = self.tree.lock().await?.get_tree();
@@ -527,7 +527,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
 
             if let Ok(leaf) = tree.get_tree().get_leaf(&cursor) {
                 let description = Text::new(leaf.description);
-                let description = Anchor::new(description, Anchors::top_left());
+                let description = Anchor::new(description, Anchors::left());
 
                 let axis = Axis::new(
                     Direction::Vertical,

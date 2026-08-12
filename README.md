@@ -65,63 +65,9 @@ runtime remains active for asynchronous widget and background work.
 ## Pre-release notes
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
-## To-Do list
-- Switch to microlp once it adds presolve and priorities
-  microlp is already a pretty slow solver since its single threaded and a presolve step is badly needed to optimize out all the equality constraints I have
-  if you want wasm compatibility just switch to microlp in its current state - it would be nice to have this library in the browser in the FUTURE
-  right now I would jeporadize its desktop performance because of some microlp presolve + lexigraphic priorites miracle
-  The library should grow on the desktop and if it's momentum becomes big enough should fix microlp to become on par with highs
-- disable default decorations in winit
-- optimize state managment relayouting/rerendering - there is no reason to relayout if the state of a parent changed
-- dont use color eyre for everything
-- optimize with ArcSwaps and RwLocks
-- remove the need for nightly
-- `display!()` can be called infinitely on a value that is
-  already implements `Widget_trait`
-- fix structural navigation
-- Solve text wrapping by representing the different possible text widths and
-  their resulting heights as layout branches for the solver to choose between.
-- Implement scaling fonts down for constrained layouts, which is useful on
-  mobile screens.
-- Remove the extra minimum-screen calculation pass. Allow the window to use any
-  size and handle content overflow with scrollbars or equivalent behavior.
-- a widget shouldn't have to recoincile itself between system theme or override
-- When Winit exposes cross-platform window-size negotiation, let the window
-  manager propose a size and have Vizual respond with a supported size instead
-  of calculating and publishing a minimum window size in advance.
-- Implement a reusable `Scroll` component for arbitrary child widgets with
-  viewport clipping, scroll-offset input, and translated rendering and hit
-  testing. Decide between cached child scenes and culled rerendering during
-  implementation.
-- Make the Vizual Configurator save popup work.
-- Create a dedicated demo of `Alignments` capabilities; the current Vizual
-  Configurator does not fit the concept well enough to demonstrate them.
-- Reconcile the different behavior of `Align` and `Space`. `Space` tries to
-  push its child and can enlarge the surrounding area, while `Align` only
-  positions its child inside an area that already exists.
-- Crystallize the relational-delta layout system. It should probably support
-  weights for adjusting how relationships scale, while an absolute-difference
-  system likely has a place alongside it.
-- Crystalize the relationships between `Widget`, `Shared_widget`, and `Shared_component`
-- Look into removing the `Shared_widget<Concrete>` to `Shared_menu_item<Choice>`
-  conversion shim. It only exists because the `Shared_widget` newtype does not
-  automatically unsize to a trait object; consider making `Shared_widget` a
-  type alias over `Arc<Mutex<T>>` or constructing menu items directly as their
-  erased shared type.
-- Reconsider using `General_shared_widget` as a generic layout-composition
-  escape hatch. Erasing and remounting widgets this way makes it impossible to
-  reliably track which widget owns focus.
-- Reconcile the extra state-preserving behavior of `Child_slot` with the rest
-  of the widget API. Reusing a child slot can preserve component state such as
-  focus when replacing one widget with another, but many widgets do not expose
-  child-slot support even though that transition is possible.
-    You can pass display!() widget into a impl Widget_trait - how does that work? - the first child is just never used probably 
-  Right now estabilishing a component lifetime also sets its hitbox (from the current parent) - these two would have to be seperated - one is lifetime creation,
-  second is mounting and hitbox creation
-- add some cool animations to elements to showcase the real time capabilities
+## Roadmap
 
-- for no focus components I don't think they need to have stable known lifetime in between
- layout() calls
+See [ROADMAP.md](ROADMAP.md) for known bugs and planned work.
 
 ## Technologies used
 - [winit](https://github.com/rust-windowing/winit) for window managment

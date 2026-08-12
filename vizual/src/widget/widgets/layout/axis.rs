@@ -38,7 +38,7 @@ impl Axis {
             direction,
             elements,
             style: Style::default(),
-            priority: 2,
+            priority: 1,
         }
     }
 }

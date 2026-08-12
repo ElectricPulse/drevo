@@ -49,8 +49,8 @@ impl Widget_trait for Title_block {
     ) -> Result<Children> {
         let mut title = Text::new(self.title.clone());
         title.style.set(theme.load().specific.text.title);
-        let title = Anchor::new(title, Anchors::top_left());
-        let child = Anchor::new(self.child.clone(), Anchors::top_left());
+        let title = Anchor::new(title, Anchors::left());
+        let child = Anchor::new(self.child.clone(), Anchors::left());
 
         let mut axis = Axis::new(Direction::Vertical, vec![Box::new(title), Box::new(child)]);
 

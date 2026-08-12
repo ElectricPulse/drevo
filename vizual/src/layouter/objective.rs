@@ -121,22 +121,22 @@ mod tests {
             "shared-delta".to_string(),
             "test".to_string(),
             "test".to_string(),
-            2,
+            1,
         )?;
 
         assert_eq!(
-            problem.objectives[2]
+            problem.objectives[1]
                 .first()
                 .and_then(|objective| objective.coefficients.get(&delta.variable)),
             Some(&-1.0)
         );
 
-        problem.minimize_delta(Expression::from(0.0), 1.0, delta.clone(), 2)?;
-        problem.minimize_delta(Expression::from(0.0), 1.0, delta.clone(), 2)?;
+        problem.minimize_delta(Expression::from(0.0), 1.0, delta.clone(), 1)?;
+        problem.minimize_delta(Expression::from(0.0), 1.0, delta.clone(), 1)?;
 
-        assert_eq!(problem.objectives[2].len(), 3);
+        assert_eq!(problem.objectives[1].len(), 3);
         assert!(
-            problem.objectives[2]
+            problem.objectives[1]
                 .iter()
                 .all(|objective| objective.coefficients.get(&delta.variable) == Some(&-1.0))
         );

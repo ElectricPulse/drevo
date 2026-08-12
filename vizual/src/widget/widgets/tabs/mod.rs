@@ -114,7 +114,7 @@ impl Widget_trait for Tab_bar {
                 false => theme.load().specific.text.subtitle,
             });
             let button = page.tab.button(text, self.selected_page.clone());
-            let button = Anchor::new(button, Anchors::top_left());
+            let button = Anchor::new(button, Anchors::left());
             buttons.push(Box::new(button));
         }
 
@@ -174,12 +174,12 @@ impl Widget_trait for Tabs {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let header = Anchor::new(self.header.clone(), Anchors::top_left());
+        let header = Anchor::new(self.header.clone(), Anchors::left());
         let mut elements: Vec<Widget> = vec![Box::new(header)];
         {
             let selected = self.header.lock().await?.get_selected();
             if let Some(widget) = selected {
-                let widget = Anchor::new(widget, Anchors::top_left());
+                let widget = Anchor::new(widget, Anchors::left());
                 elements.push(Box::new(widget));
             }
         }

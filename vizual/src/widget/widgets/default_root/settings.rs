@@ -71,7 +71,7 @@ impl Custom_widget_trait for Theme_menu_item {
             false => theme.load().specific.text.subtitle,
         });
 
-        let text = Anchor::new(text, Anchors::top_left());
+        let text = Anchor::new(text, Anchors::left());
 
         Ok(vec![display!(text)])
     }

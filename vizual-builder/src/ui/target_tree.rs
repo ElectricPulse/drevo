@@ -82,7 +82,7 @@ impl Custom_widget_trait for Target_tree_item {
         }
 
         let details = Axis::new(Direction::Vertical, details);
-        let details = Anchor::new(details, Anchors::top_left());
+        let details = Anchor::new(details, Anchors::left());
 
         let row = Axis::new(
             Direction::Horizontal,

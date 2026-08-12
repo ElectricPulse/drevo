@@ -87,27 +87,6 @@ impl Shared_component {
         Ok(self.lock().await?.hitbox.clone())
     }
 
-    /// Maximizes this component in both directions at priority 1.
-    /// Uses priority-based expansion and may leave room for higher-priority layout objectives.
-    pub async fn fill(self) -> Result<Self> {
-        let (hitbox, problem) = {
-            let component = self.lock().await?;
-            (
-                component.hitbox.clone(),
-                component.slot_manager.problem.clone(),
-            )
-        };
-
-        for direction in [Direction::Horizontal, Direction::Vertical] {
-            problem
-                .lock()
-                .await?
-                .maximize(hitbox.get_dimension(direction), 1)?;
-        }
-
-        Ok(self)
-    }
-
     pub async fn share_dimension(
         &self,
         parent: Hitbox,

@@ -59,7 +59,7 @@ impl Custom_widget_trait for Boolean_menu_item {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
-        let text = Anchor::new(text, Anchors::top_left());
+        let text = Anchor::new(text, Anchors::left());
 
         Ok(vec![display!(text)])
     }
