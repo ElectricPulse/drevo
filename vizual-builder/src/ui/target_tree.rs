@@ -16,7 +16,7 @@ use vizual::{
             icon::Icon,
             layout::axis::Axis,
             menu::{Menu, Shared_menu_item, get_selector},
-            positioning::anchor::{Anchor, Anchors},
+            positioning::anchor::{Anchor, Anchors, Position},
             text::Text,
         },
     },
@@ -58,18 +58,26 @@ impl Custom_widget_trait for Target_tree_item {
         let metadata = self.target.get_metadata().await?;
 
         let icon = Icon::new(metadata.status.get_icon());
-        let icon = Anchor::new(icon, Anchors::middle());
+        let icon = Anchor::new(
+            icon,
+            Anchors {
+                vertical: Some(Position::Middle),
+                horizontal: None,
+            },
+        );
 
         let name = Text::new(metadata.name);
-        let name = Anchor::new(name, Anchors::top_left());
+        let name = Anchor::new(name, Anchors::left());
+
         let mut details: Vec<Widget> = vec![Box::new(name)];
+
         if let Some(path) = metadata.path {
             let path = path
                 .strip_prefix(&self.working_directory)
                 .unwrap_or(path.as_path());
             let path = display_relative_path(path);
             let path = Text::new(format!("Working directory: {path}"));
-            let path = Anchor::new(path, Anchors::top_left());
+            let path = Anchor::new(path, Anchors::left());
             details.push(Box::new(path));
         }
 
