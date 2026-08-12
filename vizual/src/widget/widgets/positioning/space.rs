@@ -38,12 +38,16 @@ impl Spaces {
     }
 }
 
+/// Adds preferred spacing between a child and its parent.
+///
+/// TODO: Widget composition sometimes creates nested `Space` wrappers. Consider detecting and
+/// combining adjacent spaces so redundant layout variables and component levels are optimized out.
 #[derive(Clone)]
 pub struct Space {
     child: Widget,
     spaces: Spaces,
     pub delta: Option<Delta>,
-    pub fixed: bool,
+    pub minimum: f64,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
 }
@@ -66,7 +70,7 @@ impl Space {
                 bottom,
             },
             delta: None,
-            fixed: false,
+            minimum: 0.0,
             priority,
         }
     }
@@ -113,11 +117,9 @@ impl Space {
         target: f64,
         delta: &mut Option<Delta>,
     ) -> Result<()> {
-        if self.fixed {
-            return problem.constrain(constraint!(space == target)).await;
-        }
-
-        problem.constrain(constraint!(space.clone() >= 0)).await?;
+        problem
+            .constrain(constraint!(space.clone() >= self.minimum))
+            .await?;
 
         let delta = match delta.as_ref() {
             Some(delta) => delta.clone(),

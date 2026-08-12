@@ -16,7 +16,6 @@ use crate::{
     theme::Theme,
     widget::widgets::{
         block::{Block, Block_style, Border_style},
-        positioning::space::Space,
         text::Text,
     },
 };
@@ -103,7 +102,7 @@ impl Widget_trait for Text_input {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        theme: State<Theme>,
+        _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -111,14 +110,14 @@ impl Widget_trait for Text_input {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let theme = theme.load();
         focus.set_active(true);
 
         let content = Text::new(self.input.clone());
 
-        let mut content = Block::new(Space::uniform(content, theme.units.em * 0.0, 2));
+        let mut content = Block::new(content);
 
         content.style.set(Block_style {
+            padding: 0.0,
             background: Color::Black,
             border: Border_style {
                 color: Color::Black,

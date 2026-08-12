@@ -5,7 +5,6 @@ use vizual_macros::display;
 use super::{
     super::{Focus_provider, Widget_trait},
     block::Block,
-    positioning::space::Space,
 };
 use crate::{
     Vizual_msg,
@@ -52,7 +51,7 @@ impl Widget_trait for Button {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        theme: State<Theme>,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -60,11 +59,9 @@ impl Widget_trait for Button {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let mut space = Space::uniform(self.content.clone(), theme.load().units.em * 0.75, 2);
-        space.delta = self.delta.clone();
-
-        let mut block = Block::new(space);
+        let mut block = Block::new(self.content.clone());
         block.highlighted = self.highlighted;
+        block.delta = self.delta.clone();
 
         Ok(vec![display!(block)])
     }

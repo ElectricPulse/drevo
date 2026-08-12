@@ -54,9 +54,7 @@ impl Widget_trait for Default_root {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let body = Anchor::new(Text::new("Hi"), Anchors::top_left());
-
-        let body = Paper::new(body);
+        let body = Paper::new(self.widget.clone());
 
         let header = Header::new(
             self.title.clone(),

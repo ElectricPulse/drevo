@@ -6,7 +6,7 @@ use crate::{
     component::{Children, context::Component_context},
     display::Display,
     geometry::Rect,
-    layouter::hitbox::Hitbox,
+    layouter::{hitbox::Hitbox, objective::Delta},
     slot::manager::Slots,
     state::State,
     style::{Color, Style},
@@ -26,6 +26,7 @@ pub struct Border_style {
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Block_style {
+    pub padding: f64,
     pub background: Color,
     pub border: Border_style,
     pub focused_border: Border_style,
@@ -36,6 +37,7 @@ pub struct Block {
     child: Widget,
     pub style: Style<Block_style>,
     pub highlighted: bool,
+    pub delta: Option<Delta>,
 }
 
 impl Block {
@@ -44,6 +46,7 @@ impl Block {
             child: Box::new(child),
             style: Style::default(),
             highlighted: false,
+            delta: None,
         }
     }
 }
@@ -63,8 +66,13 @@ impl Widget_trait for Block {
     ) -> Result<Children> {
         let style = self.style.get(&theme);
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
-        let mut space = Space::uniform(self.child.clone(), border_thickness, 2);
-        space.fixed = true;
+        let mut space = Space::uniform(self.child.clone(), style.padding + border_thickness, 2);
+        space.delta = self.delta.clone();
+
+        // Block owns the padding Space so callers can configure padding without introducing an
+        // additional Space layer. The border thickness is both included in the preferred spacing
+        // and installed as its hard minimum, keeping content outside the painted border.
+        space.minimum = border_thickness;
 
         Ok(vec![display!(space)])
     }

@@ -166,6 +166,7 @@ fn theme(units: Units, semantic: Semantic_tokens) -> Theme {
         },
     };
     let block = Block_style {
+        padding: units.em * 0.75,
         background: semantic.surface,
         border: Border_style {
             thickness: BORDER_SIZE,
@@ -178,13 +179,10 @@ fn theme(units: Units, semantic: Semantic_tokens) -> Theme {
             radius: units.em * 0.5,
         },
     };
-    let paper = Paper_style {
-        padding: units.em * 0.75,
-        block,
-    };
+    let paper = Paper_style { block };
     let root = Paper_style {
-        padding: units.em * 1.2,
         block: Block_style {
+            padding: units.em * 1.2,
             background: semantic.background,
             border: Border_style {
                 thickness: 0.0,
