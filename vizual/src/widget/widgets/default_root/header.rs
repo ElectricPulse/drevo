@@ -8,7 +8,7 @@ use super::{
         positioning::anchor::{Anchor, Anchors, Position},
         text::Text,
     },
-    theme_picker::Theme_picker,
+    settings::Settings,
 };
 use crate::{
     Render,
@@ -53,7 +53,7 @@ impl Widget_trait for Header {
         let mut name = Text::new(self.name.clone());
         name.style.set(theme.load().specific.text.title);
         let name = Anchor::new(name, Anchors::left());
-        let settings = Theme_picker::new(self.open.clone(), self.choice.clone());
+        let settings = Settings::new(self.open.clone(), self.choice.clone());
 
         let settings = Anchor::new(
             settings,

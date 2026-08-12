@@ -112,6 +112,7 @@ impl Widget_trait for Text_input {
         slots: &mut Slots,
     ) -> Result<Children> {
         let theme = theme.load();
+        focus.set_active(true);
 
         let content = Text::new(self.input.clone());
 

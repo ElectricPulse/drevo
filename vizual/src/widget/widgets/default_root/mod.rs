@@ -1,5 +1,5 @@
 pub mod header;
-mod theme_picker;
+mod settings;
 
 use color_eyre::eyre::Result;
 use vizual_macros::display;
@@ -20,7 +20,7 @@ use crate::{
 pub struct Default_root {
     title: String,
     widget: Widget,
-    header_open: State<bool>,
+    settings_open: State<bool>,
     theme_choice: State<Theme_choice>,
 }
 
@@ -29,7 +29,7 @@ impl Default_root {
         Self {
             title: title.into(),
             widget: Box::new(widget),
-            header_open: render.new_state(false),
+            settings_open: render.new_state(false),
             theme_choice: render.new_state(Theme_choice::System),
         }
     }
@@ -52,7 +52,7 @@ impl Widget_trait for Default_root {
 
         let header = Header::new(
             self.title.clone(),
-            self.header_open.clone(),
+            self.settings_open.clone(),
             self.theme_choice.clone(),
         );
 

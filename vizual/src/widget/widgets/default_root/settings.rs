@@ -78,12 +78,12 @@ impl Custom_widget_trait for Theme_menu_item {
 }
 
 #[derive(Clone)]
-pub(super) struct Theme_picker {
+pub(super) struct Settings {
     open: State<bool>,
     choice: State<Theme_choice>,
 }
 
-impl Theme_picker {
+impl Settings {
     pub(super) fn new(open: State<bool>, choice: State<Theme_choice>) -> Self {
         Self { open, choice }
     }
@@ -92,7 +92,7 @@ impl Theme_picker {
 // This is a piece of trash code
 
 #[async_trait]
-impl Widget_trait for Theme_picker {
+impl Widget_trait for Settings {
     async fn layout(
         &mut self,
         render: Render,
