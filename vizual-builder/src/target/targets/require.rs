@@ -4,11 +4,37 @@ use crate::{
 };
 
 use async_trait::async_trait;
+use color_eyre::Result;
+use vizual::{
+    Render,
+    component::{Children, context::Component_context},
+    layouter::hitbox::Hitbox,
+    slot::manager::Slots,
+    state::State,
+    text::Text_context,
+    theme::Theme,
+    widget::Focus_provider,
+};
 
 #[derive(Clone, Copy)]
 struct Task {}
 
-impl vizual::widget::Widget_trait for Task {}
+#[async_trait]
+impl vizual::widget::Widget_trait for Task {
+    async fn layout(
+        &mut self,
+        _render: Render,
+        _theme: State<Theme>,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut Text_context,
+        _slots: &mut Slots,
+    ) -> Result<Children> {
+        Ok(vec![])
+    }
+}
 
 // TODO: Remove this workaround
 #[async_trait]

@@ -26,9 +26,7 @@ pub struct Builder {
 }
 
 pub fn new(root: Dependency, working_directory: PathBuf, render: vizual::Render) -> Builder {
-    let root_clone = root.clone();
     let build_result = render.new_state(None);
-    let build_result_handle = build_result.clone();
 
     /*let _ = tokio::spawn(async move {
         let result = root_clone

@@ -5,6 +5,16 @@ use color_eyre::eyre::WrapErr;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use vizual::{
+    Render,
+    component::{Children, context::Component_context},
+    layouter::hitbox::Hitbox,
+    slot::manager::Slots,
+    state::State,
+    text::Text_context,
+    theme::Theme,
+    widget::Focus_provider,
+};
 
 #[derive(Clone)]
 pub(super) struct Copy_file_task {
@@ -12,7 +22,22 @@ pub(super) struct Copy_file_task {
     pub(super) destination: PathBuf,
 }
 
-impl vizual::widget::Widget_trait for Copy_file_task {}
+#[async_trait]
+impl vizual::widget::Widget_trait for Copy_file_task {
+    async fn layout(
+        &mut self,
+        _render: Render,
+        _theme: State<Theme>,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut Text_context,
+        _slots: &mut Slots,
+    ) -> color_eyre::Result<Children> {
+        Ok(vec![])
+    }
+}
 
 #[async_trait]
 impl task::Task_trait for Copy_file_task {
@@ -35,7 +60,22 @@ pub(super) struct Copy_dir_task {
     pub(super) destination: PathBuf,
 }
 
-impl vizual::widget::Widget_trait for Copy_dir_task {}
+#[async_trait]
+impl vizual::widget::Widget_trait for Copy_dir_task {
+    async fn layout(
+        &mut self,
+        _render: Render,
+        _theme: State<Theme>,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut Text_context,
+        _slots: &mut Slots,
+    ) -> color_eyre::Result<Children> {
+        Ok(vec![])
+    }
+}
 
 #[async_trait]
 impl task::Task_trait for Copy_dir_task {
@@ -77,7 +117,22 @@ pub(super) struct Create_dir_task {
     pub(super) path: PathBuf,
 }
 
-impl vizual::widget::Widget_trait for Create_dir_task {}
+#[async_trait]
+impl vizual::widget::Widget_trait for Create_dir_task {
+    async fn layout(
+        &mut self,
+        _render: Render,
+        _theme: State<Theme>,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut Text_context,
+        _slots: &mut Slots,
+    ) -> color_eyre::Result<Children> {
+        Ok(vec![])
+    }
+}
 
 #[async_trait]
 impl task::Task_trait for Create_dir_task {
@@ -101,7 +156,22 @@ pub(super) struct Write_file_task {
     pub(super) content: String,
 }
 
-impl vizual::widget::Widget_trait for Write_file_task {}
+#[async_trait]
+impl vizual::widget::Widget_trait for Write_file_task {
+    async fn layout(
+        &mut self,
+        _render: Render,
+        _theme: State<Theme>,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut Text_context,
+        _slots: &mut Slots,
+    ) -> color_eyre::Result<Children> {
+        Ok(vec![])
+    }
+}
 
 #[async_trait]
 impl task::Task_trait for Write_file_task {
@@ -136,7 +206,22 @@ pub(super) struct Create_directory_task {
     pub(super) subdirs: Vec<String>,
 }
 
-impl vizual::widget::Widget_trait for Create_directory_task {}
+#[async_trait]
+impl vizual::widget::Widget_trait for Create_directory_task {
+    async fn layout(
+        &mut self,
+        _render: Render,
+        _theme: State<Theme>,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut Text_context,
+        _slots: &mut Slots,
+    ) -> color_eyre::Result<Children> {
+        Ok(vec![])
+    }
+}
 
 #[async_trait]
 impl task::Task_trait for Create_directory_task {
