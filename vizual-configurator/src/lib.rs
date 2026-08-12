@@ -24,7 +24,7 @@ use vizual::{
     event::{Event, Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
     handlers::{Retrieve_handler, Submit_handler},
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::hitbox::Hitbox,
     slot::{Component_slot, manager::Slots},
     state::State,
     sync::{Mutex, Thread_safe},
@@ -254,7 +254,7 @@ impl<T: Tree> Tree_view<T> {
 
             button.delta = Some(button_delta.clone());
 
-            let button = Space::left(button, (INDENT * depth) as f64, Objective::default(), 2);
+            let button = Space::left(button, (INDENT * depth) as f64, 2);
             let button = Anchor::new(button, Anchors::top_left());
 
             buttons.push(Box::new(button));

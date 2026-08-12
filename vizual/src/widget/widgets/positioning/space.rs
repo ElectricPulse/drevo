@@ -42,7 +42,6 @@ impl Spaces {
 pub struct Space {
     child: Widget,
     spaces: Spaces,
-    objective: Objective,
     pub delta: Option<Delta>,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
@@ -55,7 +54,6 @@ impl Space {
         right: Option<f64>,
         top: Option<f64>,
         bottom: Option<f64>,
-        objective: Objective,
         priority: usize,
     ) -> Self {
         Self {
@@ -66,116 +64,67 @@ impl Space {
                 top,
                 bottom,
             },
-            objective,
             delta: None,
             priority,
         }
     }
 
-    pub fn inline(
-        child: impl Widget_trait,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        Self::new(
-            child,
-            Some(value),
-            Some(value),
-            None,
-            None,
-            objective,
-            priority,
-        )
+    pub fn inline(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+        Self::new(child, Some(value), Some(value), None, None, priority)
     }
 
-    pub fn left(
-        child: impl Widget_trait,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        Self::new(child, Some(value), None, None, None, objective, priority)
+    pub fn left(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+        Self::new(child, Some(value), None, None, None, priority)
     }
 
-    pub fn right(
-        child: impl Widget_trait,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        Self::new(child, None, Some(value), None, None, objective, priority)
+    pub fn right(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+        Self::new(child, None, Some(value), None, None, priority)
     }
 
-    pub fn top(
-        child: impl Widget_trait,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        Self::new(child, None, None, Some(value), None, objective, priority)
+    pub fn top(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+        Self::new(child, None, None, Some(value), None, priority)
     }
 
-    pub fn bottom(
-        child: impl Widget_trait,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
-        Self::new(child, None, None, None, Some(value), objective, priority)
+    pub fn bottom(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+        Self::new(child, None, None, None, Some(value), priority)
     }
 
-    pub fn uniform(
-        child: impl Widget_trait,
-        value: f64,
-        objective: Objective,
-        priority: usize,
-    ) -> Self {
+    pub fn uniform(child: impl Widget_trait, value: f64, priority: usize) -> Self {
         Self::new(
             child,
             Some(value),
             Some(value),
             Some(value),
             Some(value),
-            objective,
             priority,
         )
     }
 
-    pub fn full(child: impl Widget_trait, objective: Objective, priority: usize) -> Self {
-        Self::new(child, None, None, None, None, objective, priority)
+    pub fn full(child: impl Widget_trait, priority: usize) -> Self {
+        Self::new(child, None, None, None, None, priority)
     }
 
     async fn apply_objective(
         &self,
         problem: &Component_context,
         space: Expression,
-        target: Option<f64>,
+        target: f64,
         delta: &mut Option<Delta>,
     ) -> Result<()> {
         problem.constrain(constraint!(space.clone() >= 0)).await?;
 
-        match target {
-            Some(target) => {
-                let delta = match delta.as_ref() {
-                    Some(delta) => delta.clone(),
-                    None => {
-                        let new_delta = problem.add_delta("space-delta", self.priority).await?;
-                        *delta = Some(new_delta.clone());
-                        new_delta
-                    }
-                };
-                // TODO: Using 16 as the target for zero-sized space is also a workaround.
-                let target = match target {
-                    0.0 => 16.0,
-                    target => target,
-                };
-                self.objective
-                    .apply(problem, space, target, delta, self.priority)
-                    .await
+        let delta = match delta.as_ref() {
+            Some(delta) => delta.clone(),
+            None => {
+                let new_delta = problem.add_delta("space-delta", self.priority).await?;
+                *delta = Some(new_delta.clone());
+                new_delta
             }
-            None => Ok(()),
-        }
+        };
+
+        Objective::Minimize_delta
+            .apply(problem, space, target, delta, self.priority)
+            .await
     }
 }
 
@@ -196,30 +145,35 @@ impl Widget_trait for Space {
         let mut delta = self.delta.clone();
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
-            if spaces.start(direction).is_some() {
+            if let Some(space) = spaces.start(direction)
+                && space != 0.0
+            {
                 hitbox
                     .start
                     .point_to_variable(direction, problem.make_independent_variable("space-start"));
+
+                let start_space = Expression::from(
+                    hitbox.get_start_position(direction) - parent.get_start_position(direction),
+                );
+
+                self.apply_objective(&problem, start_space, space, &mut delta)
+                    .await?;
             }
-            if spaces.end(direction).is_some() {
+
+            if let Some(space) = spaces.end(direction)
+                && space != 0.0
+            {
                 hitbox
                     .end
                     .point_to_variable(direction, problem.make_independent_variable("space-end"));
+
+                let end_space = Expression::from(
+                    parent.get_end_position(direction) - hitbox.get_end_position(direction),
+                );
+
+                self.apply_objective(&problem, end_space, space, &mut delta)
+                    .await?;
             }
-
-            let start_space = Expression::from(
-                hitbox.get_start_position(direction) - parent.get_start_position(direction),
-            );
-
-            self.apply_objective(&problem, start_space, spaces.start(direction), &mut delta)
-                .await?;
-
-            let end_space = Expression::from(
-                parent.get_end_position(direction) - hitbox.get_end_position(direction),
-            );
-
-            self.apply_objective(&problem, end_space, spaces.end(direction), &mut delta)
-                .await?;
         }
 
         hitbox.constrain_smaller_than(&parent, &problem).await?;

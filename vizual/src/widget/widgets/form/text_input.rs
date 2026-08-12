@@ -17,7 +17,7 @@ use crate::{
     event::{Event, Key_code, Key_event},
     geometry::{Direction, Point, Rect, Size},
     handlers::Submit_handler,
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     style::Color,
@@ -25,7 +25,7 @@ use crate::{
     text::{Styled_text, Text_window},
     theme::Theme,
     widget::widgets::{
-        block::Block,
+        block::{Block, Block_style, Border_style},
         positioning::{
             anchor::{Anchor, Anchors},
             space::Space,
@@ -208,6 +208,7 @@ impl Widget_trait for Text_input {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        let theme = theme.load();
         focus.set_active(true);
 
         let content = Text_input_content {
@@ -217,12 +218,21 @@ impl Widget_trait for Text_input {
             focused: self.focused.clone(),
         };
 
-        let mut content = Block::new(Space::uniform(
-            content,
-            theme.load().units.em * 0.5,
-            Objective::default(),
-            2,
-        ));
+        let mut content = Block::new(Space::uniform(content, theme.units.em * 0.0, 2));
+
+        content.style.set(Block_style {
+            background: Color::Black,
+            border: Border_style {
+                color: Color::Black,
+                thickness: 0.0,
+                radius: 1.0,
+            },
+            focused_border: Border_style {
+                color: Color::Black,
+                thickness: 0.0,
+                radius: 1.0,
+            },
+        });
 
         let block = Title_block::new(content, self.title.clone());
 

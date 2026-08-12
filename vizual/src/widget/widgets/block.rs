@@ -6,7 +6,7 @@ use crate::{
     component::{Children, context::Component_context},
     display::Display,
     geometry::Rect,
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     style::{Color, Style},
@@ -63,12 +63,7 @@ impl Widget_trait for Block {
     ) -> Result<Children> {
         let style = self.style.get(&theme);
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
-        let space = Space::uniform(
-            self.child.clone(),
-            border_thickness,
-            Objective::default(),
-            2,
-        );
+        let space = Space::uniform(self.child.clone(), border_thickness, 2);
 
         Ok(vec![display!(space)])
     }

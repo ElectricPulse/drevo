@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     component::{Children, context::Component_context},
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -58,7 +58,7 @@ impl Widget_trait for Paper {
         slots: &mut Slots,
     ) -> Result<Children> {
         let style = self.style.get(&theme);
-        let space = Space::uniform(self.child.clone(), style.padding, Objective::default(), 2);
+        let space = Space::uniform(self.child.clone(), style.padding, 2);
 
         let mut block = Block::new(space);
         block.style.set(style.block);

@@ -12,10 +12,7 @@ use crate::{
     component::{Children, context::Component_context},
     event::Pointer_event,
     handlers::Submit_handler,
-    layouter::{
-        hitbox::Hitbox,
-        objective::{Delta, Objective},
-    },
+    layouter::{hitbox::Hitbox, objective::Delta},
     slot::manager::Slots,
     state::State,
     theme::Theme,
@@ -63,12 +60,7 @@ impl Widget_trait for Button {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let mut space = Space::uniform(
-            self.content.clone(),
-            theme.load().units.em * 0.75,
-            Objective::default(),
-            2,
-        );
+        let mut space = Space::uniform(self.content.clone(), theme.load().units.em * 0.75, 2);
         space.delta = self.delta.clone();
 
         let mut block = Block::new(space);
