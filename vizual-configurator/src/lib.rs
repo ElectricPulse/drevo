@@ -341,9 +341,10 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
             .render_tree(slots, &tree, &cursor, &[], theme, &problem, button_delta)
             .await?;
 
-        let axis = Axis::new(Direction::Vertical, buttons);
+        //let axis = Axis::new(Direction::Vertical, buttons);
+        let axis = Anchor::new(Text::new("hi"), Anchors::top_left());
 
-        let block = Title_block::new(display!(axis), "Config");
+        let block = Title_block::new(axis, "Config");
         Ok(vec![display!(block)])
     }
 
@@ -561,7 +562,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         );
         let mut children: Vec<Widget> = vec![Box::new(tree_view)];
 
-        if let Some(field) = field {
+        /*if let Some(field) = field {
             let field = Anchor::new(
                 field,
                 Anchors {
@@ -571,7 +572,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
             );
 
             children.push(Box::new(field));
-        }
+        }*/
 
         let mut text = Text::new("Apply");
         text.style.set(theme.load().specific.text.selected_subtitle);

@@ -64,6 +64,7 @@ impl Widget_trait for Axis {
     ) -> Result<Children> {
         let direction = self.direction;
         let mut elements = Vec::with_capacity(self.elements.len());
+        
         for (index, element) in self.elements.iter().enumerate() {
             let container = Container::new(element.clone());
             let container = slots.set(index as u64, container).await?;
@@ -81,6 +82,7 @@ impl Widget_trait for Axis {
                     problem.make_independent_variable("axis-item-start"),
                 );
             }
+
             if index < last_index {
                 element.end.point_to_variable(
                     direction,
@@ -113,6 +115,7 @@ impl Widget_trait for Axis {
                     current_hitbox.get_start_position(direction)
                         - previous_hitbox.get_end_position(direction),
                 );
+
                 problem.constrain(constraint!(space.clone() >= 0)).await?;
                 self.objective
                     .apply(&problem, space, gap, gap_delta.clone(), self.priority)
