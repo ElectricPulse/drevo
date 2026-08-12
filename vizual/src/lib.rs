@@ -923,28 +923,30 @@ impl Window_app {
             return;
         }
 
-        let surface_texture = match state.surface.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(texture) => texture,
-            wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
-                self.context.configure_surface(&state.surface);
-                state.window.request_redraw();
-                return;
-            }
-            wgpu::CurrentSurfaceTexture::Occluded => return,
-            wgpu::CurrentSurfaceTexture::Timeout => {
-                state.window.request_redraw();
-                return;
-            }
-            wgpu::CurrentSurfaceTexture::Lost => {
-                self.context.configure_surface(&state.surface);
-                state.window.request_redraw();
-                return;
-            }
-            wgpu::CurrentSurfaceTexture::Validation => {
-                self.fail(event_loop, "Vello surface validation failed");
-                return;
-            }
-        };
+        let (surface_texture, reconfigure_after_present) =
+            match state.surface.surface.get_current_texture() {
+                wgpu::CurrentSurfaceTexture::Success(texture) => (texture, false),
+                wgpu::CurrentSurfaceTexture::Suboptimal(texture) => (texture, true),
+                wgpu::CurrentSurfaceTexture::Outdated => {
+                    self.context.configure_surface(&state.surface);
+                    state.window.request_redraw();
+                    return;
+                }
+                wgpu::CurrentSurfaceTexture::Occluded => return,
+                wgpu::CurrentSurfaceTexture::Timeout => {
+                    state.window.request_redraw();
+                    return;
+                }
+                wgpu::CurrentSurfaceTexture::Lost => {
+                    self.context.configure_surface(&state.surface);
+                    state.window.request_redraw();
+                    return;
+                }
+                wgpu::CurrentSurfaceTexture::Validation => {
+                    self.fail(event_loop, "Vello surface validation failed");
+                    return;
+                }
+            };
         let mut encoder =
             device_handle
                 .device
@@ -962,6 +964,10 @@ impl Window_app {
         let _ = device_handle.queue.submit([encoder.finish()]);
         surface_texture.present();
         let _ = device_handle.device.poll(wgpu::PollType::Poll);
+        if reconfigure_after_present {
+            self.context.configure_surface(&state.surface);
+            state.window.request_redraw();
+        }
     }
 }
 

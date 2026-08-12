@@ -43,33 +43,81 @@ pub enum Color {
     Light_magenta,
     Light_cyan,
     Rgb(u8, u8, u8),
+    Rgba(u8, u8, u8, u8),
     Indexed(u8),
 }
 
 impl Color {
-    pub(crate) fn to_peniko(self) -> vello::peniko::Color {
-        let (red, green, blue) = match self {
-            Self::Black => (0, 0, 0),
-            Self::Red => (205, 49, 49),
-            Self::Green => (13, 188, 121),
-            Self::Yellow => (229, 229, 16),
-            Self::Blue => (36, 114, 200),
-            Self::Magenta => (188, 63, 188),
-            Self::Cyan => (17, 168, 205),
-            Self::White => (229, 229, 229),
-            Self::Dark_gray => (102, 102, 102),
-            Self::Gray => (128, 128, 128),
-            Self::Light_red => (241, 76, 76),
-            Self::Light_green => (35, 209, 139),
-            Self::Light_yellow => (245, 245, 67),
-            Self::Light_blue => (59, 142, 234),
-            Self::Light_magenta => (214, 112, 214),
-            Self::Light_cyan => (41, 184, 219),
-            Self::Rgb(red, green, blue) => (red, green, blue),
-            Self::Indexed(index) => indexed_color(index),
-        };
+    pub fn lighten(self, amount: u8) -> Self {
+        self.map_channels(|channel| channel.saturating_add(amount))
+    }
 
-        vello::peniko::Color::from_rgb8(red, green, blue)
+    pub fn darken(self, amount: u8) -> Self {
+        self.map_channels(|channel| channel.saturating_sub(amount))
+    }
+
+    fn map_channels(self, map: impl Fn(u8) -> u8) -> Self {
+        let preserves_alpha = matches!(self, Self::Rgba(_, _, _, _));
+        let (red, green, blue, alpha) = self.components();
+        let (red, green, blue) = (map(red), map(green), map(blue));
+
+        match preserves_alpha {
+            true => Self::Rgba(red, green, blue, alpha),
+            false => Self::Rgb(red, green, blue),
+        }
+    }
+
+    pub(crate) fn to_peniko(self) -> vello::peniko::Color {
+        let (red, green, blue, alpha) = self.components();
+        vello::peniko::Color::from_rgba8(red, green, blue, alpha)
+    }
+
+    fn components(self) -> (u8, u8, u8, u8) {
+        match self {
+            Self::Black => (0, 0, 0, 255),
+            Self::Red => (205, 49, 49, 255),
+            Self::Green => (13, 188, 121, 255),
+            Self::Yellow => (229, 229, 16, 255),
+            Self::Blue => (36, 114, 200, 255),
+            Self::Magenta => (188, 63, 188, 255),
+            Self::Cyan => (17, 168, 205, 255),
+            Self::White => (229, 229, 229, 255),
+            Self::Dark_gray => (102, 102, 102, 255),
+            Self::Gray => (128, 128, 128, 255),
+            Self::Light_red => (241, 76, 76, 255),
+            Self::Light_green => (35, 209, 139, 255),
+            Self::Light_yellow => (245, 245, 67, 255),
+            Self::Light_blue => (59, 142, 234, 255),
+            Self::Light_magenta => (214, 112, 214, 255),
+            Self::Light_cyan => (41, 184, 219, 255),
+            Self::Rgb(red, green, blue) => (red, green, blue, 255),
+            Self::Rgba(red, green, blue, alpha) => (red, green, blue, alpha),
+            Self::Indexed(index) => {
+                let (red, green, blue) = indexed_color(index);
+                (red, green, blue, 255)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Color;
+
+    #[test]
+    fn rgba_preserves_all_four_channels() {
+        let rgba = Color::Rgba(12, 34, 56, 78).to_peniko().to_rgba8();
+
+        assert_eq!((rgba.r, rgba.g, rgba.b, rgba.a), (12, 34, 56, 78));
+    }
+
+    #[test]
+    fn lighten_and_darken_saturate_color_channels() {
+        assert_eq!(Color::Rgb(250, 10, 0).lighten(10), Color::Rgb(255, 20, 10));
+        assert_eq!(
+            Color::Rgba(5, 20, 255, 78).darken(10),
+            Color::Rgba(0, 10, 245, 78)
+        );
     }
 }
 

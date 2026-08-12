@@ -4,7 +4,7 @@ use vizual_macros::display;
 
 use super::{
     super::{Focus_provider, Widget_trait},
-    block::Block,
+    block::{Block, Block_style},
 };
 use crate::{
     Vizual_msg,
@@ -14,9 +14,16 @@ use crate::{
     layouter::{hitbox::Hitbox, objective::Delta},
     slot::manager::Slots,
     state::State,
+    style::Color,
     theme::Theme,
     widget::Widget,
 };
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct Button_style {
+    pub block: Block_style,
+    pub highlight: Color,
+}
 
 #[derive(Clone)]
 pub struct Button {
@@ -24,6 +31,15 @@ pub struct Button {
     click_handler: Option<Box<dyn Submit_handler<String>>>,
     pub highlighted: bool,
     pub delta: Option<Delta>,
+}
+
+fn resolve_block_style(theme: &Theme, highlighted: bool) -> Block_style {
+    let button = theme.specific.button;
+    let mut block = button.block;
+    if highlighted {
+        block.background = button.highlight;
+    }
+    block
 }
 
 impl Button {
@@ -51,7 +67,7 @@ impl Widget_trait for Button {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -59,7 +75,9 @@ impl Widget_trait for Button {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let mut block = Block::new(self.content.clone());
+        let style = resolve_block_style(&theme.load(), self.highlighted);
+
+        let mut block = Block::new(self.content.clone(), style);
         block.highlighted = self.highlighted;
         block.delta = self.delta.clone();
 
@@ -71,5 +89,19 @@ impl Widget_trait for Button {
             Some(click_handler) => click_handler.on_submit(None).await,
             None => Vizual_msg::none(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::dark_theme;
+
+    #[test]
+    fn highlighted_button_uses_the_nested_highlight_token() {
+        let theme = dark_theme();
+        let style = resolve_block_style(&theme, true);
+
+        assert_eq!(style.background, theme.specific.button.highlight);
     }
 }

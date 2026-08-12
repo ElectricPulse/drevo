@@ -12,9 +12,16 @@ use crate::{
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
-    theme::{Theme, Theme_choice},
+    theme::Theme,
     widget::{Focus_provider, Widget, Widget_trait},
 };
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Theme_choice {
+    System,
+    Dark,
+    Light,
+}
 
 #[derive(Clone)]
 pub struct Default_root {
@@ -48,7 +55,8 @@ impl Widget_trait for Default_root {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let body = Paper::new(self.widget.clone());
+        let mut body = Paper::new(self.widget.clone());
+        body.style.set(theme.load().specific.body);
 
         let header = Header::new(
             self.title.clone(),

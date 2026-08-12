@@ -9,7 +9,7 @@ use crate::{
     layouter::{hitbox::Hitbox, objective::Delta},
     slot::manager::Slots,
     state::State,
-    style::{Color, Style},
+    style::Color,
     theme::Theme,
     widget::Widget,
 };
@@ -35,16 +35,16 @@ pub struct Block_style {
 #[derive(Clone)]
 pub struct Block {
     child: Widget,
-    pub style: Style<Block_style>,
+    pub style: Block_style,
     pub highlighted: bool,
     pub delta: Option<Delta>,
 }
 
 impl Block {
-    pub fn new(child: impl Widget_trait) -> Self {
+    pub fn new(child: impl Widget_trait, style: Block_style) -> Self {
         Self {
             child: Box::new(child),
-            style: Style::default(),
+            style,
             highlighted: false,
             delta: None,
         }
@@ -56,7 +56,7 @@ impl Widget_trait for Block {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        theme: State<Theme>,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -64,7 +64,7 @@ impl Widget_trait for Block {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let style = self.style.get(&theme);
+        let style = self.style;
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
         let mut space = Space::uniform(self.child.clone(), style.padding + border_thickness, 1);
         space.delta = self.delta.clone();
@@ -75,19 +75,13 @@ impl Widget_trait for Block {
 
     async fn render(
         &mut self,
-        theme: State<Theme>,
+        _theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
         display: &mut Display<'_>,
     ) -> Result<Option<Hitbox>> {
-        paint_block(display, hitbox, &self.style.get(&theme), self.highlighted);
+        paint_block(display, hitbox, &self.style, self.highlighted);
         Ok(None)
-    }
-}
-
-impl From<Theme> for Block_style {
-    fn from(theme: Theme) -> Self {
-        theme.specific.block
     }
 }
 

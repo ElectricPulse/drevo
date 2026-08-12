@@ -30,11 +30,12 @@ Location: /home/hackerman/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/w
       at /rustc/ca9a134e0985765ded9cfdde4030a5df4db7e2bd/library/core/src/panicking.rs:80
 
 ## To-Do list
-
+- find one stable delta for multiple states of vizual-configurator so the menu doesnt flicker with sizes on small devices
+- generalize dialog (from settings) and make a click off logic
 - Switch to microlp once it adds presolve and priorities
   microlp is already a pretty slow solver since its single threaded and a presolve step is badly needed to optimize out all the equality constraints I have
   if you want wasm compatibility just switch to microlp in its current state - it would be nice to have this library in the browser in the FUTURE
-  right now I would jeporadize its desktop performance because of some microlp presolve + lexigraphic priorites miracle
+  right now I would sacrifice its desktop performance because of some browser support which isn't even needed yet
   The library should grow on the desktop and if it's momentum becomes big enough should fix microlp to become on par with highs
 - disable default decorations in winit
 - optimize state managment relayouting/rerendering - there is no reason to relayout if the state of a parent changed

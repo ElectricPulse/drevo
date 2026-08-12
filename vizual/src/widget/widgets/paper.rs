@@ -56,8 +56,7 @@ impl Widget_trait for Paper {
         slots: &mut Slots,
     ) -> Result<Children> {
         let style = self.style.get(&theme);
-        let mut block = Block::new(self.child.clone());
-        block.style.set(style.block);
+        let block = Block::new(self.child.clone(), style.block);
         Ok(vec![display!(block)])
     }
 }

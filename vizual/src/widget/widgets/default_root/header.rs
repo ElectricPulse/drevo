@@ -8,6 +8,7 @@ use super::{
         positioning::anchor::{Anchor, Anchors, Position},
         text::Text,
     },
+    Theme_choice,
     settings::Settings,
 };
 use crate::{
@@ -16,7 +17,7 @@ use crate::{
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
-    theme::{Theme, Theme_choice},
+    theme::Theme,
     widget::{Focus_provider, Widget, Widget_trait},
 };
 

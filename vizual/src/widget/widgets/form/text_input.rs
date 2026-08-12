@@ -114,22 +114,23 @@ impl Widget_trait for Text_input {
 
         let content = Text::new(self.input.clone());
 
-        let mut content = Block::new(content);
-
-        content.style.set(Block_style {
-            padding: 0.0,
-            background: Color::Black,
-            border: Border_style {
-                color: Color::Black,
-                thickness: 0.0,
-                radius: 1.0,
+        let content = Block::new(
+            content,
+            Block_style {
+                padding: 0.0,
+                background: Color::Black,
+                border: Border_style {
+                    color: Color::Black,
+                    thickness: 0.0,
+                    radius: 1.0,
+                },
+                focused_border: Border_style {
+                    color: Color::Black,
+                    thickness: 0.0,
+                    radius: 1.0,
+                },
             },
-            focused_border: Border_style {
-                color: Color::Black,
-                thickness: 0.0,
-                radius: 1.0,
-            },
-        });
+        );
 
         let block = Title_block::new(content, self.title.clone());
 

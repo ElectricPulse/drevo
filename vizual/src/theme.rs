@@ -3,6 +3,7 @@ use crate::{
     style::Color,
     widget::widgets::{
         block::{Block_style, Border_style},
+        button::Button_style,
         paper::Paper_style,
         text::Text_style,
     },
@@ -10,8 +11,9 @@ use crate::{
 
 #[derive(Clone, PartialEq)]
 pub struct Theme {
-    choice: Theme_choice,
+    mode: System_theme,
     system: System_theme,
+    follows_system: bool,
     pub units: Units,
     pub semantic: Semantic_tokens,
     pub specific: Specific_tokens,
@@ -53,17 +55,11 @@ pub struct Text_styles {
 
 #[derive(Clone, PartialEq)]
 pub struct Specific_tokens {
-    pub block: Block_style,
+    pub button: Button_style,
     pub paper: Paper_style,
+    pub body: Paper_style,
     pub root: Paper_style,
     pub text: Text_styles,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Theme_choice {
-    System,
-    Dark,
-    Light,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -73,80 +69,102 @@ pub enum System_theme {
 }
 
 impl Theme {
-    pub fn choice(&self) -> Theme_choice {
-        self.choice
+    pub fn mode(&self) -> System_theme {
+        self.mode
     }
 
-    pub fn select(&self, choice: Theme_choice) -> Self {
-        resolve_theme(choice, self.system)
+    pub fn system(&self) -> System_theme {
+        self.system
+    }
+
+    pub fn follows_system(&self) -> bool {
+        self.follows_system
+    }
+
+    pub fn select(&self, mode: System_theme) -> Self {
+        resolve_theme(mode, self.system, false)
+    }
+
+    pub fn follow_system(&self) -> Self {
+        resolve_theme(self.system, self.system, true)
     }
 
     pub(crate) fn set_system(&self, system: System_theme) -> Self {
-        resolve_theme(self.choice, system)
+        let mode = match self.follows_system {
+            true => system,
+            false => self.mode,
+        };
+        resolve_theme(mode, system, self.follows_system)
     }
 }
 
 pub fn dark_theme() -> Theme {
-    resolve_theme(Theme_choice::Dark, System_theme::Dark)
+    resolve_theme(System_theme::Dark, System_theme::Dark, false)
 }
 
 pub fn light_theme() -> Theme {
-    resolve_theme(Theme_choice::Light, System_theme::Light)
+    resolve_theme(System_theme::Light, System_theme::Light, false)
 }
 
 pub(crate) fn system_theme(system: System_theme) -> Theme {
-    resolve_theme(Theme_choice::System, system)
+    resolve_theme(system, system, true)
 }
 
-fn resolve_theme(choice: Theme_choice, system: System_theme) -> Theme {
-    let dark = match choice {
-        Theme_choice::System => matches!(system, System_theme::Dark),
-        Theme_choice::Dark => true,
-        Theme_choice::Light => false,
+fn resolve_theme(mode: System_theme, system: System_theme, follows_system: bool) -> Theme {
+    let mut theme = match mode {
+        System_theme::Dark => dark_tokens(),
+        System_theme::Light => light_tokens(),
     };
-    let mut theme = if dark { dark_tokens() } else { light_tokens() };
-    theme.choice = choice;
+    theme.mode = mode;
     theme.system = system;
+    theme.follows_system = follows_system;
     theme
 }
 
+const DARK_STEP: u8 = 11;
+const LIGHT_STEP: u8 = 5;
+
 fn dark_tokens() -> Theme {
     let units = Units { em: 16.0 };
+    let background = Color::Rgb(20, 20, 20);
+    let body_background = background.lighten(DARK_STEP);
     let semantic = Semantic_tokens {
-        background: Color::Rgb(30, 31, 34),
-        surface: Color::Rgb(49, 51, 56),
-        border: Color::Rgb(78, 80, 88),
+        background,
+        surface: body_background.lighten(DARK_STEP),
+        border: Color::Rgb(102, 102, 102),
         axis: Axis_theme {
             gap: units.em * 0.625,
         },
         text: Text_semantic {
-            muted: Color::Rgb(181, 186, 193),
-            normal: Color::White,
+            muted: Color::Rgb(214, 214, 214),
+            normal: Color::Rgb(255, 255, 255),
         },
-        focus: Color::Rgb(88, 101, 242),
+        focus: Color::Rgb(91, 95, 199),
     };
-    theme(units, semantic)
+    theme(units, semantic, body_background)
 }
 
 fn light_tokens() -> Theme {
     let units = Units { em: 16.0 };
+    let background = Color::Rgb(225, 225, 225);
+    let body_background = background.lighten(LIGHT_STEP);
     let semantic = Semantic_tokens {
-        background: Color::Rgb(245, 246, 248),
-        surface: Color::White,
-        border: Color::Rgb(210, 212, 218),
+        background,
+        surface: body_background.lighten(LIGHT_STEP),
+        border: Color::Rgb(209, 209, 209),
         axis: Axis_theme {
             gap: units.em * 0.625,
         },
         text: Text_semantic {
-            muted: Color::Rgb(92, 96, 105),
-            normal: Color::Rgb(31, 32, 35),
+            muted: Color::Rgb(66, 66, 66),
+            normal: Color::Rgb(36, 36, 36),
         },
-        focus: Color::Rgb(88, 101, 242),
+        focus: Color::Rgb(91, 95, 199),
     };
-    theme(units, semantic)
+    theme(units, semantic, body_background)
 }
 
-fn theme(units: Units, semantic: Semantic_tokens) -> Theme {
+fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> Theme {
     let text = Text_styles {
         title: Text_style {
             size: units.em as f32 * 1.25,
@@ -179,7 +197,21 @@ fn theme(units: Units, semantic: Semantic_tokens) -> Theme {
             radius: units.em * 0.5,
         },
     };
+    let body = Paper_style {
+        block: Block_style {
+            background: body_background,
+            ..block
+        },
+    };
     let paper = Paper_style { block };
+    let button_background = paper.block.background.lighten(10);
+    let button = Button_style {
+        block: Block_style {
+            background: button_background,
+            ..block
+        },
+        highlight: button_background.darken(15),
+    };
     let root = Paper_style {
         block: Block_style {
             padding: units.em * 1.2,
@@ -197,15 +229,17 @@ fn theme(units: Units, semantic: Semantic_tokens) -> Theme {
         },
     };
     let specific = Specific_tokens {
-        block,
+        button,
         paper,
+        body,
         root,
         text,
     };
 
     Theme {
-        choice: Theme_choice::System,
+        mode: System_theme::Dark,
         system: System_theme::Dark,
+        follows_system: true,
         units,
         semantic,
         specific,
@@ -215,5 +249,69 @@ fn theme(units: Units, semantic: Semantic_tokens) -> Theme {
 impl Default for Theme {
     fn default() -> Self {
         system_theme(System_theme::Dark)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn system_theme_tracks_system_changes() {
+        let theme = system_theme(System_theme::Dark).set_system(System_theme::Light);
+
+        assert_eq!(theme.mode(), System_theme::Light);
+        assert_eq!(theme.system(), System_theme::Light);
+        assert!(theme.follows_system());
+    }
+
+    #[test]
+    fn explicit_theme_keeps_its_mode_when_the_system_changes() {
+        let theme = system_theme(System_theme::Dark)
+            .select(System_theme::Dark)
+            .set_system(System_theme::Light);
+
+        assert_eq!(theme.mode(), System_theme::Dark);
+        assert_eq!(theme.system(), System_theme::Light);
+        assert!(!theme.follows_system());
+    }
+
+    #[test]
+    fn fluent_neutral_surfaces_progress_inward() {
+        let dark = dark_theme();
+        assert_eq!(
+            dark.specific.body.block.background,
+            dark.semantic.background.lighten(DARK_STEP)
+        );
+        assert_eq!(
+            dark.specific.paper.block.background,
+            dark.specific.body.block.background.lighten(DARK_STEP)
+        );
+        assert_eq!(
+            dark.specific.button.block.background,
+            dark.specific.paper.block.background.lighten(10)
+        );
+        assert_eq!(
+            dark.specific.button.highlight,
+            dark.specific.button.block.background.darken(15)
+        );
+
+        let light = light_theme();
+        assert_eq!(
+            light.specific.body.block.background,
+            light.semantic.background.lighten(LIGHT_STEP)
+        );
+        assert_eq!(
+            light.specific.paper.block.background,
+            light.specific.body.block.background.lighten(LIGHT_STEP)
+        );
+        assert_eq!(
+            light.specific.button.block.background,
+            light.specific.paper.block.background.lighten(10)
+        );
+        assert_eq!(
+            light.specific.button.highlight,
+            light.specific.button.block.background.darken(15)
+        );
     }
 }

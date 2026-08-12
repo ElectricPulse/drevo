@@ -5,6 +5,7 @@ use vizual_macros::display;
 use super::super::{Focus_provider, Widget, Widget_trait};
 use crate::{
     component::{Children, context::Component_context},
+    geometry::{Direction, Size},
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
 };
@@ -13,13 +14,20 @@ use crate::{
 #[derive(Clone)]
 pub struct Container {
     child: Widget,
+    fixed_size: Option<Size>,
 }
 
 impl Container {
     pub fn new(child: impl Widget_trait) -> Self {
         Self {
             child: Box::new(child),
+            fixed_size: None,
         }
+    }
+
+    pub fn fixed_size(mut self, size: Size) -> Self {
+        self.fixed_size = Some(size);
+        self
     }
 }
 
@@ -30,12 +38,21 @@ impl Widget_trait for Container {
         _render: crate::Render,
         _theme: crate::state::State<crate::theme::Theme>,
         _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
-        _problem: Component_context,
+        problem: Component_context,
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        if let Some(size) = self.fixed_size {
+            hitbox
+                .set_static_dimension(&problem, Direction::Horizontal, size.width)
+                .await?;
+            hitbox
+                .set_static_dimension(&problem, Direction::Vertical, size.height)
+                .await?;
+        }
+
         let child = display!(self.child.clone());
 
         Ok(vec![child])

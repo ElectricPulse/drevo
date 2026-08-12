@@ -52,6 +52,23 @@ impl Component_context {
     }
 
     #[track_caller]
+    pub(crate) async fn add_nonnegative_variable(
+        &self,
+        name: impl Into<String>,
+    ) -> Result<Variable> {
+        let name = name.into();
+        let path = Self::path(Location::caller());
+        let component_path = self.component_path.join(".");
+        let problem = self.lock().await?;
+        Ok(problem.variables.make_independent(
+            VariableDefinition::new().min(0).name(name.clone()),
+            name,
+            path,
+            component_path,
+        ))
+    }
+
+    #[track_caller]
     pub async fn add_delta(&self, name: impl Into<String>, priority: usize) -> Result<Delta> {
         let name = name.into();
         let path = Self::path(Location::caller());

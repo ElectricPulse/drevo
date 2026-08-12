@@ -3,11 +3,7 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{
-        super::Focus_provider,
-        positioning::anchor::{Anchor, Anchors},
-        text::Text,
-    },
+    super::{super::Focus_provider, text::Text},
     Menu, Shared_menu_item, get_selector,
 };
 use crate::{
@@ -53,7 +49,6 @@ impl Custom_widget_trait for String_menu_item {
             true => theme.load().specific.text.selected_subtitle,
             false => theme.load().specific.text.subtitle,
         });
-        let text = Anchor::new(text, Anchors::left());
 
         Ok(vec![display!(text)])
     }

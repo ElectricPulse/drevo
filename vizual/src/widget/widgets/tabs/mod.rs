@@ -174,12 +174,10 @@ impl Widget_trait for Tabs {
         _text_context: &mut crate::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let header = Anchor::new(self.header.clone(), Anchors::left());
-        let mut elements: Vec<Widget> = vec![Box::new(header)];
+        let mut elements: Vec<Widget> = vec![Box::new(self.header.clone())];
         {
             let selected = self.header.lock().await?.get_selected();
             if let Some(widget) = selected {
-                let widget = Anchor::new(widget, Anchors::left());
                 elements.push(Box::new(widget));
             }
         }

@@ -31,6 +31,13 @@ impl Anchors {
         }
     }
 
+    pub fn right() -> Self {
+        Self {
+            horizontal: Some(Position::End),
+            vertical: None,
+        }
+    }
+
     pub fn top_left() -> Self {
         Self {
             horizontal: Some(Position::Start),
@@ -104,6 +111,12 @@ impl Anchor {
             }
             Some(Position::End) => {
                 hitbox.make_start_independent(direction);
+                problem
+                    .constrain(constraint!(
+                        hitbox.get_start_position(direction)
+                            >= parent.get_start_position(direction)
+                    ))
+                    .await?;
             }
             None => {}
         }

@@ -140,9 +140,11 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
             selected: self.selected,
             widget: self.widget.clone(),
         };
-        let mut button = Button::around(Anchor::new(content, Anchors::left()));
+        let mut button = Button::around(content);
         button.highlighted = self.selected;
         button.delta = Some(self.button_delta.clone());
+        let button = Anchor::new(button, Anchors::left());
+
         Ok(vec![display!(button)])
     }
 

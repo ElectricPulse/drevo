@@ -42,6 +42,7 @@ impl Widget_trait for Layer {
         slots: &mut Slots,
     ) -> Result<Children> {
         let mut child = display!(self.child.clone());
+        child.lock().await?.hitbox.make_independent();
         child.layer = self.layer;
         Ok(vec![child])
     }
