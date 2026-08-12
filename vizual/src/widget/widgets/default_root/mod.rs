@@ -13,13 +13,7 @@ use crate::{
     slot::manager::Slots,
     state::State,
     theme::{Theme, Theme_choice},
-    widget::{
-        Focus_provider, Widget, Widget_trait,
-        widgets::{
-            positioning::anchor::{Anchor, Anchors},
-            text::Text,
-        },
-    },
+    widget::{Focus_provider, Widget, Widget_trait},
 };
 
 #[derive(Clone)]

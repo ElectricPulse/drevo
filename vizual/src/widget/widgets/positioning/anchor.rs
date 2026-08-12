@@ -73,6 +73,11 @@ impl Anchor {
                 hitbox
                     .end
                     .point_to_variable(direction, problem.make_independent_variable("anchor-end"));
+                problem
+                    .constrain(constraint!(
+                        hitbox.get_end_position(direction) <= parent.get_end_position(direction)
+                    ))
+                    .await?;
             }
             Some(Position::Middle) => {
                 hitbox.start.point_to_variable(
