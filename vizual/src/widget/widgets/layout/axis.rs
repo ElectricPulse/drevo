@@ -65,14 +65,14 @@ impl Widget_trait for Axis {
             elements.push(container);
         }
 
-        let cross_direction = direction.flip();
-        minimize(
-            &mut *problem.lock().await?,
-            hitbox.get_dimension(cross_direction),
-            0,
-        )?;
-
         if elements.len() >= 2 {
+            let cross_direction = direction.flip();
+            minimize(
+                &mut *problem.lock().await?,
+                hitbox.get_dimension(cross_direction),
+                0,
+            )?;
+
             let Axis_style::Gap(gap) = self.style.get(&theme);
             // One delta controls every gap belonging to this axis.
             let gap_delta = problem.add_delta("axis-gap-delta", self.priority).await?;
