@@ -70,4 +70,5 @@ pub enum Wheel_delta {
 pub struct Wheel_event {
     pub position: Point,
     pub delta: Wheel_delta,
+    pub modifiers: Modifiers,
 }

@@ -94,12 +94,6 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 .await
             }
 
-            async fn child_render_region(
-                &self,
-            ) -> ::std::option::Option<::vizual::widget::Child_render_region> {
-                ::vizual::widget::Widget_trait::child_render_region(&self.#field).await
-            }
-
             async fn on_all_events(
                 &mut self,
                 event: &::vizual::event::Event,

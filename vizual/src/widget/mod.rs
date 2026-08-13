@@ -9,7 +9,7 @@ use std::sync::{Arc, Weak};
 use crate::{
     component::{Children, Render_context, context::Component_context},
     event::{Event, Key_event, Pointer_event},
-    geometry::{Point, Rect},
+    geometry::Rect,
     graphics::scene::Scene,
     graphics::text::Text_context,
     handlers::Retrieve_handler,
@@ -23,12 +23,6 @@ use crate::{
 use super::{Render, Vizual_msg};
 
 pub type Widget = Box<dyn Widget_trait>;
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Child_render_region {
-    pub(crate) translation: Point,
-    pub(crate) clip: Rect,
-}
 
 pub struct Focus_provider {
     focused: bool,
@@ -102,10 +96,6 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
         _context: &Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         Ok(None)
-    }
-
-    async fn child_render_region(&self) -> Option<Child_render_region> {
-        None
     }
 
     // Event handling defaults to no action for non-interactive widgets.
@@ -209,10 +199,6 @@ impl Widget_trait for Widget {
             .await
     }
 
-    async fn child_render_region(&self) -> Option<Child_render_region> {
-        (**self).child_render_region().await
-    }
-
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
         (**self).on_all_events(event).await
     }
@@ -312,13 +298,6 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
             .await?
             .render(theme, focus, hitbox, scene, text_context, context)
             .await
-    }
-
-    async fn child_render_region(&self) -> Option<Child_render_region> {
-        match self.0.lock().await {
-            Ok(widget) => widget.child_render_region().await,
-            Err(_) => None,
-        }
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {

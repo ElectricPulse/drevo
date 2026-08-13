@@ -118,7 +118,7 @@ impl Vizual_msg {
         !matches!(self.command, Vizual_command::None)
     }
 
-    fn join(&mut self, message: Vizual_msg) {
+    pub(crate) fn join(&mut self, message: Vizual_msg) {
         self.command = self.command.clone().join(message.command);
         self.propagate = self.propagate && message.propagate;
     }
@@ -333,9 +333,9 @@ impl App_problem {
             let parent = node_lock.parent.clone();
 
             if hits {
-                if node_lock.focusable {
+                if node_lock.focusable && !focus.compare(&node) {
                     focus.set(&node);
-                    return Vizual_msg::new(Vizual_command::Layout);
+                    total_message.join(Vizual_msg::new_propagated(Vizual_command::Layout)?);
                 }
 
                 let message = node_lock.widget.forward_event(event).await?;
@@ -532,17 +532,15 @@ async fn component_contains(
     position: Point,
     solution: &Solution,
 ) -> Result<bool> {
-    if component.clips.iter().any(|clip| !clip.contains(position)) {
+    if component.component.lock().await?.logical {
         return Ok(false);
     }
 
-    let mut hitbox = component
+    let hitbox = component
         .component
         .get_hitbox()
         .await?
         .get_resolved(solution);
-    hitbox.origin.x += component.translation.x;
-    hitbox.origin.y += component.translation.y;
     Ok(hitbox.contains(position))
 }
 
@@ -1090,6 +1088,7 @@ impl ApplicationHandler<User_event> for Window_app {
                 let _ = self.input.send(Ui_input::Event(Event::Wheel(Wheel_event {
                     position: self.cursor,
                     delta,
+                    modifiers: map_modifiers(self.modifiers),
                 })));
             }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
@@ -1233,6 +1232,51 @@ mod tests {
         text::Text,
     };
 
+    #[derive(Clone)]
+    struct Offset_click;
+
+    #[async_trait::async_trait]
+    impl Widget_trait for Offset_click {
+        async fn layout(
+            &mut self,
+            _render: Render,
+            _theme: State<Theme>,
+            _focus: &mut crate::widget::Focus_provider,
+            hitbox: &mut Hitbox,
+            parent: Hitbox,
+            problem: Component_context,
+            _text_context: &mut Text_context,
+            _slots: &mut crate::slot::manager::Slots,
+        ) -> Result<component::Children> {
+            hitbox.make_start_independent(crate::geometry::Direction::Horizontal);
+            hitbox.make_end_independent(crate::geometry::Direction::Horizontal);
+            problem
+                .constrain(crate::constraint!(
+                    hitbox.get_start_position(crate::geometry::Direction::Horizontal)
+                        == parent.get_start_position(crate::geometry::Direction::Horizontal) + 64
+                ))
+                .await?;
+            hitbox
+                .set_static_dimension(&problem, crate::geometry::Direction::Horizontal, 20.0)
+                .await?;
+            hitbox
+                .set_static_dimension(&problem, crate::geometry::Direction::Vertical, 20.0)
+                .await?;
+            problem
+                .constrain(crate::constraint!(
+                    parent.get_end_position(crate::geometry::Direction::Horizontal)
+                        == hitbox.get_end_position(crate::geometry::Direction::Horizontal)
+                ))
+                .await?;
+
+            Ok(Vec::new())
+        }
+
+        async fn on_mouse_click(&mut self, _pointer: &Pointer_event) -> Result<Vizual_msg> {
+            Vizual_msg::new(Vizual_command::Quit)
+        }
+    }
+
     #[tokio::test]
     async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Result<()> {
         let render_manager = Render_manager::new();
@@ -1274,14 +1318,17 @@ mod tests {
             .await?;
         let solution = problem.solve(Size::new(100.0, 80.0)).await?;
         let scroll = problem.root.lock().await?.children[0].clone();
-        let content = scroll.lock().await?.children[0].clone();
+        let frame = scroll.lock().await?.children[0].clone();
+        let content = frame.lock().await?.children[0].clone();
         let scroll_rect = scroll.get_hitbox().await?.get_resolved(&solution);
+        let frame_rect = frame.get_hitbox().await?.get_resolved(&solution);
         let content_rect = content.get_hitbox().await?.get_resolved(&solution);
 
         assert_eq!(scroll_rect, Rect::new(0.0, 0.0, 100.0, 80.0));
+        assert_eq!(frame_rect.origin, Point::new(0.0, 0.0));
         assert_eq!(content_rect.origin, Point::new(0.0, 0.0));
-        assert!(content_rect.size.width > 0.0);
-        assert!(content_rect.size.height > 0.0);
+        assert_eq!(frame_rect.size, content_rect.size);
+        assert!(frame.lock().await?.logical);
 
         let mut focus = Focus::new();
         let context = component::Render_context {
@@ -1311,14 +1358,71 @@ mod tests {
             solution: &solution,
         };
         let _scene = problem.render(theme, &context, &mut text_context).await?;
-        let components = problem.root.layered_components().await?;
-        let content_component = components
-            .iter()
-            .find(|component| component.component.compare(&content))
-            .wrap_err("scroll content missing from component traversal")?;
-        assert_eq!(content_component.translation, Point::new(-32.0, 0.0));
-        assert_eq!(content_component.clips, vec![scroll_rect]);
+        assert!(frame.lock().await?.logical);
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Result<()> {
+        let render_manager = Render_manager::new();
+        let render = render_manager.render;
+        let theme = render.new_state(theme::dark_theme());
+        let root = Root::new(Scroll::new(Offset_click)).into_shared();
+        let mut root_slot = Component_slot::new();
+        let variables = Arc::new(Variables::new());
+        let mut text_context = Text_context::new();
+        let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+
+        problem
+            .layout(render, theme.clone(), &mut text_context)
+            .await?;
+        let solution = problem.solve(Size::new(40.0, 30.0)).await?;
+        let scroll = problem.root.lock().await?.children[0].clone();
+        let mut focus = Focus::new();
+        focus.set(&scroll);
+
+        let context = component::Render_context {
+            focus: &focus,
+            solution: &solution,
+        };
+        let _scene = problem
+            .render(theme.clone(), &context, &mut text_context)
+            .await?;
+
+        for _ in 0..2 {
+            let command = problem
+                .handle_event(
+                    &Event::Key(Key_event {
+                        code: Key_code::Arrow_right,
+                        modifiers: Modifiers::default(),
+                        text: None,
+                        repeat: false,
+                    }),
+                    &solution,
+                    &mut focus,
+                )
+                .await?;
+            assert!(matches!(command, Vizual_command::Render));
+        }
+
+        let context = component::Render_context {
+            focus: &focus,
+            solution: &solution,
+        };
+        let _scene = problem.render(theme, &context, &mut text_context).await?;
+        let command = problem
+            .handle_event(
+                &Event::Pointer(Pointer_event {
+                    position: Point::new(25.0, 10.0),
+                    button: Pointer_button::Primary,
+                }),
+                &solution,
+                &mut focus,
+            )
+            .await?;
+
+        assert!(matches!(command, Vizual_command::Quit));
         Ok(())
     }
 

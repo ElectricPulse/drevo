@@ -17,6 +17,7 @@ use vizual::{
             layout::axis::Axis,
             menu::{Menu, Shared_menu_item, get_selector},
             positioning::anchor::{Anchor, Anchors, Position},
+            scroll::Scroll,
             text::Text,
         },
     },
@@ -129,6 +130,7 @@ impl Widget_trait for Target_tree {
                 .expect("target tree must contain its root target"),
         );
         let menu = Menu::new(targets, default_target, render);
+        let menu = Scroll::new(menu);
 
         Ok(vec![display!(menu)])
     }

@@ -93,8 +93,7 @@ impl Component_slot {
             reference.widget = widget;
             reference.slot_manager.set_problem(problem);
             reference.hitbox.reset_shared();
-            reference.uses_logical_root = false;
-            reference.r#virtual = false;
+            reference.logical = false;
             if parent.is_none() {
                 reference.hitbox.make_independent();
             }
@@ -120,9 +119,7 @@ impl Component_slot {
                 children: Vec::new(),
                 parent: None,
                 slot_manager: Slot_records::new(problem),
-                logical_root: None,
-                uses_logical_root: false,
-                r#virtual: false,
+                logical: false,
             })));
 
             self.reference = lock.as_reference();
