@@ -1,12 +1,11 @@
-use crate::{target::targets::terminal, task};
+use crate::target::{targets::terminal, task};
 
 use async_trait::async_trait;
 use color_eyre::eyre::WrapErr;
 use std::path::PathBuf;
 use vizual::widget::{Shared_widget, Widget};
 
-#[derive(Clone, vizual_macros::Widget_trait)]
-#[widget_trait(field = widget)]
+#[derive(Clone)]
 pub(super) struct Task {
     pub(super) path: PathBuf,
     pub(super) remote_path: String,

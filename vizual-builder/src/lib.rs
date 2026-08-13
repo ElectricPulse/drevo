@@ -7,25 +7,32 @@ use color_eyre::eyre::Result;
 use std::path::PathBuf;
 use vizual_macros::display;
 
-use crate::{target::Dependency, ui::target_tree::Target_tree};
+use crate::{
+    target::{Dependencies, Dependency},
+    ui::target_tree::Target_tree,
+};
 use vizual::{
     self,
     component::{Children, context::Component_context},
+    geometry::Direction,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
-    widget::{Focus_provider, Widget_trait},
+    widget::{Focus_provider, Shared_widget, Widget, Widget_trait, widgets::layout::axis::Axis},
 };
 
 #[derive(Clone)]
 pub struct Builder {
-    root: Dependency,
-    selected_target: State<Option<Dependency>>,
+    target_tree: Shared_widget<Target_tree>,
+    selected_dependency: State<Option<Dependency>>,
     build_result: State<Option<std::result::Result<(), String>>>,
-    working_directory: PathBuf,
 }
 
-pub fn new(root: Dependency, working_directory: PathBuf, render: vizual::Render) -> Builder {
+pub fn new(
+    dependencies: Dependencies,
+    working_directory: PathBuf,
+    render: vizual::Render,
+) -> Builder {
     let build_result = render.new_state(None);
 
     /*let _ = tokio::spawn(async move {
@@ -36,11 +43,18 @@ pub fn new(root: Dependency, working_directory: PathBuf, render: vizual::Render)
         build_result_handle.store(Some(result));
     });*/
 
-    Builder {
-        root,
-        selected_target: render.new_state(None),
-        build_result,
+    let selected_dependency = render.new_state(None);
+    let target_tree = Target_tree::new(
+        dependencies,
+        selected_dependency.clone(),
         working_directory,
+    );
+    // let target_tree = Scroll::new(target_tree);
+
+    Builder {
+        target_tree: target_tree.into_shared(),
+        selected_dependency,
+        build_result,
     }
 }
 
@@ -57,7 +71,7 @@ impl Widget_trait for Builder {
         _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        /*let selected_widget = self.selected.widget();
+        /*
 
         if let Some(mut error_lines) = self.get_target_errors(&targets) {
             if self.error.is_none() {
@@ -124,12 +138,16 @@ impl Widget_trait for Builder {
             2,
         );*/
 
-        let tree = Target_tree::new(
-            self.root.clone(),
-            self.selected_target.clone(),
-            self.working_directory.clone(),
-        );
+        let children: Vec<Widget> = vec![Box::new(self.target_tree.clone())];
 
-        Ok(vec![display!(tree)])
+        if let Some(dependency) = *self.selected_dependency.load() {
+            if let Some(widget) = dependency.widget() {
+                children.push(widget)
+            }
+        }
+
+        let axis = Axis::new(Direction::Horizontal, children);
+
+        Ok(vec![display!(axis)])
     }
 }

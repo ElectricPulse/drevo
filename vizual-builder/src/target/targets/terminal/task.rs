@@ -1,11 +1,10 @@
-use crate::task;
+use crate::target::task;
 use vizual::widget::{Shared_widget, Widget, widgets::screen::Screen};
 
 use async_trait::async_trait;
 use std::path::PathBuf;
 
-#[derive(Clone, vizual_macros::Widget_trait)]
-#[widget_trait(field = widget)]
+#[derive(Clone)]
 pub(crate) struct Task {
     pub(super) command: String,
     pub(super) working_dir: Option<PathBuf>,

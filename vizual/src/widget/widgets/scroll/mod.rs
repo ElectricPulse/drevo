@@ -1,3 +1,4 @@
+mod bar;
 mod frame;
 
 use async_trait::async_trait;
@@ -18,6 +19,7 @@ use crate::{
     widget::{Focus_provider, Widget, Widget_trait},
 };
 
+use self::bar::Scrollbars;
 use self::frame::Frame;
 
 const SCROLL_STEP: f64 = 32.0;
@@ -111,7 +113,9 @@ impl Widget_trait for Scroll {
         self.solution = Some(context.solution.clone());
         let content = frame.get_hitbox().await?.get_resolved(context.solution);
         self.content_size = content.size;
-        self.viewport = hitbox;
+        let loaded_theme = theme.load();
+        let scrollbars = Scrollbars::new(hitbox, self.content_size, &loaded_theme);
+        self.viewport = scrollbars.viewport();
         self.clamp_offset();
 
         let mut logical_scene = Vello_scene::new();
@@ -121,7 +125,9 @@ impl Widget_trait for Scroll {
                 let mut frame = frame.lock().await?;
                 std::mem::replace(&mut frame.logical, false)
             };
-            let render_result = frame.render(theme, &mut scene, text_context, context).await;
+            let render_result = frame
+                .render(theme.clone(), &mut scene, text_context, context)
+                .await;
             frame.lock().await?.logical = previous_logical;
             render_result?;
         }
@@ -130,16 +136,13 @@ impl Widget_trait for Scroll {
             hitbox.origin.x - self.offset.x,
             hitbox.origin.y - self.offset.y,
         ));
-        scene.append_clipped(&logical_scene, hitbox, transform);
+        scene.append_clipped(&logical_scene, self.viewport, transform);
+        scrollbars.paint(scene, self.offset, &loaded_theme);
 
         Ok(None)
     }
 
     async fn on_mouse_click(&mut self, pointer: &Pointer_event) -> Result<Vizual_msg> {
-        if !self.viewport.contains(pointer.position) {
-            return Vizual_msg::none();
-        }
-
         let frame = self
             .frame
             .as_ref()

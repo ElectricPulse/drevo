@@ -1,5 +1,6 @@
 pub mod status;
 pub mod targets;
+pub mod task;
 
 use async_trait::async_trait;
 use dyn_clone::DynClone;
@@ -11,8 +12,8 @@ use std::{
     },
 };
 
-use crate::{
-    target::status::Target_status,
+use crate::target::{
+    status::Target_status,
     task::{Manager, Task_trait, View},
 };
 use color_eyre::eyre::{Result, eyre};
@@ -95,7 +96,7 @@ impl<Output: Output_constraints> Task_manager<Output> {
 pub trait Target_trait: DynClone + Send + Sync {
     async fn get_metadata(&self) -> Result<Target_metadata>;
     async fn ensure_ran(&self, view: &View) -> Result<()>;
-    fn widget(&self) -> Option<Shared_widget<Widget>>;
+    fn widget(&self) -> Option<Widget>;
 }
 
 dyn_clone::clone_trait_object!(Target_trait);
@@ -125,6 +126,10 @@ pub type Dependencies = Vec<Dependency>;
 pub struct Target<Output: Output_constraints> {
     metadata: Arc<Mutex<Target_metadata>>,
     task: Arc<Mutex<Task_manager<Output>>>,
+    // The widget is intentionally separate from the task. The task manager stays locked for the
+    // entire build, so a widget stored as the task itself could not be rendered while that build
+    // was running. Keeping presentation separate also lets the same task implementation be used
+    // by different targets with different UIs.
     widget: Option<Shared_widget<Widget>>,
 }
 
@@ -207,8 +212,8 @@ impl<Output: Output_constraints> Target_trait for Target<Output> {
         Ok(self.metadata.lock().await?.clone())
     }
 
-    fn widget(&self) -> Option<Shared_widget<Widget>> {
-        self.widget.clone()
+    fn widget(&self) -> Option<Widget> {
+        self.widget.clone().map(Into::into)
     }
 
     async fn ensure_ran(&self, view: &View) -> Result<()> {

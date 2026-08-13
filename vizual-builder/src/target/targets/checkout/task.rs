@@ -1,4 +1,4 @@
-use crate::{target::targets::terminal, task};
+use crate::target::{targets::terminal, task};
 
 use async_trait::async_trait;
 use color_eyre::eyre::{WrapErr, bail};
@@ -6,8 +6,7 @@ use std::path::PathBuf;
 use tokio::process::Command;
 use vizual::widget::{Shared_widget, Widget};
 
-#[derive(Clone, vizual_macros::Widget_trait)]
-#[widget_trait(field = widget)]
+#[derive(Clone)]
 pub(super) struct Task {
     pub(super) repo_path: PathBuf,
     pub(super) branch: String,

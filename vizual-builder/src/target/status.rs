@@ -3,7 +3,7 @@ use std::sync::Arc;
 use color_eyre::eyre::Error;
 use lucide_icons::Icon;
 
-use crate::task::Status;
+use super::task::Status;
 
 #[derive(Clone)]
 pub enum Target_status {

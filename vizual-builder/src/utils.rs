@@ -2,8 +2,8 @@ use crate::target::{Dependencies, Dependency};
 use color_eyre::eyre::Result;
 use std::collections::HashSet;
 
-pub(crate) async fn get_targets(root: &Dependency) -> Result<Dependencies> {
-    let mut remaining = vec![root.clone()];
+pub(crate) async fn get_targets(roots: &[Dependency]) -> Result<Dependencies> {
+    let mut remaining = roots.iter().rev().cloned().collect::<Dependencies>();
     let mut unique = Dependencies::new();
     let mut target_ids = HashSet::new();
 

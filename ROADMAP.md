@@ -30,6 +30,7 @@ Location: /home/hackerman/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/w
       at /rustc/ca9a134e0985765ded9cfdde4030a5df4db7e2bd/library/core/src/panicking.rs:80
 
 ## To-Do list
+- make scroll bars draggable
 - switch to vello hybrid
 - find one stable delta for multiple states of vizual-configurator so the menu doesnt flicker with sizes on small devices
 - generalize dialog (from settings) and make a click off logic

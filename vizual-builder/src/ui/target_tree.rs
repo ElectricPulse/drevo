@@ -17,14 +17,13 @@ use vizual::{
             layout::axis::Axis,
             menu::{Menu, Shared_menu_item, get_selector},
             positioning::anchor::{Anchor, Anchors, Position},
-            scroll::Scroll,
             text::Text,
         },
     },
 };
 use vizual_macros::display;
 
-use crate::target::Dependency;
+use crate::target::{Dependencies, Dependency};
 use crate::utils::get_targets;
 
 #[derive(Clone, new)]
@@ -34,9 +33,9 @@ struct Target_tree_item {
 }
 
 #[async_trait::async_trait]
-impl Retrieve_handler<Dependency> for Target_tree_item {
-    async fn on_retrieve(&mut self) -> Result<Dependency> {
-        Ok(self.target.clone())
+impl Retrieve_handler<Option<Dependency>> for Target_tree_item {
+    async fn on_retrieve(&mut self) -> Result<Option<Dependency>> {
+        Ok(Some(self.target.clone()))
     }
 }
 
@@ -96,7 +95,7 @@ impl Custom_widget_trait for Target_tree_item {
 
 #[derive(Clone, new)]
 pub struct Target_tree {
-    root: Dependency,
+    dependencies: Dependencies,
     selected: State<Option<Dependency>>,
     working_directory: PathBuf,
 }
@@ -114,23 +113,23 @@ impl Widget_trait for Target_tree {
         _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let targets = get_targets(&self.root)
+        let targets = get_targets(&self.dependencies)
             .await?
             .into_iter()
-            .map(|target| -> Shared_menu_item<Dependency> {
+            .map(|target| -> Shared_menu_item<Option<Dependency>> {
                 Target_tree_item::new(target, self.working_directory.clone())
                     .into_shared()
                     .into()
             })
             .collect::<Vec<_>>();
 
-        let default_target = get_selector(
-            targets
-                .first()
-                .expect("target tree must contain its root target"),
-        );
-        let menu = Menu::new(targets, default_target, render);
-        let menu = Scroll::new(menu);
+        let Some(first_target) = targets.first() else {
+            return Ok(vec![]);
+        };
+
+        let default_target = get_selector(first_target);
+        let mut menu = Menu::new(targets, default_target, render);
+        menu.set_submit_state(self.selected.clone());
 
         Ok(vec![display!(menu)])
     }
