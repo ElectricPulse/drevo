@@ -17,9 +17,9 @@ use crate::{
     Render, Vizual_command, Vizual_msg,
     component::{Children, context::Component_context},
     config::COMMAND_WAIT_TIMEOUT,
-    display::Display,
     event::{Event, Key_code, Key_event, Wheel_delta},
     geometry::Rect,
+    graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
@@ -288,7 +288,7 @@ impl Widget_trait for Screen_content {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
         Ok(vec![])
@@ -299,7 +299,8 @@ impl Widget_trait for Screen_content {
         _theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        text_context: &mut crate::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
         let text = self.text.load();
         if text.len() != self.last_text_len {
@@ -307,11 +308,11 @@ impl Widget_trait for Screen_content {
             self.last_text_len = text.len();
         }
 
-        self.viewport.prepare(display, hitbox.size);
+        self.viewport.prepare(text_context, hitbox.size);
         if self.following {
             self.viewport.jump_to_bottom();
         }
-        self.viewport.paint(display, hitbox.origin);
+        self.viewport.paint(scene, hitbox.origin);
         Ok(None)
     }
 }
@@ -326,7 +327,7 @@ impl Widget_trait for Screen {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         focus.set_active(true);

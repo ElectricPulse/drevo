@@ -40,7 +40,7 @@ impl Custom_widget_trait for String_menu_item {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {

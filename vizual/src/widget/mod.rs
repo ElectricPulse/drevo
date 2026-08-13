@@ -8,15 +8,15 @@ use std::sync::{Arc, Weak};
 
 use crate::{
     component::{Children, context::Component_context},
-    display::Display,
     event::{Event, Key_event, Pointer_event},
     geometry::Rect,
+    graphics::scene::Scene,
+    graphics::text::Text_context,
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
     slot::{Component_slot, manager::Slots},
     state::State,
     sync::{Mutex, MutexGuard, Thread_safe},
-    text::Text_context,
     theme::Theme,
 };
 
@@ -88,7 +88,8 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
         _theme: State<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: Rect,
-        _display: &mut Display<'_>,
+        _scene: &mut Scene<'_>,
+        _text_context: &mut Text_context,
     ) -> Result<Option<Hitbox>> {
         Ok(None)
     }
@@ -185,9 +186,12 @@ impl Widget_trait for Widget {
         theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        text_context: &mut Text_context,
     ) -> Result<Option<Hitbox>> {
-        (**self).render(theme, focus, hitbox, display).await
+        (**self)
+            .render(theme, focus, hitbox, scene, text_context)
+            .await
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
@@ -280,12 +284,13 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
         theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        text_context: &mut Text_context,
     ) -> Result<Option<Hitbox>> {
         self.0
             .lock()
             .await?
-            .render(theme, focus, hitbox, display)
+            .render(theme, focus, hitbox, scene, text_context)
             .await
     }
 

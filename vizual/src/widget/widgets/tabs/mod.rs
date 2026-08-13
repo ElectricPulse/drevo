@@ -14,9 +14,9 @@ use super::{
 use crate::{
     Render,
     component::{Children, context::Component_context},
-    display::Display,
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
+    graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
@@ -100,7 +100,7 @@ impl Widget_trait for Tab_bar {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         focus.set_active(true);
@@ -154,7 +154,8 @@ impl Widget_trait for Tab_bar {
         _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: Rect,
-        _display: &mut Display<'_>,
+        _scene: &mut Scene<'_>,
+        _text_context: &mut crate::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         Ok(None)
@@ -171,7 +172,7 @@ impl Widget_trait for Tabs {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let mut elements: Vec<Widget> = vec![Box::new(self.header.clone())];

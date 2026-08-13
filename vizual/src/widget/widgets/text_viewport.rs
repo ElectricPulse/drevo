@@ -1,9 +1,11 @@
 use parley::Layout;
 
 use crate::{
-    display::Display,
     geometry::{Point, Size},
-    text::{Styled_text, Text_brush, Text_window},
+    graphics::{
+        scene::Scene,
+        text::{Styled_text, Text_brush, Text_window},
+    },
 };
 
 // This is complete AI slop.
@@ -42,25 +44,30 @@ impl Text_viewport {
         self.layout = None;
     }
 
-    pub fn prepare(&mut self, display: &mut Display<'_>, viewport: Size) {
+    pub fn prepare(
+        &mut self,
+        text_context: &mut crate::graphics::text::Text_context,
+        viewport: Size,
+    ) {
         if self.layout.is_none() {
-            self.layout = Some(display.build_layout(&self.styled));
+            self.layout = Some(text_context.build_layout(&self.styled));
         }
         self.viewport = viewport;
         self.clamp_offset();
     }
 
-    pub fn paint(&self, display: &mut Display<'_>, origin: Point) {
+    pub fn paint(&self, scene: &mut Scene<'_>, origin: Point) {
         let Some(layout) = &self.layout else {
             return;
         };
-        display.paint_layout(
+        scene.paint_layout(
             layout,
             origin,
             Some(Text_window {
                 offset: self.offset,
                 size: self.viewport,
             }),
+            true,
         );
     }
 

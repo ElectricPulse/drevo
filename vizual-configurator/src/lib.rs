@@ -20,9 +20,9 @@ use std::{
 use vizual::{
     Vizual_command, Vizual_msg, check_quit_event,
     component::{Children, context::Component_context},
-    display::Display,
     event::{Event, Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
+    graphics::scene::Scene,
     handlers::{Retrieve_handler, Submit_handler},
     layouter::hitbox::Hitbox,
     slot::{Component_slot, manager::Slots},
@@ -72,7 +72,7 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
         hitbox: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
-        text_context: &mut vizual::text::Text_context,
+        text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         (**self)
@@ -94,9 +94,12 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
         theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        text_context: &mut vizual::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
-        (**self).render(theme, focus, hitbox, display).await
+        (**self)
+            .render(theme, focus, hitbox, scene, text_context)
+            .await
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
@@ -321,7 +324,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
-        _text_context: &mut vizual::text::Text_context,
+        _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         focus.set_active(true);
@@ -346,7 +349,8 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: Rect,
-        _display: &mut Display<'_>,
+        _scene: &mut Scene<'_>,
+        _text_context: &mut vizual::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         Ok(None)
@@ -512,7 +516,7 @@ impl<T: Tree> Widget_trait for Configurator<T> {
         hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
-        _text_context: &mut vizual::text::Text_context,
+        _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let tree_view = Tree_view {

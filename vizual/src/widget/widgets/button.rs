@@ -72,7 +72,7 @@ impl Widget_trait for Button {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let style = resolve_block_style(&theme.load(), self.highlighted);

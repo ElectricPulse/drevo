@@ -7,10 +7,10 @@
 
 pub mod component;
 mod config;
-pub mod display;
 pub mod event;
 pub mod focus;
 pub mod geometry;
+pub mod graphics;
 pub mod handlers;
 pub mod layouter;
 pub mod log;
@@ -19,7 +19,6 @@ pub mod slot;
 pub mod state;
 pub mod style;
 pub mod sync;
-pub mod text;
 pub mod theme;
 pub mod unicode;
 pub mod utils;
@@ -51,19 +50,18 @@ use winit::{
 
 use component::{Child_reference, Shared_component, context::Component_context};
 use config::DEFAULT_SCREEN_SIZE;
-use display::Display;
 use event::{
     Event, Key_code, Key_event, Modifiers, Pointer_button, Pointer_event, Wheel_delta, Wheel_event,
 };
 use focus::{Focus, Focus_search_direction};
 use geometry::{Point, Size};
+use graphics::{scene::Scene as Graphics_scene, text::Text_context};
 use layouter::{Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
 use render_manager::{Render_manager, Render_reciever};
 use slot::Component_slot;
 use state::State;
 use sync::Mutex;
-use text::Text_context;
 use theme::{System_theme, Theme};
 use widget::{Shared_widget, Widget_trait, widgets::root::Root};
 
@@ -266,9 +264,15 @@ impl App_problem {
         text_context: &mut Text_context,
     ) -> Result<Scene> {
         let mut scene = Scene::new();
-        let mut display = Display::new(&mut scene, text_context);
+        let mut graphics_scene = Graphics_scene::new(&mut scene);
         self.root
-            .render(theme, focus.clone(), &mut display, solution)
+            .render(
+                theme,
+                focus.clone(),
+                &mut graphics_scene,
+                text_context,
+                solution,
+            )
             .await?;
         Ok(scene)
     }

@@ -51,7 +51,7 @@ impl Custom_widget_trait for Target_tree_item {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut vizual::text::Text_context,
+        _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
         _selected: bool,
     ) -> Result<Children> {
@@ -110,7 +110,7 @@ impl Widget_trait for Target_tree {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut vizual::text::Text_context,
+        _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let targets = get_targets(&self.root)

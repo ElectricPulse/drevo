@@ -52,7 +52,7 @@ impl Widget_trait for Default_root {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let mut body = Paper::new(self.widget.clone());

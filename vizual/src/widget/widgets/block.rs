@@ -4,8 +4,8 @@ use super::{
 };
 use crate::{
     component::{Children, context::Component_context},
-    display::Display,
     geometry::Rect,
+    graphics::scene::Scene,
     layouter::{hitbox::Hitbox, objective::Delta},
     slot::manager::Slots,
     state::State,
@@ -61,7 +61,7 @@ impl Widget_trait for Block {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let style = self.style;
@@ -78,23 +78,24 @@ impl Widget_trait for Block {
         _theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        _text_context: &mut crate::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
-        paint_block(display, hitbox, &self.style, self.highlighted);
+        paint_block(scene, hitbox, &self.style, self.highlighted);
         Ok(None)
     }
 }
 
-fn paint_block(display: &mut Display<'_>, hitbox: Rect, style: &Block_style, focused: bool) {
+fn paint_block(scene: &mut Scene<'_>, hitbox: Rect, style: &Block_style, focused: bool) {
     let border = match focused {
         true => style.focused_border,
         false => style.border,
     };
 
-    display.fill_rounded_rect(hitbox, style.background, border.radius);
+    scene.fill_rounded_rect(hitbox, style.background, border.radius);
     if border.thickness > 0.0 {
         let radius = (border.radius - border.thickness / 2.0).max(0.0);
-        display.stroke_rounded_rect(
+        scene.stroke_rounded_rect(
             hitbox.inset(border.thickness / 2.0),
             border.color,
             border.thickness,

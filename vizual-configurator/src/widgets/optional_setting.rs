@@ -51,7 +51,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Default_leaf_value<Value> {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut vizual::text::Text_context,
+        _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
@@ -96,7 +96,7 @@ impl<Value: Thread_safe> Custom_widget_trait for Custom_leaf_value<Value> {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut vizual::text::Text_context,
+        _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
@@ -160,7 +160,7 @@ impl<Value: Clone + Thread_safe> Widget_trait for Optional_setting<Value> {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut vizual::text::Text_context,
+        _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let menu = self.menu.clone();

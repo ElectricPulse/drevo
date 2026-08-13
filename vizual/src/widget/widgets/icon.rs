@@ -8,8 +8,8 @@ use super::{
 };
 use crate::{
     component::{Children, context::Component_context},
-    display::Display,
     geometry::{Direction, Rect},
+    graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
@@ -42,7 +42,7 @@ impl Widget_trait for Icon {
         hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
-        text_context: &mut crate::text::Text_context,
+        text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
         let size = text_context.measure_icon(self.icon, self.style.get(&theme).size);
@@ -61,9 +61,10 @@ impl Widget_trait for Icon {
         theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        text_context: &mut crate::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
-        let _ = display.draw_icon(self.icon, hitbox.origin, self.style.get(&theme));
+        let _ = text_context.draw_icon(scene, self.icon, hitbox.origin, self.style.get(&theme));
         Ok(None)
     }
 }

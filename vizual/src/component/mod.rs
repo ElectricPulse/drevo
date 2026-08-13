@@ -9,11 +9,11 @@ use crate::{
     Render,
     focus::Focus,
     geometry::Direction,
+    graphics::text::Text_context,
     layouter::{Solution, hitbox::Hitbox},
     slot::manager::Slot_records,
     state::State,
     sync::{Mutex, MutexGuard},
-    text::Text_context,
     theme::Theme,
     widget::{Focus_provider, Widget},
 };
@@ -239,7 +239,8 @@ impl Shared_component {
         &mut self,
         theme: State<Theme>,
         focus: Focus,
-        display: &mut crate::display::Display<'_>,
+        scene: &mut crate::graphics::scene::Scene<'_>,
+        text_context: &mut Text_context,
         solution: &Solution,
     ) -> Result<()> {
         let mut components = self.layered_components().await?;
@@ -248,7 +249,7 @@ impl Shared_component {
         for mut component in components {
             component
                 .component
-                .render_component(theme.clone(), focus.clone(), display, solution)
+                .render_component(theme.clone(), focus.clone(), scene, text_context, solution)
                 .await?;
         }
 
@@ -259,7 +260,8 @@ impl Shared_component {
         &mut self,
         theme: State<Theme>,
         focus: Focus,
-        display: &mut crate::display::Display<'_>,
+        scene: &mut crate::graphics::scene::Scene<'_>,
+        text_context: &mut Text_context,
         solution: &Solution,
     ) -> Result<()> {
         let mut this = self.lock().await?;
@@ -268,7 +270,7 @@ impl Shared_component {
         let mut focus = Focus_provider::new(focused);
         let maybe_hitbox = this
             .widget
-            .render(theme, &mut focus, hitbox, display)
+            .render(theme, &mut focus, hitbox, scene, text_context)
             .await?;
         this.focusable = focus.is_active();
 
@@ -303,7 +305,7 @@ mod tests {
             _hitbox: &mut Hitbox,
             _parent: Hitbox,
             _problem: Component_context,
-            _text_context: &mut crate::text::Text_context,
+            _text_context: &mut crate::graphics::text::Text_context,
             _slots: &mut crate::slot::manager::Slots,
         ) -> Result<Children> {
             Ok(vec![])

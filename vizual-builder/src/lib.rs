@@ -54,7 +54,7 @@ impl Widget_trait for Builder {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut vizual::text::Text_context,
+        _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         /*let selected_widget = self.selected.widget();

@@ -18,9 +18,9 @@ use super::{
 use crate::{
     Vizual_command, Vizual_msg,
     component::{Children, context::Component_context},
-    display::Display,
     event::{Key_code, Key_event, Pointer_event},
     geometry::{Direction, Rect},
+    graphics::scene::Scene,
     handlers::Retrieve_handler,
     layouter::{hitbox::Hitbox, variable::Variable},
     slot::manager::Slots,
@@ -86,7 +86,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_content<Choice> {
         hitbox: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
-        text_context: &mut crate::text::Text_context,
+        text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let contents = self
@@ -133,7 +133,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let content = Menu_item_content {
@@ -236,7 +236,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         focus.set_active(true);
@@ -276,7 +276,8 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         _theme: State<Theme>,
         focus: &mut Focus_provider,
         _hitbox: Rect,
-        _display: &mut Display<'_>,
+        _scene: &mut Scene<'_>,
+        _text_context: &mut crate::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         Ok(None)
@@ -315,7 +316,7 @@ mod tests {
             _hitbox: &mut Hitbox,
             _parent: Hitbox,
             _problem: Component_context,
-            _text_context: &mut crate::text::Text_context,
+            _text_context: &mut crate::graphics::text::Text_context,
             _slots: &mut Slots,
         ) -> Result<Children> {
             Ok(vec![])

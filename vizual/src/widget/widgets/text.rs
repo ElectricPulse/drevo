@@ -3,8 +3,8 @@ use crate::{
     component::Children,
     component::context::Component_context,
     config::DEFAULT_FONT_SIZE,
-    display::Display,
     geometry::{Direction, Rect},
+    graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
@@ -60,7 +60,7 @@ impl Widget_trait for Text {
         hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
-        text_context: &mut crate::text::Text_context,
+        text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
         let size = text_context.measure(&self.content, self.style.get(&theme).size);
@@ -79,9 +79,10 @@ impl Widget_trait for Text {
         theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        text_context: &mut crate::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
-        let _ = display.draw_text(&self.content, hitbox.origin, self.style.get(&theme));
+        let _ = text_context.draw_text(scene, &self.content, hitbox.origin, self.style.get(&theme));
         Ok(None)
     }
 }

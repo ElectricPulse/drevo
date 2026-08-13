@@ -152,7 +152,7 @@ impl Widget_trait for Space {
         hitbox: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let spaces = self.spaces;

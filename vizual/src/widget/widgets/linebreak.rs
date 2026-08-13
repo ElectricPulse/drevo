@@ -2,8 +2,8 @@ use crate::{
     component::{Children, context::Component_context},
     config::BORDER_SIZE,
     constraint,
-    display::Display,
     geometry::{Direction, Rect},
+    graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
@@ -32,7 +32,7 @@ impl Widget_trait for Linebreak {
         hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
         problem
@@ -49,9 +49,10 @@ impl Widget_trait for Linebreak {
         theme: State<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        _text_context: &mut crate::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
-        display.fill_rect(hitbox, theme.load().semantic.border);
+        scene.fill_rect(hitbox, theme.load().semantic.border);
         Ok(None)
     }
 }

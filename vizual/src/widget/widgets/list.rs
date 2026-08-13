@@ -6,9 +6,9 @@ use super::{
     text::Text_style,
 };
 use crate::{
-    display::Display,
     event::{Key_code, Key_event},
     geometry::{Point, Rect},
+    graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     utils::{bind_index, get_next_index, get_previous_index},
 };
@@ -53,7 +53,7 @@ impl Widget_trait for List {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: crate::component::context::Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut crate::slot::manager::Slots,
     ) -> Result<crate::component::Children> {
         Ok(vec![])
@@ -64,7 +64,8 @@ impl Widget_trait for List {
         _theme: crate::state::State<crate::theme::Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        text_context: &mut crate::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         let mut y = hitbox.origin.y;
@@ -75,8 +76,12 @@ impl Widget_trait for List {
                 false => "   ",
             };
             let line = format!("{marker}{item}");
-            let size =
-                display.draw_text(&line, Point::new(hitbox.origin.x, y), Text_style::default());
+            let size = text_context.draw_text(
+                scene,
+                &line,
+                Point::new(hitbox.origin.x, y),
+                Text_style::default(),
+            );
             y += size.height;
         }
 

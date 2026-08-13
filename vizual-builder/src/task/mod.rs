@@ -20,7 +20,7 @@ impl Widget_trait for Empty_widget {
         _hitbox: &mut vizual::layouter::hitbox::Hitbox,
         _parent: vizual::layouter::hitbox::Hitbox,
         _problem: vizual::component::context::Component_context,
-        _text_context: &mut vizual::text::Text_context,
+        _text_context: &mut vizual::graphics::text::Text_context,
         _slots: &mut vizual::slot::manager::Slots,
     ) -> Result<vizual::component::Children> {
         Ok(vec![])

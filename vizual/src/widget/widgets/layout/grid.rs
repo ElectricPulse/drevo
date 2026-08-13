@@ -34,7 +34,7 @@ impl Widget_trait for Grid {
         hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         let mut children = Vec::with_capacity(self.children.len());

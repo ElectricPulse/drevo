@@ -8,10 +8,10 @@ use color_eyre::Result;
 use vizual::{
     Render,
     component::{Children, context::Component_context},
+    graphics::text::Text_context,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
-    text::Text_context,
     theme::Theme,
     widget::Focus_provider,
 };

@@ -12,9 +12,9 @@ use super::menu::Menu;
 use super::title_block::Title_block;
 use crate::{
     component::{Children, context::Component_context},
-    display::Display,
     event::{Event, Key_code, Key_event, Pointer_event},
     geometry::Rect,
+    graphics::scene::Scene,
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
@@ -41,7 +41,7 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
         hitbox: &mut Hitbox,
         parent: Hitbox,
         problem: Component_context,
-        text_context: &mut crate::text::Text_context,
+        text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         (**self)
@@ -63,9 +63,12 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
         theme: State<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        text_context: &mut crate::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
-        (**self).render(theme, focus, hitbox, display).await
+        (**self)
+            .render(theme, focus, hitbox, scene, text_context)
+            .await
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<crate::Vizual_msg> {
@@ -209,7 +212,7 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         focus.set_active(true);

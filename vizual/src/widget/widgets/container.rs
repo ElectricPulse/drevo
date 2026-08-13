@@ -41,7 +41,7 @@ impl Widget_trait for Container {
         hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
         if let Some(size) = self.fixed_size {

@@ -7,11 +7,11 @@ use super::{Focus_provider, Shared_widget, Widget_trait};
 use crate::{
     Render,
     component::{Children, context::Component_context},
+    graphics::text::Text_context,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::State,
     sync::{Mutex, Thread_safe},
-    text::Text_context,
     theme::Theme,
 };
 

@@ -8,9 +8,9 @@ use super::{
 use crate::{
     Vizual_command, Vizual_msg,
     config::SCROLLBAR_SIZE,
-    display::Display,
     event::{Event, Key_code, Key_event, Wheel_delta},
     geometry::{Point, Rect, Size},
+    graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     style::Color,
 };
@@ -45,7 +45,7 @@ impl Widget_trait for Paragraph {
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: crate::component::context::Component_context,
-        _text_context: &mut crate::text::Text_context,
+        _text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut crate::slot::manager::Slots,
     ) -> Result<crate::component::Children> {
         Ok(vec![])
@@ -56,11 +56,12 @@ impl Widget_trait for Paragraph {
         _theme: crate::state::State<crate::theme::Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
-        display: &mut Display<'_>,
+        scene: &mut Scene<'_>,
+        text_context: &mut crate::graphics::text::Text_context,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         let inner = hitbox;
-        self.viewport.prepare(display, inner.size);
+        self.viewport.prepare(text_context, inner.size);
         let content_size = self.viewport.content_size();
         let mut vertical = false;
         let mut horizontal = false;
@@ -86,12 +87,12 @@ impl Widget_trait for Paragraph {
                 (inner.size.height - f64::from(horizontal) * SCROLLBAR_SIZE).max(0.0),
             ),
         };
-        self.viewport.prepare(display, content_hitbox.size);
-        self.viewport.paint(display, content_hitbox.origin);
+        self.viewport.prepare(text_context, content_hitbox.size);
+        self.viewport.paint(scene, content_hitbox.origin);
 
         if vertical {
             paint_scrollbar(
-                display,
+                scene,
                 Rect::new(
                     inner.right() - SCROLLBAR_SIZE,
                     inner.origin.y,
@@ -107,7 +108,7 @@ impl Widget_trait for Paragraph {
         }
         if horizontal {
             paint_scrollbar(
-                display,
+                scene,
                 Rect::new(
                     inner.origin.x,
                     inner.bottom() - SCROLLBAR_SIZE,
@@ -164,7 +165,7 @@ impl Widget_trait for Paragraph {
 
 #[allow(clippy::too_many_arguments)]
 fn paint_scrollbar(
-    display: &mut Display<'_>,
+    scene: &mut Scene<'_>,
     track: Rect,
     position: f64,
     maximum: f64,
@@ -172,7 +173,7 @@ fn paint_scrollbar(
     content_length: f64,
     vertical: bool,
 ) {
-    display.fill_rect(track, Color::Dark_gray);
+    scene.fill_rect(track, Color::Dark_gray);
     let track_length = match vertical {
         true => track.size.height,
         false => track.size.width,
@@ -194,5 +195,5 @@ fn paint_scrollbar(
             size: Size::new(thumb_length, track.size.height),
         },
     };
-    display.fill_rect(thumb, Color::White);
+    scene.fill_rect(thumb, Color::White);
 }
