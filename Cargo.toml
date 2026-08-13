@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["vizual", "vizual-builder", "vizual-configurator", "vizual-macros"]
+members = ["vizual", "vizual-macros"]
 
 [workspace.dependencies]
 derive-where = "1.6.1"

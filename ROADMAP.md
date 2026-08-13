@@ -32,7 +32,7 @@ Location: /home/hackerman/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/w
 ## To-Do list
 - make scroll bars draggable
 - switch to vello hybrid
-- find one stable delta for multiple states of vizual-configurator so the menu doesnt flicker with sizes on small devices
+- find one stable delta for multiple states of the Patmat configurator so the menu doesnt flicker with sizes on small devices
 - generalize dialog (from settings) and make a click off logic
 - Switch to microlp once it adds presolve and priorities
   microlp is already a pretty slow solver since its single threaded and a presolve step is badly needed to optimize out all the equality constraints I have
