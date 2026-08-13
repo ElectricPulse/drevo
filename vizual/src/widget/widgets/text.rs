@@ -81,6 +81,7 @@ impl Widget_trait for Text {
         hitbox: Rect,
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
+        _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         let _ = text_context.draw_text(scene, &self.content, hitbox.origin, self.style.get(&theme));
         Ok(None)

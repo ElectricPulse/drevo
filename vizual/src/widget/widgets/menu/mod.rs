@@ -278,6 +278,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         _hitbox: Rect,
         _scene: &mut Scene<'_>,
         _text_context: &mut crate::graphics::text::Text_context,
+        _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         Ok(None)

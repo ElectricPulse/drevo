@@ -48,7 +48,7 @@ use winit::{
     window::{Theme as Window_theme, Window, WindowId},
 };
 
-use component::{Child_reference, Shared_component, context::Component_context};
+use component::{Child_reference, Layered_component, Shared_component, context::Component_context};
 use config::DEFAULT_SCREEN_SIZE;
 use event::{
     Event, Key_code, Key_event, Modifiers, Pointer_button, Pointer_event, Wheel_delta, Wheel_event,
@@ -259,20 +259,13 @@ impl App_problem {
     async fn render(
         &mut self,
         theme: State<Theme>,
-        solution: &Solution,
-        focus: &mut Focus,
+        context: &component::Render_context<'_>,
         text_context: &mut Text_context,
     ) -> Result<Scene> {
         let mut scene = Scene::new();
         let mut graphics_scene = Graphics_scene::new(&mut scene);
         self.root
-            .render(
-                theme,
-                focus.clone(),
-                &mut graphics_scene,
-                text_context,
-                solution,
-            )
+            .render(theme, &mut graphics_scene, text_context, context)
             .await?;
         Ok(scene)
     }
@@ -281,18 +274,20 @@ impl App_problem {
         &self,
         position: Point,
         solution: &Solution,
+        components: &[Layered_component],
     ) -> Result<Option<Shared_component>> {
         let mut target: Option<(Shared_component, Pointer_rank)> = None;
 
-        for candidate in self.root.layered_components().await? {
+        for candidate in components {
+            if !component_contains(candidate, position, solution).await? {
+                continue;
+            }
+
             let hitbox = candidate
                 .component
                 .get_hitbox()
                 .await?
                 .get_resolved(solution);
-            if !hitbox.contains(position) {
-                continue;
-            }
 
             let area = hitbox.size.width * hitbox.size.height;
             let rank = Pointer_rank {
@@ -306,7 +301,7 @@ impl App_problem {
             };
 
             if replace {
-                target = Some((candidate.component, rank));
+                target = Some((candidate.component.clone(), rank));
             }
         }
 
@@ -320,14 +315,21 @@ impl App_problem {
         solution: &Solution,
         focus: &mut Focus,
     ) -> Result<Vizual_msg> {
-        let Some(mut node) = self.pointer_target(position, solution).await? else {
+        let components = self.root.layered_components().await?;
+        let Some(mut node) = self.pointer_target(position, solution, &components).await? else {
             return Vizual_msg::none();
         };
         let mut total_message = Vizual_msg::bare();
 
         loop {
+            let candidate = components
+                .iter()
+                .find(|candidate| candidate.component.compare(&node));
+            let hits = match candidate {
+                Some(candidate) => component_contains(candidate, position, solution).await?,
+                None => false,
+            };
             let mut node_lock = node.lock().await?;
-            let hits = node_lock.hitbox.hits(solution, position);
             let parent = node_lock.parent.clone();
 
             if hits {
@@ -523,6 +525,25 @@ impl App_problem {
             Event::Wheel(_) | Event::Text(_) => Ok(Vizual_command::None),
         }
     }
+}
+
+async fn component_contains(
+    component: &Layered_component,
+    position: Point,
+    solution: &Solution,
+) -> Result<bool> {
+    if component.clips.iter().any(|clip| !clip.contains(position)) {
+        return Ok(false);
+    }
+
+    let mut hitbox = component
+        .component
+        .get_hitbox()
+        .await?
+        .get_resolved(solution);
+    hitbox.origin.x += component.translation.x;
+    hitbox.origin.y += component.translation.y;
+    Ok(hitbox.contains(position))
 }
 
 enum Ui_input {
@@ -738,8 +759,12 @@ async fn ui_loop<T: Widget_trait>(
         if matches!(command, Vizual_command::Render)
             && let (Some(problem), Some(solution)) = (&mut app_problem, &solution)
         {
+            let context = component::Render_context {
+                focus: &focus,
+                solution,
+            };
             let scene = log_duration(0, "app problem render", || {
-                problem.render(theme.clone(), solution, &mut focus, &mut text_context)
+                problem.render(theme.clone(), &context, &mut text_context)
             })
             .await?;
             if proxy.send_event(User_event::Scene(scene)).is_err() {
@@ -1199,10 +1224,12 @@ fn map_pointer_button(button: MouseButton) -> Pointer_button {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::geometry::Rect;
     use crate::widget::widgets::{
         default_root::Default_root,
         layout::grid::Grid,
         positioning::anchor::{Anchor, Anchors},
+        scroll::Scroll,
         text::Text,
     };
 
@@ -1226,6 +1253,71 @@ mod tests {
         assert!(minimum.width > 0.0);
         assert!(minimum.height > 0.0);
         let _ = problem.solve(Size::new(800.0, 600.0)).await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn scroll_lays_out_content_in_zero_origin_logical_space() -> Result<()> {
+        let render_manager = Render_manager::new();
+        let render = render_manager.render;
+        let theme = render.new_state(theme::dark_theme());
+        let root =
+            Root::new(Scroll::new(Text::new("Scrollable content ".repeat(20)))).into_shared();
+        let mut root_slot = Component_slot::new();
+        let variables = Arc::new(Variables::new());
+        let mut text_context = Text_context::new();
+        let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+
+        problem
+            .layout(render, theme.clone(), &mut text_context)
+            .await?;
+        let solution = problem.solve(Size::new(100.0, 80.0)).await?;
+        let scroll = problem.root.lock().await?.children[0].clone();
+        let content = scroll.lock().await?.children[0].clone();
+        let scroll_rect = scroll.get_hitbox().await?.get_resolved(&solution);
+        let content_rect = content.get_hitbox().await?.get_resolved(&solution);
+
+        assert_eq!(scroll_rect, Rect::new(0.0, 0.0, 100.0, 80.0));
+        assert_eq!(content_rect.origin, Point::new(0.0, 0.0));
+        assert!(content_rect.size.width > 0.0);
+        assert!(content_rect.size.height > 0.0);
+
+        let mut focus = Focus::new();
+        let context = component::Render_context {
+            focus: &focus,
+            solution: &solution,
+        };
+        let _scene = problem
+            .render(theme.clone(), &context, &mut text_context)
+            .await?;
+        focus.set(&scroll);
+        let command = problem
+            .handle_event(
+                &Event::Key(Key_event {
+                    code: Key_code::Arrow_right,
+                    modifiers: Modifiers::default(),
+                    text: None,
+                    repeat: false,
+                }),
+                &solution,
+                &mut focus,
+            )
+            .await?;
+        assert!(matches!(command, Vizual_command::Render));
+
+        let context = component::Render_context {
+            focus: &focus,
+            solution: &solution,
+        };
+        let _scene = problem.render(theme, &context, &mut text_context).await?;
+        let components = problem.root.layered_components().await?;
+        let content_component = components
+            .iter()
+            .find(|component| component.component.compare(&content))
+            .wrap_err("scroll content missing from component traversal")?;
+        assert_eq!(content_component.translation, Point::new(-32.0, 0.0));
+        assert_eq!(content_component.clips, vec![scroll_rect]);
 
         Ok(())
     }

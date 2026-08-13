@@ -80,6 +80,7 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 hitbox: ::vizual::geometry::Rect,
                 scene: &mut ::vizual::graphics::scene::Scene<'_>,
                 text_context: &mut ::vizual::graphics::text::Text_context,
+                context: &::vizual::component::Render_context<'_>,
             ) -> ::color_eyre::eyre::Result<::std::option::Option<::vizual::layouter::hitbox::Hitbox>> {
                 ::vizual::widget::Widget_trait::render(
                     &mut self.#field,
@@ -88,8 +89,15 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                     hitbox,
                     scene,
                     text_context,
+                    context,
                 )
                 .await
+            }
+
+            async fn child_render_region(
+                &self,
+            ) -> ::std::option::Option<::vizual::widget::Child_render_region> {
+                ::vizual::widget::Widget_trait::child_render_region(&self.#field).await
             }
 
             async fn on_all_events(

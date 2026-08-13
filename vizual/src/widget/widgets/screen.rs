@@ -301,6 +301,7 @@ impl Widget_trait for Screen_content {
         hitbox: Rect,
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
+        _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         let text = self.text.load();
         if text.len() != self.last_text_len {

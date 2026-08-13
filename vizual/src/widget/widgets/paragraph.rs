@@ -58,6 +58,7 @@ impl Widget_trait for Paragraph {
         hitbox: Rect,
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
+        _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         let inner = hitbox;

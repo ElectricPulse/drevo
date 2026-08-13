@@ -51,6 +51,7 @@ impl Widget_trait for Linebreak {
         hitbox: Rect,
         scene: &mut Scene<'_>,
         _text_context: &mut crate::graphics::text::Text_context,
+        _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         scene.fill_rect(hitbox, theme.load().semantic.border);
         Ok(None)

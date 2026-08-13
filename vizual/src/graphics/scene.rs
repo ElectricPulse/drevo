@@ -68,6 +68,19 @@ impl<'a> Scene<'a> {
         );
     }
 
+    pub(crate) fn append_clipped(
+        &mut self,
+        scene: &Vello_scene,
+        viewport: Rect,
+        transform: Affine,
+    ) {
+        let viewport = to_kurbo_rect(viewport);
+        self.scene
+            .push_clip_layer(Fill::NonZero, Affine::IDENTITY, &viewport);
+        self.scene.append(scene, Some(transform));
+        self.scene.pop_layer();
+    }
+
     pub(crate) fn paint_layout(
         &mut self,
         layout: &Layout<Text_brush>,

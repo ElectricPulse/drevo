@@ -65,9 +65,10 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
         hitbox: Rect,
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
+        context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         (**self)
-            .render(theme, focus, hitbox, scene, text_context)
+            .render(theme, focus, hitbox, scene, text_context, context)
             .await
     }
 

@@ -8,7 +8,7 @@ use std::sync::{Arc, Weak};
 use crate::{
     Render,
     focus::Focus,
-    geometry::Direction,
+    geometry::{Direction, Point, Rect},
     graphics::text::Text_context,
     layouter::{Solution, hitbox::Hitbox},
     slot::manager::Slot_records,
@@ -37,6 +37,11 @@ pub struct Component {
     pub parent: Parent,
     pub children: Children,
     pub slot_manager: Slot_records,
+    pub(crate) logical_root: Option<Hitbox>,
+    pub(crate) uses_logical_root: bool,
+    /// Skips this component during an ancestor's normal render traversal. Calling
+    /// [`Shared_component::render`] on this component still renders it as an explicit subtree.
+    pub r#virtual: bool,
 }
 
 /// A component as attached to its parent.
@@ -55,6 +60,13 @@ pub(crate) struct Layered_component {
     pub component: Shared_component,
     pub layer: usize,
     pub tree_order: usize,
+    pub translation: Point,
+    pub clips: Vec<Rect>,
+}
+
+pub struct Render_context<'a> {
+    pub(crate) focus: &'a Focus,
+    pub(crate) solution: &'a Solution,
 }
 
 impl From<Shared_component> for Parent {
@@ -87,6 +99,31 @@ impl Shared_component {
         Ok(self.lock().await?.hitbox.clone())
     }
 
+    pub(crate) async fn use_logical_root(&self, problem: &Component_context) -> Result<()> {
+        let variables = problem.lock().await?.variables();
+        let logical_root = {
+            let mut component = self.lock().await?;
+            let name = format!("{}.logical_root", component.name);
+            let component_path = component.debug.source_path.clone();
+            let source_path = component.debug.source_path.clone();
+            component.uses_logical_root = true;
+            component
+                .logical_root
+                .get_or_insert_with(|| Hitbox::new(&variables, name, component_path, source_path))
+                .clone()
+        };
+
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            problem
+                .constrain(crate::constraint!(
+                    logical_root.get_start_position(direction) == 0
+                ))
+                .await?;
+        }
+
+        Ok(())
+    }
+
     pub async fn share_dimension(
         &self,
         parent: Hitbox,
@@ -113,7 +150,29 @@ impl Shared_component {
 
     pub(crate) async fn layered_components(&self) -> Result<Vec<Layered_component>> {
         let mut components = Vec::new();
-        self.collect_layered_components(0, &mut components).await?;
+        self.collect_layered_components(
+            0,
+            false,
+            true,
+            Point::default(),
+            Vec::new(),
+            &mut components,
+        )
+        .await?;
+        Ok(components)
+    }
+
+    async fn render_components(&self) -> Result<Vec<Layered_component>> {
+        let mut components = Vec::new();
+        self.collect_layered_components(
+            0,
+            true,
+            true,
+            Point::default(),
+            Vec::new(),
+            &mut components,
+        )
+        .await?;
         Ok(components)
     }
 
@@ -121,19 +180,57 @@ impl Shared_component {
     async fn collect_layered_components(
         &self,
         inherited_layer: usize,
+        stop_at_virtual_components: bool,
+        is_root: bool,
+        translation: Point,
+        clips: Vec<Rect>,
         components: &mut Vec<Layered_component>,
     ) -> Result<()> {
         let layer = inherited_layer.max(self.layer);
-        let children = self.lock().await?.children.clone();
+        let component = self.lock().await?;
+        let children = component.children.clone();
+        let is_virtual = component.r#virtual;
+        let child_render_region = component.widget.child_render_region().await;
+        drop(component);
         let tree_order = components.len();
         components.push(Layered_component {
             component: self.clone(),
             layer,
             tree_order,
+            translation,
+            clips: clips.clone(),
         });
 
+        if stop_at_virtual_components && is_virtual && !is_root {
+            return Ok(());
+        }
+
+        let (child_translation, child_clips) = match child_render_region {
+            Some(region) => {
+                let mut child_clips = clips;
+                child_clips.push(translate_rect(region.clip, translation));
+                (
+                    Point::new(
+                        translation.x + region.translation.x,
+                        translation.y + region.translation.y,
+                    ),
+                    child_clips,
+                )
+            }
+            None => (translation, clips),
+        };
+
         for child in children {
-            child.collect_layered_components(layer, components).await?;
+            child
+                .collect_layered_components(
+                    layer,
+                    stop_at_virtual_components,
+                    false,
+                    child_translation,
+                    child_clips.clone(),
+                    components,
+                )
+                .await?;
         }
 
         Ok(())
@@ -210,13 +307,20 @@ impl Shared_component {
 
         for child in &children {
             let mut child = child.clone();
+            let layout_parent = {
+                let child = child.lock().await?;
+                match child.uses_logical_root {
+                    true => child.logical_root.clone().unwrap_or_else(|| hitbox.clone()),
+                    false => hitbox.clone(),
+                }
+            };
             let grandchildren = child
                 .clone()
                 .layout(
                     render.clone(),
                     theme.clone(),
                     self.clone().into(),
-                    hitbox.clone(),
+                    layout_parent,
                     problem.clone(),
                     text_context,
                 )
@@ -238,19 +342,25 @@ impl Shared_component {
     pub async fn render(
         &mut self,
         theme: State<Theme>,
-        focus: Focus,
         scene: &mut crate::graphics::scene::Scene<'_>,
         text_context: &mut Text_context,
-        solution: &Solution,
+        context: &Render_context<'_>,
     ) -> Result<()> {
-        let mut components = self.layered_components().await?;
+        let mut components = self.render_components().await?;
         components.sort_by_key(|component| (component.layer, component.tree_order));
 
         for mut component in components {
-            component
-                .component
-                .render_component(theme.clone(), focus.clone(), scene, text_context, solution)
-                .await?;
+            if component.component.compare(self) {
+                component
+                    .component
+                    .render_component_contents(theme.clone(), scene, text_context, context)
+                    .await?;
+            } else {
+                component
+                    .component
+                    .render_component(theme.clone(), scene, text_context, context)
+                    .await?;
+            }
         }
 
         Ok(())
@@ -259,18 +369,32 @@ impl Shared_component {
     async fn render_component(
         &mut self,
         theme: State<Theme>,
-        focus: Focus,
         scene: &mut crate::graphics::scene::Scene<'_>,
         text_context: &mut Text_context,
-        solution: &Solution,
+        context: &Render_context<'_>,
+    ) -> Result<()> {
+        if self.lock().await?.r#virtual {
+            return Ok(());
+        }
+
+        self.render_component_contents(theme, scene, text_context, context)
+            .await
+    }
+
+    async fn render_component_contents(
+        &mut self,
+        theme: State<Theme>,
+        scene: &mut crate::graphics::scene::Scene<'_>,
+        text_context: &mut Text_context,
+        context: &Render_context<'_>,
     ) -> Result<()> {
         let mut this = self.lock().await?;
-        let hitbox = this.hitbox.get_resolved(solution);
-        let focused = focus.compare(self);
+        let hitbox = this.hitbox.get_resolved(context.solution);
+        let focused = context.focus.compare(self);
         let mut focus = Focus_provider::new(focused);
         let maybe_hitbox = this
             .widget
-            .render(theme, &mut focus, hitbox, scene, text_context)
+            .render(theme, &mut focus, hitbox, scene, text_context, context)
             .await?;
         this.focusable = focus.is_active();
 
@@ -279,6 +403,13 @@ impl Shared_component {
         };
 
         Ok(())
+    }
+}
+
+fn translate_rect(rect: Rect, translation: Point) -> Rect {
+    Rect {
+        origin: Point::new(rect.origin.x + translation.x, rect.origin.y + translation.y),
+        size: rect.size,
     }
 }
 
@@ -331,6 +462,9 @@ mod tests {
             parent: None,
             children: Vec::new(),
             slot_manager: Slot_records::new(problem),
+            logical_root: None,
+            uses_logical_root: false,
+            r#virtual: false,
         })))
     }
 
@@ -369,6 +503,31 @@ mod tests {
             names,
             vec!["root", "layer-one", "layer-two", "layer-two-child"]
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn virtual_component_is_skipped_by_ancestor_but_can_render_as_root() -> Result<()> {
+        let variables = Arc::new(Variables::new());
+        let problem = Arc::new(Mutex::new(Problem::new(Arc::clone(&variables))));
+        let context = Component_context::new(problem);
+
+        let root = component("root", &variables, context.clone());
+        let virtual_child = component("virtual", &variables, context.clone());
+        virtual_child.lock().await?.r#virtual = true;
+        let grandchild = component("grandchild", &variables, context);
+        virtual_child.lock().await?.children = vec![grandchild.clone()];
+        root.lock().await?.children = vec![virtual_child.clone()];
+
+        let ancestor_render = root.render_components().await?;
+        assert_eq!(ancestor_render.len(), 2);
+        assert!(ancestor_render[1].component.compare(&virtual_child));
+
+        let explicit_render = virtual_child.render_components().await?;
+        assert_eq!(explicit_render.len(), 2);
+        assert!(explicit_render[0].component.compare(&virtual_child));
+        assert!(explicit_render[1].component.compare(&grandchild));
 
         Ok(())
     }

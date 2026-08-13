@@ -96,9 +96,10 @@ impl<Value: 'static> Widget_trait for Box<dyn Field<Value>> {
         hitbox: Rect,
         scene: &mut Scene<'_>,
         text_context: &mut vizual::graphics::text::Text_context,
+        context: &vizual::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         (**self)
-            .render(theme, focus, hitbox, scene, text_context)
+            .render(theme, focus, hitbox, scene, text_context, context)
             .await
     }
 
@@ -351,6 +352,7 @@ impl<T: Tree> Widget_trait for Tree_view<T> {
         _hitbox: Rect,
         _scene: &mut Scene<'_>,
         _text_context: &mut vizual::graphics::text::Text_context,
+        _context: &vizual::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         focus.set_active(true);
         Ok(None)

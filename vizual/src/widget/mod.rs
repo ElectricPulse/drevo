@@ -7,9 +7,9 @@ use derive_where::derive_where;
 use std::sync::{Arc, Weak};
 
 use crate::{
-    component::{Children, context::Component_context},
+    component::{Children, Render_context, context::Component_context},
     event::{Event, Key_event, Pointer_event},
-    geometry::Rect,
+    geometry::{Point, Rect},
     graphics::scene::Scene,
     graphics::text::Text_context,
     handlers::Retrieve_handler,
@@ -23,6 +23,12 @@ use crate::{
 use super::{Render, Vizual_msg};
 
 pub type Widget = Box<dyn Widget_trait>;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Child_render_region {
+    pub(crate) translation: Point,
+    pub(crate) clip: Rect,
+}
 
 pub struct Focus_provider {
     focused: bool,
@@ -83,6 +89,9 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
     ) -> Result<Children>;
 
     // The hitbox must be a resolved hitbox returned by the layouter.
+    // Render_context carries the root traversal's solution and focus state so a render boundary,
+    // such as Scroll, can recursively paint its retained child subtree into another scene without
+    // inventing a second layout or losing the frame's focus information.
     async fn render(
         &mut self,
         _theme: State<Theme>,
@@ -90,8 +99,13 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
         _hitbox: Rect,
         _scene: &mut Scene<'_>,
         _text_context: &mut Text_context,
+        _context: &Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         Ok(None)
+    }
+
+    async fn child_render_region(&self) -> Option<Child_render_region> {
+        None
     }
 
     // Event handling defaults to no action for non-interactive widgets.
@@ -188,10 +202,15 @@ impl Widget_trait for Widget {
         hitbox: Rect,
         scene: &mut Scene<'_>,
         text_context: &mut Text_context,
+        context: &Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         (**self)
-            .render(theme, focus, hitbox, scene, text_context)
+            .render(theme, focus, hitbox, scene, text_context, context)
             .await
+    }
+
+    async fn child_render_region(&self) -> Option<Child_render_region> {
+        (**self).child_render_region().await
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
@@ -286,12 +305,20 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
         hitbox: Rect,
         scene: &mut Scene<'_>,
         text_context: &mut Text_context,
+        context: &Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         self.0
             .lock()
             .await?
-            .render(theme, focus, hitbox, scene, text_context)
+            .render(theme, focus, hitbox, scene, text_context, context)
             .await
+    }
+
+    async fn child_render_region(&self) -> Option<Child_render_region> {
+        match self.0.lock().await {
+            Ok(widget) => widget.child_render_region().await,
+            Err(_) => None,
+        }
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
