@@ -8,18 +8,17 @@ use vizual_macros::display;
 use super::{
     super::{Focus_provider, Shared_widget, Widget, Widget_trait},
     layout::axis::Axis,
-    positioning::anchor::{Anchor, Anchors},
+    positioning::anchor::Anchor,
     text::Text,
 };
 use crate::{
-    Render,
     component::{Children, context::Component_context},
     event::{Key_code, Key_event},
     geometry::{Direction, Rect},
     graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     theme::Theme,
 };
 
@@ -32,13 +31,9 @@ pub struct Tabs {
 }
 
 impl Tabs {
-    pub fn new(render: Render, pages: Vec<Tab_specification>) -> Self {
-        let selected_page = render.new_state(Uuid::default());
+    pub fn new(pages: Vec<Tab_specification>) -> Self {
         let pages: Vec<Tab> = pages.into_iter().map(Tab::new).collect();
-
-        if let Some(initial_page) = pages.first().map(|page| page.id) {
-            selected_page.store(initial_page);
-        }
+        let selected_page = Store::new(pages.first().map(|page| page.id).unwrap_or_default());
 
         let header = Tab_bar::new(selected_page.clone(), pages);
 
@@ -55,12 +50,12 @@ struct Page {
 
 #[derive(Clone)]
 struct Tab_bar {
-    selected_page: State<Uuid>,
+    selected_page: Store<Uuid>,
     pages: Vec<Page>,
 }
 
 impl Tab_bar {
-    fn new(selected_page: State<Uuid>, tabs: Vec<Tab>) -> Self {
+    fn new(selected_page: Store<Uuid>, tabs: Vec<Tab>) -> Self {
         Self {
             pages: tabs.into_iter().map(|tab| Page { tab }).collect(),
             selected_page,
@@ -73,20 +68,26 @@ impl Tab_bar {
         self.pages.iter().position(|page| page.tab.id == id)
     }
 
-    fn get_page_index(&self) -> usize {
-        self.find_id(*self.selected_page.load()).unwrap()
+    async fn get_page_index(&self) -> Result<usize> {
+        let selected_page = *self.selected_page.read().await?;
+        self.find_id(selected_page)
+            .ok_or_else(|| color_eyre::eyre::eyre!("selected tab is not present"))
     }
 
-    fn set_page_index(&self, page_index: usize) {
+    async fn set_page_index(&self, page_index: usize) -> Result<()> {
         if let Some(page) = self.pages.get(page_index) {
-            self.selected_page.store(page.tab.id);
+            *self.selected_page.write().await? = page.tab.id;
         }
+        Ok(())
     }
 
-    fn get_selected(&self) -> Option<Widget> {
-        let index = self.find_id(*self.selected_page.load())?;
+    async fn get_selected(&self) -> Result<Option<Widget>> {
+        let selected_page = *self.selected_page.read().await?;
+        let Some(index) = self.find_id(selected_page) else {
+            return Ok(None);
+        };
 
-        Some(self.pages[index].tab.specification.widget.clone())
+        Ok(Some(self.pages[index].tab.specification.widget.clone()))
     }
 }
 
@@ -94,8 +95,8 @@ impl Tab_bar {
 impl Widget_trait for Tab_bar {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -106,15 +107,17 @@ impl Widget_trait for Tab_bar {
         focus.set_active(true);
         let mut buttons: Vec<Widget> = Vec::with_capacity(self.pages.len());
 
+        let selected_page = *self.selected_page.affect(render.clone()).await?;
+        let theme = theme.affect(render).await?;
         for page in self.pages.iter_mut() {
-            let active = self.selected_page.load() == page.tab.id.into();
+            let active = selected_page == page.tab.id;
             let mut text = Text::new(&page.tab.specification.name);
             text.style.set(match active {
-                true => theme.load().specific.text.selected_subtitle,
-                false => theme.load().specific.text.subtitle,
+                true => theme.specific.text.selected_subtitle,
+                false => theme.specific.text.subtitle,
             });
             let button = page.tab.button(text, self.selected_page.clone());
-            let button = Anchor::new(button, Anchors::left());
+            let button = Anchor::left(button);
             buttons.push(Box::new(button));
         }
 
@@ -131,18 +134,18 @@ impl Widget_trait for Tab_bar {
                 return crate::Vizual_msg::none();
             }
 
-            if digit == self.get_page_index() {
+            if digit == self.get_page_index().await? {
                 return crate::Vizual_msg::new(crate::Vizual_command::None);
             }
 
-            self.set_page_index(digit);
+            self.set_page_index(digit).await?;
             return crate::Vizual_msg::new(crate::Vizual_command::Layout);
         }
 
         if let Some(page_index) =
-            utils::handle_keys_for_iterable(key, self.pages.len(), self.get_page_index())
+            utils::handle_keys_for_iterable(key, self.pages.len(), self.get_page_index().await?)
         {
-            self.set_page_index(page_index);
+            self.set_page_index(page_index).await?;
             return crate::Vizual_msg::new(crate::Vizual_command::Layout);
         }
 
@@ -151,7 +154,8 @@ impl Widget_trait for Tab_bar {
 
     async fn render(
         &mut self,
-        _theme: State<Theme>,
+        _render: crate::Render,
+        _theme: Store<Theme>,
         focus: &mut Focus_provider,
         _hitbox: Rect,
         _scene: &mut Scene<'_>,
@@ -168,7 +172,7 @@ impl Widget_trait for Tabs {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        _theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -178,7 +182,7 @@ impl Widget_trait for Tabs {
     ) -> Result<Children> {
         let mut elements: Vec<Widget> = vec![Box::new(self.header.clone())];
         {
-            let selected = self.header.lock().await?.get_selected();
+            let selected = self.header.lock().await?.get_selected().await?;
             if let Some(widget) = selected {
                 elements.push(Box::new(widget));
             }

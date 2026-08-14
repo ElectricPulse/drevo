@@ -14,6 +14,7 @@ use vizual::{
 };
 use vizual_macros::display;
 
+#[derive(Clone)]
 struct Counter {
     value: i64,
 }
@@ -23,7 +24,7 @@ impl Widget_trait for Counter {
     async fn layout(
         &mut self,
         _render: vizual::Render,
-        _theme: vizual::state::State<vizual::theme::Theme>,
+        _theme: vizual::state::Store<vizual::theme::Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

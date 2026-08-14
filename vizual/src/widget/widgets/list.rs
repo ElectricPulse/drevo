@@ -48,7 +48,7 @@ impl Widget_trait for List {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: crate::state::State<crate::theme::Theme>,
+        _theme: crate::state::Store<crate::theme::Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -61,7 +61,8 @@ impl Widget_trait for List {
 
     async fn render(
         &mut self,
-        _theme: crate::state::State<crate::theme::Theme>,
+        _render: crate::Render,
+        _theme: crate::state::Store<crate::theme::Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,

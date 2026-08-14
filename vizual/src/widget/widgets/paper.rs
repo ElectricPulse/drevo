@@ -10,7 +10,7 @@ use crate::{
     component::{Children, context::Component_context},
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     theme::Theme,
     widget::Widget,
     widget::widgets::block::Block_style,
@@ -46,8 +46,8 @@ impl From<Theme> for Paper_style {
 impl Widget_trait for Paper {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -55,6 +55,7 @@ impl Widget_trait for Paper {
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        let theme = theme.affect(render).await?;
         let style = self.style.get(&theme);
         let block = Block::new(self.child.clone(), style.block);
         Ok(vec![display!(block)])

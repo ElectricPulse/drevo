@@ -10,7 +10,7 @@ use crate::{
     graphics::text::Text_context,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::Store,
     sync::{Mutex, Thread_safe},
     theme::Theme,
 };
@@ -25,7 +25,7 @@ pub trait Custom_widget_trait: Thread_safe {
     async fn layout(
         &mut self,
         render: Render,
-        theme: State<Theme>,
+        theme: Store<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -53,7 +53,7 @@ where
     async fn layout(
         &mut self,
         render: Render,
-        theme: State<Theme>,
+        theme: Store<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,

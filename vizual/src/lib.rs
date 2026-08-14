@@ -26,7 +26,14 @@ pub mod widget;
 
 extern crate self as vizual;
 
-use std::{fs::OpenOptions, path::Path, sync::Arc};
+use std::{
+    fs::OpenOptions,
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+};
 
 use async_recursion::async_recursion;
 use color_eyre::eyre::{ContextCompat, Result, WrapErr, eyre};
@@ -60,7 +67,7 @@ use layouter::{Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
 use render_manager::{Render_manager, Render_reciever};
 use slot::Component_slot;
-use state::State;
+use state::{State, Store};
 use sync::Mutex;
 use theme::{System_theme, Theme};
 use widget::{Shared_widget, Widget_trait, widgets::root::Root};
@@ -143,12 +150,24 @@ impl Vizual_command {
     }
 }
 
+static RENDER_ID: AtomicU64 = AtomicU64::new(0);
+
 #[derive(Clone)]
-pub struct Render(pub(crate) mpsc::UnboundedSender<()>);
+pub struct Render {
+    pub(crate) id: u64,
+    sender: mpsc::UnboundedSender<()>,
+}
 
 impl Render {
+    pub(crate) fn new(sender: mpsc::UnboundedSender<()>) -> Self {
+        Self {
+            id: RENDER_ID.fetch_add(1, Ordering::Relaxed),
+            sender,
+        }
+    }
+
     pub fn send(&self) {
-        let _ = self.0.send(());
+        let _ = self.sender.send(());
     }
 }
 
@@ -200,7 +219,7 @@ impl App_problem {
     async fn layout(
         &mut self,
         render: Render,
-        theme: State<Theme>,
+        theme: Store<Theme>,
         text_context: &mut Text_context,
     ) -> Result<()> {
         let children = self
@@ -258,14 +277,15 @@ impl App_problem {
 
     async fn render(
         &mut self,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         context: &component::Render_context<'_>,
         text_context: &mut Text_context,
     ) -> Result<Scene> {
         let mut scene = Scene::new();
         let mut graphics_scene = Graphics_scene::new(&mut scene);
         self.root
-            .render(theme, &mut graphics_scene, text_context, context)
+            .render(render, theme, &mut graphics_scene, text_context, context)
             .await?;
         Ok(scene)
     }
@@ -549,6 +569,7 @@ enum Ui_input {
     Event(Event),
     Resize(Size),
     Render,
+    System_theme(System_theme),
 }
 
 // TODO: This message-passing layer is probably unnecessary.
@@ -563,7 +584,7 @@ enum User_event {
 async fn layout_problem<T: Widget_trait>(
     root: Shared_widget<T>,
     render: Render,
-    theme: State<Theme>,
+    theme: Store<Theme>,
     root_slot: &mut Component_slot,
     text_context: &mut Text_context,
     variables: Arc<Variables>,
@@ -580,7 +601,7 @@ async fn layout_problem<T: Widget_trait>(
 async fn ui_loop<T: Widget_trait>(
     root: Shared_widget<T>,
     render: Render,
-    theme: State<Theme>,
+    theme: Store<Theme>,
     mut render_reciever: Render_reciever,
     mut input_receiver: mpsc::UnboundedReceiver<Ui_input>,
     proxy: EventLoopProxy<User_event>,
@@ -642,6 +663,11 @@ async fn ui_loop<T: Widget_trait>(
         };
 
         let mut command = match input {
+            Ui_input::System_theme(system) => {
+                let updated = theme.read().await?.set_system(system);
+                *theme.write().await? = updated;
+                continue;
+            }
             Ui_input::Initialize(maximum_size) => {
                 // This technically performs one extra layout call before the window-driven layout loop starts.
                 let (_, minimum_size) = layout_problem(
@@ -762,7 +788,7 @@ async fn ui_loop<T: Widget_trait>(
                 solution,
             };
             let scene = log_duration(0, "app problem render", || {
-                problem.render(theme.clone(), &context, &mut text_context)
+                problem.render(render.clone(), theme.clone(), &context, &mut text_context)
             })
             .await?;
             if proxy.send_event(User_event::Scene(scene)).is_err() {
@@ -787,7 +813,6 @@ struct Render_state {
 
 struct Window_app {
     title: String,
-    theme: State<Theme>,
     context: RenderContext,
     renderer: Option<Renderer>,
     state: Option<Render_state>,
@@ -838,7 +863,7 @@ impl Window_app {
 
     fn initialize_window(&mut self, event_loop: &ActiveEventLoop, window: Arc<Window>) {
         if let Some(system) = window.theme().map(map_system_theme) {
-            self.theme.set(self.theme.load().set_system(system));
+            let _ = self.input.send(Ui_input::System_theme(system));
         }
         self.scale_factor = window.scale_factor();
         let size = window.inner_size();
@@ -1004,7 +1029,7 @@ impl ApplicationHandler<User_event> for Window_app {
             .system_theme()
             .map(map_system_theme)
             .unwrap_or(System_theme::Dark);
-        self.theme.set(self.theme.load().set_system(system));
+        let _ = self.input.send(Ui_input::System_theme(system));
 
         if self.state.is_some() {
             return;
@@ -1057,7 +1082,7 @@ impl ApplicationHandler<User_event> for Window_app {
             }
             WindowEvent::ThemeChanged(theme) => {
                 let system = map_system_theme(theme);
-                self.theme.set(self.theme.load().set_system(system));
+                let _ = self.input.send(Ui_input::System_theme(system));
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let position = position.to_logical::<f64>(self.scale_factor);
@@ -1225,11 +1250,8 @@ mod tests {
     use super::*;
     use crate::geometry::Rect;
     use crate::widget::widgets::{
-        default_root::Default_root,
-        layout::grid::Grid,
-        positioning::anchor::{Anchor, Anchors},
-        scroll::Scroll,
-        text::Text,
+        default_root::Default_root, layout::grid::Grid, positioning::anchor::Anchor,
+        scroll::Scroll, text::Text,
     };
 
     #[derive(Clone)]
@@ -1240,7 +1262,7 @@ mod tests {
         async fn layout(
             &mut self,
             _render: Render,
-            _theme: State<Theme>,
+            _theme: Store<Theme>,
             _focus: &mut crate::widget::Focus_provider,
             hitbox: &mut Hitbox,
             parent: Hitbox,
@@ -1281,11 +1303,10 @@ mod tests {
     async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Result<()> {
         let render_manager = Render_manager::new();
         let render = render_manager.render;
-        let theme = render.new_state(theme::dark_theme());
-        let body = Anchor::new(Text::new("Body"), Anchors::top_left());
+        let theme = Store::new(theme::dark_theme());
+        let body = Anchor::top_left(Text::new("Body"));
         let application =
-            Default_root::new("Test", Grid::new(vec![Box::new(body)], 0.0), render.clone())
-                .into_shared();
+            Default_root::new("Test", Grid::new(vec![Box::new(body)], 0.0)).into_shared();
         let root = Root::new(application).into_shared();
         let mut root_slot = Component_slot::new();
         let variables = Arc::new(Variables::new());
@@ -1305,7 +1326,7 @@ mod tests {
     async fn scroll_lays_out_content_in_zero_origin_logical_space() -> Result<()> {
         let render_manager = Render_manager::new();
         let render = render_manager.render;
-        let theme = render.new_state(theme::dark_theme());
+        let theme = Store::new(theme::dark_theme());
         let root =
             Root::new(Scroll::new(Text::new("Scrollable content ".repeat(20)))).into_shared();
         let mut root_slot = Component_slot::new();
@@ -1314,7 +1335,7 @@ mod tests {
         let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
 
         problem
-            .layout(render, theme.clone(), &mut text_context)
+            .layout(render.clone(), theme.clone(), &mut text_context)
             .await?;
         let solution = problem.solve(Size::new(100.0, 80.0)).await?;
         let scroll = problem.root.lock().await?.children[0].clone();
@@ -1336,7 +1357,7 @@ mod tests {
             solution: &solution,
         };
         let _scene = problem
-            .render(theme.clone(), &context, &mut text_context)
+            .render(render.clone(), theme.clone(), &context, &mut text_context)
             .await?;
         focus.set(&scroll);
         let command = problem
@@ -1357,7 +1378,9 @@ mod tests {
             focus: &focus,
             solution: &solution,
         };
-        let _scene = problem.render(theme, &context, &mut text_context).await?;
+        let _scene = problem
+            .render(render, theme, &context, &mut text_context)
+            .await?;
         assert!(frame.lock().await?.logical);
 
         Ok(())
@@ -1367,7 +1390,7 @@ mod tests {
     async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Result<()> {
         let render_manager = Render_manager::new();
         let render = render_manager.render;
-        let theme = render.new_state(theme::dark_theme());
+        let theme = Store::new(theme::dark_theme());
         let root = Root::new(Scroll::new(Offset_click)).into_shared();
         let mut root_slot = Component_slot::new();
         let variables = Arc::new(Variables::new());
@@ -1375,7 +1398,7 @@ mod tests {
         let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
 
         problem
-            .layout(render, theme.clone(), &mut text_context)
+            .layout(render.clone(), theme.clone(), &mut text_context)
             .await?;
         let solution = problem.solve(Size::new(40.0, 30.0)).await?;
         let scroll = problem.root.lock().await?.children[0].clone();
@@ -1387,7 +1410,7 @@ mod tests {
             solution: &solution,
         };
         let _scene = problem
-            .render(theme.clone(), &context, &mut text_context)
+            .render(render.clone(), theme.clone(), &context, &mut text_context)
             .await?;
 
         for _ in 0..2 {
@@ -1410,7 +1433,9 @@ mod tests {
             focus: &focus,
             solution: &solution,
         };
-        let _scene = problem.render(theme, &context, &mut text_context).await?;
+        let _scene = problem
+            .render(render, theme, &context, &mut text_context)
+            .await?;
         let command = problem
             .handle_event(
                 &Event::Pointer(Pointer_event {
@@ -1471,7 +1496,7 @@ pub fn run<T: Widget_trait>(
     render_manager: Render_manager,
 ) -> Result<()> {
     let Render_manager { render, reciever } = render_manager;
-    let theme = render.new_state(Theme::default());
+    let theme = Store::new(Theme::default());
     let root = Root::new(root).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
         .wrap_err("vizual::run requires an active Tokio runtime")?;
@@ -1489,7 +1514,6 @@ pub fn run<T: Widget_trait>(
     });
     let mut app = Window_app {
         title: title.into(),
-        theme,
         context: RenderContext::new(),
         renderer: None,
         state: None,

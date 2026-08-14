@@ -14,7 +14,7 @@ impl Render_manager {
         let (sender, reciever) = mpsc::unbounded_channel();
 
         Self {
-            render: Render(sender),
+            render: Render::new(sender),
             reciever: Render_reciever(reciever),
         }
     }

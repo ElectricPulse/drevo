@@ -12,7 +12,7 @@ use crate::{
     graphics::text::Text_context,
     layouter::{Solution, hitbox::Hitbox},
     slot::manager::Slot_records,
-    state::State,
+    state::Store,
     sync::{Mutex, MutexGuard},
     theme::Theme,
     widget::{Focus_provider, Widget},
@@ -157,7 +157,7 @@ impl Shared_component {
     pub async fn layout(
         &mut self,
         render: Render,
-        theme: State<Theme>,
+        theme: Store<Theme>,
         parent_reference: Parent,
         parent: Hitbox,
         mut problem: Component_context,
@@ -212,7 +212,7 @@ impl Shared_component {
     pub async fn layout_children(
         &mut self,
         render: Render,
-        theme: State<Theme>,
+        theme: Store<Theme>,
         children: Children,
         mut problem: Component_context,
         text_context: &mut Text_context,
@@ -253,7 +253,8 @@ impl Shared_component {
 
     pub async fn render(
         &mut self,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         scene: &mut crate::graphics::scene::Scene<'_>,
         text_context: &mut Text_context,
         context: &Render_context<'_>,
@@ -264,7 +265,7 @@ impl Shared_component {
         for mut component in components {
             component
                 .component
-                .render_component(theme.clone(), scene, text_context, context)
+                .render_component(render.clone(), theme.clone(), scene, text_context, context)
                 .await?;
         }
 
@@ -273,7 +274,8 @@ impl Shared_component {
 
     async fn render_component(
         &mut self,
-        theme: State<Theme>,
+        render: Render,
+        theme: Store<Theme>,
         scene: &mut crate::graphics::scene::Scene<'_>,
         text_context: &mut Text_context,
         context: &Render_context<'_>,
@@ -284,7 +286,15 @@ impl Shared_component {
         let mut focus = Focus_provider::new(focused);
         let maybe_hitbox = this
             .widget
-            .render(theme, &mut focus, hitbox, scene, text_context, context)
+            .render(
+                render,
+                theme,
+                &mut focus,
+                hitbox,
+                scene,
+                text_context,
+                context,
+            )
             .await?;
         this.focusable = focus.is_active();
 
@@ -309,12 +319,17 @@ mod tests {
     #[derive(Clone)]
     struct Empty_widget;
 
+    #[derive(Clone, vizual_macros::Widget_trait)]
+    struct Derived_widget {
+        widget: Empty_widget,
+    }
+
     #[async_trait::async_trait]
     impl Widget_trait for Empty_widget {
         async fn layout(
             &mut self,
             _render: crate::Render,
-            _theme: crate::state::State<crate::theme::Theme>,
+            _theme: crate::state::Store<crate::theme::Theme>,
             _focus: &mut crate::widget::Focus_provider,
             _hitbox: &mut Hitbox,
             _parent: Hitbox,
@@ -324,6 +339,16 @@ mod tests {
         ) -> Result<Children> {
             Ok(vec![])
         }
+    }
+
+    #[test]
+    fn widget_derive_forwards_the_current_trait_interface() {
+        fn assert_widget<Widget: Widget_trait>() {}
+
+        assert_widget::<Derived_widget>();
+        let _ = Derived_widget {
+            widget: Empty_widget,
+        };
     }
 
     fn component(

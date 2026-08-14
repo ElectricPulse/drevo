@@ -1,4 +1,4 @@
-use crate::{state::State, theme::Theme};
+use crate::theme::Theme;
 
 #[derive(Clone)]
 pub struct Style<ConcreteStyle: From<Theme>> {
@@ -16,10 +16,10 @@ impl<ConcreteStyle: From<Theme> + Clone> Style<ConcreteStyle> {
         self.concrete = Some(concrete);
     }
 
-    pub fn get(&self, theme: &State<Theme>) -> ConcreteStyle {
+    pub fn get(&self, theme: &Theme) -> ConcreteStyle {
         self.concrete
             .clone()
-            .unwrap_or_else(|| ConcreteStyle::from((*theme.load()).clone()))
+            .unwrap_or_else(|| ConcreteStyle::from(theme.clone()))
     }
 }
 

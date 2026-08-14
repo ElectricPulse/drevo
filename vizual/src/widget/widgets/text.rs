@@ -7,7 +7,7 @@ use crate::{
     graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     style::{Color, Style},
     theme::Theme,
 };
@@ -37,12 +37,12 @@ impl From<Theme> for Text_style {
 
 #[derive(Clone)]
 pub struct Text {
-    content: String,
+    content: Box<dyn State<Output = String>>,
     pub style: Style<Text_style>,
 }
 
 impl Text {
-    pub fn new(content: impl Into<String>) -> Self {
+    pub fn new(content: impl Into<Box<dyn State<Output = String>>>) -> Self {
         Self {
             content: content.into(),
             style: Style::default(),
@@ -54,8 +54,8 @@ impl Text {
 impl Widget_trait for Text {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -63,7 +63,9 @@ impl Widget_trait for Text {
         text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
-        let size = text_context.measure(&self.content, self.style.get(&theme).size);
+        let content = self.content.affect(render.clone()).await?;
+        let theme = theme.affect(render).await?;
+        let size = text_context.measure(&content, self.style.get(&theme).size);
         hitbox
             .set_static_dimension(&problem, Direction::Horizontal, size.width)
             .await?;
@@ -76,14 +78,17 @@ impl Widget_trait for Text {
 
     async fn render(
         &mut self,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
-        let _ = text_context.draw_text(scene, &self.content, hitbox.origin, self.style.get(&theme));
+        let content = self.content.affect(render.clone()).await?;
+        let theme = theme.affect(render).await?;
+        let _ = text_context.draw_text(scene, &content, hitbox.origin, self.style.get(&theme));
         Ok(None)
     }
 }

@@ -4,7 +4,7 @@ use crate::{
     geometry::Direction,
     layouter::{hitbox::Hitbox, objective::minimize},
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     style::Style,
     theme::Theme,
     widget::{Focus_provider, Widget, Widget_trait, widgets::container::Container},
@@ -47,8 +47,8 @@ impl Axis {
 impl Widget_trait for Axis {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -73,6 +73,7 @@ impl Widget_trait for Axis {
                 0,
             )?;
 
+            let theme = theme.affect(render).await?;
             let Axis_style::Gap(gap) = self.style.get(&theme);
             // One delta controls every gap belonging to this axis.
             let gap_delta = problem.add_delta("axis-gap-delta", self.priority).await?;

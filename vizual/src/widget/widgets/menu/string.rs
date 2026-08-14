@@ -11,7 +11,7 @@ use crate::{
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     theme::Theme,
     widget::custom_widget::Custom_widget_trait,
 };
@@ -34,8 +34,8 @@ impl Custom_widget_trait for String_menu_item {
 
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -44,10 +44,11 @@ impl Custom_widget_trait for String_menu_item {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
+        let theme = theme.affect(render).await?;
         let mut text = Text::new(self.value.clone());
         text.style.set(match selected {
-            true => theme.load().specific.text.selected_subtitle,
-            false => theme.load().specific.text.subtitle,
+            true => theme.specific.text.selected_subtitle,
+            false => theme.specific.text.subtitle,
         });
 
         Ok(vec![display!(text)])
@@ -55,7 +56,7 @@ impl Custom_widget_trait for String_menu_item {
 }
 
 impl Menu<String> {
-    pub fn text(items: Vec<String>, default_item: usize, render: crate::Render) -> Self {
+    pub fn text(items: Vec<String>, default_item: usize) -> Self {
         let items = items
             .into_iter()
             .map(|value| -> Shared_menu_item<String> {
@@ -68,6 +69,6 @@ impl Menu<String> {
                 .expect("Default menu item index must be in range"),
         );
 
-        Self::new(items, default_item, render)
+        Self::new(items, default_item)
     }
 }

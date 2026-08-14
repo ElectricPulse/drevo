@@ -8,7 +8,7 @@ use crate::{
     graphics::scene::Scene,
     layouter::{hitbox::Hitbox, objective::Delta},
     slot::manager::Slots,
-    state::State,
+    state::Store,
     style::Color,
     theme::Theme,
     widget::Widget,
@@ -56,7 +56,7 @@ impl Widget_trait for Block {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        _theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -75,7 +75,8 @@ impl Widget_trait for Block {
 
     async fn render(
         &mut self,
-        _theme: State<Theme>,
+        _render: crate::Render,
+        _theme: Store<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,

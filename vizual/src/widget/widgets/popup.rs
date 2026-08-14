@@ -7,7 +7,7 @@ use super::{
     button::Button,
     layout::axis::Axis,
     menu::{Menu, Shared_menu_item, get_selector},
-    positioning::anchor::{Anchor, Anchors},
+    positioning::anchor::Anchor,
     text::Text,
     title_block::Title_block,
 };
@@ -19,7 +19,7 @@ use crate::{
     handlers::{Retrieve_handler, Submit_handler},
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     theme::Theme,
     widget::custom_widget::Custom_widget_trait,
 };
@@ -69,8 +69,8 @@ impl Custom_widget_trait for Popup_menu_item {
 
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -79,10 +79,11 @@ impl Custom_widget_trait for Popup_menu_item {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
+        let theme = theme.affect(render).await?;
         let mut text = Text::new(self.option.label());
         text.style.set(match selected {
-            true => theme.load().specific.text.selected_subtitle,
-            false => theme.load().specific.text.subtitle,
+            true => theme.specific.text.selected_subtitle,
+            false => theme.specific.text.subtitle,
         });
 
         Ok(vec![display!(text)])
@@ -129,7 +130,7 @@ pub struct Popup {
 }
 
 impl Popup {
-    pub fn new(submit_handler: impl Submit_handler<bool>, render: crate::Render) -> Self {
+    pub fn new(submit_handler: impl Submit_handler<bool>) -> Self {
         let items = Popup_options::ALL
             .into_iter()
             .map(|option| -> Shared_menu_item<Popup_options> {
@@ -137,7 +138,7 @@ impl Popup {
             })
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[0]);
-        let menu = Widget_trait::into_shared(Menu::new(items, default_item, render));
+        let menu = Widget_trait::into_shared(Menu::new(items, default_item));
         let submit_handler: Box<dyn Submit_handler<Popup_options>> =
             Box::new(Popup_submit_handler {
                 subhandler: Box::new(submit_handler),
@@ -154,8 +155,8 @@ impl Popup {
 impl Widget_trait for Popup {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -163,8 +164,9 @@ impl Widget_trait for Popup {
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        let theme = theme.affect(render).await?;
         let mut text = Text::new("Submit");
-        text.style.set(theme.load().specific.text.selected_subtitle);
+        text.style.set(theme.specific.text.selected_subtitle);
         let button = Button::new(
             text,
             Popup_button_handler {
@@ -172,11 +174,11 @@ impl Widget_trait for Popup {
                 submit_handler: self.submit_handler.clone(),
             },
         );
-        let button = Anchor::new(button, Anchors::left());
-        let menu = Anchor::new(self.menu.clone(), Anchors::left());
+        let button = Anchor::left(button);
+        let menu = Anchor::left(self.menu.clone());
         let axis = Axis::new(Direction::Vertical, vec![Box::new(menu), Box::new(button)]);
         let block = Title_block::new(axis, "Are you sure you want to quit?");
-        let anchor = Anchor::new(block, Anchors::middle());
+        let anchor = Anchor::middle(block);
         Ok(vec![display!(anchor)])
     }
 

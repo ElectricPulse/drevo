@@ -15,7 +15,7 @@ use crate::{
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
     slot::{Component_slot, manager::Slots},
-    state::State,
+    state::Store,
     sync::{Mutex, MutexGuard, Thread_safe},
     theme::Theme,
 };
@@ -73,7 +73,7 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
     async fn layout(
         &mut self,
         _render: Render,
-        _theme: State<Theme>,
+        _theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -88,7 +88,8 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
     // inventing a second layout or losing the frame's focus information.
     async fn render(
         &mut self,
-        _theme: State<Theme>,
+        _render: crate::Render,
+        _theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: Rect,
         _scene: &mut Scene<'_>,
@@ -163,7 +164,7 @@ impl Widget_trait for Widget {
     async fn layout(
         &mut self,
         render: Render,
-        theme: State<Theme>,
+        theme: Store<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -187,7 +188,8 @@ impl Widget_trait for Widget {
 
     async fn render(
         &mut self,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,
@@ -195,7 +197,7 @@ impl Widget_trait for Widget {
         context: &Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         (**self)
-            .render(theme, focus, hitbox, scene, text_context, context)
+            .render(render, theme, focus, hitbox, scene, text_context, context)
             .await
     }
 
@@ -260,7 +262,7 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
     async fn layout(
         &mut self,
         render: Render,
-        theme: State<Theme>,
+        theme: Store<Theme>,
         focus: &mut Focus_provider,
         component: &mut Hitbox,
         parent: Hitbox,
@@ -286,7 +288,8 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
 
     async fn render(
         &mut self,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,
@@ -296,7 +299,7 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
         self.0
             .lock()
             .await?
-            .render(theme, focus, hitbox, scene, text_context, context)
+            .render(render, theme, focus, hitbox, scene, text_context, context)
             .await
     }
 

@@ -18,7 +18,7 @@ use crate::{
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::Store,
     sync::Thread_safe,
     theme::Theme,
     utils::get_next_index,
@@ -36,7 +36,7 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
     async fn layout(
         &mut self,
         render: crate::Render,
-        theme: State<Theme>,
+        theme: Store<Theme>,
         focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,
@@ -60,7 +60,8 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
 
     async fn render(
         &mut self,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,
@@ -68,7 +69,7 @@ impl<Config: 'static> Widget_trait for Box<dyn Field<Config>> {
         context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
         (**self)
-            .render(theme, focus, hitbox, scene, text_context, context)
+            .render(render, theme, focus, hitbox, scene, text_context, context)
             .await
     }
 
@@ -138,7 +139,6 @@ impl<Config: Clone + Thread_safe> Form<Config> {
         fields: Fields<Config>,
         config: Config,
         on_submit: Submit_fn,
-        render: crate::Render,
     ) -> Self
     where
         Submit_fn: Fn(Config) -> Submit_future_impl + Thread_safe + Clone,
@@ -154,7 +154,7 @@ impl<Config: Clone + Thread_safe> Form<Config> {
             field_index: 0,
             field_active: false,
             exitting: false,
-            exit_menu: Menu::boolean(false, render).into_shared(),
+            exit_menu: Menu::boolean(false).into_shared(),
             fields,
             on_submit: Box::new(move |config| -> Submit_future { Box::pin(on_submit(config)) }),
         }
@@ -177,7 +177,7 @@ impl<Config: Clone + Thread_safe> Form<Config> {
     }
 
     async fn ensure_exit_menu_closed(&mut self) -> Result<()> {
-        self.exit_menu.lock().await?.set_selected(false)?;
+        self.exit_menu.lock().await?.set_selected(false).await?;
         self.field_active = false;
         self.exitting = false;
         Ok(())
@@ -208,7 +208,7 @@ impl<Config: Clone + Thread_safe> Widget_trait for Form<Config> {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        _theme: Store<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

@@ -10,7 +10,7 @@ use crate::{
     style::Color,
 };
 
-use super::text::{Text_brush, Text_window};
+use super::text::Text_brush;
 
 enum Decoration {
     Underline,
@@ -81,42 +81,21 @@ impl<'a> Scene<'a> {
         self.scene.pop_layer();
     }
 
-    pub(crate) fn paint_layout(
-        &mut self,
-        layout: &Layout<Text_brush>,
-        origin: Point,
-        viewport: Option<Text_window>,
-        hint: bool,
-    ) {
-        let scroll = viewport.map(|window| window.offset).unwrap_or_default();
-        let transform = Affine::translate((origin.x - scroll.x, origin.y - scroll.y));
+    pub(crate) fn paint_layout(&mut self, layout: &Layout<Text_brush>, origin: Point, hint: bool) {
+        let transform = Affine::translate((origin.x, origin.y));
 
         for line in layout.lines() {
             let metrics = line.metrics();
-            if let Some(window) = viewport
-                && (f64::from(metrics.block_max_coord) < window.offset.y
-                    || f64::from(metrics.block_min_coord) > window.offset.y + window.size.height)
-            {
-                continue;
-            }
 
             for item in line.items() {
                 let PositionedLayoutItem::GlyphRun(glyph_run) = item else {
                     continue;
                 };
                 let style = glyph_run.style();
-                let visible_x =
-                    viewport.map(|window| (window.offset.x, window.offset.x + window.size.width));
 
                 if let Some(background) = &style.brush.background {
                     let start = f64::from(glyph_run.offset());
                     let end = f64::from(glyph_run.offset() + glyph_run.advance());
-                    let (start, end) = match visible_x {
-                        Some((visible_start, visible_end)) => {
-                            (start.max(visible_start), end.min(visible_end))
-                        }
-                        None => (start, end),
-                    };
 
                     if end > start {
                         self.scene.fill(
@@ -134,28 +113,17 @@ impl<'a> Scene<'a> {
                     }
                 }
 
-                self.paint_decoration(transform, &glyph_run, visible_x, Decoration::Underline);
+                self.paint_decoration(transform, &glyph_run, None, Decoration::Underline);
 
                 let run = glyph_run.run();
                 let synthesis = run.synthesis();
                 let glyph_transform = synthesis
                     .skew()
                     .map(|angle| Affine::skew(angle.to_radians().tan() as f64, 0.0));
-                let glyphs = glyph_run.positioned_glyphs().filter_map(|glyph| {
-                    let visible = match visible_x {
-                        Some((start, end)) => {
-                            let glyph_start = f64::from(glyph.x);
-                            let glyph_end = glyph_start + f64::from(glyph.advance);
-                            glyph_end >= start && glyph_start <= end
-                        }
-                        None => true,
-                    };
-
-                    visible.then_some(Glyph {
-                        id: glyph.id,
-                        x: glyph.x,
-                        y: glyph.y,
-                    })
+                let glyphs = glyph_run.positioned_glyphs().map(|glyph| Glyph {
+                    id: glyph.id,
+                    x: glyph.x,
+                    y: glyph.y,
                 });
 
                 self.scene
@@ -168,7 +136,7 @@ impl<'a> Scene<'a> {
                     .normalized_coords(run.normalized_coords())
                     .draw(Fill::NonZero, glyphs);
 
-                self.paint_decoration(transform, &glyph_run, visible_x, Decoration::Strikethrough);
+                self.paint_decoration(transform, &glyph_run, None, Decoration::Strikethrough);
             }
         }
     }

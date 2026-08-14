@@ -11,7 +11,7 @@ use crate::{
     handlers::Submit_handler,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::Store,
     style::Color,
     theme::Theme,
     widget::widgets::{
@@ -102,7 +102,7 @@ impl Widget_trait for Text_input {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        _theme: Store<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

@@ -16,7 +16,7 @@ use crate::{
     component::{Children, context::Component_context},
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     theme::Theme,
     widget::{Focus_provider, Widget, Widget_trait},
 };
@@ -24,12 +24,12 @@ use crate::{
 #[derive(Clone)]
 pub struct Header {
     name: String,
-    open: State<bool>,
-    choice: State<Theme_choice>,
+    open: Store<bool>,
+    choice: Store<Theme_choice>,
 }
 
 impl Header {
-    pub fn new(name: impl Into<String>, open: State<bool>, choice: State<Theme_choice>) -> Self {
+    pub fn new(name: impl Into<String>, open: Store<bool>, choice: Store<Theme_choice>) -> Self {
         Self {
             name: name.into(),
             open,
@@ -42,8 +42,8 @@ impl Header {
 impl Widget_trait for Header {
     async fn layout(
         &mut self,
-        _render: Render,
-        theme: State<Theme>,
+        render: Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -51,8 +51,9 @@ impl Widget_trait for Header {
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        let theme = theme.affect(render).await?;
         let mut name = Text::new(self.name.clone());
-        name.style.set(theme.load().specific.text.title);
+        name.style.set(theme.specific.text.title);
         let name = Anchor::new(
             name,
             Anchors {

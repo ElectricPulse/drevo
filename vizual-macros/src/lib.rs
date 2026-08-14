@@ -51,7 +51,7 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
             async fn layout(
                 &mut self,
                 render: ::vizual::Render,
-                theme: ::vizual::state::State<::vizual::theme::Theme>,
+                theme: ::vizual::state::Store<::vizual::theme::Theme>,
                 focus: &mut ::vizual::widget::Focus_provider,
                 hitbox: &mut ::vizual::layouter::hitbox::Hitbox,
                 parent: ::vizual::layouter::hitbox::Hitbox,
@@ -75,7 +75,8 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
 
             async fn render(
                 &mut self,
-                theme: ::vizual::state::State<::vizual::theme::Theme>,
+                render: ::vizual::Render,
+                theme: ::vizual::state::Store<::vizual::theme::Theme>,
                 focus: &mut ::vizual::widget::Focus_provider,
                 hitbox: ::vizual::geometry::Rect,
                 scene: &mut ::vizual::graphics::scene::Scene<'_>,
@@ -84,6 +85,7 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
             ) -> ::color_eyre::eyre::Result<::std::option::Option<::vizual::layouter::hitbox::Hitbox>> {
                 ::vizual::widget::Widget_trait::render(
                     &mut self.#field,
+                    render,
                     theme,
                     focus,
                     hitbox,

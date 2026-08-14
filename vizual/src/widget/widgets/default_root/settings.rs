@@ -26,7 +26,7 @@ use crate::{
     handlers::Retrieve_handler,
     layouter::{hitbox::Hitbox, objective::minimize},
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     theme::{System_theme, Theme},
     widget::{
         Focus_provider, Widget, Widget_trait,
@@ -75,7 +75,7 @@ impl Widget_trait for Empty {
     async fn layout(
         &mut self,
         _render: Render,
-        _theme: State<Theme>,
+        _theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -105,8 +105,8 @@ impl Custom_widget_trait for Theme_menu_item {
 
     async fn layout(
         &mut self,
-        _render: Render,
-        theme: State<Theme>,
+        render: Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -115,7 +115,7 @@ impl Custom_widget_trait for Theme_menu_item {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
-        let current_theme = theme.load();
+        let current_theme = theme.affect(render).await?;
         let preview_theme = self.choice.resolve(&current_theme);
         let mut text = Text::new(label(self.choice, current_theme.system()));
 
@@ -154,12 +154,12 @@ impl Custom_widget_trait for Theme_menu_item {
 
 #[derive(Clone)]
 pub(super) struct Settings {
-    open: State<bool>,
-    choice: State<Theme_choice>,
+    open: Store<bool>,
+    choice: Store<Theme_choice>,
 }
 
 impl Settings {
-    pub(super) fn new(open: State<bool>, choice: State<Theme_choice>) -> Self {
+    pub(super) fn new(open: Store<bool>, choice: Store<Theme_choice>) -> Self {
         Self { open, choice }
     }
 }
@@ -183,8 +183,8 @@ impl Positioned_menu {
 impl Widget_trait for Positioned_menu {
     async fn layout(
         &mut self,
-        _render: Render,
-        theme: State<Theme>,
+        render: Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -196,9 +196,10 @@ impl Widget_trait for Positioned_menu {
             - self.button.get_end_position(Direction::Horizontal);
         // Keep the picker half an ordinary axis gap below the settings button while aligning
         // their right edges.
+        let gap = theme.affect(render).await?.semantic.axis.gap;
         let vertical_difference = hitbox.get_start_position(Direction::Vertical)
             - self.button.get_end_position(Direction::Vertical)
-            - theme.load().semantic.axis.gap * 0.5;
+            - gap * 0.5;
         let horizontal_distance = problem
             .add_nonnegative_variable("settings-menu-horizontal-distance")
             .await?;
@@ -246,7 +247,7 @@ impl Widget_trait for Settings {
     async fn layout(
         &mut self,
         render: Render,
-        theme: State<Theme>,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -254,13 +255,15 @@ impl Widget_trait for Settings {
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let choice = *self.choice.load();
-        let current_theme = theme.load();
+        let choice = *self.choice.affect(render.clone()).await?;
+        let current_theme = theme.affect(render.clone()).await?;
         if !choice.is_selected(&current_theme) {
-            theme.set(choice.resolve(&current_theme));
+            let resolved_theme = choice.resolve(&current_theme);
+            drop(current_theme);
+            *theme.write().await? = resolved_theme;
         }
 
-        let open = *self.open.load();
+        let open = *self.open.affect(render).await?;
         let icon = Icon::new(Lucide_icon::Settings);
         let mut button = Button::around(icon);
         button.highlighted = open;
@@ -286,7 +289,7 @@ impl Widget_trait for Settings {
 
         let selected_index = choices
             .iter()
-            .position(|candidate| *candidate == *self.choice.load())
+            .position(|candidate| *candidate == choice)
             .expect("selected theme choice must be present in the theme menu");
 
         let items = choices
@@ -298,7 +301,7 @@ impl Widget_trait for Settings {
 
         let default_item = get_selector(&items[selected_index]);
 
-        let mut menu = Menu::new(items, default_item, render);
+        let mut menu = Menu::new(items, default_item);
         menu.set_submit_state(self.choice.clone());
         let menu = Paper::new(menu);
 
@@ -309,7 +312,8 @@ impl Widget_trait for Settings {
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
-        self.open.set(!*self.open.load());
+        let open = *self.open.read().await?;
+        *self.open.write().await? = !open;
         Vizual_msg::new(Vizual_command::Layout)
     }
 }
@@ -341,10 +345,10 @@ mod tests {
     async fn open_menu_position_solves() -> Result<()> {
         let render_manager = Render_manager::new();
         let render = render_manager.render;
-        let theme = render.new_state(dark_theme());
+        let theme = Store::new(dark_theme());
         let settings = Widget_trait::into_shared(Settings::new(
-            render.new_state(true),
-            render.new_state(Theme_choice::Dark),
+            Store::new(true),
+            Store::new(Theme_choice::Dark),
         ));
         let root = Widget_trait::into_shared(Root::new(settings));
         let mut root_slot = Component_slot::new();

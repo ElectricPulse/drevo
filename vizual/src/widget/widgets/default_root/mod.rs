@@ -11,7 +11,7 @@ use crate::{
     geometry::Direction,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     theme::Theme,
     widget::{Focus_provider, Widget, Widget_trait},
 };
@@ -27,17 +27,17 @@ pub enum Theme_choice {
 pub struct Default_root {
     title: String,
     widget: Widget,
-    settings_open: State<bool>,
-    theme_choice: State<Theme_choice>,
+    settings_open: Store<bool>,
+    theme_choice: Store<Theme_choice>,
 }
 
 impl Default_root {
-    pub fn new(title: impl Into<String>, widget: impl Widget_trait, render: crate::Render) -> Self {
+    pub fn new(title: impl Into<String>, widget: impl Widget_trait) -> Self {
         Self {
             title: title.into(),
             widget: Box::new(widget),
-            settings_open: render.new_state(false),
-            theme_choice: render.new_state(Theme_choice::System),
+            settings_open: Store::new(false),
+            theme_choice: Store::new(Theme_choice::System),
         }
     }
 }
@@ -46,8 +46,8 @@ impl Default_root {
 impl Widget_trait for Default_root {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -55,8 +55,9 @@ impl Widget_trait for Default_root {
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        let theme_value = theme.affect(render).await?;
         let mut body = Paper::new(self.widget.clone());
-        body.style.set(theme.load().specific.body);
+        body.style.set(theme_value.specific.body);
 
         let header = Header::new(
             self.title.clone(),
@@ -67,7 +68,7 @@ impl Widget_trait for Default_root {
         let axis = Axis::new(Direction::Vertical, vec![Box::new(header), Box::new(body)]);
 
         let mut root = Paper::new(axis);
-        root.style.set(theme.load().specific.root);
+        root.style.set(theme_value.specific.root);
 
         Ok(vec![display!(root)])
     }

@@ -14,7 +14,7 @@ use crate::{
     graphics::{scene::Scene, text::Text_context},
     layouter::{Solution, hitbox::Hitbox},
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     theme::Theme,
     widget::{Focus_provider, Widget, Widget_trait},
 };
@@ -73,7 +73,7 @@ impl Widget_trait for Scroll {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        _theme: Store<Theme>,
         focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -97,7 +97,8 @@ impl Widget_trait for Scroll {
 
     async fn render(
         &mut self,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,
@@ -113,7 +114,7 @@ impl Widget_trait for Scroll {
         self.solution = Some(context.solution.clone());
         let content = frame.get_hitbox().await?.get_resolved(context.solution);
         self.content_size = content.size;
-        let loaded_theme = theme.load();
+        let loaded_theme = (*theme.affect(render.clone()).await?).clone();
         let scrollbars = Scrollbars::new(hitbox, self.content_size, &loaded_theme);
         self.viewport = scrollbars.viewport();
         self.clamp_offset();
@@ -126,7 +127,7 @@ impl Widget_trait for Scroll {
                 std::mem::replace(&mut frame.logical, false)
             };
             let render_result = frame
-                .render(theme.clone(), &mut scene, text_context, context)
+                .render(render, theme.clone(), &mut scene, text_context, context)
                 .await;
             frame.lock().await?.logical = previous_logical;
             render_result?;
@@ -214,7 +215,7 @@ mod tests {
         async fn layout(
             &mut self,
             _render: crate::Render,
-            _theme: State<Theme>,
+            _theme: Store<Theme>,
             _focus: &mut Focus_provider,
             _hitbox: &mut Hitbox,
             _parent: Hitbox,

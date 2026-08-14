@@ -90,6 +90,7 @@ use vizual::{
     layouter::{hitbox::Hitbox, objective::Objective},
     render_manager::Render_manager,
     slot::manager::Slots,
+    state::State,
     widget::{
         Focus_provider, Widget_trait,
         widgets::{
@@ -108,8 +109,8 @@ struct Hello;
 impl Widget_trait for Hello {
     async fn layout(
         &mut self,
-        _render: vizual::Render,
-        theme: vizual::state::State<vizual::theme::Theme>,
+        render: vizual::Render,
+        theme: vizual::state::Store<vizual::theme::Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -117,8 +118,9 @@ impl Widget_trait for Hello {
         _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        let theme = theme.affect(render).await?;
         let mut title = Text::new("Hello, world!");
-        title.style.set(theme.load().specific.text.title);
+        title.style.set(theme.specific.text.title);
         let title = Anchor::center(display!(title));
 
         let goodbye = Button::new(

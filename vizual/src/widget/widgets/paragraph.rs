@@ -1,37 +1,56 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use parley::Layout;
 
-use super::{
-    super::{Focus_provider, Widget_trait},
-    text_viewport::Text_viewport,
-};
+use super::super::{Focus_provider, Widget_trait};
 use crate::{
-    Vizual_command, Vizual_msg,
-    config::SCROLLBAR_SIZE,
-    event::{Event, Key_code, Key_event, Wheel_delta},
-    geometry::{Point, Rect, Size},
-    graphics::scene::Scene,
+    geometry::{Rect, Size},
+    graphics::{
+        scene::Scene,
+        text::{Styled_text, Text_brush, Text_context},
+    },
     layouter::hitbox::Hitbox,
-    style::Color,
 };
 
-/// Scrollable text whose clones preserve content and scroll position while rebuilding the cached
-/// Parley layout. The cached layout is derived from the active renderer and is intentionally not
-/// shared between regularly recreated paragraph components.
-#[derive(Clone, Default)]
+/// Text which wraps to its resolved width and renders only when it fits its resolved height.
+#[derive(Clone)]
 pub struct Paragraph {
-    viewport: Text_viewport,
+    content: Styled_text,
+    lines: Option<usize>,
 }
 
 impl Paragraph {
     pub fn new() -> Self {
         Self {
-            viewport: Text_viewport::new(),
+            content: Styled_text::ansi(""),
+            lines: Some(2),
         }
     }
 
-    pub fn set_content(&mut self, content: String) {
-        self.viewport.set_content(&content);
+    pub fn set_content(&mut self, content: impl Into<String>) {
+        let content = content.into();
+        self.content = Styled_text::ansi(&content);
+    }
+
+    pub fn set_lines(&mut self, lines: Option<usize>) {
+        self.lines = lines;
+    }
+
+    fn fit(&self, text_context: &mut Text_context, size: Size) -> Option<Layout<Text_brush>> {
+        if size.width <= 0.0 || size.height <= 0.0 {
+            return None;
+        }
+
+        let layout = text_context.build_wrapped_layout(&self.content, size.width as f32);
+        let fits = f64::from(layout.full_width()) <= size.width
+            && f64::from(layout.height()) <= size.height;
+        fits.then_some(layout)
+    }
+}
+
+impl Default for Paragraph {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -40,161 +59,55 @@ impl Widget_trait for Paragraph {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: crate::state::State<crate::theme::Theme>,
+        _theme: crate::state::Store<crate::theme::Theme>,
         _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
-        _problem: crate::component::context::Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
+        problem: crate::component::context::Component_context,
+        text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut crate::slot::manager::Slots,
     ) -> Result<crate::component::Children> {
+        match self.lines {
+            Some(lines) => {
+                let layout = text_context.build_layout(&self.content);
+                let line_height = layout
+                    .lines()
+                    .next()
+                    .map(|line| f64::from(line.metrics().line_height))
+                    .unwrap_or_default();
+                hitbox
+                    .set_static_dimension(
+                        &problem,
+                        crate::geometry::Direction::Vertical,
+                        line_height * lines as f64,
+                    )
+                    .await?;
+            }
+            None => {
+                // Normally one would constrain the paragraph to at least width * height == number
+                // of characters, but even that excludes the possibility that sometimes a stray
+                // line ending (-afa) wrapping might get added, &c. That's why if the text doesn't
+                // fit it isn't rendered and in the future maybe a system where the layouter asks:
+                // can you do this size, can you do this size, &c. is implemented.
+            }
+        }
         Ok(vec![])
     }
 
     async fn render(
         &mut self,
-        _theme: crate::state::State<crate::theme::Theme>,
-        focus: &mut Focus_provider,
+        _render: crate::Render,
+        _theme: crate::state::Store<crate::theme::Theme>,
+        _focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
-        focus.set_active(true);
-        let inner = hitbox;
-        self.viewport.prepare(text_context, inner.size);
-        let content_size = self.viewport.content_size();
-        let mut vertical = false;
-        let mut horizontal = false;
-
-        loop {
-            let viewport = Size::new(
-                (inner.size.width - f64::from(vertical) * SCROLLBAR_SIZE).max(0.0),
-                (inner.size.height - f64::from(horizontal) * SCROLLBAR_SIZE).max(0.0),
-            );
-            let next_vertical = content_size.height > viewport.height;
-            let next_horizontal = content_size.width > viewport.width;
-            if next_vertical == vertical && next_horizontal == horizontal {
-                break;
-            }
-            vertical = next_vertical;
-            horizontal = next_horizontal;
-        }
-
-        let content_hitbox = Rect {
-            origin: inner.origin,
-            size: Size::new(
-                (inner.size.width - f64::from(vertical) * SCROLLBAR_SIZE).max(0.0),
-                (inner.size.height - f64::from(horizontal) * SCROLLBAR_SIZE).max(0.0),
-            ),
-        };
-        self.viewport.prepare(text_context, content_hitbox.size);
-        self.viewport.paint(scene, content_hitbox.origin);
-
-        if vertical {
-            paint_scrollbar(
-                scene,
-                Rect::new(
-                    inner.right() - SCROLLBAR_SIZE,
-                    inner.origin.y,
-                    SCROLLBAR_SIZE,
-                    content_hitbox.size.height,
-                ),
-                self.viewport.offset().y,
-                self.viewport.maximum_offset().y,
-                content_hitbox.size.height,
-                content_size.height,
-                true,
-            );
-        }
-        if horizontal {
-            paint_scrollbar(
-                scene,
-                Rect::new(
-                    inner.origin.x,
-                    inner.bottom() - SCROLLBAR_SIZE,
-                    content_hitbox.size.width,
-                    SCROLLBAR_SIZE,
-                ),
-                self.viewport.offset().x,
-                self.viewport.maximum_offset().x,
-                content_hitbox.size.width,
-                content_size.width,
-                false,
-            );
+        if let Some(layout) = self.fit(text_context, hitbox.size) {
+            scene.paint_layout(&layout, hitbox.origin, true);
         }
 
         Ok(None)
     }
-
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
-        let step = self.viewport.line_step();
-        match key.code {
-            Key_code::Arrow_up => self.viewport.scroll_y(-step),
-            Key_code::Arrow_down => self.viewport.scroll_y(step),
-            Key_code::Arrow_left => self.viewport.scroll_x(-step),
-            Key_code::Arrow_right => self.viewport.scroll_x(step),
-            Key_code::Page_up => self
-                .viewport
-                .scroll_y(-self.viewport.viewport_size().height),
-            Key_code::Page_down => self.viewport.scroll_y(self.viewport.viewport_size().height),
-            Key_code::Home => self.viewport.jump_to_top(),
-            Key_code::End => self.viewport.jump_to_bottom(),
-            _ => return Vizual_msg::none(),
-        }
-        Vizual_msg::new(Vizual_command::Layout)
-    }
-
-    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
-        let Event::Wheel(wheel) = event else {
-            return Vizual_msg::none();
-        };
-        let step = self.viewport.line_step();
-        match wheel.delta {
-            Wheel_delta::Lines(delta) => {
-                self.viewport.scroll_x(-delta.x * step);
-                self.viewport.scroll_y(-delta.y * step * 3.0);
-            }
-            Wheel_delta::Logical_pixels(delta) => {
-                self.viewport.scroll_x(-delta.x);
-                self.viewport.scroll_y(-delta.y);
-            }
-        }
-        Vizual_msg::new(Vizual_command::Layout)
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn paint_scrollbar(
-    scene: &mut Scene<'_>,
-    track: Rect,
-    position: f64,
-    maximum: f64,
-    viewport_length: f64,
-    content_length: f64,
-    vertical: bool,
-) {
-    scene.fill_rect(track, Color::Dark_gray);
-    let track_length = match vertical {
-        true => track.size.height,
-        false => track.size.width,
-    };
-    let thumb_length = (track_length * viewport_length / content_length.max(viewport_length))
-        .clamp(SCROLLBAR_SIZE, track_length);
-    let travel = (track_length - thumb_length).max(0.0);
-    let offset = match maximum > 0.0 {
-        true => travel * position / maximum,
-        false => 0.0,
-    };
-    let thumb = match vertical {
-        true => Rect {
-            origin: Point::new(track.origin.x, track.origin.y + offset),
-            size: Size::new(track.size.width, thumb_length),
-        },
-        false => Rect {
-            origin: Point::new(track.origin.x + offset, track.origin.y),
-            size: Size::new(thumb_length, track.size.height),
-        },
-    };
-    scene.fill_rect(thumb, Color::White);
 }

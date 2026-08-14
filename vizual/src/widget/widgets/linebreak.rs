@@ -6,7 +6,7 @@ use crate::{
     graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     theme::Theme,
     widget::{Focus_provider, Widget_trait},
 };
@@ -29,7 +29,7 @@ impl Widget_trait for Linebreak {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        _theme: Store<Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -48,14 +48,15 @@ impl Widget_trait for Linebreak {
 
     async fn render(
         &mut self,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,
         _text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
-        scene.fill_rect(hitbox, theme.load().semantic.border);
+        scene.fill_rect(hitbox, theme.affect(render).await?.semantic.border);
         Ok(None)
     }
 }

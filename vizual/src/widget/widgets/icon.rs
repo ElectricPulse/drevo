@@ -12,21 +12,21 @@ use crate::{
     graphics::scene::Scene,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     style::Style,
     theme::Theme,
 };
 
 #[derive(Clone)]
 pub struct Icon {
-    icon: Lucide_icon,
+    icon: Box<dyn State<Output = Lucide_icon>>,
     pub style: Style<Text_style>,
 }
 
 impl Icon {
-    pub fn new(icon: Lucide_icon) -> Self {
+    pub fn new(icon: impl Into<Box<dyn State<Output = Lucide_icon>>>) -> Self {
         Self {
-            icon,
+            icon: icon.into(),
             style: Style::default(),
         }
     }
@@ -36,8 +36,8 @@ impl Icon {
 impl Widget_trait for Icon {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -45,7 +45,9 @@ impl Widget_trait for Icon {
         text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut Slots,
     ) -> Result<Children> {
-        let size = text_context.measure_icon(self.icon, self.style.get(&theme).size);
+        let icon = *self.icon.affect(render.clone()).await?;
+        let theme = theme.affect(render).await?;
+        let size = text_context.measure_icon(icon, self.style.get(&theme).size);
         hitbox
             .set_static_dimension(&problem, Direction::Horizontal, size.width)
             .await?;
@@ -58,14 +60,17 @@ impl Widget_trait for Icon {
 
     async fn render(
         &mut self,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
-        let _ = text_context.draw_icon(scene, self.icon, hitbox.origin, self.style.get(&theme));
+        let icon = *self.icon.affect(render.clone()).await?;
+        let theme = theme.affect(render).await?;
+        let _ = text_context.draw_icon(scene, icon, hitbox.origin, self.style.get(&theme));
         Ok(None)
     }
 }

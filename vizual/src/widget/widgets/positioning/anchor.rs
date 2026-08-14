@@ -23,36 +23,6 @@ pub struct Anchors {
     pub vertical: Option<Position>,
 }
 
-impl Anchors {
-    pub fn left() -> Self {
-        Self {
-            horizontal: Some(Position::Start),
-            vertical: None,
-        }
-    }
-
-    pub fn right() -> Self {
-        Self {
-            horizontal: Some(Position::End),
-            vertical: None,
-        }
-    }
-
-    pub fn top_left() -> Self {
-        Self {
-            horizontal: Some(Position::Start),
-            vertical: Some(Position::Start),
-        }
-    }
-
-    pub fn middle() -> Self {
-        Self {
-            horizontal: Some(Position::Middle),
-            vertical: Some(Position::Middle),
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct Anchor {
     child: Widget,
@@ -65,6 +35,46 @@ impl Anchor {
             child: Box::new(child),
             anchors,
         }
+    }
+
+    pub fn left(child: impl Widget_trait) -> Self {
+        Self::new(
+            child,
+            Anchors {
+                horizontal: Some(Position::Start),
+                vertical: None,
+            },
+        )
+    }
+
+    pub fn right(child: impl Widget_trait) -> Self {
+        Self::new(
+            child,
+            Anchors {
+                horizontal: Some(Position::End),
+                vertical: None,
+            },
+        )
+    }
+
+    pub fn top_left(child: impl Widget_trait) -> Self {
+        Self::new(
+            child,
+            Anchors {
+                horizontal: Some(Position::Start),
+                vertical: Some(Position::Start),
+            },
+        )
+    }
+
+    pub fn middle(child: impl Widget_trait) -> Self {
+        Self::new(
+            child,
+            Anchors {
+                horizontal: Some(Position::Middle),
+                vertical: Some(Position::Middle),
+            },
+        )
     }
 
     /// Applies the selected anchor to this hitbox within its parent.
@@ -130,7 +140,7 @@ impl Widget_trait for Anchor {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: crate::state::State<crate::theme::Theme>,
+        _theme: crate::state::Store<crate::theme::Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         parent: Hitbox,

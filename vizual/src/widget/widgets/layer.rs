@@ -8,7 +8,7 @@ use crate::{
     component::{Children, context::Component_context},
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::Store,
     theme::Theme,
 };
 
@@ -33,7 +33,7 @@ impl Widget_trait for Layer {
     async fn layout(
         &mut self,
         _render: Render,
-        _theme: State<Theme>,
+        _theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,

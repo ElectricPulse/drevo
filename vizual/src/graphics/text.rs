@@ -59,6 +59,22 @@ impl Text_context {
     }
 
     pub(crate) fn build_layout(&mut self, text: &Styled_text) -> Layout<Text_brush> {
+        self.build_layout_with_width(text, None)
+    }
+
+    pub(crate) fn build_wrapped_layout(
+        &mut self,
+        text: &Styled_text,
+        width: f32,
+    ) -> Layout<Text_brush> {
+        self.build_layout_with_width(text, Some(width))
+    }
+
+    fn build_layout_with_width(
+        &mut self,
+        text: &Styled_text,
+        width: Option<f32>,
+    ) -> Layout<Text_brush> {
         let mut builder =
             self.layout_context
                 .ranged_builder(&mut self.font_context, &text.content, 1.0, false);
@@ -103,7 +119,7 @@ impl Text_context {
         }
 
         let mut layout = builder.build(&text.content);
-        layout.break_all_lines(None);
+        layout.break_all_lines(width);
         layout.align(Alignment::Start, AlignmentOptions::default());
         layout
     }
@@ -117,7 +133,7 @@ impl Text_context {
     ) -> Size {
         let layout = self.build_layout(&Styled_text::styled(content, style));
         let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
-        scene.paint_layout(&layout, origin, None, true);
+        scene.paint_layout(&layout, origin, true);
         size
     }
 
@@ -137,7 +153,7 @@ impl Text_context {
         let origin = bounds.map_or(origin, |bounds| {
             Point::new(origin.x - bounds.x0, origin.y - bounds.y0)
         });
-        scene.paint_layout(&layout, origin, None, false);
+        scene.paint_layout(&layout, origin, false);
         size
     }
 
@@ -201,12 +217,6 @@ pub(crate) fn icon_ink_bounds(
         f64::from(glyph.x + bounds.x_max),
         f64::from(glyph.y - bounds.y_min),
     ))
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct Text_window {
-    pub offset: Point,
-    pub size: Size,
 }
 
 #[derive(Clone)]

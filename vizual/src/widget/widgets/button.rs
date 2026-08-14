@@ -13,7 +13,7 @@ use crate::{
     handlers::Submit_handler,
     layouter::{hitbox::Hitbox, objective::Delta},
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     style::Color,
     theme::Theme,
     widget::Widget,
@@ -66,8 +66,8 @@ impl Button {
 impl Widget_trait for Button {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -75,7 +75,8 @@ impl Widget_trait for Button {
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let style = resolve_block_style(&theme.load(), self.highlighted);
+        let theme = theme.affect(render).await?;
+        let style = resolve_block_style(&theme, self.highlighted);
 
         let mut block = Block::new(self.content.clone(), style);
         block.highlighted = self.highlighted;

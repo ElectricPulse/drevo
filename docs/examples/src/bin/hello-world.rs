@@ -10,7 +10,7 @@ async fn main() -> Result<()> {
 
     let render_manager = Render_manager::new();
     let mut paragraph = Paragraph::new();
-    paragraph.set_content("Hello from Vizual".into());
+    paragraph.set_content("Hello from Vizual");
 
     vizual::run("Vizual example", paragraph.into_shared(), render_manager)
 }

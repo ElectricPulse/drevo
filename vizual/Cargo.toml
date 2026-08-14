@@ -14,7 +14,6 @@ async-trait = "0.1.89"
 vizual-macros = { path = "../vizual-macros" }
 tokio = { version = "1.48.0", features = ["full"] }
 color-eyre = "0.6.5"
-arc-swap = "1.7.1"
 derive-new = "0.7.0"
 delegate = "0.13.5"
 dyn-clone = "1.0.20"

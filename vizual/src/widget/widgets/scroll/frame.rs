@@ -11,7 +11,7 @@ use crate::{
     graphics::text::Text_context,
     layouter::{Solution, hitbox::Hitbox},
     slot::manager::Slots,
-    state::State,
+    state::Store,
     theme::Theme,
     widget::{Focus_provider, Widget, Widget_trait},
 };
@@ -152,7 +152,7 @@ impl Widget_trait for Frame {
     async fn layout(
         &mut self,
         _render: crate::Render,
-        _theme: State<Theme>,
+        _theme: Store<Theme>,
         _focus: &mut Focus_provider,
         hitbox: &mut Hitbox,
         _parent: Hitbox,

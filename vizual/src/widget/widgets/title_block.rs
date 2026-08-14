@@ -6,7 +6,7 @@ use super::{
     super::{Focus_provider, Widget_trait},
     layout::axis::{Axis, Axis_style},
     paper::Paper,
-    positioning::anchor::{Anchor, Anchors},
+    positioning::anchor::Anchor,
     text::Text,
 };
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
     geometry::Direction,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::State,
+    state::{State, Store},
     theme::Theme,
     widget::Widget,
 };
@@ -38,8 +38,8 @@ impl Title_block {
 impl Widget_trait for Title_block {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        theme: State<Theme>,
+        render: crate::Render,
+        theme: Store<Theme>,
         _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
@@ -47,15 +47,15 @@ impl Widget_trait for Title_block {
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        let theme = theme.affect(render).await?;
         let mut title = Text::new(self.title.clone());
-        title.style.set(theme.load().specific.text.title);
-        let title = Anchor::new(title, Anchors::left());
-        let child = Anchor::new(self.child.clone(), Anchors::left());
+        title.style.set(theme.specific.text.title);
+        let title = Anchor::left(title);
+        let child = Anchor::left(self.child.clone());
 
         let mut axis = Axis::new(Direction::Vertical, vec![Box::new(title), Box::new(child)]);
 
-        axis.style
-            .set(Axis_style::Gap(theme.load().units.em * 0.45));
+        axis.style.set(Axis_style::Gap(theme.units.em * 0.45));
 
         let paper = Paper::new(axis);
         Ok(vec![display!(paper)])
