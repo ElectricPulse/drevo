@@ -1,11 +1,22 @@
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
+use async_trait::async_trait;
 
 use crate::Render;
 
 type Load<Value> = Arc<dyn Fn() -> Arc<Value> + Send + Sync>;
 type Store<Value> = Arc<dyn Fn(Value) + Send + Sync>;
+
+
+#[async_trait]
+trait State<Value> {
+    async fn get(&self, signal: Render) -> Result<Value>;
+}
+
+struct Store {
+    subscribers: 
+}
 
 // TODO: this is pretty trash LLM code
 /// Application state created by [`Render::new_state`].

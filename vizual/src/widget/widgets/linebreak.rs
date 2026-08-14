@@ -14,11 +14,13 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 #[derive(Clone, Copy)]
-pub struct Linebreak;
+pub struct Linebreak {
+    direction: Direction,
+}
 
 impl Linebreak {
-    pub fn new() -> Self {
-        Self
+    pub fn new(direction: Direction) -> Self {
+        Self { direction }
     }
 }
 
@@ -37,7 +39,7 @@ impl Widget_trait for Linebreak {
     ) -> Result<Children> {
         problem
             .constrain(constraint!(
-                hitbox.get_dimension(Direction::Vertical) == BORDER_SIZE
+                hitbox.get_dimension(self.direction.flip()) == BORDER_SIZE
             ))
             .await?;
 
