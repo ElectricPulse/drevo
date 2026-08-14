@@ -31,6 +31,8 @@ Location: /home/hackerman/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/w
 
 ## To-Do list
 - make scroll bars draggable
+- fix the occasional ~500 ms stutter during scrolling
+- figure out a better Paragraph sizing and constraint-negotiation model
 - switch to vello hybrid
 - find one stable delta for multiple states of the Patmat configurator so the menu doesnt flicker with sizes on small devices
 - generalize dialog (from settings) and make a click off logic

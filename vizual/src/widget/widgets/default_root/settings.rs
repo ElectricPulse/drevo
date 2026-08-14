@@ -18,11 +18,11 @@ use super::{
     Theme_choice,
 };
 use crate::{
-    Render, Vizual_command, Vizual_msg,
-    component::{Children, context::Component_context},
+    Render,
+    component::{Children, Render_context, context::Component_context},
     constraint,
-    event::Pointer_event,
-    geometry::{Direction, Size},
+    geometry::{Direction, Rect, Size},
+    graphics::scene::Scene,
     handlers::Retrieve_handler,
     layouter::{hitbox::Hitbox, objective::minimize},
     slot::manager::Slots,
@@ -154,13 +154,12 @@ impl Custom_widget_trait for Theme_menu_item {
 
 #[derive(Clone)]
 pub(super) struct Settings {
-    open: Store<bool>,
     choice: Store<Theme_choice>,
 }
 
 impl Settings {
-    pub(super) fn new(open: Store<bool>, choice: Store<Theme_choice>) -> Self {
-        Self { open, choice }
+    pub(super) fn new(choice: Store<Theme_choice>) -> Self {
+        Self { choice }
     }
 }
 
@@ -248,13 +247,14 @@ impl Widget_trait for Settings {
         &mut self,
         render: Render,
         theme: Store<Theme>,
-        _focus: &mut Focus_provider,
+        focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        let focused = focus.get();
         let choice = *self.choice.affect(render.clone()).await?;
         let current_theme = theme.affect(render.clone()).await?;
         if !choice.is_selected(&current_theme) {
@@ -263,10 +263,9 @@ impl Widget_trait for Settings {
             *theme.write().await? = resolved_theme;
         }
 
-        let open = *self.open.affect(render).await?;
         let icon = Icon::new(Lucide_icon::Settings);
         let mut button = Button::around(icon);
-        button.highlighted = open;
+        button.highlighted = focused;
 
         let button = Anchor::new(
             button,
@@ -277,7 +276,7 @@ impl Widget_trait for Settings {
         );
         let button = display!(button);
 
-        if !open {
+        if !focused {
             return Ok(vec![button]);
         }
 
@@ -311,10 +310,18 @@ impl Widget_trait for Settings {
         Ok(vec![button, display!(menu)])
     }
 
-    async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
-        let open = *self.open.read().await?;
-        *self.open.write().await? = !open;
-        Vizual_msg::new(Vizual_command::Layout)
+    async fn render(
+        &mut self,
+        _render: Render,
+        _theme: Store<Theme>,
+        focus: &mut Focus_provider,
+        _hitbox: Rect,
+        _scene: &mut Scene<'_>,
+        _text_context: &mut crate::graphics::text::Text_context,
+        _context: &Render_context<'_>,
+    ) -> Result<Option<Hitbox>> {
+        focus.set_active(true);
+        Ok(None)
     }
 }
 
@@ -324,7 +331,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        App_problem, geometry::Size, graphics::text::Text_context, layouter::variables::Variables,
+        App_problem, component::Render_context, focus::Focus, geometry::Size,
+        graphics::text::Text_context, layouter::variables::Variables,
         render_manager::Render_manager, slot::Component_slot, theme::dark_theme,
         widget::widgets::root::Root,
     };
@@ -342,23 +350,54 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn open_menu_position_solves() -> Result<()> {
+    async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> {
         let render_manager = Render_manager::new();
         let render = render_manager.render;
         let theme = Store::new(dark_theme());
-        let settings = Widget_trait::into_shared(Settings::new(
-            Store::new(true),
-            Store::new(Theme_choice::Dark),
-        ));
+        let settings = Settings::new(Store::new(Theme_choice::Dark));
         let root = Widget_trait::into_shared(Root::new(settings));
         let mut root_slot = Component_slot::new();
-        let variables = Arc::new(Variables::new());
         let mut text_context = Text_context::new();
-        let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+        let mut focus = Focus::new();
+        let variables = Arc::new(Variables::new());
 
-        problem.layout(render, theme, &mut text_context).await?;
+        let mut problem =
+            App_problem::new(root.clone(), &mut root_slot, Arc::clone(&variables)).await?;
+        problem
+            .layout(render.clone(), theme.clone(), &focus, &mut text_context)
+            .await?;
+        let settings = problem.root.lock().await?.children[0].clone();
+        assert!(settings.lock().await?.focusable);
+        assert_eq!(settings.lock().await?.children.len(), 1);
+
+        focus.set(&settings);
+        let previous_problem = problem;
+        let mut problem =
+            App_problem::new(root.clone(), &mut root_slot, Arc::clone(&variables)).await?;
+        drop(previous_problem);
+        problem
+            .layout(render.clone(), theme.clone(), &focus, &mut text_context)
+            .await?;
+        assert_eq!(settings.lock().await?.children.len(), 2);
         let _ = problem.minimum_size().await?;
-        let _ = problem.solve(Size::new(800.0, 600.0)).await?;
+        let solution = problem.solve(Size::new(800.0, 600.0)).await?;
+        let context = Render_context {
+            focus: &focus,
+            solution: &solution,
+        };
+        let _ = problem
+            .render(render.clone(), theme.clone(), &context, &mut text_context)
+            .await?;
+        assert!(settings.lock().await?.focusable);
+
+        focus.reset();
+        let previous_problem = problem;
+        let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+        drop(previous_problem);
+        problem
+            .layout(render, theme, &focus, &mut text_context)
+            .await?;
+        assert_eq!(settings.lock().await?.children.len(), 1);
 
         Ok(())
     }

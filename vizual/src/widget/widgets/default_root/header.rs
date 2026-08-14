@@ -24,15 +24,13 @@ use crate::{
 #[derive(Clone)]
 pub struct Header {
     name: String,
-    open: Store<bool>,
     choice: Store<Theme_choice>,
 }
 
 impl Header {
-    pub fn new(name: impl Into<String>, open: Store<bool>, choice: Store<Theme_choice>) -> Self {
+    pub fn new(name: impl Into<String>, choice: Store<Theme_choice>) -> Self {
         Self {
             name: name.into(),
-            open,
             choice,
         }
     }
@@ -61,7 +59,7 @@ impl Widget_trait for Header {
                 vertical: Some(Position::Middle),
             },
         );
-        let settings = Settings::new(self.open.clone(), self.choice.clone());
+        let settings = Settings::new(self.choice.clone());
 
         let settings = Anchor::new(
             settings,

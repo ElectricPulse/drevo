@@ -1,5 +1,6 @@
 use color_eyre::eyre::Result;
 use vizual::{
+    geometry::Direction,
     render_manager::Render_manager,
     widget::{Widget_trait as _, widgets::paragraph::Paragraph},
 };
@@ -9,7 +10,7 @@ async fn main() -> Result<()> {
     color_eyre::install()?;
 
     let render_manager = Render_manager::new();
-    let mut paragraph = Paragraph::new();
+    let mut paragraph = Paragraph::new(Direction::Horizontal, 320.0);
     paragraph.set_content("Hello from Vizual");
 
     vizual::run("Vizual example", paragraph.into_shared(), render_manager)

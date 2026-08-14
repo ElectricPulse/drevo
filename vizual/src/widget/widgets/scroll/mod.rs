@@ -22,7 +22,7 @@ use crate::{
 use self::bar::Scrollbars;
 use self::frame::Frame;
 
-const SCROLL_STEP: f64 = 32.0;
+const SCROLL_STEP: f64 = 90.0;
 
 #[derive(Clone)]
 pub struct Scroll {

@@ -33,6 +33,9 @@ pub struct Component {
     pub(crate) debug: Component_debug,
     pub(crate) hitbox: Hitbox,
     pub widget: Widget,
+    // TODO: Convert focusability/focus tracking into reactive state when per-component
+    // relayouting is implemented, so a focus change only notifies components that subscribe to
+    // it. Refocusing currently relayouts the whole tree, so storing this as a bool is sufficient.
     pub focusable: bool,
     pub parent: Parent,
     pub children: Children,
@@ -158,6 +161,7 @@ impl Shared_component {
         &mut self,
         render: Render,
         theme: Store<Theme>,
+        focus: &Focus,
         parent_reference: Parent,
         parent: Hitbox,
         mut problem: Component_context,
@@ -176,7 +180,7 @@ impl Shared_component {
                 ..
             } = &mut *this;
 
-            let mut focus = Focus_provider::new(false);
+            let mut focus = Focus_provider::new(focus.compare(self));
 
             let children = {
                 let mut slots = slot_manager.slots(hitbox);
@@ -213,6 +217,7 @@ impl Shared_component {
         &mut self,
         render: Render,
         theme: Store<Theme>,
+        focus: &Focus,
         children: Children,
         mut problem: Component_context,
         text_context: &mut Text_context,
@@ -231,6 +236,7 @@ impl Shared_component {
                 .layout(
                     render.clone(),
                     theme.clone(),
+                    focus,
                     self.clone().into(),
                     layout_parent,
                     problem.clone(),
@@ -241,6 +247,7 @@ impl Shared_component {
                 .layout_children(
                     render.clone(),
                     theme.clone(),
+                    focus,
                     grandchildren,
                     problem.clone(),
                     text_context,

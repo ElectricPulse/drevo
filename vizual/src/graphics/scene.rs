@@ -141,6 +141,24 @@ impl<'a> Scene<'a> {
         }
     }
 
+    pub(crate) fn paint_layout_clipped(
+        &mut self,
+        layout: &Layout<Text_brush>,
+        origin: Point,
+        viewport: Rect,
+        hint: bool,
+    ) {
+        if viewport.size.is_empty() {
+            return;
+        }
+
+        let viewport = to_kurbo_rect(viewport);
+        self.scene
+            .push_clip_layer(Fill::NonZero, Affine::IDENTITY, &viewport);
+        self.paint_layout(layout, origin, hint);
+        self.scene.pop_layer();
+    }
+
     fn paint_decoration(
         &mut self,
         transform: Affine,

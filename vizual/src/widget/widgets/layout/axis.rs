@@ -11,6 +11,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Axis_style {
     Gap(f64),

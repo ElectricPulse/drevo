@@ -1,3 +1,12 @@
+//! Solver-backed layout primitives.
+//!
+//! Although it is not currently enforced, components should only access layout variables owned
+//! by themselves or their descendants. Keeping constraints inside that ownership boundary avoids
+//! hidden coupling to parents, ancestors, and siblings. Positioning components are the exception:
+//! they may access the external variables needed to position their child relative to its parent.
+//! This boundary will become an enforced requirement when state invalidation and relayout are
+//! managed per component.
+
 pub mod constraint;
 pub mod constraints;
 pub mod expression;

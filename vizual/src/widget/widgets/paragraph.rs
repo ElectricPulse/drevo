@@ -1,29 +1,31 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use parley::Layout;
 
 use super::super::{Focus_provider, Widget_trait};
 use crate::{
-    geometry::{Rect, Size},
-    graphics::{
-        scene::Scene,
-        text::{Styled_text, Text_brush, Text_context},
-    },
+    geometry::{Direction, Rect, Size},
+    graphics::{scene::Scene, text::Styled_text},
     layouter::hitbox::Hitbox,
+    widget::widgets::text::Text_style,
 };
 
-/// Text which wraps to its resolved width and renders only when it fits its resolved height.
+/// Text which wraps to its resolved width and clips any overflow outside its resolved height.
 #[derive(Clone)]
 pub struct Paragraph {
     content: Styled_text,
-    lines: Option<usize>,
+    static_direction: Direction,
+    static_size: f64,
 }
 
 impl Paragraph {
-    pub fn new() -> Self {
+    /// Fixes `size` along `direction` and derives the other dimension from the shaped text.
+    /// A fixed height chooses the narrowest width that fits whenever fitting is possible.
+    pub fn new(direction: Direction, size: f64) -> Self {
+        assert!(size.is_finite() && size >= 0.0);
         Self {
             content: Styled_text::ansi(""),
-            lines: Some(2),
+            static_direction: direction,
+            static_size: size,
         }
     }
 
@@ -32,25 +34,48 @@ impl Paragraph {
         self.content = Styled_text::ansi(&content);
     }
 
-    pub fn set_lines(&mut self, lines: Option<usize>) {
-        self.lines = lines;
+    pub fn set_styled_content(&mut self, content: impl Into<String>, style: Text_style) {
+        self.content = Styled_text::styled(content, style);
     }
 
-    fn fit(&self, text_context: &mut Text_context, size: Size) -> Option<Layout<Text_brush>> {
-        if size.width <= 0.0 || size.height <= 0.0 {
-            return None;
+    fn width_for_height(&self, text_context: &mut crate::graphics::text::Text_context) -> f64 {
+        let unwrapped = text_context.build_layout(&self.content);
+        let natural_width = f64::from(unwrapped.full_width());
+        if natural_width <= 0.0 || f64::from(unwrapped.height()) > self.static_size {
+            return natural_width;
         }
 
-        let layout = text_context.build_wrapped_layout(&self.content, size.width as f32);
-        let fits = f64::from(layout.full_width()) <= size.width
-            && f64::from(layout.height()) <= size.height;
-        fits.then_some(layout)
-    }
-}
+        let mut minimum = 0.0;
+        let mut maximum = natural_width;
+        for _ in 0..16 {
+            if maximum - minimum <= 0.25 {
+                break;
+            }
 
-impl Default for Paragraph {
-    fn default() -> Self {
-        Self::new()
+            let candidate = (minimum + maximum) / 2.0;
+            let layout = text_context.build_wrapped_layout(&self.content, candidate as f32);
+            let fits = f64::from(layout.height()) <= self.static_size
+                && f64::from(layout.full_width()) <= candidate;
+            if fits {
+                maximum = candidate;
+            } else {
+                minimum = candidate;
+            }
+        }
+
+        let layout = text_context.build_wrapped_layout(&self.content, maximum as f32);
+        maximum.max(f64::from(layout.full_width()))
+    }
+
+    fn size(&self, text_context: &mut crate::graphics::text::Text_context) -> Size {
+        match self.static_direction {
+            Direction::Horizontal => {
+                let layout =
+                    text_context.build_wrapped_layout(&self.content, self.static_size as f32);
+                Size::new(self.static_size, f64::from(layout.height()))
+            }
+            Direction::Vertical => Size::new(self.width_for_height(text_context), self.static_size),
+        }
     }
 }
 
@@ -67,30 +92,16 @@ impl Widget_trait for Paragraph {
         text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut crate::slot::manager::Slots,
     ) -> Result<crate::component::Children> {
-        match self.lines {
-            Some(lines) => {
-                let layout = text_context.build_layout(&self.content);
-                let line_height = layout
-                    .lines()
-                    .next()
-                    .map(|line| f64::from(line.metrics().line_height))
-                    .unwrap_or_default();
-                hitbox
-                    .set_static_dimension(
-                        &problem,
-                        crate::geometry::Direction::Vertical,
-                        line_height * lines as f64,
-                    )
-                    .await?;
-            }
-            None => {
-                // Normally one would constrain the paragraph to at least width * height == number
-                // of characters, but even that excludes the possibility that sometimes a stray
-                // line ending (-afa) wrapping might get added, &c. That's why if the text doesn't
-                // fit it isn't rendered and in the future maybe a system where the layouter asks:
-                // can you do this size, can you do this size, &c. is implemented.
-            }
+        let size = self.size(text_context);
+        for (direction, size) in [
+            (Direction::Horizontal, size.width),
+            (Direction::Vertical, size.height),
+        ] {
+            hitbox
+                .set_static_dimension(&problem, direction, size)
+                .await?;
         }
+
         Ok(vec![])
     }
 
@@ -104,8 +115,9 @@ impl Widget_trait for Paragraph {
         text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
-        if let Some(layout) = self.fit(text_context, hitbox.size) {
-            scene.paint_layout(&layout, hitbox.origin, true);
+        if hitbox.size.width > 0.0 && hitbox.size.height > 0.0 {
+            let layout = text_context.build_wrapped_layout(&self.content, hitbox.size.width as f32);
+            scene.paint_layout_clipped(&layout, hitbox.origin, hitbox, true);
         }
 
         Ok(None)

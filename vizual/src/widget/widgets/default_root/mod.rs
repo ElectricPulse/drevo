@@ -27,7 +27,6 @@ pub enum Theme_choice {
 pub struct Default_root {
     title: String,
     widget: Widget,
-    settings_open: Store<bool>,
     theme_choice: Store<Theme_choice>,
 }
 
@@ -36,7 +35,6 @@ impl Default_root {
         Self {
             title: title.into(),
             widget: Box::new(widget),
-            settings_open: Store::new(false),
             theme_choice: Store::new(Theme_choice::System),
         }
     }
@@ -59,11 +57,7 @@ impl Widget_trait for Default_root {
         let mut body = Paper::new(self.widget.clone());
         body.style.set(theme_value.specific.body);
 
-        let header = Header::new(
-            self.title.clone(),
-            self.settings_open.clone(),
-            self.theme_choice.clone(),
-        );
+        let header = Header::new(self.title.clone(), self.theme_choice.clone());
 
         let axis = Axis::new(Direction::Vertical, vec![Box::new(header), Box::new(body)]);
 

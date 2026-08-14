@@ -24,6 +24,7 @@ highs = "2.4.0"
 highs-sys = "1.15.0"
 log = "0.4.29"
 simplelog = "0.12.2"
+time = { version = "0.3.47", features = ["formatting"] }
 uuid = { version = "1.23.1", features = ["v4"] }
 unit-intervals = "0.1.0"
 uniqify = "0.1.0"

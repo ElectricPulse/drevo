@@ -38,6 +38,7 @@ use std::{
 use async_recursion::async_recursion;
 use color_eyre::eyre::{ContextCompat, Result, WrapErr, eyre};
 use simplelog::{CombinedLogger, Config as Log_config, LevelFilter, WriteLogger};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use tokio::sync::mpsc;
 use vello::{
     AaConfig, Renderer, RendererOptions, Scene,
@@ -220,6 +221,7 @@ impl App_problem {
         &mut self,
         render: Render,
         theme: Store<Theme>,
+        focus: &Focus,
         text_context: &mut Text_context,
     ) -> Result<()> {
         let children = self
@@ -227,6 +229,7 @@ impl App_problem {
             .layout(
                 render.clone(),
                 theme.clone(),
+                focus,
                 None,
                 self.root_hitbox.clone(),
                 self.component_context.clone(),
@@ -237,6 +240,7 @@ impl App_problem {
             .layout_children(
                 render,
                 theme,
+                focus,
                 children,
                 self.component_context.clone(),
                 text_context,
@@ -328,6 +332,23 @@ impl App_problem {
         Ok(target.map(|(component, _)| component))
     }
 
+    async fn is_within_component(
+        mut component: Shared_component,
+        ancestor: &Shared_component,
+    ) -> Result<bool> {
+        loop {
+            if component.compare(ancestor) {
+                return Ok(true);
+            }
+
+            let parent = component.lock().await?.parent.clone();
+            let Some(parent) = parent.and_then(|parent| parent.upgrade()) else {
+                return Ok(false);
+            };
+            component = Shared_component::new(parent);
+        }
+    }
+
     async fn handle_pointer_press(
         &mut self,
         position: Point,
@@ -337,9 +358,20 @@ impl App_problem {
     ) -> Result<Vizual_msg> {
         let components = self.root.layered_components().await?;
         let Some(mut node) = self.pointer_target(position, solution, &components).await? else {
+            if focus.upgrade().is_some() {
+                focus.reset();
+                return Vizual_msg::new(Vizual_command::Layout);
+            }
             return Vizual_msg::none();
         };
         let mut total_message = Vizual_msg::bare();
+
+        if let Some(focused) = focus.upgrade()
+            && !Self::is_within_component(node.clone(), &focused).await?
+        {
+            focus.reset();
+            total_message.join(Vizual_msg::new_propagated(Vizual_command::Layout)?);
+        }
 
         loop {
             let candidate = components
@@ -585,13 +617,14 @@ async fn layout_problem<T: Widget_trait>(
     root: Shared_widget<T>,
     render: Render,
     theme: Store<Theme>,
+    focus: &Focus,
     root_slot: &mut Component_slot,
     text_context: &mut Text_context,
     variables: Arc<Variables>,
 ) -> Result<(App_problem, Size)> {
     let mut problem = App_problem::new(root, root_slot, variables).await?;
     log_duration(0, "app problem layout", || {
-        problem.layout(render, theme, text_context)
+        problem.layout(render, theme, focus, text_context)
     })
     .await?;
     let minimum_size = problem.minimum_size().await?;
@@ -674,6 +707,7 @@ async fn ui_loop<T: Widget_trait>(
                     root.clone(),
                     render.clone(),
                     theme.clone(),
+                    &focus,
                     &mut root_slot,
                     &mut text_context,
                     Arc::clone(&variables),
@@ -754,11 +788,17 @@ async fn ui_loop<T: Widget_trait>(
             continue;
         };
 
+        if let Vizual_command::Focus(reference) = &command {
+            focus.set_with_reference(reference);
+            command = Vizual_command::Layout;
+        }
+
         if matches!(command, Vizual_command::Layout) {
             let (problem, minimum) = layout_problem(
                 root.clone(),
                 render.clone(),
                 theme.clone(),
+                &focus,
                 &mut root_slot,
                 &mut text_context,
                 Arc::clone(&variables),
@@ -775,9 +815,6 @@ async fn ui_loop<T: Widget_trait>(
                 solution = Some(problem.solve(size).await?);
                 command = Vizual_command::Render;
             }
-        } else if let Vizual_command::Focus(reference) = &command {
-            focus.set_with_reference(reference);
-            command = Vizual_command::Render;
         }
 
         if matches!(command, Vizual_command::Render)
@@ -951,6 +988,11 @@ impl Window_app {
         let Some(renderer) = &mut self.renderer else {
             return;
         };
+
+        let timestamp = OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .unwrap_or_else(|_| "unknown".to_owned());
+        log_info(0, format_args!("render timestamp: {timestamp}"));
 
         let mut physical_scene = Scene::new();
         physical_scene.append(logical_scene, Some(Affine::scale(self.scale_factor)));
@@ -1248,14 +1290,57 @@ fn map_pointer_button(button: MouseButton) -> Pointer_button {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::Rect;
     use crate::widget::widgets::{
-        default_root::Default_root, layout::grid::Grid, positioning::anchor::Anchor,
-        scroll::Scroll, text::Text,
+        default_root::Default_root, layout::grid::Grid, paragraph::Paragraph,
+        positioning::anchor::Anchor, scroll::Scroll, text::Text,
+    };
+    use crate::{
+        geometry::{Direction, Rect},
+        graphics::text::Styled_text,
     };
 
     #[derive(Clone)]
     struct Offset_click;
+
+    #[derive(Clone)]
+    struct Focusable_box;
+
+    #[async_trait::async_trait]
+    impl Widget_trait for Focusable_box {
+        async fn layout(
+            &mut self,
+            _render: Render,
+            _theme: Store<Theme>,
+            focus: &mut crate::widget::Focus_provider,
+            hitbox: &mut Hitbox,
+            _parent: Hitbox,
+            problem: Component_context,
+            _text_context: &mut Text_context,
+            _slots: &mut crate::slot::manager::Slots,
+        ) -> Result<component::Children> {
+            focus.set_active(true);
+            for direction in [Direction::Horizontal, Direction::Vertical] {
+                hitbox
+                    .set_static_dimension(&problem, direction, 20.0)
+                    .await?;
+            }
+            Ok(Vec::new())
+        }
+
+        async fn render(
+            &mut self,
+            _render: Render,
+            _theme: Store<Theme>,
+            focus: &mut crate::widget::Focus_provider,
+            _hitbox: Rect,
+            _scene: &mut graphics::scene::Scene<'_>,
+            _text_context: &mut Text_context,
+            _context: &component::Render_context<'_>,
+        ) -> Result<Option<Hitbox>> {
+            focus.set_active(true);
+            Ok(None)
+        }
+    }
 
     #[async_trait::async_trait]
     impl Widget_trait for Offset_click {
@@ -1311,14 +1396,146 @@ mod tests {
         let mut root_slot = Component_slot::new();
         let variables = Arc::new(Variables::new());
         let mut text_context = Text_context::new();
+        let focus = Focus::new();
         let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
 
-        problem.layout(render, theme, &mut text_context).await?;
+        problem
+            .layout(render, theme, &focus, &mut text_context)
+            .await?;
         let minimum = problem.minimum_size().await?;
         assert!(minimum.width > 0.0);
         assert!(minimum.height > 0.0);
         let _ = problem.solve(Size::new(800.0, 600.0)).await?;
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
+        let render_manager = Render_manager::new();
+        let render = render_manager.render;
+        let theme = Store::new(theme::dark_theme());
+        let root = Root::new(Anchor::top_left(Focusable_box)).into_shared();
+        let mut root_slot = Component_slot::new();
+        let variables = Arc::new(Variables::new());
+        let mut text_context = Text_context::new();
+        let mut focus = Focus::new();
+        let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+
+        problem
+            .layout(render.clone(), theme.clone(), &focus, &mut text_context)
+            .await?;
+        let solution = problem.solve(Size::new(100.0, 100.0)).await?;
+        let anchor = problem.root.lock().await?.children[0].clone();
+        let focusable = anchor.lock().await?.children[0].clone();
+        let context = component::Render_context {
+            focus: &focus,
+            solution: &solution,
+        };
+        let _ = problem
+            .render(render, theme, &context, &mut text_context)
+            .await?;
+
+        let command = problem
+            .handle_event(
+                &Event::Pointer(Pointer_event {
+                    position: Point::new(10.0, 10.0),
+                    button: Pointer_button::Primary,
+                }),
+                &solution,
+                &mut focus,
+            )
+            .await?;
+        assert!(matches!(command, Vizual_command::Layout));
+        assert!(focus.compare(&focusable));
+
+        let command = problem
+            .handle_event(
+                &Event::Pointer(Pointer_event {
+                    position: Point::new(80.0, 80.0),
+                    button: Pointer_button::Primary,
+                }),
+                &solution,
+                &mut focus,
+            )
+            .await?;
+        assert!(matches!(command, Vizual_command::Layout));
+        assert!(focus.upgrade().is_none());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn width_constrained_paragraph_derives_its_wrapped_height() -> Result<()> {
+        let render_manager = Render_manager::new();
+        let render = render_manager.render;
+        let theme = Store::new(theme::dark_theme());
+        let content = "a paragraph which wraps over several lines";
+        let width = 80.0;
+        let mut paragraph = Paragraph::new(Direction::Horizontal, width);
+        paragraph.set_content(content);
+        let root = Root::new(Anchor::top_left(paragraph)).into_shared();
+        let mut root_slot = Component_slot::new();
+        let variables = Arc::new(Variables::new());
+        let mut text_context = Text_context::new();
+        let expected_height = f64::from(
+            text_context
+                .build_wrapped_layout(&Styled_text::ansi(content), width as f32)
+                .height(),
+        );
+        let focus = Focus::new();
+        let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+
+        problem
+            .layout(render, theme, &focus, &mut text_context)
+            .await?;
+        let solution = problem.solve(Size::new(300.0, 200.0)).await?;
+        let anchor = problem.root.lock().await?.children[0].clone();
+        let paragraph = anchor.lock().await?.children[0].clone();
+        let paragraph = paragraph.get_hitbox().await?.get_resolved(&solution);
+
+        assert!((paragraph.size.width - width).abs() < 1e-6);
+        assert!((paragraph.size.height - expected_height).abs() < 1e-6);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn height_constrained_paragraph_derives_a_fitting_width() -> Result<()> {
+        let render_manager = Render_manager::new();
+        let render = render_manager.render;
+        let theme = Store::new(theme::dark_theme());
+        let content = "one two three four five six seven eight nine ten eleven twelve";
+        let height = 60.0;
+        let mut paragraph = Paragraph::new(Direction::Vertical, height);
+        paragraph.set_content(content);
+        let root = Root::new(Anchor::top_left(paragraph)).into_shared();
+        let mut root_slot = Component_slot::new();
+        let variables = Arc::new(Variables::new());
+        let mut text_context = Text_context::new();
+        let natural_width = f64::from(
+            text_context
+                .build_layout(&Styled_text::ansi(content))
+                .full_width(),
+        );
+        let focus = Focus::new();
+        let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+
+        problem
+            .layout(render, theme, &focus, &mut text_context)
+            .await?;
+        let solution = problem.solve(Size::new(600.0, 200.0)).await?;
+        let anchor = problem.root.lock().await?.children[0].clone();
+        let paragraph = anchor.lock().await?.children[0].clone();
+        let paragraph = paragraph.get_hitbox().await?.get_resolved(&solution);
+        let wrapped_height = f64::from(
+            text_context
+                .build_wrapped_layout(&Styled_text::ansi(content), paragraph.size.width as f32)
+                .height(),
+        );
+
+        assert!((paragraph.size.height - height).abs() < 1e-6);
+        assert!(paragraph.size.width < natural_width);
+        assert!(wrapped_height <= height);
         Ok(())
     }
 
@@ -1332,10 +1549,11 @@ mod tests {
         let mut root_slot = Component_slot::new();
         let variables = Arc::new(Variables::new());
         let mut text_context = Text_context::new();
+        let mut focus = Focus::new();
         let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
 
         problem
-            .layout(render.clone(), theme.clone(), &mut text_context)
+            .layout(render.clone(), theme.clone(), &focus, &mut text_context)
             .await?;
         let solution = problem.solve(Size::new(100.0, 80.0)).await?;
         let scroll = problem.root.lock().await?.children[0].clone();
@@ -1351,7 +1569,6 @@ mod tests {
         assert_eq!(frame_rect.size, content_rect.size);
         assert!(frame.lock().await?.logical);
 
-        let mut focus = Focus::new();
         let context = component::Render_context {
             focus: &focus,
             solution: &solution,
@@ -1395,14 +1612,14 @@ mod tests {
         let mut root_slot = Component_slot::new();
         let variables = Arc::new(Variables::new());
         let mut text_context = Text_context::new();
+        let mut focus = Focus::new();
         let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
 
         problem
-            .layout(render.clone(), theme.clone(), &mut text_context)
+            .layout(render.clone(), theme.clone(), &focus, &mut text_context)
             .await?;
         let solution = problem.solve(Size::new(40.0, 30.0)).await?;
         let scroll = problem.root.lock().await?.children[0].clone();
-        let mut focus = Focus::new();
         focus.set(&scroll);
 
         let context = component::Render_context {
@@ -1413,7 +1630,8 @@ mod tests {
             .render(render.clone(), theme.clone(), &context, &mut text_context)
             .await?;
 
-        for _ in 0..2 {
+        let mut scrolled = false;
+        loop {
             let command = problem
                 .handle_event(
                     &Event::Key(Key_event {
@@ -1426,8 +1644,14 @@ mod tests {
                     &mut focus,
                 )
                 .await?;
-            assert!(matches!(command, Vizual_command::Render));
+            if matches!(command, Vizual_command::Render) {
+                scrolled = true;
+                continue;
+            }
+            assert!(matches!(command, Vizual_command::None));
+            break;
         }
+        assert!(scrolled);
 
         let context = component::Render_context {
             focus: &focus,
