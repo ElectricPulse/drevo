@@ -6,4 +6,3 @@
 - Model new behavior as a local component before extending shared infrastructure. Avoid cross-cutting hooks that merely compensate for a missing abstraction.
 - Do not create trivial wrapper macros or helper functions that merely forward to one constructor, such as `left_aligned(child)` around an anchor constructor. Put the expressive convenience constructor on the owning type instead, such as `Anchor::left(child)`.
 - Do not avoid making methods async when needed.
-- TODO: Fix the redundant component level that every `display!` adds to diagnostic component trees. Repeated same-source pairs such as `c28/c27` are logging noise from the extra wrapper, not meaningful hierarchy, and should not be accepted as the intended tree representation.
