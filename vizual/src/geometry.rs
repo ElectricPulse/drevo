@@ -78,4 +78,17 @@ impl Rect {
             (self.size.height - 2.0 * value).max(0.0),
         )
     }
+
+    pub fn intersect(self, other: Self) -> Self {
+        let left = self.origin.x.max(other.origin.x);
+        let top = self.origin.y.max(other.origin.y);
+        let right = self.right().min(other.right());
+        let bottom = self.bottom().min(other.bottom());
+        Self::new(
+            left,
+            top,
+            (right - left).max(0.0),
+            (bottom - top).max(0.0),
+        )
+    }
 }

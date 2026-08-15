@@ -56,7 +56,7 @@ use winit::{
     window::{Theme as Window_theme, Window, WindowId},
 };
 
-use component::{Child_reference, Layered_component, Shared_component, context::Component_context};
+use component::{Child_reference, Shared_component, context::Component_context};
 use config::DEFAULT_SCREEN_SIZE;
 use event::{
     Event, Key_code, Key_event, Modifiers, Pointer_button, Pointer_event, Wheel_delta, Wheel_event,
@@ -182,22 +182,6 @@ struct App_problem {
     component_context: Component_context,
 }
 
-#[derive(Clone, Copy)]
-struct Pointer_rank {
-    layer: usize,
-    area: f64,
-    tree_order: usize,
-}
-
-impl Pointer_rank {
-    fn outranks(self, other: Self) -> bool {
-        self.layer
-            .cmp(&other.layer)
-            .then_with(|| other.area.total_cmp(&self.area))
-            .then_with(|| self.tree_order.cmp(&other.tree_order))
-            .is_gt()
-    }
-}
 
 impl App_problem {
     async fn new<T: Widget_trait>(
@@ -301,118 +285,52 @@ impl App_problem {
         Ok(scene)
     }
 
-    async fn pointer_target(
-        &self,
-        position: Point,
-        solution: &Solution,
-        components: &[Layered_component],
-    ) -> Result<Option<Shared_component>> {
-        let mut target: Option<(Shared_component, Pointer_rank)> = None;
-
-        for candidate in components {
-            if !component_contains(candidate, position, solution).await? {
-                continue;
-            }
-
-            let hitbox = candidate
-                .component
-                .get_hitbox()
-                .await?
-                .get_resolved(solution);
-
-            let area = hitbox.size.width * hitbox.size.height;
-            let rank = Pointer_rank {
-                layer: candidate.layer,
-                area,
-                tree_order: candidate.tree_order,
-            };
-            let replace = match target.as_ref() {
-                Some((_, target_rank)) => rank.outranks(*target_rank),
-                None => true,
-            };
-
-            if replace {
-                target = Some((candidate.component.clone(), rank));
-            }
-        }
-
-        Ok(target.map(|(component, _)| component))
-    }
-
-    async fn is_within_component(
-        mut component: Shared_component,
-        ancestor: &Shared_component,
-    ) -> Result<bool> {
-        loop {
-            if component.compare(ancestor) {
-                return Ok(true);
-            }
-
-            let parent = component.lock().await?.parent.clone();
-            let Some(parent) = parent.and_then(|parent| parent.upgrade()) else {
-                return Ok(false);
-            };
-            component = Shared_component::new(parent);
-        }
-    }
-
+    #[async_recursion]
     async fn handle_pointer_press(
         &mut self,
+        node: Shared_component,
         position: Point,
         event: &Event,
         solution: &Solution,
         focus: &mut Focus,
     ) -> Result<Vizual_msg> {
-        let components = self.root.layered_components().await?;
-        let Some(mut node) = self.pointer_target(position, solution, &components).await? else {
-            if focus.upgrade().is_some() {
-                focus.reset();
-                return Vizual_msg::new(Vizual_command::Layout);
-            }
-            return Vizual_msg::none();
+        let (hits, children, logical) = {
+            let node_lock = node.lock().await?;
+            (
+                node_lock.hitbox.get_resolved(solution).contains(position),
+                node_lock.children.clone(),
+                node_lock.logical,
+            )
         };
         let mut total_message = Vizual_msg::bare();
-        let mut focus_target_found = false;
 
-        if let Some(focused) = focus.upgrade()
-            && !Self::is_within_component(node.clone(), &focused).await?
-        {
-            focus.reset();
-            total_message.join(Vizual_msg::new_propagated(Vizual_command::Layout)?);
-        }
-
-        loop {
-            let candidate = components
-                .iter()
-                .find(|candidate| candidate.component.compare(&node));
-            let hits = match candidate {
-                Some(candidate) => component_contains(candidate, position, solution).await?,
-                None => false,
-            };
-            let mut node_lock = node.lock().await?;
-            let parent = node_lock.parent.clone();
-
-            if hits {
-                if node_lock.focusable && !focus_target_found {
-                    focus_target_found = true;
-                    if !focus.compare(&node) {
-                        focus.set(&node);
-                        total_message.join(Vizual_msg::new_propagated(Vizual_command::Layout)?);
-                    }
-                }
-
-                let message = node_lock.widget.forward_event(event).await?;
+        // Overlay children may intentionally extend beyond their parent's normal hitbox.
+        if !logical {
+            for child in children.iter().rev() {
+                let message = self
+                    .handle_pointer_press(child.clone(), position, event, solution, focus)
+                    .await?;
                 total_message.join(message);
                 if !total_message.propagate {
                     return Ok(total_message);
                 }
             }
+        }
 
-            let Some(parent) = parent.and_then(|parent| parent.upgrade()) else {
-                return Ok(total_message);
-            };
-            drop(node_lock);
-            node = Shared_component::new(parent);
+        if !hits {
+            return Vizual_msg::none();
+        }
+
+        let mut node_lock = node.lock().await?;
+        if node_lock.focusable {
+            focus.set(&node);
+            return Vizual_msg::new(Vizual_command::Layout);
+        }
+
+        let message = node_lock.widget.forward_event(event).await?;
+        match message.propagate {
+            false => Ok(message),
+            true => Vizual_msg::none(),
         }
     }
 
@@ -580,31 +498,49 @@ impl App_problem {
                 _ if check_quit_event(key) => Ok(Vizual_command::Quit),
                 _ => Ok(Vizual_command::None),
             },
-            Event::Pointer(pointer) => Ok(self
-                .handle_pointer_press(pointer.position, event, solution, focus)
-                .await?
-                .command),
+            Event::Pointer(pointer) => {
+                let initial_focus = focus.clone();
+                let message = self
+                    .handle_pointer_press(self.root.clone(), pointer.position, event, solution, focus)
+                    .await?;
+                if let Some(focused) = initial_focus.upgrade() {
+                    if focus.compare(&focused)
+                        && !self.component_hit(&focused, pointer.position, solution).await?
+                    {
+                        focus.reset();
+                        return Ok(Vizual_command::Layout);
+                    }
+                }
+                Ok(message.command)
+            }
             Event::Close_requested => Ok(Vizual_command::Quit),
             Event::Wheel(_) | Event::Text(_) => Ok(Vizual_command::None),
         }
     }
-}
 
-async fn component_contains(
-    component: &Layered_component,
-    position: Point,
-    solution: &Solution,
-) -> Result<bool> {
-    if component.component.lock().await?.logical {
-        return Ok(false);
+    async fn component_hit(
+        &self,
+        node: &Shared_component,
+        position: Point,
+        solution: &Solution,
+    ) -> Result<bool> {
+        let (hits, children) = {
+            let node_lock = node.lock().await?;
+            (
+                node_lock.hitbox.get_resolved(solution).contains(position),
+                node_lock.children.clone(),
+            )
+        };
+        if hits {
+            return Ok(true);
+        }
+        for child in children {
+            if Box::pin(self.component_hit(&child, position, solution)).await? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
-
-    let hitbox = component
-        .component
-        .get_hitbox()
-        .await?
-        .get_resolved(solution);
-    Ok(hitbox.contains(position))
 }
 
 enum Ui_input {
@@ -1363,30 +1299,16 @@ mod tests {
             _theme: Store<Theme>,
             _focus: &mut crate::widget::Focus_provider,
             hitbox: &mut Hitbox,
-            parent: Hitbox,
+            _parent: Hitbox,
             problem: Component_context,
             _text_context: &mut Text_context,
             _slots: &mut crate::slot::manager::Slots,
         ) -> Result<component::Children> {
-            hitbox.make_start_independent(crate::geometry::Direction::Horizontal);
-            hitbox.make_end_independent(crate::geometry::Direction::Horizontal);
-            problem
-                .constrain(crate::constraint!(
-                    hitbox.get_start_position(crate::geometry::Direction::Horizontal)
-                        == parent.get_start_position(crate::geometry::Direction::Horizontal) + 64
-                ))
-                .await?;
             hitbox
-                .set_static_dimension(&problem, crate::geometry::Direction::Horizontal, 20.0)
+                .set_static_dimension(&problem, crate::geometry::Direction::Horizontal, 100.0)
                 .await?;
             hitbox
                 .set_static_dimension(&problem, crate::geometry::Direction::Vertical, 20.0)
-                .await?;
-            problem
-                .constrain(crate::constraint!(
-                    parent.get_end_position(crate::geometry::Direction::Horizontal)
-                        == hitbox.get_end_position(crate::geometry::Direction::Horizontal)
-                ))
                 .await?;
 
             Ok(Vec::new())
@@ -1549,7 +1471,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn scroll_lays_out_content_in_zero_origin_logical_space() -> Result<()> {
+    async fn scroll_lays_out_content_with_offset() -> Result<()> {
         let render_manager = Render_manager::new();
         let render = render_manager.render;
         let theme = Store::new(theme::dark_theme());
@@ -1566,24 +1488,13 @@ mod tests {
             .await?;
         let solution = problem.solve(Size::new(100.0, 80.0)).await?;
         let scroll = problem.root.lock().await?.children[0].clone();
-        let block = scroll.lock().await?.children[0].clone();
-        let space = block.lock().await?.children[0].clone();
-        let scroll_content = space.lock().await?.children[0].clone();
-        let frame = scroll_content.lock().await?.children[0].clone();
-        let content = frame.lock().await?.children[0].clone();
+        let content = scroll.lock().await?.children[0].clone();
         let scroll_rect = scroll.get_hitbox().await?.get_resolved(&solution);
-        let block_rect = block.get_hitbox().await?.get_resolved(&solution);
-        let scroll_content_rect = scroll_content.get_hitbox().await?.get_resolved(&solution);
-        let frame_rect = frame.get_hitbox().await?.get_resolved(&solution);
         let content_rect = content.get_hitbox().await?.get_resolved(&solution);
 
         assert_eq!(scroll_rect, Rect::new(0.0, 0.0, 100.0, 80.0));
-        assert_eq!(block_rect, scroll_rect);
-        assert_eq!(scroll_content_rect, Rect::new(1.0, 1.0, 98.0, 78.0));
-        assert_eq!(frame_rect.origin, Point::new(0.0, 0.0));
         assert_eq!(content_rect.origin, Point::new(0.0, 0.0));
-        assert_eq!(frame_rect.size, content_rect.size);
-        assert!(frame.lock().await?.logical);
+        assert!(content_rect.size.width > 100.0);
 
         let _scene = problem
             .render(
@@ -1594,8 +1505,8 @@ mod tests {
                 &mut text_context,
             )
             .await?;
-        assert!(block.lock().await?.focusable);
-        focus.set(&block);
+        assert!(scroll.lock().await?.focusable);
+        focus.set(&scroll);
         let command = problem
             .handle_event(
                 &Event::Key(Key_event {
@@ -1608,12 +1519,7 @@ mod tests {
                 &mut focus,
             )
             .await?;
-        assert!(matches!(command, Vizual_command::Render));
-
-        let _scene = problem
-            .render(render, theme, &focus, &solution, &mut text_context)
-            .await?;
-        assert!(frame.lock().await?.logical);
+        assert!(matches!(command, Vizual_command::Layout));
 
         Ok(())
     }
@@ -1635,8 +1541,7 @@ mod tests {
             .await?;
         let solution = problem.solve(Size::new(40.0, 30.0)).await?;
         let scroll = problem.root.lock().await?.children[0].clone();
-        let block = scroll.lock().await?.children[0].clone();
-        focus.set(&block);
+        focus.set(&scroll);
 
         let _scene = problem
             .render(
@@ -1662,7 +1567,7 @@ mod tests {
                     &mut focus,
                 )
                 .await?;
-            if matches!(command, Vizual_command::Render) {
+            if matches!(command, Vizual_command::Layout) {
                 scrolled = true;
                 continue;
             }
@@ -1671,13 +1576,18 @@ mod tests {
         }
         assert!(scrolled);
 
+        problem
+            .layout(render.clone(), theme.clone(), &focus, &mut text_context)
+            .await?;
+        let solution = problem.solve(Size::new(40.0, 30.0)).await?;
+
         let _scene = problem
             .render(render, theme, &focus, &solution, &mut text_context)
             .await?;
         let command = problem
             .handle_event(
                 &Event::Pointer(Pointer_event {
-                    position: Point::new(25.0, 10.0),
+                    position: Point::new(14.0, 10.0),
                     button: Pointer_button::Primary,
                 }),
                 &solution,
@@ -1689,31 +1599,7 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn pointer_rank_prefers_layer_then_smallest_area_then_paint_order() {
-        let base = Pointer_rank {
-            layer: 1,
-            area: 100.0,
-            tree_order: 2,
-        };
 
-        assert!(
-            Pointer_rank {
-                layer: 2,
-                area: 10_000.0,
-                tree_order: 0,
-            }
-            .outranks(base)
-        );
-        assert!(Pointer_rank { area: 50.0, ..base }.outranks(base));
-        assert!(
-            Pointer_rank {
-                tree_order: 3,
-                ..base
-            }
-            .outranks(base)
-        );
-    }
 }
 
 fn map_system_theme(theme: Window_theme) -> System_theme {

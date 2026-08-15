@@ -2,13 +2,14 @@ pub mod context;
 pub(crate) mod debug;
 
 use async_recursion::async_recursion;
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{ContextCompat, Result};
 use std::sync::{Arc, Weak};
+use vello::{Scene as Vello_scene, kurbo::Affine};
 
 use crate::{
     Render,
     focus::Focused_path,
-    geometry::Direction,
+    geometry::{Direction, Rect},
     graphics::text::Text_context,
     layouter::{Solution, hitbox::Hitbox},
     slot::manager::Slot_records,
@@ -291,26 +292,54 @@ impl Shared_component {
         text_context: &mut Text_context,
         context: &Render_context<'_>,
     ) -> Result<()> {
-        let mut this = self.lock().await?;
-        let hitbox = this.hitbox.get_resolved(context.solution);
-        let focused = context.focused_path.contains(self);
-        let mut focus = Focus_provider::new(focused);
-        let maybe_hitbox = this
-            .widget
-            .render(
-                render,
-                theme,
-                &mut focus,
-                hitbox,
-                scene,
-                text_context,
-                context,
-            )
-            .await?;
-        this.focusable = focus.is_active();
+        let (hitbox, parent_hitbox) = {
+            let this = self.lock().await?;
+            let hitbox = this.hitbox.get_resolved(context.solution);
+            let mut clip_rect: Option<Rect> = None;
+            let mut current_parent = this.parent.clone();
+            while let Some(parent_ref) = current_parent {
+                let parent = parent_ref.upgrade().wrap_err("Found link to stale parent")?;
+                let parent_lock = parent.lock().await?;
+                let parent_rect = parent_lock.hitbox.get_resolved(context.solution);
+                clip_rect = match clip_rect {
+                    Some(rect) => Some(rect.intersect(parent_rect)),
+                    None => Some(parent_rect),
+                };
+                current_parent = parent_lock.parent.clone();
+            }
+            (hitbox, clip_rect)
+        };
+
+        let mut logical_scene = Vello_scene::new();
+        let maybe_hitbox = {
+            let mut logical_scene_wrapper = crate::graphics::scene::Scene::new(&mut logical_scene);
+            let mut this = self.lock().await?;
+            let focused = context.focused_path.contains(self);
+            let mut focus = Focus_provider::new(focused);
+            let maybe_hitbox = this
+                .widget
+                .render(
+                    render,
+                    theme,
+                    &mut focus,
+                    hitbox,
+                    &mut logical_scene_wrapper,
+                    text_context,
+                    context,
+                )
+                .await?;
+            this.focusable = focus.is_active();
+            maybe_hitbox
+        };
+
+        if let Some(parent_hitbox) = parent_hitbox {
+            scene.append_clipped(&logical_scene, parent_hitbox, Affine::IDENTITY);
+        } else {
+            scene.scene.append(&logical_scene, None);
+        }
 
         if let Some(hitbox) = maybe_hitbox {
-            this.hitbox.point_to(&hitbox);
+            self.lock().await?.hitbox.point_to(&hitbox);
         };
 
         Ok(())

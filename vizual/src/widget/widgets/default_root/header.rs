@@ -12,13 +12,7 @@ use super::{
     settings::Settings,
 };
 use crate::{
-    Render,
-    component::{Children, context::Component_context},
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::{State, Store},
-    theme::Theme,
-    widget::{Focus_provider, Widget, Widget_trait},
+    Render, component::{Children, context::Component_context}, geometry::Direction, layouter::hitbox::Hitbox, slot::manager::Slots, state::{State, Store}, theme::Theme, widget::{Focus_provider, Widget, Widget_trait},
 };
 
 #[derive(Clone)]
@@ -43,9 +37,9 @@ impl Widget_trait for Header {
         render: Render,
         theme: Store<Theme>,
         _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
+        hitbox: &mut Hitbox,
         _parent: Hitbox,
-        _problem: Component_context,
+        problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
@@ -70,6 +64,15 @@ impl Widget_trait for Header {
         );
 
         let items: Vec<Widget> = vec![Box::new(name), Box::new(settings)];
+
+        // We don't want to leave nothing in header component as height definining as it isn't clear what will always be bigger
+        // Example currently an application name and settings cog is shown
+        // If you unanchor the name then if it were to happen that the settings cog be bigger than the name - then the app will crash
+        // so it's easiest to just minimize height after anchoring
+
+        problem.minimize(hitbox.get_dimension(Direction::Horizontal));
+
+        
         Ok(vec![display!(Grid::new(items, 0.0))])
     }
 }
