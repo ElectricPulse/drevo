@@ -1,14 +1,22 @@
 use async_trait::async_trait;
 use color_eyre::Result;
 use vizual_macros::display;
-use winit::keyboard::Key;
 
 use super::{
     super::{Focus_provider, Widget_trait},
     block::{Block, Block_style},
 };
 use crate::{
-    Vizual_msg, component::{Children, context::Component_context}, event::{Key_code, Key_event, Pointer_event}, handlers::Submit_handler, layouter::{hitbox::Hitbox, objective::Delta}, slot::manager::Slots, state::{State, Store}, style::Color, theme::Theme, widget::Widget,
+    Vizual_msg,
+    component::{Children, context::Component_context},
+    event::{Key_code, Key_event, Pointer_event},
+    handlers::Submit_handler,
+    layouter::{hitbox::Hitbox, objective::Delta},
+    slot::manager::Slots,
+    state::{State, Store},
+    style::Color,
+    theme::Theme,
+    widget::Widget,
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -86,7 +94,7 @@ impl Widget_trait for Button {
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
         if let Some(handler) = &mut self.click_handler {
-            return handler.on_submit(false).await
+            return handler.on_submit(false).await;
         }
 
         Vizual_msg::none()
@@ -94,7 +102,7 @@ impl Widget_trait for Button {
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
         if let Some(handler) = &mut self.click_handler && matches!(key.code, Key_code::Enter) {
-            return handler.on_submit(true).await
+            return handler.on_submit(true).await;
         }
 
         Vizual_msg::none()

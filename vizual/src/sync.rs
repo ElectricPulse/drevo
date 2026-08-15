@@ -21,6 +21,12 @@ impl<T> Mutex<T> {
 }
 
 impl<T: ?Sized> Mutex<T> {
+    pub fn try_lock(&self) -> Result<MutexGuard<'_, T>> {
+        self.inner
+            .try_lock()
+            .map_err(|_| eyre!("Failed to acquire lock"))
+    }
+
     pub async fn lock(&self) -> Result<MutexGuard<'_, T>> {
         match tokio::time::timeout(Duration::from_secs(5), self.inner.lock()).await {
             Ok(guard) => Ok(guard),

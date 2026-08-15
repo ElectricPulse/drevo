@@ -62,7 +62,7 @@ impl Custom_widget_trait for Boolean_menu_item {
 }
 
 impl Menu<bool> {
-    pub fn boolean(default: bool) -> Self {
+    pub async fn boolean(default: bool) -> Result<Self> {
         let items = [false, true]
             .into_iter()
             .map(|value| -> Shared_menu_item<bool> {
@@ -71,7 +71,7 @@ impl Menu<bool> {
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[usize::from(default)]);
 
-        Self::new(items, default_item)
+        Self::new(items, default_item).await
     }
 
     pub(crate) async fn set_selected(&self, value: bool) -> Result<()> {

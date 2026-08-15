@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual_macros::display;
 
-use super::super::super::{Focus_provider, Widget_trait};
-use super::super::title_block::Title_block;
+use super::super::{Focus_provider, Widget_trait};
+use super::title_block::Title_block;
 use crate::{
     Vizual_command, Vizual_msg,
     component::{Children, context::Component_context},
@@ -141,7 +141,7 @@ impl Widget_trait for Text_input {
         if matches!(key.code, Key_code::Escape) {
             return self
                 .submit_handler
-                .on_submit(Some(self.input.clone()))
+                .on_submit(self.input.clone())
                 .await;
         }
 

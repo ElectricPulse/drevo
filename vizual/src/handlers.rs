@@ -23,7 +23,7 @@ impl Command_submit_handler {
 
 #[async_trait]
 impl<T: Thread_safe> Submit_handler<T> for Command_submit_handler {
-    async fn on_submit(&mut self, _payload: Option<T>) -> Result<Vizual_msg> {
+    async fn on_submit(&mut self, _payload: T) -> Result<Vizual_msg> {
         Vizual_msg::new(self.command.clone())
     }
 }

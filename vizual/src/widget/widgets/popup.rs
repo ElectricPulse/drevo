@@ -96,12 +96,8 @@ struct Popup_submit_handler {
 }
 
 #[async_trait]
-impl Submit_handler<Option<Popup_options>> for Popup_submit_handler {
-    async fn on_submit(&mut self, option: Option<Popup_options>) -> Result<Vizual_msg> {
-        let Some(option) = option else {
-            return Vizual_msg::new(Vizual_command::Layout);
-        };
-
+impl Submit_handler<Popup_options> for Popup_submit_handler {
+    async fn on_submit(&mut self, option: Popup_options) -> Result<Vizual_msg> {
         let Some(should_save) = option.should_save() else {
             return Vizual_msg::new(Vizual_command::Layout);
         };
@@ -112,7 +108,7 @@ impl Submit_handler<Option<Popup_options>> for Popup_submit_handler {
 
 #[derive(Clone)]
 struct Popup_button_handler {
-    menu: Shared_widget<Menu<Option<Popup_options>>>,
+    menu: Shared_widget<Menu<Popup_options>>,
     submit_handler: Box<dyn Submit_handler<Popup_options>>,
 }
 
@@ -126,12 +122,12 @@ impl Submit_handler<bool> for Popup_button_handler {
 
 #[derive(Clone)]
 pub struct Popup {
-    menu: Shared_widget<Menu<Option<Popup_options>>>,
-    submit_handler: Box<dyn Submit_handler<Option<Popup_options>>>,
+    menu: Shared_widget<Menu<Popup_options>>,
+    submit_handler: Box<dyn Submit_handler<Popup_options>>,
 }
 
 impl Popup {
-    pub fn new(submit_handler: impl Submit_handler<bool>) -> Self {
+    pub async fn new(submit_handler: impl Submit_handler<bool>) -> Result<Self> {
         let items = Popup_options::ALL
             .into_iter()
             .map(|option| -> Shared_menu_item<Popup_options> {
@@ -139,16 +135,16 @@ impl Popup {
             })
             .collect::<Vec<_>>();
         let default_item = get_selector(&items[0]);
-        let menu = Widget_trait::into_shared(Menu::new(items, default_item));
+        let menu = Widget_trait::into_shared(Menu::new(items, default_item).await?);
         let submit_handler: Box<dyn Submit_handler<Popup_options>> =
             Box::new(Popup_submit_handler {
                 subhandler: Box::new(submit_handler),
             });
 
-        Self {
+        Ok(Self {
             menu,
             submit_handler,
-        }
+        })
     }
 }
 

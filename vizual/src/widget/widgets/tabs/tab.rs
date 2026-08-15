@@ -34,8 +34,8 @@ struct Tab_button_click_handler {
 }
 
 #[async_trait]
-impl Submit_handler<String> for Tab_button_click_handler {
-    async fn on_submit(&mut self, _label: Option<String>) -> Result<Vizual_msg> {
+impl Submit_handler<bool> for Tab_button_click_handler {
+    async fn on_submit(&mut self, _focused: bool) -> Result<Vizual_msg> {
         *self.state.write().await? = self.id;
         Vizual_msg::new(Vizual_command::Layout)
     }

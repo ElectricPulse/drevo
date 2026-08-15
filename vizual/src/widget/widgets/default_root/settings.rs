@@ -301,8 +301,8 @@ impl Widget_trait for Settings {
 
         let default_item = get_selector(&items[selected_index]);
 
-        let mut menu = Menu::new(items, default_item);
-        menu.set_submit_state(self.choice.clone());
+        let mut menu = Menu::new(items, default_item).await?;
+        menu.submitted = self.choice.clone();
         let menu = Paper::new(menu);
 
         let menu = Positioned_menu::new(menu, button.get_hitbox().await?);

@@ -40,10 +40,10 @@ impl<Choice: Thread_safe, Widget> Menu_item_trait<Choice> for Widget where
 {
 }
 
-pub type Shared_menu_item<Choice> = Shared_widget<dyn Menu_item_trait<Choice>>;
+pub type Menu_item<Choice> = Box<dyn Menu_item_trait<Choice>>;
 pub type Menu_item_selector<Choice> = Selector<dyn Menu_item_trait<Choice>>;
 
-impl<Choice, Widget> From<Shared_widget<Widget>> for Shared_menu_item<Choice>
+impl<Choice, Widget> From<Shared_widget<Widget>> for Menu_item<Choice>
 where
     Choice: Thread_safe,
     Widget: Menu_item_trait<Choice>,
@@ -55,7 +55,7 @@ where
 }
 
 pub fn get_selector<Choice: Thread_safe>(
-    item: &Shared_menu_item<Choice>,
+    item: &Menu_item<Choice>,
 ) -> Menu_item_selector<Choice> {
     item.as_reference()
 }
@@ -63,16 +63,16 @@ pub fn get_selector<Choice: Thread_safe>(
 #[derive(Clone)]
 struct Menu_item<Choice: Thread_safe> {
     selected: bool,
-    widget: Shared_menu_item<Choice>,
+    widget: Menu_item<Choice>,
     menu_selector: Store<Menu_item_selector<Choice>>,
+    submitted: Store<Choice>,
     button_delta: Variable,
-    submission: Submission<Choice>,
 }
 
 #[derive(Clone)]
 struct Menu_item_content<Choice: Thread_safe + Clone> {
     selected: bool,
-    widget: Shared_menu_item<Choice>,
+    widget: Menu_item<Choice>,
 }
 
 #[async_trait]
@@ -116,12 +116,6 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_content<Choice> {
     }
 }
 
-#[derive(Clone)]
-enum Submission<Choice> {
-    None,
-    State(Store<Choice>),
-}
-
 #[async_trait]
 impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
     async fn layout(
@@ -150,45 +144,44 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
         *self.menu_selector.write().await? = get_selector(&self.widget);
-
-        if let Submission::State(state) = &self.submission {
-            let value = self.widget.lock().await?.on_retrieve().await?;
-            *state.write().await? = value;
-        }
-
+        *self.submitted.write().await? = self.widget.lock().await?.on_retrieve().await?;
         Vizual_msg::new(Vizual_command::Layout)
     }
 }
 
 #[derive(Clone)]
 pub struct Menu<Choice: Thread_safe> {
-    items: Vec<Shared_menu_item<Choice>>,
-    pub selected: Store<Menu_item_selector<Choice>>,
+    items: Vec<Menu_item<Choice>>,
+    selected: Store<Menu_item_selector<Choice>>,
+    pub submitted: Store<Choice>,
     default_item: Menu_item_selector<Choice>,
-    submission: Submission<Choice>,
 }
 
-impl<Choice: Thread_safe> Menu<Choice> {
-    pub fn new(
-        items: Vec<Shared_menu_item<Choice>>,
+impl<Choice: Thread_safe + Clone> Menu<Choice> {
+    pub async fn new(
+        items: Vec<Menu_item<Choice>>,
         default_item: Menu_item_selector<Choice>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        let default_choice = default_item
+            .upgrade()
+            .ok_or_else(|| eyre!("Default menu item selector is stale"))?
+            .lock()
+            .await?
+            .on_retrieve()
+            .await?;
+
+        Ok(Self {
             items,
             selected: Store::new(default_item.clone()),
+            submitted: Store::new(default_choice),
             default_item,
-            submission: Submission::None,
-        }
-    }
-
-    pub fn set_submit_state(&mut self, state: Store<Choice>) {
-        self.submission = Submission::State(state);
+        })
     }
 
     fn find_selected_item(
         &self,
         selected: &Menu_item_selector<Choice>,
-    ) -> Result<Shared_menu_item<Choice>> {
+    ) -> Result<Menu_item<Choice>> {
         let selected = selected
             .upgrade()
             .ok_or_else(|| eyre!("Selected menu item selector is stale"))?;
@@ -200,7 +193,7 @@ impl<Choice: Thread_safe> Menu<Choice> {
             .ok_or_else(|| eyre!("Selected menu item is not in the menu"))
     }
 
-    async fn get_selected_item(&self) -> Result<Shared_menu_item<Choice>> {
+    async fn get_selected_item(&self) -> Result<Menu_item<Choice>> {
         let selected = self.selected.read().await?;
         self.find_selected_item(&selected)
     }
@@ -208,7 +201,7 @@ impl<Choice: Thread_safe> Menu<Choice> {
     async fn get_affected_selected_item(
         &self,
         render: crate::Render,
-    ) -> Result<Shared_menu_item<Choice>> {
+    ) -> Result<Menu_item<Choice>> {
         let selected = self.selected.affect(render).await?;
         self.find_selected_item(&selected)
     }
@@ -227,12 +220,7 @@ impl<Choice: Thread_safe> Menu<Choice> {
             .get(index)
             .ok_or_else(|| eyre!("Menu item index {index} is out of range"))?;
         *self.selected.write().await? = get_selector(item);
-
-        if let Submission::State(state) = &self.submission {
-            let value = item.lock().await?.on_retrieve().await?;
-            *state.write().await? = value;
-        }
-
+        *self.submitted.write().await? = item.lock().await?.on_retrieve().await?;
         Ok(())
     }
 }
@@ -240,9 +228,7 @@ impl<Choice: Thread_safe> Menu<Choice> {
 #[async_trait]
 impl<Choice: Thread_safe + Clone> Retrieve_handler<Choice> for Menu<Choice> {
     async fn on_retrieve(&mut self) -> Result<Choice> {
-        let item = self.get_selected_item().await?;
-        let choice = item.lock().await?.on_retrieve().await?;
-        Ok(choice)
+        Ok(self.submitted.read().await?.clone())
     }
 }
 
@@ -280,8 +266,8 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 selected: item.compare(&selected),
                 widget: item.clone(),
                 menu_selector: self.selected.clone(),
+                submitted: self.submitted.clone(),
                 button_delta: button_delta.clone(),
-                submission: self.submission.clone(),
             };
             let item = Anchor::left(item);
             rows.push(Box::new(item));
@@ -309,7 +295,6 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::Modifiers;
 
     #[derive(Clone, Copy)]
     struct Ordinary_menu_item(usize);
@@ -347,7 +332,7 @@ mod tests {
 
     #[test]
     fn selectors_preserve_menu_item_identity() {
-        let item: Shared_menu_item<usize> =
+        let item: Menu_item<usize> =
             Custom_widget_trait::into_shared(Ordinary_menu_item(0)).into();
         let selected = get_selector(&item)
             .upgrade()
@@ -359,7 +344,7 @@ mod tests {
     #[test]
     fn selectors_become_stale_after_the_menu_item_is_dropped() {
         let selector = {
-            let item: Shared_menu_item<usize> =
+            let item: Menu_item<usize> =
                 Custom_widget_trait::into_shared(Ordinary_menu_item(0)).into();
             get_selector(&item)
         };
@@ -368,27 +353,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn arrow_keys_update_selection_and_submitted_state() -> Result<()> {
-        let first: Shared_menu_item<usize> =
+    async fn menu_initializes_and_submits() -> Result<()> {
+        let first: Menu_item<usize> =
             Custom_widget_trait::into_shared(Ordinary_menu_item(0)).into();
-        let second: Shared_menu_item<usize> =
+        let second: Menu_item<usize> =
             Custom_widget_trait::into_shared(Ordinary_menu_item(1)).into();
-        let submitted = Store::new(0);
-        let mut menu = Menu::new(vec![first.clone(), second.clone()], get_selector(&first));
-        menu.set_submit_state(submitted.clone());
-
-        let message = menu
-            .on_key_press(&Key_event {
-                code: Key_code::Arrow_down,
-                modifiers: Modifiers::default(),
-                text: None,
-                repeat: false,
-            })
-            .await?;
-
-        assert!(message.has_command());
-        assert_eq!(*submitted.read().await?, 1);
-        assert_eq!(menu.get_selected_index().await?, 1);
+        let menu = Menu::new(vec![first.clone(), second.clone()], get_selector(&first)).await?;
+        assert_eq!(*menu.submitted.read().await?, 0);
         Ok(())
     }
 }

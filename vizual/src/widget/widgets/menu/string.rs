@@ -56,7 +56,7 @@ impl Custom_widget_trait for String_menu_item {
 }
 
 impl Menu<String> {
-    pub fn text(items: Vec<String>, default_item: usize) -> Self {
+    pub async fn text(items: Vec<String>, default_item: usize) -> Result<Self> {
         let items = items
             .into_iter()
             .map(|value| -> Shared_menu_item<String> {
@@ -69,6 +69,6 @@ impl Menu<String> {
                 .expect("Default menu item index must be in range"),
         );
 
-        Self::new(items, default_item)
+        Self::new(items, default_item).await
     }
 }
