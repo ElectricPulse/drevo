@@ -4,7 +4,7 @@ use vizual_macros::display;
 
 use super::{
     super::{super::Focus_provider, text::Text},
-    Menu, Shared_menu_item, get_selector,
+    Menu, Menu_item,
 };
 use crate::{
     component::{Children, context::Component_context},
@@ -65,16 +65,16 @@ impl Menu<bool> {
     pub async fn boolean(default: bool) -> Result<Self> {
         let items = [false, true]
             .into_iter()
-            .map(|value| -> Shared_menu_item<bool> {
-                Boolean_menu_item { value }.into_shared().into()
+            .map(|value| -> Menu_item<bool> {
+                Box::new(Boolean_menu_item { value })
             })
             .collect::<Vec<_>>();
-        let default_item = get_selector(&items[usize::from(default)]);
+        let default_item = usize::from(default);
 
         Self::new(items, default_item).await
     }
 
-    pub(crate) async fn set_selected(&self, value: bool) -> Result<()> {
+    pub(crate) async fn set_selected(&mut self, value: bool) -> Result<()> {
         self.set_index(usize::from(value)).await
     }
 }

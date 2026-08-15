@@ -99,6 +99,9 @@ async fn find_pointer_target(
     Ok(())
 }
 
+// TODO: This whole logic is just a copy of the base and should be better integrated
+// once the requirements for scroll like components that alter the rendering of their children become clear
+// currently the focus part is commented out
 pub(super) async fn forward_pointer(
     frame: &Shared_component,
     pointer: &Pointer_event,
@@ -130,11 +133,13 @@ pub(super) async fn forward_pointer(
 
         let mut component = node.lock().await?;
         let parent = component.parent.clone();
-        if component.focusable {
-            return Vizual_msg::new(Vizual_command::Focus(node.as_reference()));
-        }
 
         total_message.join(component.widget.forward_event(&event).await?);
+
+        //if component.focusable {
+        //    return Vizual_msg::new(Vizual_command::Focus(node.as_reference()));
+        //}
+
         if !total_message.propagate {
             return Ok(total_message);
         }

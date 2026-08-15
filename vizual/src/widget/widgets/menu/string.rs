@@ -4,7 +4,7 @@ use vizual_macros::display;
 
 use super::{
     super::{super::Focus_provider, text::Text},
-    Menu, Shared_menu_item, get_selector,
+    Menu, Menu_item,
 };
 use crate::{
     component::{Children, context::Component_context},
@@ -59,15 +59,10 @@ impl Menu<String> {
     pub async fn text(items: Vec<String>, default_item: usize) -> Result<Self> {
         let items = items
             .into_iter()
-            .map(|value| -> Shared_menu_item<String> {
-                String_menu_item { value }.into_shared().into()
+            .map(|value| -> Menu_item<String> {
+                Box::new(String_menu_item { value })
             })
             .collect::<Vec<_>>();
-        let default_item = get_selector(
-            items
-                .get(default_item)
-                .expect("Default menu item index must be in range"),
-        );
 
         Self::new(items, default_item).await
     }

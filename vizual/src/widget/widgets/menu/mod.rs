@@ -1,15 +1,14 @@
 pub mod boolean;
 mod string;
 
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, eyre};
 use vizual_macros::display;
 
 use super::{
     super::{
-        Focus_provider, Shared_widget, Widget, Widget_trait, custom_widget::Custom_widget_trait,
+        Focus_provider, Widget, Widget_trait,
+        custom_widget::{Custom_widget, Custom_widget_trait},
     },
     button::Button,
     layout::axis::Axis,
@@ -22,102 +21,49 @@ use crate::{
     geometry::Direction,
     handlers::Retrieve_handler,
     layouter::{hitbox::Hitbox, variable::Variable},
+    log::log_info,
     slot::manager::Slots,
     state::{State, Store},
-    sync::{Mutex, Thread_safe},
+    sync::Thread_safe,
     theme::Theme,
     utils::{get_next_index, get_previous_index},
-    widget::custom_widget::Selector,
 };
 
 // This trait is used as a trait object, which trait aliases do not currently support.
 pub trait Menu_item_trait<Choice: Thread_safe>:
-    Custom_widget_trait<Payload = bool> + Retrieve_handler<Choice>
+    Custom_widget_trait<Payload = bool> + Retrieve_handler<Choice> + dyn_clone::DynClone
 {
 }
 impl<Choice: Thread_safe, Widget> Menu_item_trait<Choice> for Widget where
-    Widget: Custom_widget_trait<Payload = bool> + Retrieve_handler<Choice>
+    Widget: Custom_widget_trait<Payload = bool> + Retrieve_handler<Choice> + Clone
 {
 }
+
+dyn_clone::clone_trait_object!(<Choice> Menu_item_trait<Choice> where Choice: Thread_safe);
 
 pub type Menu_item<Choice> = Box<dyn Menu_item_trait<Choice>>;
-pub type Menu_item_selector<Choice> = Selector<dyn Menu_item_trait<Choice>>;
-
-impl<Choice, Widget> From<Shared_widget<Widget>> for Menu_item<Choice>
-where
-    Choice: Thread_safe,
-    Widget: Menu_item_trait<Choice>,
-{
-    fn from(value: Shared_widget<Widget>) -> Self {
-        let inner: Arc<Mutex<dyn Menu_item_trait<Choice>>> = value.0;
-        Shared_widget(inner)
-    }
-}
-
-pub fn get_selector<Choice: Thread_safe>(
-    item: &Menu_item<Choice>,
-) -> Menu_item_selector<Choice> {
-    item.as_reference()
-}
 
 #[derive(Clone)]
-struct Menu_item<Choice: Thread_safe> {
+struct Menu_item_container<Choice: Thread_safe + Clone> {
+    index: usize,
     selected: bool,
     widget: Menu_item<Choice>,
-    menu_selector: Store<Menu_item_selector<Choice>>,
+    selected_store: Store<usize>,
     submitted: Store<Choice>,
     button_delta: Variable,
 }
 
-#[derive(Clone)]
-struct Menu_item_content<Choice: Thread_safe + Clone> {
-    selected: bool,
-    widget: Menu_item<Choice>,
-}
-
-#[async_trait]
-impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_content<Choice> {
-    async fn layout(
-        &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        parent: Hitbox,
-        problem: Component_context,
-        text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-    ) -> Result<Children> {
-        let contents = self
-            .widget
-            .lock()
-            .await?
-            .layout(
-                render,
-                theme,
-                focus,
-                hitbox,
-                parent,
-                problem,
-                text_context,
-                slots,
-                self.selected,
-            )
-            .await?;
-
-        // TODO: handle this some other way
-        if contents.len() != 1 {
-            return Err(eyre!(
-                "Menu item layout must return exactly one child, got {}",
-                contents.len()
-            ));
-        }
-        Ok(contents)
+impl<Choice: Thread_safe + Clone> Menu_item_container<Choice> {
+    async fn submit(&mut self) -> Result<Vizual_msg> {
+        log_info(0, format!("out of the dark -----------------------------------------------------"));
+        *self.selected_store.write().await? = self.index;
+        *self.submitted.write().await? = self.widget.on_retrieve().await?;
+        Vizual_msg::new(Vizual_command::Layout)
     }
 }
 
 #[async_trait]
-impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
+impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_container<Choice> {
     async fn layout(
         &mut self,
         _render: crate::Render,
@@ -129,10 +75,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let content = Menu_item_content {
-            selected: self.selected,
-            widget: self.widget.clone(),
-        };
+        let content = Custom_widget::new(self.widget.clone(), self.selected);
         let mut button = Button::around(content);
         button.highlighted = self.selected;
         button.focusable = true;
@@ -143,84 +86,52 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
-        *self.menu_selector.write().await? = get_selector(&self.widget);
-        *self.submitted.write().await? = self.widget.lock().await?.on_retrieve().await?;
-        Vizual_msg::new(Vizual_command::Layout)
+        self.submit().await
+    }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+        if matches!(key.code, Key_code::Enter) {
+            return self.submit().await;
+        }
+
+        Vizual_msg::none()
     }
 }
 
 #[derive(Clone)]
 pub struct Menu<Choice: Thread_safe> {
     items: Vec<Menu_item<Choice>>,
-    selected: Store<Menu_item_selector<Choice>>,
+    // Note: For now there is no reordering or filtering of the items, but even if that were needed
+    // a separate list of indices could be created for that. What is important for now and into the future:
+    // there is no need for a menu where you want the items to persist yet change the underlying widget
+    // (i.e. change items at runtime) — in that case an extra wrapper around the items would have to be passed
+    // identifying their ID.
+    pub selected: Store<usize>,
     pub submitted: Store<Choice>,
-    default_item: Menu_item_selector<Choice>,
 }
 
 impl<Choice: Thread_safe + Clone> Menu<Choice> {
-    pub async fn new(
-        items: Vec<Menu_item<Choice>>,
-        default_item: Menu_item_selector<Choice>,
-    ) -> Result<Self> {
-        let default_choice = default_item
-            .upgrade()
-            .ok_or_else(|| eyre!("Default menu item selector is stale"))?
-            .lock()
-            .await?
-            .on_retrieve()
-            .await?;
+    pub async fn new(mut items: Vec<Menu_item<Choice>>, default_item: usize) -> Result<Self> {
+        let item = items
+            .get_mut(default_item)
+            .ok_or_else(|| eyre!("Default menu item index {default_item} is out of range"))?;
+        let default_choice = item.on_retrieve().await?;
 
         Ok(Self {
             items,
-            selected: Store::new(default_item.clone()),
+            selected: Store::new(default_item),
             submitted: Store::new(default_choice),
-            default_item,
         })
     }
 
-    fn find_selected_item(
-        &self,
-        selected: &Menu_item_selector<Choice>,
-    ) -> Result<Menu_item<Choice>> {
-        let selected = selected
-            .upgrade()
-            .ok_or_else(|| eyre!("Selected menu item selector is stale"))?;
-
-        self.items
-            .iter()
-            .find(|item| item.compare_reference(&selected))
-            .cloned()
-            .ok_or_else(|| eyre!("Selected menu item is not in the menu"))
-    }
-
-    async fn get_selected_item(&self) -> Result<Menu_item<Choice>> {
-        let selected = self.selected.read().await?;
-        self.find_selected_item(&selected)
-    }
-
-    async fn get_affected_selected_item(
-        &self,
-        render: crate::Render,
-    ) -> Result<Menu_item<Choice>> {
-        let selected = self.selected.affect(render).await?;
-        self.find_selected_item(&selected)
-    }
-
-    async fn get_selected_index(&self) -> Result<usize> {
-        let selected = self.get_selected_item().await?;
-        self.items
-            .iter()
-            .position(|item| item.compare(&selected))
-            .ok_or_else(|| eyre!("Selected menu item is not in the menu"))
-    }
-
-    async fn set_index(&self, index: usize) -> Result<()> {
+    pub async fn set_index(&mut self, index: usize) -> Result<()> {
         let item = self
             .items
-            .get(index)
+            .get_mut(index)
             .ok_or_else(|| eyre!("Menu item index {index} is out of range"))?;
-        *self.selected.write().await? = get_selector(item);
-        *self.submitted.write().await? = item.lock().await?.on_retrieve().await?;
+        let value = item.on_retrieve().await?;
+        *self.selected.write().await? = index;
+        *self.submitted.write().await? = value;
         Ok(())
     }
 }
@@ -245,46 +156,35 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        let default_item = self
-            .default_item
-            .upgrade()
-            .ok_or_else(|| eyre!("Default menu item selector is stale"))?;
-        if !self
-            .items
-            .iter()
-            .any(|item| item.compare_reference(&default_item))
-        {
-            return Err(eyre!("Default menu item is not in the menu"));
-        }
-
-        let selected = self.get_affected_selected_item(render).await?;
+        let selected = *self.selected.affect(render).await?;
         let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());
         let button_delta = problem.add_delta("menu-item-button-delta", 1).await?;
 
-        for item in &self.items {
-            let item = Menu_item {
-                selected: item.compare(&selected),
+        for (index, item) in self.items.iter().enumerate() {
+            log_info(0, format!("index: {selected} selected: {}", index));
+            let row = Menu_item_container {
+                index,
+                selected: index == selected,
                 widget: item.clone(),
-                menu_selector: self.selected.clone(),
+                selected_store: self.selected.clone(),
                 submitted: self.submitted.clone(),
                 button_delta: button_delta.clone(),
             };
-            let item = Anchor::left(item);
-            rows.push(Box::new(item));
+            rows.push(Box::new(row));
         }
 
-        Ok(vec![display!(Axis::new(Direction::Vertical, rows,))])
+        Ok(vec![display!(Axis::new(Direction::Vertical, rows))])
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
         match key.code {
             Key_code::Arrow_up | Key_code::Arrow_down => {
-                let index = self.get_selected_index().await?;
-                let index = match key.code {
+                let index = *self.selected.read().await?;
+                let next_index = match key.code {
                     Key_code::Arrow_up => get_previous_index(self.items.len(), index),
                     _ => get_next_index(self.items.len(), index),
                 };
-                self.set_index(index).await?;
+                self.set_index(next_index).await?;
                 Vizual_msg::new(Vizual_command::Layout)
             }
             _ => Vizual_msg::none(),
@@ -330,36 +230,42 @@ mod tests {
         assert_menu_item::<Ordinary_menu_item>();
     }
 
-    #[test]
-    fn selectors_preserve_menu_item_identity() {
-        let item: Menu_item<usize> =
-            Custom_widget_trait::into_shared(Ordinary_menu_item(0)).into();
-        let selected = get_selector(&item)
-            .upgrade()
-            .expect("menu item should still be alive");
-
-        assert!(item.compare_reference(&selected));
-    }
-
-    #[test]
-    fn selectors_become_stale_after_the_menu_item_is_dropped() {
-        let selector = {
-            let item: Menu_item<usize> =
-                Custom_widget_trait::into_shared(Ordinary_menu_item(0)).into();
-            get_selector(&item)
-        };
-
-        assert!(selector.upgrade().is_none());
+    #[tokio::test]
+    async fn menu_initializes_and_submits() -> Result<()> {
+        let first: Menu_item<usize> = Box::new(Ordinary_menu_item(0));
+        let second: Menu_item<usize> = Box::new(Ordinary_menu_item(1));
+        let menu = Menu::new(vec![first, second], 0).await?;
+        assert_eq!(*menu.submitted.read().await?, 0);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn menu_initializes_and_submits() -> Result<()> {
-        let first: Menu_item<usize> =
-            Custom_widget_trait::into_shared(Ordinary_menu_item(0)).into();
-        let second: Menu_item<usize> =
-            Custom_widget_trait::into_shared(Ordinary_menu_item(1)).into();
-        let menu = Menu::new(vec![first.clone(), second.clone()], get_selector(&first)).await?;
-        assert_eq!(*menu.submitted.read().await?, 0);
+    async fn menu_item_container_submits_on_enter() -> Result<()> {
+        let selected_store = Store::new(0);
+        let submitted = Store::new(0);
+        let variables = crate::layouter::variables::Variables::new();
+        let button_delta = variables.make(good_lp::variable(), "delta", "delta", "delta");
+        let mut container = Menu_item_container {
+            index: 1,
+            selected: false,
+            widget: Box::new(Ordinary_menu_item(42)),
+            selected_store: selected_store.clone(),
+            submitted: submitted.clone(),
+            button_delta,
+        };
+
+        let message = container
+            .on_key_press(&Key_event {
+                code: Key_code::Enter,
+                modifiers: crate::event::Modifiers::default(),
+                text: None,
+                repeat: false,
+            })
+            .await?;
+
+        assert!(message.has_command());
+        assert_eq!(*selected_store.read().await?, 1);
+        assert_eq!(*submitted.read().await?, 42);
         Ok(())
     }
 }

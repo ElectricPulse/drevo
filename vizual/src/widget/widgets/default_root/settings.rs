@@ -11,7 +11,7 @@ use super::{
         icon::Icon,
         layer::Layer,
         layout::axis::Axis,
-        menu::{Menu, Shared_menu_item, get_selector},
+        menu::{Menu, Menu_item},
         positioning::anchor::{Anchor, Anchors},
         text::Text,
     },
@@ -294,14 +294,12 @@ impl Widget_trait for Settings {
 
         let items = choices
             .into_iter()
-            .map(|choice| -> Shared_menu_item<Theme_choice> {
-                Theme_menu_item { choice }.into_shared().into()
+            .map(|choice| -> Menu_item<Theme_choice> {
+                Box::new(Theme_menu_item { choice })
             })
             .collect::<Vec<_>>();
 
-        let default_item = get_selector(&items[selected_index]);
-
-        let mut menu = Menu::new(items, default_item).await?;
+        let mut menu = Menu::new(items, selected_index).await?;
         menu.submitted = self.choice.clone();
         let menu = Paper::new(menu);
 

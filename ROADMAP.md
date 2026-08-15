@@ -8,6 +8,8 @@ which I haven't implemented because they are complex and make the code even less
 - scroll should render only visible components
 
 ## To-Do list
+- tab refocuses without clicking
+- in apps like react the same lifetime used to track widget is the same as the component lifetime ie. a stable id used in slots.set() means you dont have to store menu under `Shared_widget<Menu>`. Since Menu needs to keep state of the selected item
 - make scroll bars draggable
 - fix the occasional ~500 ms stutter during scrollin
 - figure out a better Paragraph sizing and constraint-negotiation model

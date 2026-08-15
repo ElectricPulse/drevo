@@ -6,7 +6,7 @@ use super::{
     super::{Focus_provider, Shared_widget, Widget_trait},
     button::Button,
     layout::axis::Axis,
-    menu::{Menu, Shared_menu_item, get_selector},
+    menu::{Menu, Menu_item},
     positioning::anchor::Anchor,
     text::Text,
     title_block::Title_block,
@@ -128,14 +128,13 @@ pub struct Popup {
 
 impl Popup {
     pub async fn new(submit_handler: impl Submit_handler<bool>) -> Result<Self> {
-        let items = Popup_options::ALL
+        let items: Vec<Menu_item<Popup_options>> = Popup_options::ALL
             .into_iter()
-            .map(|option| -> Shared_menu_item<Popup_options> {
-                Popup_menu_item { option }.into_shared().into()
+            .map(|option| -> Menu_item<Popup_options> {
+                Box::new(Popup_menu_item { option })
             })
-            .collect::<Vec<_>>();
-        let default_item = get_selector(&items[0]);
-        let menu = Widget_trait::into_shared(Menu::new(items, default_item).await?);
+            .collect();
+        let menu = Menu::new(items, 0).await?.into_shared();
         let submit_handler: Box<dyn Submit_handler<Popup_options>> =
             Box::new(Popup_submit_handler {
                 subhandler: Box::new(submit_handler),
