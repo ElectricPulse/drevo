@@ -100,4 +100,22 @@ impl Component_context {
             .await?
             .minimize_delta(expression, target, delta, priority)
     }
+
+    #[track_caller]
+    pub async fn minimize(
+        &self,
+        expression: impl Into<Expression>,
+        priority: usize,
+    ) -> Result<()> {
+        self.lock().await?.minimize(expression, priority)
+    }
+
+    #[track_caller]
+    pub async fn maximize(
+        &self,
+        expression: impl Into<Expression>,
+        priority: usize,
+    ) -> Result<()> {
+        self.lock().await?.maximize(expression, priority)
+    }
 }

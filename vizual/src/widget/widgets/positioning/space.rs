@@ -5,7 +5,7 @@ use crate::{
     layouter::{
         expression::Expression,
         hitbox::Hitbox,
-        objective::{Delta, minimize},
+        objective::Delta,
     },
     slot::manager::Slots,
     widget::{Focus_provider, Widget, Widget_trait},
@@ -132,11 +132,7 @@ impl Space {
                 .constrain(constraint!(space.clone() >= self.minimum))
                 .await?;
         }
-        minimize(
-            &mut *problem.lock().await?,
-            Expression::from(delta),
-            self.priority,
-        )?;
+        problem.minimize(delta, self.priority).await?;
 
         Ok(space)
     }

@@ -6,10 +6,7 @@ use crate::{
     component::{Children, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{
-        hitbox::Hitbox,
-        objective::{Objective, minimize},
-    },
+    layouter::{hitbox::Hitbox, objective::Objective},
     slot::manager::Slots,
     widget::{Focus_provider, Widget, Widget_trait},
 };
@@ -47,12 +44,12 @@ impl Align {
             Objective::Minimize => {
                 let start_margin =
                     hitbox.get_start_position(direction) - parent.get_start_position(direction);
-                minimize(&mut *problem.lock().await?, start_margin, priority)
+                problem.minimize(start_margin, priority).await
             }
             Objective::Maximize => {
                 let end_margin =
                     parent.get_end_position(direction) - hitbox.get_end_position(direction);
-                minimize(&mut *problem.lock().await?, end_margin, priority)
+                problem.minimize(end_margin, priority).await
             }
             Objective::Minimize_delta => Ok(()),
         }

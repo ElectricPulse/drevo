@@ -1,4 +1,4 @@
-use super::{hitbox::Hitbox, objective::minimize};
+use super::hitbox::Hitbox;
 use crate::{
     component::Child, component::context::Component_context, config::MAXIMUM_LAYOUT_VALUE,
     constraint, geometry::Direction,
@@ -48,14 +48,11 @@ pub async fn shrink_wrap(
     }
 
     problem
-        .lock()
-        .await?
-        .maximize(hitbox.get_start_position(direction), 0)?;
-    minimize(
-        &mut *problem.lock().await?,
-        hitbox.get_end_position(direction),
-        0,
-    )?;
+        .maximize(hitbox.get_start_position(direction), 0)
+        .await?;
+    problem
+        .minimize(hitbox.get_end_position(direction), 0)
+        .await?;
 
     Ok(())
 }

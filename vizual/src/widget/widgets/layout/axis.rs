@@ -2,7 +2,7 @@ use crate::{
     component::{Children, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{hitbox::Hitbox, objective::minimize},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::{State, Store},
     style::Style,
@@ -68,11 +68,9 @@ impl Widget_trait for Axis {
 
         if elements.len() >= 2 {
             let cross_direction = direction.flip();
-            minimize(
-                &mut *problem.lock().await?,
-                hitbox.get_dimension(cross_direction),
-                0,
-            )?;
+            problem
+                .minimize(hitbox.get_dimension(cross_direction), 0)
+                .await?;
 
             let theme = theme.affect(render).await?;
             let Axis_style::Gap(gap) = self.style.get(&theme);

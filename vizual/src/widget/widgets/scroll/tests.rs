@@ -1,0 +1,77 @@
+use super::*;
+use crate::event::{Modifiers, Wheel_event};
+
+#[derive(Clone)]
+struct Empty;
+
+#[async_trait]
+impl Widget_trait for Empty {
+    async fn layout(
+        &mut self,
+        _render: crate::Render,
+        _theme: Store<Theme>,
+        _focus: &mut Focus_provider,
+        _hitbox: &mut Hitbox,
+        _parent: Hitbox,
+        _problem: Component_context,
+        _text_context: &mut Text_context,
+        _slots: &mut Slots,
+    ) -> Result<Children> {
+        Ok(Vec::new())
+    }
+}
+
+#[test]
+fn offset_is_clamped_to_content_edge() {
+    let mut scroll = Scroll::new(Empty);
+    scroll.content_size = Size::new(300.0, 200.0);
+    scroll.viewport = Rect::new(0.0, 0.0, 100.0, 80.0);
+    scroll.offset = Point::new(500.0, -20.0);
+
+    scroll.clamp_offset();
+
+    assert_eq!(scroll.offset, Point::new(200.0, 0.0));
+}
+
+#[tokio::test]
+async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
+    let mut scroll = Scroll::new(Empty);
+    scroll.content_size = Size::new(100.0, 70.0);
+    scroll.viewport = Rect::new(0.0, 0.0, 40.0, 30.0);
+    let right = Key_event {
+        code: Key_code::Arrow_right,
+        modifiers: Modifiers::default(),
+        text: None,
+        repeat: false,
+    };
+
+    for _ in 0..10 {
+        let _ = scroll.on_key_press(&right).await?;
+    }
+
+    assert_eq!(scroll.offset, Point::new(60.0, 0.0));
+    Ok(())
+}
+
+#[tokio::test]
+async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Result<()> {
+    let mut scroll = Scroll::new(Empty);
+    scroll.content_size = Size::new(400.0, 400.0);
+    scroll.viewport = Rect::new(0.0, 0.0, 100.0, 100.0);
+    let mut wheel = Wheel_event {
+        position: Point::new(50.0, 50.0),
+        delta: Wheel_delta::Lines(Point::new(0.0, -1.0)),
+        modifiers: Modifiers::default(),
+    };
+
+    let message = scroll.on_other_event(&Event::Wheel(wheel)).await?;
+    assert!(message.has_command());
+    assert_eq!(scroll.offset, Point::new(0.0, SCROLL_STEP));
+
+    wheel.modifiers.shift = true;
+    let message = scroll.on_other_event(&Event::Wheel(wheel)).await?;
+    assert!(message.has_command());
+    assert_eq!(scroll.offset, Point::new(SCROLL_STEP, SCROLL_STEP));
+
+    Ok(())
+}

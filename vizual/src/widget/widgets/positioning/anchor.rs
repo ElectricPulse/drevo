@@ -2,7 +2,7 @@ use crate::{
     component::{Children, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{hitbox::Hitbox, objective::minimize},
+    layouter::hitbox::Hitbox,
     slot::manager::Slots,
     widget::{Focus_provider, Widget, Widget_trait},
 };
@@ -117,7 +117,7 @@ impl Anchor {
                 problem
                     .constrain(constraint!(start_margin.clone() == end_margin))
                     .await?;
-                minimize(&mut *problem.lock().await?, start_margin, 0)?;
+                problem.minimize(start_margin, 0).await?;
             }
             Some(Position::End) => {
                 hitbox.make_start_independent(direction);

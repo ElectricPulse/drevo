@@ -19,6 +19,9 @@ use crate::{
     widget::Widget,
 };
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Copy, PartialEq)]
 pub struct Button_style {
     pub block: Block_style,
@@ -106,19 +109,5 @@ impl Widget_trait for Button {
         }
 
         Vizual_msg::none()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::theme::dark_theme;
-
-    #[test]
-    fn highlighted_button_uses_the_nested_highlight_token() {
-        let theme = dark_theme();
-        let style = resolve_block_style(&theme, true);
-
-        assert_eq!(style.background, theme.specific.button.highlight);
     }
 }

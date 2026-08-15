@@ -9,6 +9,9 @@ use crate::{
     },
 };
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, PartialEq)]
 pub struct Theme {
     mode: System_theme,
@@ -250,80 +253,5 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
 impl Default for Theme {
     fn default() -> Self {
         system_theme(System_theme::Dark)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn system_theme_tracks_system_changes() {
-        let theme = system_theme(System_theme::Dark).set_system(System_theme::Light);
-
-        assert_eq!(theme.mode(), System_theme::Light);
-        assert_eq!(theme.system(), System_theme::Light);
-        assert!(theme.follows_system());
-    }
-
-    #[test]
-    fn explicit_theme_keeps_its_mode_when_the_system_changes() {
-        let theme = system_theme(System_theme::Dark)
-            .select(System_theme::Dark)
-            .set_system(System_theme::Light);
-
-        assert_eq!(theme.mode(), System_theme::Dark);
-        assert_eq!(theme.system(), System_theme::Light);
-        assert!(!theme.follows_system());
-    }
-
-    #[test]
-    fn fluent_neutral_surfaces_progress_inward() {
-        let dark = dark_theme();
-        assert_eq!(
-            dark.specific.body.block.background,
-            dark.semantic.background.lighten(DARK_STEP)
-        );
-        assert_eq!(
-            dark.specific.paper.block.background,
-            dark.specific.body.block.background.lighten(DARK_STEP)
-        );
-        assert_eq!(
-            dark.specific.button.block.background,
-            dark.specific.paper.block.background.lighten(10)
-        );
-        assert_eq!(
-            dark.specific.button.highlight,
-            dark.specific.button.block.background.darken(15)
-        );
-
-        let light = light_theme();
-        assert_eq!(
-            light.specific.body.block.background,
-            light.semantic.background.lighten(LIGHT_STEP)
-        );
-        assert_eq!(
-            light.specific.paper.block.background,
-            light.specific.body.block.background.lighten(LIGHT_STEP)
-        );
-        assert_eq!(
-            light.specific.button.block.background,
-            light.specific.paper.block.background.lighten(10)
-        );
-        assert_eq!(
-            light.specific.button.highlight,
-            light.specific.button.block.background.darken(15)
-        );
-    }
-
-    #[test]
-    fn focus_accent_is_separate_from_selected_button_backgrounds() {
-        for theme in [dark_theme(), light_theme()] {
-            assert_eq!(
-                theme.specific.button.block.focused_border.color,
-                theme.semantic.focus
-            );
-            assert_ne!(theme.specific.button.highlight, theme.semantic.focus);
-        }
     }
 }
