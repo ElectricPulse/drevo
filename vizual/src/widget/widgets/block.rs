@@ -36,7 +36,7 @@ pub struct Block_style {
 pub struct Block {
     child: Widget,
     pub style: Block_style,
-    pub highlighted: bool,
+    pub focusable: bool,
     pub delta: Option<Delta>,
 }
 
@@ -45,7 +45,7 @@ impl Block {
         Self {
             child: Box::new(child),
             style,
-            highlighted: false,
+            focusable: false,
             delta: None,
         }
     }
@@ -57,13 +57,14 @@ impl Widget_trait for Block {
         &mut self,
         _render: crate::Render,
         _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
+        focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
+        focus.set_active(self.focusable);
         let style = self.style;
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
         let mut space = Space::uniform(self.child.clone(), style.padding + border_thickness, 1);
@@ -77,13 +78,14 @@ impl Widget_trait for Block {
         &mut self,
         _render: crate::Render,
         _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
+        focus: &mut Focus_provider,
         hitbox: Rect,
         scene: &mut Scene<'_>,
         _text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
     ) -> Result<Option<Hitbox>> {
-        paint_block(scene, hitbox, &self.style, self.highlighted);
+        let focused = self.focusable && focus.get();
+        paint_block(scene, hitbox, &self.style, focused);
         Ok(None)
     }
 }

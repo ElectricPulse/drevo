@@ -18,9 +18,10 @@ use super::{
     Theme_choice,
 };
 use crate::{
-    Render,
+    Render, Vizual_command, Vizual_msg,
     component::{Children, Render_context, context::Component_context},
     constraint,
+    event::{Key_code, Key_event},
     geometry::{Direction, Rect, Size},
     graphics::scene::Scene,
     handlers::Retrieve_handler,
@@ -28,6 +29,7 @@ use crate::{
     slot::manager::Slots,
     state::{State, Store},
     theme::{System_theme, Theme},
+    utils::{get_next_index, get_previous_index},
     widget::{
         Focus_provider, Widget, Widget_trait,
         custom_widget::Custom_widget_trait,
@@ -50,6 +52,8 @@ fn label(choice: Theme_choice, system: System_theme) -> String {
 }
 
 impl Theme_choice {
+    const ALL: [Self; 3] = [Self::System, Self::Dark, Self::Light];
+
     fn resolve(self, theme: &Theme) -> Theme {
         match self {
             Self::System => theme.follow_system(),
@@ -266,6 +270,7 @@ impl Widget_trait for Settings {
         let icon = Icon::new(Lucide_icon::Settings);
         let mut button = Button::around(icon);
         button.highlighted = focused;
+        button.focusable = true;
 
         let button = Anchor::new(
             button,
@@ -280,11 +285,7 @@ impl Widget_trait for Settings {
             return Ok(vec![button]);
         }
 
-        let choices = [
-            Theme_choice::System,
-            Theme_choice::Dark,
-            Theme_choice::Light,
-        ];
+        let choices = Theme_choice::ALL;
 
         let selected_index = choices
             .iter()
@@ -323,6 +324,26 @@ impl Widget_trait for Settings {
         focus.set_active(true);
         Ok(None)
     }
+
+    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+        let index = match key.code {
+            Key_code::Arrow_up | Key_code::Arrow_down => {
+                let choice = *self.choice.read().await?;
+                Theme_choice::ALL
+                    .iter()
+                    .position(|candidate| *candidate == choice)
+                    .expect("selected theme choice must be present in the theme menu")
+            }
+            _ => return Vizual_msg::none(),
+        };
+        let index = match key.code {
+            Key_code::Arrow_up => get_previous_index(Theme_choice::ALL.len(), index),
+            _ => get_next_index(Theme_choice::ALL.len(), index),
+        };
+        *self.choice.write().await? = Theme_choice::ALL[index];
+
+        Vizual_msg::new(Vizual_command::Layout)
+    }
 }
 
 #[cfg(test)]
@@ -331,9 +352,15 @@ mod tests {
 
     use super::*;
     use crate::{
-        App_problem, component::Render_context, focus::Focus, geometry::Size,
-        graphics::text::Text_context, layouter::variables::Variables,
-        render_manager::Render_manager, slot::Component_slot, theme::dark_theme,
+        App_problem,
+        event::{Modifiers, Pointer_button, Pointer_event},
+        focus::Focus,
+        geometry::{Point, Size},
+        graphics::text::Text_context,
+        layouter::variables::Variables,
+        render_manager::Render_manager,
+        slot::Component_slot,
+        theme::dark_theme,
         widget::widgets::root::Root,
     };
 
@@ -347,6 +374,25 @@ mod tests {
             label(Theme_choice::System, System_theme::Light),
             "System (Light)"
         );
+    }
+
+    #[tokio::test]
+    async fn settings_button_focus_can_navigate_the_menu_with_arrow_keys() -> Result<()> {
+        let choice = Store::new(Theme_choice::System);
+        let mut settings = Settings::new(choice.clone());
+
+        let message = settings
+            .on_key_press(&Key_event {
+                code: Key_code::Arrow_down,
+                modifiers: Modifiers::default(),
+                text: None,
+                repeat: false,
+            })
+            .await?;
+
+        assert!(message.has_command());
+        assert_eq!(*choice.read().await?, Theme_choice::Dark);
+        Ok(())
     }
 
     #[tokio::test]
@@ -370,7 +416,37 @@ mod tests {
         assert!(settings.lock().await?.focusable);
         assert_eq!(settings.lock().await?.children.len(), 1);
 
-        focus.set(&settings);
+        let solution = problem.solve(Size::new(800.0, 600.0)).await?;
+        let _ = problem
+            .render(
+                render.clone(),
+                theme.clone(),
+                &focus,
+                &solution,
+                &mut text_context,
+            )
+            .await?;
+        let button_anchor = settings.lock().await?.children[0].clone();
+        let button = button_anchor.lock().await?.children[0].clone();
+        let button_block = button.lock().await?.children[0].clone();
+        let button_rect = button_block.get_hitbox().await?.get_resolved(&solution);
+        let command = problem
+            .handle_event(
+                &crate::event::Event::Pointer(Pointer_event {
+                    position: Point::new(
+                        button_rect.origin.x + button_rect.size.width / 2.0,
+                        button_rect.origin.y + button_rect.size.height / 2.0,
+                    ),
+                    button: Pointer_button::Primary,
+                }),
+                &solution,
+                &mut focus,
+            )
+            .await?;
+        assert!(matches!(command, Vizual_command::Layout));
+        assert!(focus.compare(&button_block));
+        assert!(focus.focused_path().await?.contains(&settings));
+
         let previous_problem = problem;
         let mut problem =
             App_problem::new(root.clone(), &mut root_slot, Arc::clone(&variables)).await?;
@@ -381,12 +457,14 @@ mod tests {
         assert_eq!(settings.lock().await?.children.len(), 2);
         let _ = problem.minimum_size().await?;
         let solution = problem.solve(Size::new(800.0, 600.0)).await?;
-        let context = Render_context {
-            focus: &focus,
-            solution: &solution,
-        };
         let _ = problem
-            .render(render.clone(), theme.clone(), &context, &mut text_context)
+            .render(
+                render.clone(),
+                theme.clone(),
+                &focus,
+                &solution,
+                &mut text_context,
+            )
             .await?;
         assert!(settings.lock().await?.focusable);
 

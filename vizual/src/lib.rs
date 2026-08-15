@@ -224,12 +224,13 @@ impl App_problem {
         focus: &Focus,
         text_context: &mut Text_context,
     ) -> Result<()> {
+        let focused_path = focus.focused_path().await?;
         let children = self
             .root
             .layout(
                 render.clone(),
                 theme.clone(),
-                focus,
+                &focused_path,
                 None,
                 self.root_hitbox.clone(),
                 self.component_context.clone(),
@@ -240,7 +241,7 @@ impl App_problem {
             .layout_children(
                 render,
                 theme,
-                focus,
+                &focused_path,
                 children,
                 self.component_context.clone(),
                 text_context,
@@ -283,13 +284,19 @@ impl App_problem {
         &mut self,
         render: crate::Render,
         theme: Store<Theme>,
-        context: &component::Render_context<'_>,
+        focus: &Focus,
+        solution: &Solution,
         text_context: &mut Text_context,
     ) -> Result<Scene> {
+        let focused_path = focus.focused_path().await?;
+        let context = component::Render_context {
+            focused_path: &focused_path,
+            solution,
+        };
         let mut scene = Scene::new();
         let mut graphics_scene = Graphics_scene::new(&mut scene);
         self.root
-            .render(render, theme, &mut graphics_scene, text_context, context)
+            .render(render, theme, &mut graphics_scene, text_context, &context)
             .await?;
         Ok(scene)
     }
@@ -365,6 +372,7 @@ impl App_problem {
             return Vizual_msg::none();
         };
         let mut total_message = Vizual_msg::bare();
+        let mut focus_target_found = false;
 
         if let Some(focused) = focus.upgrade()
             && !Self::is_within_component(node.clone(), &focused).await?
@@ -385,9 +393,12 @@ impl App_problem {
             let parent = node_lock.parent.clone();
 
             if hits {
-                if node_lock.focusable && !focus.compare(&node) {
-                    focus.set(&node);
-                    total_message.join(Vizual_msg::new_propagated(Vizual_command::Layout)?);
+                if node_lock.focusable && !focus_target_found {
+                    focus_target_found = true;
+                    if !focus.compare(&node) {
+                        focus.set(&node);
+                        total_message.join(Vizual_msg::new_propagated(Vizual_command::Layout)?);
+                    }
                 }
 
                 let message = node_lock.widget.forward_event(event).await?;
@@ -820,12 +831,14 @@ async fn ui_loop<T: Widget_trait>(
         if matches!(command, Vizual_command::Render)
             && let (Some(problem), Some(solution)) = (&mut app_problem, &solution)
         {
-            let context = component::Render_context {
-                focus: &focus,
-                solution,
-            };
             let scene = log_duration(0, "app problem render", || {
-                problem.render(render.clone(), theme.clone(), &context, &mut text_context)
+                problem.render(
+                    render.clone(),
+                    theme.clone(),
+                    &focus,
+                    solution,
+                    &mut text_context,
+                )
             })
             .await?;
             if proxy.send_event(User_event::Scene(scene)).is_err() {
@@ -1428,12 +1441,8 @@ mod tests {
         let solution = problem.solve(Size::new(100.0, 100.0)).await?;
         let anchor = problem.root.lock().await?.children[0].clone();
         let focusable = anchor.lock().await?.children[0].clone();
-        let context = component::Render_context {
-            focus: &focus,
-            solution: &solution,
-        };
         let _ = problem
-            .render(render, theme, &context, &mut text_context)
+            .render(render, theme, &focus, &solution, &mut text_context)
             .await?;
 
         let command = problem
@@ -1557,26 +1566,36 @@ mod tests {
             .await?;
         let solution = problem.solve(Size::new(100.0, 80.0)).await?;
         let scroll = problem.root.lock().await?.children[0].clone();
-        let frame = scroll.lock().await?.children[0].clone();
+        let block = scroll.lock().await?.children[0].clone();
+        let space = block.lock().await?.children[0].clone();
+        let scroll_content = space.lock().await?.children[0].clone();
+        let frame = scroll_content.lock().await?.children[0].clone();
         let content = frame.lock().await?.children[0].clone();
         let scroll_rect = scroll.get_hitbox().await?.get_resolved(&solution);
+        let block_rect = block.get_hitbox().await?.get_resolved(&solution);
+        let scroll_content_rect = scroll_content.get_hitbox().await?.get_resolved(&solution);
         let frame_rect = frame.get_hitbox().await?.get_resolved(&solution);
         let content_rect = content.get_hitbox().await?.get_resolved(&solution);
 
         assert_eq!(scroll_rect, Rect::new(0.0, 0.0, 100.0, 80.0));
+        assert_eq!(block_rect, scroll_rect);
+        assert_eq!(scroll_content_rect, Rect::new(1.0, 1.0, 98.0, 78.0));
         assert_eq!(frame_rect.origin, Point::new(0.0, 0.0));
         assert_eq!(content_rect.origin, Point::new(0.0, 0.0));
         assert_eq!(frame_rect.size, content_rect.size);
         assert!(frame.lock().await?.logical);
 
-        let context = component::Render_context {
-            focus: &focus,
-            solution: &solution,
-        };
         let _scene = problem
-            .render(render.clone(), theme.clone(), &context, &mut text_context)
+            .render(
+                render.clone(),
+                theme.clone(),
+                &focus,
+                &solution,
+                &mut text_context,
+            )
             .await?;
-        focus.set(&scroll);
+        assert!(block.lock().await?.focusable);
+        focus.set(&block);
         let command = problem
             .handle_event(
                 &Event::Key(Key_event {
@@ -1591,12 +1610,8 @@ mod tests {
             .await?;
         assert!(matches!(command, Vizual_command::Render));
 
-        let context = component::Render_context {
-            focus: &focus,
-            solution: &solution,
-        };
         let _scene = problem
-            .render(render, theme, &context, &mut text_context)
+            .render(render, theme, &focus, &solution, &mut text_context)
             .await?;
         assert!(frame.lock().await?.logical);
 
@@ -1620,14 +1635,17 @@ mod tests {
             .await?;
         let solution = problem.solve(Size::new(40.0, 30.0)).await?;
         let scroll = problem.root.lock().await?.children[0].clone();
-        focus.set(&scroll);
+        let block = scroll.lock().await?.children[0].clone();
+        focus.set(&block);
 
-        let context = component::Render_context {
-            focus: &focus,
-            solution: &solution,
-        };
         let _scene = problem
-            .render(render.clone(), theme.clone(), &context, &mut text_context)
+            .render(
+                render.clone(),
+                theme.clone(),
+                &focus,
+                &solution,
+                &mut text_context,
+            )
             .await?;
 
         let mut scrolled = false;
@@ -1653,12 +1671,8 @@ mod tests {
         }
         assert!(scrolled);
 
-        let context = component::Render_context {
-            focus: &focus,
-            solution: &solution,
-        };
         let _scene = problem
-            .render(render, theme, &context, &mut text_context)
+            .render(render, theme, &focus, &solution, &mut text_context)
             .await?;
         let command = problem
             .handle_event(

@@ -19,8 +19,7 @@ use crate::{
     Vizual_command, Vizual_msg,
     component::{Children, context::Component_context},
     event::{Key_code, Key_event, Pointer_event},
-    geometry::{Direction, Rect},
-    graphics::scene::Scene,
+    geometry::Direction,
     handlers::Retrieve_handler,
     layouter::{hitbox::Hitbox, variable::Variable},
     slot::manager::Slots,
@@ -142,6 +141,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item<Choice> {
         };
         let mut button = Button::around(content);
         button.highlighted = self.selected;
+        button.focusable = true;
         button.delta = Some(self.button_delta.clone());
         let button = Anchor::left(button);
 
@@ -227,6 +227,12 @@ impl<Choice: Thread_safe> Menu<Choice> {
             .get(index)
             .ok_or_else(|| eyre!("Menu item index {index} is out of range"))?;
         *self.selected.write().await? = get_selector(item);
+
+        if let Submission::State(state) = &self.submission {
+            let value = item.lock().await?.on_retrieve().await?;
+            *state.write().await? = value;
+        }
+
         Ok(())
     }
 }
@@ -246,14 +252,13 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         &mut self,
         render: crate::Render,
         _theme: Store<Theme>,
-        focus: &mut Focus_provider,
+        _focus: &mut Focus_provider,
         _hitbox: &mut Hitbox,
         _parent: Hitbox,
         problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        focus.set_active(true);
         let default_item = self
             .default_item
             .upgrade()
@@ -285,20 +290,6 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         Ok(vec![display!(Axis::new(Direction::Vertical, rows,))])
     }
 
-    async fn render(
-        &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        _hitbox: Rect,
-        _scene: &mut Scene<'_>,
-        _text_context: &mut crate::graphics::text::Text_context,
-        _context: &crate::component::Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
-        focus.set_active(true);
-        Ok(None)
-    }
-
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
         match key.code {
             Key_code::Arrow_up | Key_code::Arrow_down => {
@@ -318,9 +309,10 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::event::Modifiers;
 
     #[derive(Clone, Copy)]
-    struct Ordinary_menu_item;
+    struct Ordinary_menu_item(usize);
 
     #[async_trait]
     impl Widget_trait for Ordinary_menu_item {
@@ -342,7 +334,7 @@ mod tests {
     #[async_trait]
     impl Retrieve_handler<usize> for Ordinary_menu_item {
         async fn on_retrieve(&mut self) -> Result<usize> {
-            Ok(0)
+            Ok(self.0)
         }
     }
 
@@ -356,7 +348,7 @@ mod tests {
     #[test]
     fn selectors_preserve_menu_item_identity() {
         let item: Shared_menu_item<usize> =
-            Custom_widget_trait::into_shared(Ordinary_menu_item).into();
+            Custom_widget_trait::into_shared(Ordinary_menu_item(0)).into();
         let selected = get_selector(&item)
             .upgrade()
             .expect("menu item should still be alive");
@@ -368,10 +360,35 @@ mod tests {
     fn selectors_become_stale_after_the_menu_item_is_dropped() {
         let selector = {
             let item: Shared_menu_item<usize> =
-                Custom_widget_trait::into_shared(Ordinary_menu_item).into();
+                Custom_widget_trait::into_shared(Ordinary_menu_item(0)).into();
             get_selector(&item)
         };
 
         assert!(selector.upgrade().is_none());
+    }
+
+    #[tokio::test]
+    async fn arrow_keys_update_selection_and_submitted_state() -> Result<()> {
+        let first: Shared_menu_item<usize> =
+            Custom_widget_trait::into_shared(Ordinary_menu_item(0)).into();
+        let second: Shared_menu_item<usize> =
+            Custom_widget_trait::into_shared(Ordinary_menu_item(1)).into();
+        let submitted = Store::new(0);
+        let mut menu = Menu::new(vec![first.clone(), second.clone()], get_selector(&first));
+        menu.set_submit_state(submitted.clone());
+
+        let message = menu
+            .on_key_press(&Key_event {
+                code: Key_code::Arrow_down,
+                modifiers: Modifiers::default(),
+                text: None,
+                repeat: false,
+            })
+            .await?;
+
+        assert!(message.has_command());
+        assert_eq!(*submitted.read().await?, 1);
+        assert_eq!(menu.get_selected_index().await?, 1);
+        Ok(())
     }
 }

@@ -7,7 +7,7 @@ use std::sync::{Arc, Weak};
 
 use crate::{
     Render,
-    focus::Focus,
+    focus::Focused_path,
     geometry::Direction,
     graphics::text::Text_context,
     layouter::{Solution, hitbox::Hitbox},
@@ -64,7 +64,7 @@ pub(crate) struct Layered_component {
 }
 
 pub struct Render_context<'a> {
-    pub(crate) focus: &'a Focus,
+    pub(crate) focused_path: &'a Focused_path,
     pub(crate) solution: &'a Solution,
 }
 
@@ -88,6 +88,10 @@ impl Shared_component {
 
     pub fn compare(&self, node: &Shared_component) -> bool {
         Arc::ptr_eq(&self.component, &node.component)
+    }
+
+    pub(crate) fn identity(&self) -> usize {
+        Arc::as_ptr(&self.component) as usize
     }
 
     pub fn as_reference(&self) -> Child_reference {
@@ -157,11 +161,11 @@ impl Shared_component {
         Ok(())
     }
 
-    pub async fn layout(
+    pub(crate) async fn layout(
         &mut self,
         render: Render,
         theme: Store<Theme>,
-        focus: &Focus,
+        focused_path: &Focused_path,
         parent_reference: Parent,
         parent: Hitbox,
         mut problem: Component_context,
@@ -180,7 +184,7 @@ impl Shared_component {
                 ..
             } = &mut *this;
 
-            let mut focus = Focus_provider::new(focus.compare(self));
+            let mut focus = Focus_provider::new(focused_path.contains(self));
 
             let children = {
                 let mut slots = slot_manager.slots(hitbox);
@@ -213,11 +217,11 @@ impl Shared_component {
     }
 
     #[async_recursion]
-    pub async fn layout_children(
+    pub(crate) async fn layout_children(
         &mut self,
         render: Render,
         theme: Store<Theme>,
-        focus: &Focus,
+        focused_path: &Focused_path,
         children: Children,
         mut problem: Component_context,
         text_context: &mut Text_context,
@@ -236,7 +240,7 @@ impl Shared_component {
                 .layout(
                     render.clone(),
                     theme.clone(),
-                    focus,
+                    focused_path,
                     self.clone().into(),
                     layout_parent,
                     problem.clone(),
@@ -247,7 +251,7 @@ impl Shared_component {
                 .layout_children(
                     render.clone(),
                     theme.clone(),
-                    focus,
+                    focused_path,
                     grandchildren,
                     problem.clone(),
                     text_context,
@@ -289,7 +293,7 @@ impl Shared_component {
     ) -> Result<()> {
         let mut this = self.lock().await?;
         let hitbox = this.hitbox.get_resolved(context.solution);
-        let focused = context.focus.compare(self);
+        let focused = context.focused_path.contains(self);
         let mut focus = Focus_provider::new(focused);
         let maybe_hitbox = this
             .widget
@@ -319,6 +323,7 @@ pub type Child_reference = Weak<Mutex<Component>>;
 mod tests {
     use super::*;
     use crate::{
+        focus::Focus,
         layouter::{Problem, variables::Variables},
         widget::Widget_trait,
     };
@@ -442,6 +447,27 @@ mod tests {
         assert_eq!(components.len(), 3);
         assert!(components[2].component.compare(&grandchild));
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn focused_path_contains_the_target_and_its_parents() -> Result<()> {
+        let variables = Arc::new(Variables::new());
+        let problem = Arc::new(Mutex::new(Problem::new(Arc::clone(&variables))));
+        let context = Component_context::new(problem);
+        let parent = component("parent", &variables, context.clone());
+        let child = component("child", &variables, context.clone());
+        let unrelated = component("unrelated", &variables, context);
+        child.lock().await?.parent = Some(parent.as_reference());
+        parent.lock().await?.children = vec![child.clone()];
+
+        let mut focus = Focus::new();
+        focus.set(&child);
+        let focused_path = focus.focused_path().await?;
+
+        assert!(focused_path.contains(&child));
+        assert!(focused_path.contains(&parent));
+        assert!(!focused_path.contains(&unrelated));
         Ok(())
     }
 }

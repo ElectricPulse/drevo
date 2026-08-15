@@ -31,6 +31,7 @@ pub struct Semantic_tokens {
     pub border: Color,
     pub axis: Axis_theme,
     pub text: Text_semantic,
+    /// Accent reserved for borders whose component actually owns focus or contains it.
     pub focus: Color,
 }
 
@@ -313,5 +314,16 @@ mod tests {
             light.specific.button.highlight,
             light.specific.button.block.background.darken(15)
         );
+    }
+
+    #[test]
+    fn focus_accent_is_separate_from_selected_button_backgrounds() {
+        for theme in [dark_theme(), light_theme()] {
+            assert_eq!(
+                theme.specific.button.block.focused_border.color,
+                theme.semantic.focus
+            );
+            assert_ne!(theme.specific.button.highlight, theme.semantic.focus);
+        }
     }
 }

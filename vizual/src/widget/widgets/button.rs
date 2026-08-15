@@ -30,6 +30,7 @@ pub struct Button {
     content: Widget,
     click_handler: Option<Box<dyn Submit_handler<String>>>,
     pub highlighted: bool,
+    pub focusable: bool,
     pub delta: Option<Delta>,
 }
 
@@ -48,6 +49,7 @@ impl Button {
             content: Box::new(content),
             click_handler: Some(Box::new(click_handler)),
             highlighted: false,
+            focusable: false,
             delta: None,
         }
     }
@@ -57,6 +59,7 @@ impl Button {
             content: Box::new(content),
             click_handler: None,
             highlighted: false,
+            focusable: false,
             delta: None,
         }
     }
@@ -79,7 +82,7 @@ impl Widget_trait for Button {
         let style = resolve_block_style(&theme, self.highlighted);
 
         let mut block = Block::new(self.content.clone(), style);
-        block.highlighted = self.highlighted;
+        block.focusable = self.focusable;
         block.delta = self.delta.clone();
 
         Ok(vec![display!(block)])
