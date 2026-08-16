@@ -359,6 +359,11 @@ impl Problem {
             .await
         {
             Err(ResolutionError::Infeasible) => Ok(true),
+            Err(ResolutionError::Other(str))
+                if str.contains("Infeasible") || str.contains("UnboundedOrInfeasible") =>
+            {
+                Ok(true)
+            }
             Ok(_) | Err(ResolutionError::Unbounded) => Ok(false),
             Err(error) => Err(error.into()),
         }
@@ -619,6 +624,13 @@ impl Problem {
         match error {
             ResolutionError::Infeasible => {
                 let conflict = self.find_conflicting_constraints(constraints).await?;
+                if conflict.is_empty() {
+                    return Err(eyre!(
+                        "{}",
+                        self.describe_underconstrained(constraints, objective, component_tree)
+                            .await?
+                    ));
+                }
                 let displayed_constraints = self.display_constraints(&conflict)?;
                 let conflict = self.with_component_tree(
                     displayed_constraints,
