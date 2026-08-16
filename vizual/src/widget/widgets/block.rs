@@ -63,7 +63,7 @@ impl Widget_trait for Block {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<Children> {
         focus.set_active(self.focusable);
         let style = self.style;

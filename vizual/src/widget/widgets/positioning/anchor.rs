@@ -147,7 +147,7 @@ impl Widget_trait for Anchor {
         problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<Children> {
         Self::anchor(
             &problem,

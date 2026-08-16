@@ -58,7 +58,7 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 problem: ::vizual::component::context::Component_context,
                 text_context: &mut ::vizual::graphics::text::Text_context,
                 slots: &mut ::vizual::slot::manager::Slots,
-                logical: &mut bool,
+                root: &::vizual::component::Shared_component,
             ) -> ::color_eyre::eyre::Result<::vizual::component::Children> {
                 ::vizual::widget::Widget_trait::layout(
                     &mut self.#field,
@@ -70,7 +70,7 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                     problem,
                     text_context,
                     slots,
-                    logical,
+                    root,
                 )
                 .await
             }

@@ -6,7 +6,7 @@ use color_eyre::eyre::{Result, eyre};
 use super::{Focus_provider, Widget_trait};
 use crate::{
     Render,
-    component::{Children, context::Component_context},
+    component::{Children, Shared_component, context::Component_context},
     graphics::text::Text_context,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
@@ -30,7 +30,7 @@ pub trait Custom_widget_trait: Thread_safe {
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
-        logical: &mut bool,
+        root: &Shared_component,
         payload: Self::Payload,
     ) -> Result<Children>;
 }
@@ -64,7 +64,7 @@ where
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
-        logical: &mut bool,
+        root: &Shared_component,
     ) -> Result<Children> {
         let contents = self
             .widget
@@ -77,7 +77,7 @@ where
                 problem,
                 text_context,
                 slots,
-                logical,
+                root,
                 self.payload.clone(),
             )
             .await?;
@@ -110,7 +110,7 @@ where
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
-        logical: &mut bool,
+        root: &Shared_component,
         _payload: Self::Payload,
     ) -> Result<Children> {
         Widget_trait::layout(
@@ -123,7 +123,7 @@ where
             problem,
             text_context,
             slots,
-            logical,
+            root,
         )
         .await
     }

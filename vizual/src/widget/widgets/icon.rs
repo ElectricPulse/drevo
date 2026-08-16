@@ -44,7 +44,7 @@ impl Widget_trait for Icon {
         problem: Component_context,
         text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<Children> {
         let icon = *self.icon.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;

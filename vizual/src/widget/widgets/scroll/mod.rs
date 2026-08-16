@@ -75,7 +75,7 @@ impl Widget_trait for Scroll {
         problem: Component_context,
         _text_context: &mut Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<Children> {
         focus.set_active(true);
 

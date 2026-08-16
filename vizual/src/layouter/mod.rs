@@ -21,6 +21,7 @@ use std::{
     time::Instant,
 };
 
+use async_recursion::async_recursion;
 use color_eyre::eyre::{Result, eyre};
 use futures::future::BoxFuture;
 use good_lp::{
@@ -348,36 +349,69 @@ impl Problem {
         self.solution_from_highs(solved?)
     }
 
+    async fn is_infeasible(&self, constraints: &[Constraint]) -> Result<bool> {
+        match self
+            .solve_objective(
+                constraints,
+                ObjectiveDirection::Maximisation,
+                Expression::from(0),
+            )
+            .await
+        {
+            Err(ResolutionError::Infeasible) => Ok(true),
+            Ok(_) | Err(ResolutionError::Unbounded) => Ok(false),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    #[async_recursion]
+    async fn quickxplain(
+        &self,
+        background: Vec<Constraint>,
+        candidates: Vec<Constraint>,
+    ) -> Result<Vec<Constraint>> {
+        if !background.is_empty() && self.is_infeasible(&background).await? {
+            return Ok(Vec::new());
+        }
+
+        if candidates.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        if candidates.len() == 1 {
+            return Ok(candidates);
+        }
+
+        let mid = candidates.len() / 2;
+        let (c1, c2) = candidates.split_at(mid);
+        let c1 = c1.to_vec();
+        let c2 = c2.to_vec();
+
+        let mut b_union_c1 = background.clone();
+        b_union_c1.extend(c1.clone());
+
+        if self.is_infeasible(&b_union_c1).await? {
+            self.quickxplain(background, c1).await
+        } else {
+            let delta2 = self.quickxplain(b_union_c1, c2).await?;
+            let mut b_union_delta2 = background;
+            b_union_delta2.extend(delta2.clone());
+            let delta1 = self.quickxplain(b_union_delta2, c1).await?;
+            let mut result = delta1;
+            result.extend(delta2);
+            Ok(result)
+        }
+    }
+
     async fn find_conflicting_constraints(
         &self,
         constraints: &[Constraint],
     ) -> Result<Vec<Constraint>> {
-        let mut conflict = constraints.to_vec();
-        let mut index = 0;
-
-        while index < conflict.len() {
-            let mut candidate = conflict.clone();
-            let _ = candidate.remove(index);
-
-            match self
-                .solve_objective(
-                    &candidate,
-                    ObjectiveDirection::Maximisation,
-                    Expression::from(0),
-                )
-                .await
-            {
-                Err(ResolutionError::Infeasible) => {
-                    conflict = candidate;
-                }
-                Ok(_) | Err(ResolutionError::Unbounded) => {
-                    index += 1;
-                }
-                Err(error) => return Err(error.into()),
-            }
+        if !self.is_infeasible(constraints).await? {
+            return Ok(Vec::new());
         }
 
-        Ok(conflict)
+        self.quickxplain(Vec::new(), constraints.to_vec()).await
     }
 
     fn display_constraint_side(

@@ -9,7 +9,6 @@ use super::{
         button::Button,
         container::Container,
         icon::Icon,
-        layer::Layer,
         layout::axis::Axis,
         menu::{Menu, Menu_item},
         positioning::anchor::{Anchor, Anchors},
@@ -19,7 +18,7 @@ use super::{
 };
 use crate::{
     Render, Vizual_command, Vizual_msg,
-    component::{Children, Render_context, context::Component_context},
+    component::{Children, Render_context, Shared_component, context::Component_context},
     constraint,
     event::{Key_code, Key_event},
     geometry::{Direction, Rect, Size},
@@ -89,7 +88,7 @@ impl Widget_trait for Empty {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &Shared_component,
     ) -> Result<Children> {
         Ok(Vec::new())
     }
@@ -121,7 +120,7 @@ impl Custom_widget_trait for Theme_menu_item {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &Shared_component,
         selected: bool,
     ) -> Result<Children> {
         let current_theme = theme.affect(render).await?;
@@ -199,8 +198,10 @@ impl Widget_trait for Positioned_menu {
         problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &Shared_component,
     ) -> Result<Children> {
+        hitbox.make_independent();
+
         let horizontal_difference = hitbox.get_end_position(Direction::Horizontal)
             - self.button.get_end_position(Direction::Horizontal);
         // Keep the picker half an ordinary axis gap below the settings button while aligning
@@ -240,14 +241,12 @@ impl Widget_trait for Positioned_menu {
         // The two nonnegative variables model the absolute coordinate differences, so their sum
         // is the Manhattan distance between the requested vertices.
         problem
-            .minimize(horizontal_distance + vertical_distance, 0)
+            .minimize(horizontal_distance + vertical_distance, 1)
             .await?;
 
         Ok(vec![display!(self.child.clone())])
     }
 }
-
-// This is a piece of trash code
 
 #[async_trait]
 impl Widget_trait for Settings {
@@ -261,10 +260,8 @@ impl Widget_trait for Settings {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
-        logical: &mut bool,
+        root: &Shared_component,
     ) -> Result<Children> {
-        *logical = true;
-
         let focused = focus.get();
         let choice = *self.choice.affect(render.clone()).await?;
         let current_theme = theme.affect(render.clone()).await?;
@@ -310,9 +307,13 @@ impl Widget_trait for Settings {
         let menu = Paper::new(menu);
 
         let menu = Positioned_menu::new(menu, button.get_hitbox().await?);
-        let menu = Layer::new(menu, 1);
+        let menu = display!(menu);
+        menu.lock().await?.logical = true;
 
-        Ok(vec![button, display!(menu)])
+        // Appending the dialog to the root component's children while maintaining settings as its logical layout parent is a neat way to bypass ancestor masking/clipping issues, ensuring it renders on top of the entire tree. In the future, instead of root, dedicated layer containers could be passed into layout.
+        root.lock().await?.children.push(menu.clone());
+
+        Ok(vec![button, menu])
     }
 
     async fn render(

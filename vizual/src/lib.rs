@@ -219,6 +219,7 @@ impl App_problem {
         text_context: &mut Text_context,
     ) -> Result<()> {
         let focused_path = focus.focused_path().await?;
+        let root = self.root.clone();
         let children = self
             .root
             .layout(
@@ -229,6 +230,7 @@ impl App_problem {
                 self.root_hitbox.clone(),
                 self.component_context.clone(),
                 text_context,
+                &root,
             )
             .await?;
         self.root
@@ -239,6 +241,7 @@ impl App_problem {
                 children,
                 self.component_context.clone(),
                 text_context,
+                &root,
             )
             .await?;
 
@@ -304,20 +307,18 @@ impl App_problem {
         solution: &Solution,
         focus: &mut Focus,
     ) -> Result<Option<Vizual_command>> {
-        let (hits, children, logical) = {
+        let (hits, children) = {
             let node_lock = node.lock().await?;
             (
                 node_lock.hitbox.get_resolved(solution).contains(position),
                 node_lock.children.clone(),
-                node_lock.logical,
             )
         };
 
-        if !hits && !logical {
+        if !hits {
             return Ok(None);
         }
 
-        // Overlay children may intentionally extend beyond their parent's normal hitbox.
         for child in children.iter().rev() {
             let message = self
                 .handle_pointer_press(child.clone(), position, event, solution, focus)
@@ -326,10 +327,6 @@ impl App_problem {
             if message.is_some() {
                 return Ok(message);
             }
-        }
-
-        if !hits {
-            return Ok(None);
         }
 
         if !node.lock().await?.focusable {

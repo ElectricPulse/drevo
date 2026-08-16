@@ -26,7 +26,7 @@ impl Widget_trait for Focusable_box {
         problem: Component_context,
         _text_context: &mut Text_context,
         _slots: &mut crate::slot::manager::Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<component::Children> {
         focus.set_active(true);
         for direction in [Direction::Horizontal, Direction::Vertical] {
@@ -64,7 +64,7 @@ impl Widget_trait for Offset_click {
         problem: Component_context,
         _text_context: &mut Text_context,
         _slots: &mut crate::slot::manager::Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<component::Children> {
         hitbox
             .set_static_dimension(&problem, crate::geometry::Direction::Horizontal, 100.0)

@@ -25,7 +25,7 @@ impl Widget_trait for Empty_widget {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut crate::slot::manager::Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<Children> {
         Ok(vec![])
     }
@@ -62,70 +62,6 @@ fn component(
         slot_manager: Slot_records::new(problem),
         logical: false,
     })))
-}
-
-#[tokio::test]
-async fn child_layers_are_inherited_by_their_subtrees() -> Result<()> {
-    let variables = Arc::new(Variables::new());
-    let problem = Arc::new(Mutex::new(Problem::new(Arc::clone(&variables))));
-    let context = Component_context::new(problem);
-
-    let root = component("root", &variables, context.clone());
-    let mut layer_two = component("layer-two", &variables, context.clone());
-    layer_two.layer = 2;
-    let layer_two_child = component("layer-two-child", &variables, context.clone());
-    layer_two.lock().await?.children = vec![layer_two_child];
-
-    let mut layer_one = component("layer-one", &variables, context);
-    layer_one.layer = 1;
-    root.lock().await?.children = vec![layer_two, layer_one];
-
-    let components = root.layered_components().await?;
-    assert_eq!(
-        components
-            .iter()
-            .map(|component| component.layer)
-            .collect::<Vec<_>>(),
-        vec![0, 2, 2, 1]
-    );
-
-    let mut paint_order = components;
-    paint_order.sort_by_key(|component| (component.layer, component.tree_order));
-    let mut names = Vec::new();
-    for component in paint_order {
-        names.push(component.component.lock().await?.name.clone());
-    }
-    assert_eq!(
-        names,
-        vec!["root", "layer-one", "layer-two", "layer-two-child"]
-    );
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn logical_components_stop_component_traversal_at_their_children() -> Result<()> {
-    let variables = Arc::new(Variables::new());
-    let problem = Arc::new(Mutex::new(Problem::new(Arc::clone(&variables))));
-    let context = Component_context::new(problem);
-
-    let root = component("root", &variables, context.clone());
-    let logical_child = component("logical", &variables, context.clone());
-    logical_child.lock().await?.logical = true;
-    let grandchild = component("grandchild", &variables, context);
-    logical_child.lock().await?.children = vec![grandchild.clone()];
-    root.lock().await?.children = vec![logical_child.clone()];
-
-    let components = root.layered_components().await?;
-    assert_eq!(components.len(), 2);
-    assert!(components[1].component.compare(&logical_child));
-
-    logical_child.lock().await?.logical = false;
-    let components = root.layered_components().await?;
-    assert_eq!(components.len(), 3);
-    assert!(components[2].component.compare(&grandchild));
-
-    Ok(())
 }
 
 #[tokio::test]

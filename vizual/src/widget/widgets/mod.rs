@@ -3,7 +3,6 @@ pub mod button;
 pub mod container;
 pub mod default_root;
 pub mod icon;
-pub mod layer;
 pub mod layout;
 pub mod linebreak;
 pub mod list;

@@ -103,7 +103,7 @@ impl Widget_trait for Tab_bar {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<Children> {
         focus.set_active(true);
         let mut buttons: Vec<Widget> = Vec::with_capacity(self.pages.len());
@@ -180,7 +180,7 @@ impl Widget_trait for Tabs {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<Children> {
         let mut elements: Vec<Widget> = vec![Box::new(self.header.clone())];
         {

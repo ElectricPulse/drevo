@@ -50,21 +50,9 @@ pub struct Component {
 }
 
 /// A component as attached to its parent.
-///
-/// `layer` belongs to this child relationship rather than the component allocation. This keeps a
-/// component's default layer at zero whenever a slot returns it while allowing callers to adjust
-/// the value immediately after `display!()`.
 #[derive(Clone)]
 pub struct Shared_component {
     component: Arc<Mutex<Component>>,
-    pub layer: usize,
-}
-
-#[derive(Clone)]
-pub(crate) struct Layered_component {
-    pub component: Shared_component,
-    pub layer: usize,
-    pub tree_order: usize,
 }
 
 pub struct Render_context<'a> {
@@ -80,10 +68,7 @@ impl From<Shared_component> for Parent {
 
 impl Shared_component {
     pub fn new(component: Arc<Mutex<Component>>) -> Self {
-        Self {
-            component,
-            layer: 0,
-        }
+        Self { component }
     }
 
     pub async fn lock(&self) -> Result<MutexGuard<'_, Component>> {
@@ -130,37 +115,6 @@ impl Shared_component {
         Ok(())
     }
 
-    pub(crate) async fn layered_components(&self) -> Result<Vec<Layered_component>> {
-        let mut components = Vec::new();
-        self.collect_layered_components(0, &mut components).await?;
-        Ok(components)
-    }
-
-    #[async_recursion]
-    async fn collect_layered_components(
-        &self,
-        inherited_layer: usize,
-        components: &mut Vec<Layered_component>,
-    ) -> Result<()> {
-        let layer = inherited_layer.max(self.layer);
-        let component = self.lock().await?;
-        let children = component.children.clone();
-
-        drop(component);
-        let tree_order = components.len();
-        components.push(Layered_component {
-            component: self.clone(),
-            layer,
-            tree_order,
-        });
-
-        for child in children {
-            child.collect_layered_components(layer, components).await?;
-        }
-
-        Ok(())
-    }
-
     pub(crate) async fn layout(
         &mut self,
         render: Render,
@@ -170,6 +124,7 @@ impl Shared_component {
         parent: Hitbox,
         mut problem: Component_context,
         text_context: &mut Text_context,
+        root: &Shared_component,
     ) -> Result<Children> {
         let mut this = self.lock().await?;
 
@@ -181,7 +136,6 @@ impl Shared_component {
                 slot_manager,
                 hitbox,
                 focusable,
-                logical,
                 ..
             } = &mut *this;
 
@@ -199,7 +153,7 @@ impl Shared_component {
                         problem.clone(),
                         text_context,
                         &mut slots,
-                        logical,
+                        root,
                     )
                     .await?;
 
@@ -213,7 +167,13 @@ impl Shared_component {
             children
         };
 
-        this.children = children.clone();
+        let mut non_logical_children = Vec::new();
+        for child in &children {
+            if !child.lock().await?.logical {
+                non_logical_children.push(child.clone());
+            }
+        }
+        this.children = non_logical_children;
 
         Ok(children)
     }
@@ -227,6 +187,7 @@ impl Shared_component {
         children: Children,
         mut problem: Component_context,
         text_context: &mut Text_context,
+        root: &Shared_component,
     ) -> Result<()> {
         let hitbox = {
             let component = self.lock().await?;
@@ -247,6 +208,7 @@ impl Shared_component {
                     layout_parent,
                     problem.clone(),
                     text_context,
+                    root,
                 )
                 .await?;
             child
@@ -257,6 +219,7 @@ impl Shared_component {
                     grandchildren,
                     problem.clone(),
                     text_context,
+                    root,
                 )
                 .await?;
         }
@@ -264,6 +227,7 @@ impl Shared_component {
         Ok(())
     }
 
+    #[async_recursion]
     pub async fn render(
         &mut self,
         render: crate::Render,
@@ -272,13 +236,13 @@ impl Shared_component {
         text_context: &mut Text_context,
         context: &Render_context<'_>,
     ) -> Result<()> {
-        let mut components = self.layered_components().await?;
-        components.sort_by_key(|component| (component.layer, component.tree_order));
+        self.render_component(render.clone(), theme.clone(), scene, text_context, context)
+            .await?;
 
-        for mut component in components {
-            component
-                .component
-                .render_component(render.clone(), theme.clone(), scene, text_context, context)
+        let children = self.lock().await?.children.clone();
+        for mut child in children {
+            child
+                .render(render.clone(), theme.clone(), scene, text_context, context)
                 .await?;
         }
 
@@ -305,31 +269,29 @@ impl Shared_component {
                     .wrap_err("Found link to stale parent")?;
                 let parent_lock = parent.lock().await?;
 
-                current_parent = parent_lock.parent.clone();
-
                 if parent_lock.logical {
-                    // This should in reality just be continue statement as in ignore me but continue clipping
-                    // but since it often is the case that parents of a logical component are often wrapped
-                    // in Anchor or smth than its really hard to turn on logical for all of them
-                    mask = hitbox;
+                    // TODO: In reality there should probably be a distinction between graphical (how to mask, how to find when focus finding)
+                    // and logical parent (where to forward events)
                     break;
                 }
 
+                current_parent = parent_lock.parent.clone();
+
                 let parent_rect = parent_lock.hitbox.get_resolved(context.solution);
-                mask = mask.intersect(parent_rect)
+                mask = mask.intersect(parent_rect);
             }
+
             (hitbox, mask)
         };
 
         let mut logical_scene = Vello_scene::new();
 
-        let maybe_hitbox = {
+        {
             let mut logical_scene_wrapper = crate::graphics::scene::Scene::new(&mut logical_scene);
             let mut this = self.lock().await?;
             let focused = context.focused_path.contains(self);
             let mut focus = Focus_provider::new(focused);
-            let maybe_hitbox = this
-                .widget
+            this.widget
                 .render(
                     render,
                     theme,
@@ -341,7 +303,6 @@ impl Shared_component {
                 )
                 .await?;
             this.focusable = focus.is_active();
-            maybe_hitbox
         };
 
         scene.append_clipped(&logical_scene, mask, Affine::IDENTITY);

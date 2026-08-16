@@ -91,7 +91,7 @@ impl Widget_trait for Paragraph {
         problem: crate::component::context::Component_context,
         text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut crate::slot::manager::Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<crate::component::Children> {
         let size = self.size(text_context);
         for (direction, size) in [

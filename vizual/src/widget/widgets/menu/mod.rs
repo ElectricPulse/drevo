@@ -21,7 +21,6 @@ use crate::{
     geometry::Direction,
     handlers::Retrieve_handler,
     layouter::{hitbox::Hitbox, variable::Variable},
-    log::log_info,
     slot::manager::Slots,
     state::{State, Store},
     sync::Thread_safe,
@@ -73,7 +72,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_container<Choice> {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<Children> {
         let content = Custom_widget::new(self.widget.clone(), self.selected);
         let mut button = Button::around(content);
@@ -155,7 +154,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
         problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        _root: &crate::component::Shared_component,
     ) -> Result<Children> {
         let selected = *self.selected.affect(render).await?;
         let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());
