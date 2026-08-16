@@ -4,22 +4,7 @@ use super::*;
 struct Ordinary_menu_item(usize);
 
 #[async_trait]
-impl Widget_trait for Ordinary_menu_item {
-    async fn layout(
-        &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        _slots: &mut Slots,
-        _root: &crate::component::Shared_component,
-    ) -> Result<Children> {
-        Ok(vec![])
-    }
-}
+impl Widget_trait for Ordinary_menu_item {}
 
 #[async_trait]
 impl Retrieve_handler<usize> for Ordinary_menu_item {

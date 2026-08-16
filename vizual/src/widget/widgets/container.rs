@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use color_eyre::Result;
 use vizual_macros::display;
 
-use super::super::{Focus_provider, Widget, Widget_trait};
+use super::super::{Focus_provider, Layout_input, Widget, Widget_trait};
 use crate::{
     component::{Children, context::Component_context},
     geometry::{Direction, Size},
@@ -10,7 +10,7 @@ use crate::{
     slot::manager::Slots,
 };
 
-/// Gives a child an independent intermediate hitbox.
+/// Gives a child an intermediate hitbox with an optional static size.
 #[derive(Clone)]
 pub struct Container {
     child: Widget,
@@ -35,15 +35,12 @@ impl Container {
 impl Widget_trait for Container {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: crate::state::Store<crate::theme::Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            hitbox,
+            problem,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         if let Some(size) = self.fixed_size {
             hitbox

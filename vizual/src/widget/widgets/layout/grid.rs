@@ -9,7 +9,7 @@ use crate::{
         hitbox::Hitbox,
     },
     slot::manager::Slots,
-    widget::{Focus_provider, Widget, Widget_trait},
+    widget::{Focus_provider, Layout_input, Widget, Widget_trait},
 };
 
 #[derive(Clone)]
@@ -28,15 +28,12 @@ impl Grid {
 impl Widget_trait for Grid {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: crate::state::Store<crate::theme::Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            hitbox,
+            problem,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         let mut children = Vec::with_capacity(self.children.len());
         for (index, child) in self.children.iter().enumerate() {

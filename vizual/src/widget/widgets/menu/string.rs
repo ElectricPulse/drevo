@@ -13,7 +13,7 @@ use crate::{
     slot::manager::Slots,
     state::{State, Store},
     theme::Theme,
-    widget::custom_widget::Custom_widget_trait,
+    widget::{Layout_input, custom_widget::Custom_widget_trait},
 };
 
 #[derive(Clone)]
@@ -34,15 +34,12 @@ impl Custom_widget_trait for String_menu_item {
 
     async fn layout(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            render,
+            theme,
+            slots,
+            ..
+        }: Layout_input<'_>,
         selected: bool,
     ) -> Result<Children> {
         let theme = theme.affect(render).await?;

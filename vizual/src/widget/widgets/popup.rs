@@ -3,7 +3,7 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Shared_widget, Widget_trait},
+    super::{Focus_provider, Layout_input, Shared_widget, Widget_trait},
     button::Button,
     layout::axis::Axis,
     menu::{Menu, Menu_item},
@@ -69,15 +69,12 @@ impl Custom_widget_trait for Popup_menu_item {
 
     async fn layout(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            render,
+            theme,
+            slots,
+            ..
+        }: Layout_input<'_>,
         selected: bool,
     ) -> Result<Children> {
         let theme = theme.affect(render).await?;
@@ -152,15 +149,12 @@ impl Popup {
 impl Widget_trait for Popup {
     async fn layout(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            render,
+            theme,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(render).await?;
         let mut text = Text::new("Submit");

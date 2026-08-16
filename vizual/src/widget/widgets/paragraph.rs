@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-use super::super::{Focus_provider, Widget_trait};
+use super::super::{Focus_provider, Layout_input, Render_input, Widget_trait};
 use crate::{
     geometry::{Direction, Rect, Size},
     graphics::{scene::Scene, text::Styled_text},
@@ -83,15 +83,12 @@ impl Paragraph {
 impl Widget_trait for Paragraph {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: crate::state::Store<crate::theme::Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: crate::component::context::Component_context,
-        text_context: &mut crate::graphics::text::Text_context,
-        _slots: &mut crate::slot::manager::Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            hitbox,
+            problem,
+            text_context,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<crate::component::Children> {
         let size = self.size(text_context);
         for (direction, size) in [
@@ -108,13 +105,12 @@ impl Widget_trait for Paragraph {
 
     async fn render(
         &mut self,
-        _render: crate::Render,
-        _theme: crate::state::Store<crate::theme::Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: Rect,
-        scene: &mut Scene<'_>,
-        text_context: &mut crate::graphics::text::Text_context,
-        _context: &crate::component::Render_context<'_>,
+        Render_input {
+            hitbox,
+            scene,
+            text_context,
+            ..
+        }: Render_input<'_, '_>,
     ) -> Result<()> {
         if hitbox.size.width > 0.0 && hitbox.size.height > 0.0 {
             let layout = text_context.build_wrapped_layout(&self.content, hitbox.size.width as f32);

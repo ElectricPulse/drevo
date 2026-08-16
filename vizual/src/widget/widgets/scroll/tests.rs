@@ -5,22 +5,7 @@ use crate::event::{Modifiers, Wheel_event};
 struct Empty;
 
 #[async_trait]
-impl Widget_trait for Empty {
-    async fn layout(
-        &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut Text_context,
-        _slots: &mut Slots,
-        _root: &crate::component::Shared_component,
-    ) -> Result<Children> {
-        Ok(Vec::new())
-    }
-}
+impl Widget_trait for Empty {}
 
 #[test]
 fn offset_is_clamped_to_content_edge() {

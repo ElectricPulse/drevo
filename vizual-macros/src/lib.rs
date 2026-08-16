@@ -50,50 +50,22 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
         {
             async fn layout(
                 &mut self,
-                render: ::vizual::Render,
-                theme: ::vizual::state::Store<::vizual::theme::Theme>,
-                focus: &mut ::vizual::widget::Focus_provider,
-                hitbox: &mut ::vizual::layouter::hitbox::Hitbox,
-                parent: ::vizual::layouter::hitbox::Hitbox,
-                problem: ::vizual::component::context::Component_context,
-                text_context: &mut ::vizual::graphics::text::Text_context,
-                slots: &mut ::vizual::slot::manager::Slots,
-                root: &::vizual::component::Shared_component,
+                input: ::vizual::widget::Layout_input<'_>,
             ) -> ::color_eyre::eyre::Result<::vizual::component::Children> {
                 ::vizual::widget::Widget_trait::layout(
                     &mut self.#field,
-                    render,
-                    theme,
-                    focus,
-                    hitbox,
-                    parent,
-                    problem,
-                    text_context,
-                    slots,
-                    root,
+                    input,
                 )
                 .await
             }
 
             async fn render(
                 &mut self,
-                render: ::vizual::Render,
-                theme: ::vizual::state::Store<::vizual::theme::Theme>,
-                focus: &mut ::vizual::widget::Focus_provider,
-                hitbox: ::vizual::geometry::Rect,
-                scene: &mut ::vizual::graphics::scene::Scene<'_>,
-                text_context: &mut ::vizual::graphics::text::Text_context,
-                context: &::vizual::component::Render_context<'_>,
+                input: ::vizual::widget::Render_input<'_, '_>,
             ) -> ::color_eyre::eyre::Result<()> {
                 ::vizual::widget::Widget_trait::render(
                     &mut self.#field,
-                    render,
-                    theme,
-                    focus,
-                    hitbox,
-                    scene,
-                    text_context,
-                    context,
+                    input,
                 )
                 .await
             }

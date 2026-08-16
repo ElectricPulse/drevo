@@ -51,6 +51,28 @@ impl Focus_provider {
     }
 }
 
+pub struct Layout_input<'a> {
+    pub render: Render,
+    pub theme: Store<Theme>,
+    pub focus: &'a mut Focus_provider,
+    pub hitbox: &'a mut Hitbox,
+    pub parent: Hitbox,
+    pub problem: Component_context,
+    pub text_context: &'a mut Text_context,
+    pub slots: &'a mut Slots<'a>,
+    pub root: &'a crate::component::Shared_component,
+}
+
+pub struct Render_input<'a, 'scene> {
+    pub render: crate::Render,
+    pub theme: Store<Theme>,
+    pub focus: &'a mut Focus_provider,
+    pub hitbox: Rect,
+    pub scene: &'a mut Scene<'scene>,
+    pub text_context: &'a mut Text_context,
+    pub context: &'a Render_context<'a>,
+}
+
 #[async_trait]
 /// A widget that participates in layout and painting.
 ///
@@ -70,33 +92,15 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
     /// Positioning widgets make individual edges independent when they add another equation for
     /// that edge. Widgets that derive their size from returned children must add those
     /// relationships explicitly.
-    async fn layout(
-        &mut self,
-        _render: Render,
-        _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut Text_context,
-        _slots: &mut Slots,
-        _root: &crate::component::Shared_component,
-    ) -> Result<Children>;
+    async fn layout(&mut self, _input: Layout_input<'_>) -> Result<Children> {
+        Ok(Vec::new())
+    }
 
     // The hitbox must be a resolved hitbox returned by the layouter.
     // Render_context carries the root traversal's solution and focus state so a render boundary,
     // such as Scroll, can recursively paint its retained child subtree into another scene without
     // inventing a second layout or losing the frame's focus information.
-    async fn render(
-        &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: Rect,
-        _scene: &mut Scene<'_>,
-        _text_context: &mut Text_context,
-        _context: &Render_context<'_>,
-    ) -> Result<()> {
+    async fn render(&mut self, _input: Render_input<'_, '_>) -> Result<()> {
         Ok(())
     }
 
@@ -162,46 +166,12 @@ pub struct Shared_widget<T: Thread_safe + ?Sized>(Arc<Mutex<T>>);
 
 #[async_trait]
 impl Widget_trait for Widget {
-    async fn layout(
-        &mut self,
-        render: Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        parent: Hitbox,
-        problem: Component_context,
-        text_context: &mut Text_context,
-        slots: &mut Slots,
-        root: &crate::component::Shared_component,
-    ) -> Result<Children> {
-        (**self)
-            .layout(
-                render,
-                theme,
-                focus,
-                hitbox,
-                parent,
-                problem,
-                text_context,
-                slots,
-                root,
-            )
-            .await
+    async fn layout(&mut self, input: Layout_input<'_>) -> Result<Children> {
+        (**self).layout(input).await
     }
 
-    async fn render(
-        &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: Rect,
-        scene: &mut Scene<'_>,
-        text_context: &mut Text_context,
-        context: &Render_context<'_>,
-    ) -> Result<()> {
-        (**self)
-            .render(render, theme, focus, hitbox, scene, text_context, context)
-            .await
+    async fn render(&mut self, input: Render_input<'_, '_>) -> Result<()> {
+        (**self).render(input).await
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
@@ -262,50 +232,12 @@ impl<T: Thread_safe + ?Sized> Shared_widget<T> {
 
 #[async_trait]
 impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
-    async fn layout(
-        &mut self,
-        render: Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        component: &mut Hitbox,
-        parent: Hitbox,
-        problem: Component_context,
-        text_context: &mut Text_context,
-        slots: &mut Slots,
-        root: &crate::component::Shared_component,
-    ) -> Result<Children> {
-        self.0
-            .lock()
-            .await?
-            .layout(
-                render,
-                theme,
-                focus,
-                component,
-                parent,
-                problem,
-                text_context,
-                slots,
-                root,
-            )
-            .await
+    async fn layout(&mut self, input: Layout_input<'_>) -> Result<Children> {
+        self.0.lock().await?.layout(input).await
     }
 
-    async fn render(
-        &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: Rect,
-        scene: &mut Scene<'_>,
-        text_context: &mut Text_context,
-        context: &Render_context<'_>,
-    ) -> Result<()> {
-        self.0
-            .lock()
-            .await?
-            .render(render, theme, focus, hitbox, scene, text_context, context)
-            .await
+    async fn render(&mut self, input: Render_input<'_, '_>) -> Result<()> {
+        self.0.lock().await?.render(input).await
     }
 
     async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {

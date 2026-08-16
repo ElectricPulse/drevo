@@ -7,7 +7,7 @@ use vizual_macros::display;
 
 use super::{
     super::{
-        Focus_provider, Widget, Widget_trait,
+        Focus_provider, Layout_input, Widget, Widget_trait,
         custom_widget::{Custom_widget, Custom_widget_trait},
     },
     button::Button,
@@ -64,15 +64,7 @@ impl<Choice: Thread_safe + Clone> Menu_item_container<Choice> {
 impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_container<Choice> {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input { slots, .. }: Layout_input<'_>,
     ) -> Result<Children> {
         let content = Custom_widget::new(self.widget.clone(), self.selected);
         let mut button = Button::around(content);
@@ -146,15 +138,12 @@ impl<Choice: Thread_safe + Clone> Retrieve_handler<Choice> for Menu<Choice> {
 impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
     async fn layout(
         &mut self,
-        render: crate::Render,
-        _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            render,
+            problem,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         let selected = *self.selected.affect(render).await?;
         let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());

@@ -8,7 +8,7 @@ use crate::{
     slot::manager::Slots,
     state::{State, Store},
     theme::Theme,
-    widget::{Focus_provider, Widget_trait},
+    widget::{Focus_provider, Layout_input, Render_input, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -28,15 +28,9 @@ impl Linebreak {
 impl Widget_trait for Linebreak {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        _slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            hitbox, problem, ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         problem
             .constrain(constraint!(
@@ -49,13 +43,13 @@ impl Widget_trait for Linebreak {
 
     async fn render(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: Rect,
-        scene: &mut Scene<'_>,
-        _text_context: &mut crate::graphics::text::Text_context,
-        _context: &crate::component::Render_context<'_>,
+        Render_input {
+            render,
+            theme,
+            hitbox,
+            scene,
+            ..
+        }: Render_input<'_, '_>,
     ) -> Result<()> {
         scene.fill_rect(hitbox, theme.affect(render).await?.semantic.border);
         Ok(())

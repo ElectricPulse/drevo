@@ -1,4 +1,4 @@
-use super::super::{Focus_provider, Widget_trait};
+use super::super::{Focus_provider, Layout_input, Render_input, Widget_trait};
 use crate::{
     component::Children,
     component::context::Component_context,
@@ -54,15 +54,14 @@ impl Text {
 impl Widget_trait for Text {
     async fn layout(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        text_context: &mut crate::graphics::text::Text_context,
-        _slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            render,
+            theme,
+            hitbox,
+            problem,
+            text_context,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         let content = self.content.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
@@ -79,13 +78,14 @@ impl Widget_trait for Text {
 
     async fn render(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: Rect,
-        scene: &mut Scene<'_>,
-        text_context: &mut crate::graphics::text::Text_context,
-        _context: &crate::component::Render_context<'_>,
+        Render_input {
+            render,
+            theme,
+            hitbox,
+            scene,
+            text_context,
+            ..
+        }: Render_input<'_, '_>,
     ) -> Result<()> {
         let content = self.content.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;

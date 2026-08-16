@@ -14,22 +14,7 @@ struct Derived_widget {
 }
 
 #[async_trait::async_trait]
-impl Widget_trait for Empty_widget {
-    async fn layout(
-        &mut self,
-        _render: crate::Render,
-        _theme: crate::state::Store<crate::theme::Theme>,
-        _focus: &mut crate::widget::Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        _slots: &mut crate::slot::manager::Slots,
-        _root: &crate::component::Shared_component,
-    ) -> Result<Children> {
-        Ok(vec![])
-    }
-}
+impl Widget_trait for Empty_widget {}
 
 #[test]
 fn widget_derive_forwards_the_current_trait_interface() {

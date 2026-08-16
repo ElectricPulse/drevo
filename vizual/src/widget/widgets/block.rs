@@ -1,5 +1,5 @@
 use super::{
-    super::{Focus_provider, Widget_trait},
+    super::{Focus_provider, Layout_input, Render_input, Widget_trait},
     positioning::space::Space,
 };
 use crate::{
@@ -55,15 +55,9 @@ impl Block {
 impl Widget_trait for Block {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            focus, slots, ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         focus.set_active(self.focusable);
         let style = self.style;
@@ -77,13 +71,12 @@ impl Widget_trait for Block {
 
     async fn render(
         &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: Rect,
-        scene: &mut Scene<'_>,
-        _text_context: &mut crate::graphics::text::Text_context,
-        _context: &crate::component::Render_context<'_>,
+        Render_input {
+            focus,
+            hitbox,
+            scene,
+            ..
+        }: Render_input<'_, '_>,
     ) -> Result<()> {
         let focused = self.focusable && focus.get();
         paint_block(scene, hitbox, &self.style, focused);

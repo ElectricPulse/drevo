@@ -13,7 +13,7 @@ use crate::{
     slot::manager::Slots,
     state::{State, Store},
     theme::Theme,
-    widget::{Focus_provider, Widget, Widget_trait},
+    widget::{Focus_provider, Layout_input, Widget, Widget_trait},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -44,15 +44,12 @@ impl Default_root {
 impl Widget_trait for Default_root {
     async fn layout(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            render,
+            theme,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         let theme_value = theme.affect(render).await?;
         let mut body = Paper::new(self.widget.clone());

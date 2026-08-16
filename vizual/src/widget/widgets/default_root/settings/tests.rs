@@ -104,7 +104,8 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
     problem
         .layout(render.clone(), theme.clone(), &focus, &mut text_context)
         .await?;
-    assert_eq!(settings.lock().await?.children.len(), 2);
+    assert_eq!(settings.lock().await?.children.len(), 1);
+    assert_eq!(problem.root.lock().await?.children.len(), 2);
     let _ = problem.minimum_size().await?;
     let solution = problem.solve(Size::new(800.0, 600.0)).await?;
     let _ = problem

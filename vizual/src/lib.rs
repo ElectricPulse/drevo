@@ -155,9 +155,13 @@ pub enum Vizual_command {
 
 impl Vizual_command {
     fn join(self, command: Self) -> Self {
-        match command {
-            Self::None => self,
-            command => command,
+        match (self, command) {
+            (Self::Quit, _) | (_, Self::Quit) => Self::Quit,
+            (Self::Focus(focus), _) | (_, Self::Focus(focus)) => Self::Focus(focus),
+            (Self::Layout, _) | (_, Self::Layout) => Self::Layout,
+            (Self::Resolve, _) | (_, Self::Resolve) => Self::Resolve,
+            (Self::Render, _) | (_, Self::Render) => Self::Render,
+            (Self::None, Self::None) => Self::None,
         }
     }
 }

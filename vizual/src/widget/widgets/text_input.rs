@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual_macros::display;
 
-use super::super::{Focus_provider, Widget_trait};
+use super::super::{Focus_provider, Layout_input, Widget_trait};
 use super::title_block::Title_block;
 use crate::{
     Vizual_command, Vizual_msg,
@@ -101,15 +101,9 @@ impl Text_input {
 impl Widget_trait for Text_input {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            focus, slots, ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         focus.set_active(true);
 

@@ -6,7 +6,7 @@ use uuid::Uuid;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Shared_widget, Widget, Widget_trait},
+    super::{Focus_provider, Layout_input, Render_input, Shared_widget, Widget, Widget_trait},
     layout::axis::Axis,
     positioning::anchor::Anchor,
     text::Text,
@@ -95,15 +95,13 @@ impl Tab_bar {
 impl Widget_trait for Tab_bar {
     async fn layout(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            render,
+            theme,
+            focus,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         focus.set_active(true);
         let mut buttons: Vec<Widget> = Vec::with_capacity(self.pages.len());
@@ -155,13 +153,7 @@ impl Widget_trait for Tab_bar {
 
     async fn render(
         &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        _hitbox: Rect,
-        _scene: &mut Scene<'_>,
-        _text_context: &mut crate::graphics::text::Text_context,
-        _context: &crate::component::Render_context<'_>,
+        Render_input { focus, .. }: Render_input<'_, '_>,
     ) -> Result<()> {
         focus.set_active(true);
         Ok(())
@@ -172,15 +164,7 @@ impl Widget_trait for Tab_bar {
 impl Widget_trait for Tabs {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input { slots, .. }: Layout_input<'_>,
     ) -> Result<Children> {
         let mut elements: Vec<Widget> = vec![Box::new(self.header.clone())];
         {

@@ -16,7 +16,7 @@ use crate::{
     state::Store,
     sync::{Mutex, MutexGuard},
     theme::Theme,
-    widget::{Focus_provider, Widget},
+    widget::{Focus_provider, Layout_input, Render_input, Widget},
 };
 
 use self::{context::Component_context, debug::Component_debug};
@@ -143,19 +143,18 @@ impl Shared_component {
 
             let children = {
                 let mut slots = slot_manager.slots(hitbox);
-                let children = widget
-                    .layout(
-                        render,
-                        theme,
-                        &mut focus,
-                        hitbox,
-                        parent.clone(),
-                        problem.clone(),
-                        text_context,
-                        &mut slots,
-                        root,
-                    )
-                    .await?;
+                let input = Layout_input {
+                    render,
+                    theme,
+                    focus: &mut focus,
+                    hitbox,
+                    parent: parent.clone(),
+                    problem: problem.clone(),
+                    text_context,
+                    slots: &mut slots,
+                    root,
+                };
+                let children = widget.layout(input).await?;
 
                 hitbox.constrain_shared(&parent, &problem).await?;
 
@@ -291,17 +290,16 @@ impl Shared_component {
             let mut this = self.lock().await?;
             let focused = context.focused_path.contains(self);
             let mut focus = Focus_provider::new(focused);
-            this.widget
-                .render(
-                    render,
-                    theme,
-                    &mut focus,
-                    hitbox,
-                    &mut logical_scene_wrapper,
-                    text_context,
-                    context,
-                )
-                .await?;
+            let input = Render_input {
+                render,
+                theme,
+                focus: &mut focus,
+                hitbox,
+                scene: &mut logical_scene_wrapper,
+                text_context,
+                context,
+            };
+            this.widget.render(input).await?;
             this.focusable = focus.is_active();
         };
 

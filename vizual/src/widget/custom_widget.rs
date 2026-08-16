@@ -22,15 +22,7 @@ pub trait Custom_widget_trait: Thread_safe {
 
     async fn layout(
         &mut self,
-        render: Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        parent: Hitbox,
-        problem: Component_context,
-        text_context: &mut Text_context,
-        slots: &mut Slots,
-        root: &Shared_component,
+        input: super::Layout_input<'_>,
         payload: Self::Payload,
     ) -> Result<Children>;
 }
@@ -54,32 +46,10 @@ where
     Widget::Target: Custom_widget_trait<Payload = Payload>,
     Payload: Clone + Thread_safe,
 {
-    async fn layout(
-        &mut self,
-        render: Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        parent: Hitbox,
-        problem: Component_context,
-        text_context: &mut Text_context,
-        slots: &mut Slots,
-        root: &Shared_component,
-    ) -> Result<Children> {
+    async fn layout(&mut self, input: super::Layout_input<'_>) -> Result<Children> {
         let contents = self
             .widget
-            .layout(
-                render,
-                theme,
-                focus,
-                hitbox,
-                parent,
-                problem,
-                text_context,
-                slots,
-                root,
-                self.payload.clone(),
-            )
+            .layout(input, self.payload.clone())
             .await?;
 
         // TODO: handle this some other way
@@ -102,29 +72,9 @@ where
 
     async fn layout(
         &mut self,
-        render: Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        parent: Hitbox,
-        problem: Component_context,
-        text_context: &mut Text_context,
-        slots: &mut Slots,
-        root: &Shared_component,
+        input: super::Layout_input<'_>,
         _payload: Self::Payload,
     ) -> Result<Children> {
-        Widget_trait::layout(
-            self,
-            render,
-            theme,
-            focus,
-            hitbox,
-            parent,
-            problem,
-            text_context,
-            slots,
-            root,
-        )
-        .await
+        Widget_trait::layout(self, input).await
     }
 }

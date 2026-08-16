@@ -30,7 +30,7 @@ use crate::{
     theme::{System_theme, Theme},
     utils::{get_next_index, get_previous_index},
     widget::{
-        Focus_provider, Widget, Widget_trait,
+        Focus_provider, Layout_input, Render_input, Widget, Widget_trait,
         custom_widget::Custom_widget_trait,
         widgets::{paper::Paper, positioning::anchor::Position},
     },
@@ -77,22 +77,7 @@ impl Theme_choice {
 struct Empty;
 
 #[async_trait]
-impl Widget_trait for Empty {
-    async fn layout(
-        &mut self,
-        _render: Render,
-        _theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        _slots: &mut Slots,
-        _root: &Shared_component,
-    ) -> Result<Children> {
-        Ok(Vec::new())
-    }
-}
+impl Widget_trait for Empty {}
 
 #[derive(Clone)]
 struct Theme_menu_item {
@@ -112,15 +97,12 @@ impl Custom_widget_trait for Theme_menu_item {
 
     async fn layout(
         &mut self,
-        render: Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &Shared_component,
+        Layout_input {
+            render,
+            theme,
+            slots,
+            ..
+        }: Layout_input<'_>,
         selected: bool,
     ) -> Result<Children> {
         let current_theme = theme.affect(render).await?;
@@ -190,15 +172,14 @@ impl Positioned_menu {
 impl Widget_trait for Positioned_menu {
     async fn layout(
         &mut self,
-        render: Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &Shared_component,
+        Layout_input {
+            render,
+            theme,
+            hitbox,
+            problem,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         hitbox.make_independent();
 
@@ -252,15 +233,14 @@ impl Widget_trait for Positioned_menu {
 impl Widget_trait for Settings {
     async fn layout(
         &mut self,
-        render: Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        root: &Shared_component,
+        Layout_input {
+            render,
+            theme,
+            focus,
+            slots,
+            root,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         let focused = focus.get();
         let choice = *self.choice.affect(render.clone()).await?;
@@ -318,13 +298,7 @@ impl Widget_trait for Settings {
 
     async fn render(
         &mut self,
-        _render: Render,
-        _theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        _hitbox: Rect,
-        _scene: &mut Scene<'_>,
-        _text_context: &mut crate::graphics::text::Text_context,
-        _context: &Render_context<'_>,
+        Render_input { focus, .. }: Render_input<'_, '_>,
     ) -> Result<()> {
         focus.set_active(true);
         Ok(())

@@ -7,7 +7,7 @@ use crate::{
     state::{State, Store},
     style::Style,
     theme::Theme,
-    widget::{Focus_provider, Widget, Widget_trait, widgets::container::Container},
+    widget::{Layout_input, Widget, Widget_trait, widgets::container::Container},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -48,15 +48,14 @@ impl Axis {
 impl Widget_trait for Axis {
     async fn layout(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            render,
+            theme,
+            hitbox,
+            problem,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         let direction = self.direction;
         let mut elements = Vec::with_capacity(self.elements.len());

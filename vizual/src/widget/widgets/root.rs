@@ -1,7 +1,7 @@
 use color_eyre::eyre::Result;
 use vizual_macros::display;
 
-use super::super::{Focus_provider, Widget, Widget_trait};
+use super::super::{Focus_provider, Layout_input, Widget, Widget_trait};
 use crate::{
     component::{Children, context::Component_context},
     event::Key_event,
@@ -22,15 +22,7 @@ impl Root {
 impl Widget_trait for Root {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: crate::state::Store<crate::theme::Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input { slots, .. }: Layout_input<'_>,
     ) -> Result<Children> {
         Ok(vec![display!(self.0.clone())])
     }

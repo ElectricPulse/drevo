@@ -14,7 +14,7 @@ use crate::{
     slot::manager::Slots,
     state::{State, Store},
     theme::Theme,
-    widget::{Focus_provider, Widget, Widget_trait},
+    widget::{Focus_provider, Layout_input, Render_input, Widget, Widget_trait},
 };
 
 use self::bar::Scrollbars;
@@ -67,15 +67,13 @@ impl Scroll {
 impl Widget_trait for Scroll {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            focus,
+            hitbox,
+            problem,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         focus.set_active(true);
 
@@ -106,13 +104,15 @@ impl Widget_trait for Scroll {
 
     async fn render(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        focus: &mut Focus_provider,
-        hitbox: Rect,
-        scene: &mut Scene<'_>,
-        _text_context: &mut Text_context,
-        context: &Render_context<'_>,
+        Render_input {
+            render,
+            theme,
+            focus,
+            hitbox,
+            scene,
+            context,
+            ..
+        }: Render_input<'_, '_>,
     ) -> Result<()> {
         focus.set_active(true);
 

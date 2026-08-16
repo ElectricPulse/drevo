@@ -4,7 +4,7 @@ use crate::{
     geometry::Direction,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    widget::{Focus_provider, Widget, Widget_trait},
+    widget::{Focus_provider, Layout_input, Widget, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::Result;
@@ -139,15 +139,13 @@ impl Anchor {
 impl Widget_trait for Anchor {
     async fn layout(
         &mut self,
-        _render: crate::Render,
-        _theme: crate::state::Store<crate::theme::Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            hitbox,
+            parent,
+            problem,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         Self::anchor(
             &problem,

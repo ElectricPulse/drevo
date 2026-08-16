@@ -3,7 +3,7 @@ use color_eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Widget_trait},
+    super::{Focus_provider, Layout_input, Widget_trait},
     block::{Block, Block_style},
 };
 use crate::{
@@ -76,15 +76,12 @@ impl Button {
 impl Widget_trait for Button {
     async fn layout(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            render,
+            theme,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(render).await?;
         let style = resolve_block_style(&theme, self.highlighted);

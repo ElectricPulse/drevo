@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use super::{
-    super::{Focus_provider, Widget_trait},
+    super::{Focus_provider, Render_input, Widget_trait},
     text::Text_style,
 };
 use crate::{
@@ -45,30 +45,15 @@ impl List {
 
 #[async_trait]
 impl Widget_trait for List {
-    async fn layout(
-        &mut self,
-        _render: crate::Render,
-        _theme: crate::state::Store<crate::theme::Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: crate::component::context::Component_context,
-        _text_context: &mut crate::graphics::text::Text_context,
-        _slots: &mut crate::slot::manager::Slots,
-        _root: &crate::component::Shared_component,
-    ) -> Result<crate::component::Children> {
-        Ok(vec![])
-    }
-
     async fn render(
         &mut self,
-        _render: crate::Render,
-        _theme: crate::state::Store<crate::theme::Theme>,
-        focus: &mut Focus_provider,
-        hitbox: Rect,
-        scene: &mut Scene<'_>,
-        text_context: &mut crate::graphics::text::Text_context,
-        _context: &crate::component::Render_context<'_>,
+        Render_input {
+            focus,
+            hitbox,
+            scene,
+            text_context,
+            ..
+        }: Render_input<'_, '_>,
     ) -> Result<()> {
         focus.set_active(true);
         let mut y = hitbox.origin.y;

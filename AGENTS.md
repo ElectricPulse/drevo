@@ -6,3 +6,4 @@
 - Model new behavior as a local component before extending shared infrastructure. Avoid cross-cutting hooks that merely compensate for a missing abstraction.
 - Do not create trivial wrapper macros or helper functions that merely forward to one constructor, such as `left_aligned(child)` around an anchor constructor. Put the expressive convenience constructor on the owning type instead, such as `Anchor::left(child)`.
 - Do not avoid making methods async when needed.
+- put tests in a seperate tests.rs (where they must be in a directory named by the former `<file>.rs` ie. `<file>/tests.rs` where `<file>.rs` gets put in `<file>/mod.rs`)

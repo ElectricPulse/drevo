@@ -3,7 +3,7 @@ use color_eyre::Result;
 use lucide_icons::Icon as Lucide_icon;
 
 use super::{
-    super::{Focus_provider, Widget_trait},
+    super::{Focus_provider, Layout_input, Render_input, Widget_trait},
     text::Text_style,
 };
 use crate::{
@@ -36,15 +36,14 @@ impl Icon {
 impl Widget_trait for Icon {
     async fn layout(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        text_context: &mut crate::graphics::text::Text_context,
-        _slots: &mut Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            render,
+            theme,
+            hitbox,
+            problem,
+            text_context,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         let icon = *self.icon.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
@@ -61,13 +60,14 @@ impl Widget_trait for Icon {
 
     async fn render(
         &mut self,
-        render: crate::Render,
-        theme: Store<Theme>,
-        _focus: &mut Focus_provider,
-        hitbox: Rect,
-        scene: &mut Scene<'_>,
-        text_context: &mut crate::graphics::text::Text_context,
-        _context: &crate::component::Render_context<'_>,
+        Render_input {
+            render,
+            theme,
+            hitbox,
+            scene,
+            text_context,
+            ..
+        }: Render_input<'_, '_>,
     ) -> Result<()> {
         let icon = *self.icon.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;

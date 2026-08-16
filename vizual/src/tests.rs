@@ -8,6 +8,8 @@ use crate::{
     graphics::text::Styled_text,
 };
 
+use crate::widget::{Layout_input, Render_input};
+
 #[derive(Clone)]
 struct Offset_click;
 
@@ -18,15 +20,12 @@ struct Focusable_box;
 impl Widget_trait for Focusable_box {
     async fn layout(
         &mut self,
-        _render: Render,
-        _theme: Store<Theme>,
-        focus: &mut crate::widget::Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut Text_context,
-        _slots: &mut crate::slot::manager::Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            focus,
+            hitbox,
+            problem,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<component::Children> {
         focus.set_active(true);
         for direction in [Direction::Horizontal, Direction::Vertical] {
@@ -39,13 +38,7 @@ impl Widget_trait for Focusable_box {
 
     async fn render(
         &mut self,
-        _render: Render,
-        _theme: Store<Theme>,
-        focus: &mut crate::widget::Focus_provider,
-        _hitbox: Rect,
-        _scene: &mut graphics::scene::Scene<'_>,
-        _text_context: &mut Text_context,
-        _context: &component::Render_context<'_>,
+        Render_input { focus, .. }: Render_input<'_, '_>,
     ) -> Result<()> {
         focus.set_active(true);
         Ok(())
@@ -56,16 +49,14 @@ impl Widget_trait for Focusable_box {
 impl Widget_trait for Offset_click {
     async fn layout(
         &mut self,
-        _render: Render,
-        _theme: Store<Theme>,
-        _focus: &mut crate::widget::Focus_provider,
-        hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        problem: Component_context,
-        _text_context: &mut Text_context,
-        _slots: &mut crate::slot::manager::Slots,
-        _root: &crate::component::Shared_component,
+        Layout_input {
+            focus,
+            hitbox,
+            problem,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<component::Children> {
+        focus.set_active(true);
         hitbox
             .set_static_dimension(&problem, crate::geometry::Direction::Horizontal, 100.0)
             .await?;
@@ -74,6 +65,14 @@ impl Widget_trait for Offset_click {
             .await?;
 
         Ok(Vec::new())
+    }
+
+    async fn render(
+        &mut self,
+        Render_input { focus, .. }: Render_input<'_, '_>,
+    ) -> Result<()> {
+        focus.set_active(true);
+        Ok(())
     }
 
     async fn on_mouse_click(&mut self, _pointer: &Pointer_event) -> Result<Vizual_msg> {
