@@ -37,7 +37,10 @@ use std::{
 
 use async_recursion::async_recursion;
 use color_eyre::eyre::{ContextCompat, Result, WrapErr, eyre};
-use simplelog::{CombinedLogger, Config as Log_config, LevelFilter, WriteLogger};
+use simplelog::{
+    ColorChoice, CombinedLogger, Config as Log_config, LevelFilter, SharedLogger, TermLogger,
+    TerminalMode, WriteLogger,
+};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use tokio::sync::mpsc;
 use vello::{
@@ -73,19 +76,27 @@ use sync::Mutex;
 use theme::{System_theme, Theme};
 use widget::{Shared_widget, Widget_trait, widgets::root::Root};
 
-pub fn init_logging(path: impl AsRef<Path>) -> Result<()> {
-    let file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path.as_ref())
-        .wrap_err_with(|| format!("Failed to open log file {}", path.as_ref().display()))?;
+pub fn init_logging(path: Option<impl AsRef<Path>>) -> Result<()> {
+    let logger: Box<dyn SharedLogger> = match path {
+        Some(path) => {
+            let file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path.as_ref())
+                .wrap_err_with(|| format!("Failed to open log file {}", path.as_ref().display()))?;
 
-    CombinedLogger::init(vec![WriteLogger::new(
-        LevelFilter::Info,
-        Log_config::default(),
-        file,
-    )])
-    .map_err(|error| eyre!("Failed to initialize logging: {error}"))?;
+            WriteLogger::new(LevelFilter::Info, Log_config::default(), file)
+        }
+        None => TermLogger::new(
+            LevelFilter::Info,
+            Log_config::default(),
+            TerminalMode::Mixed,
+            ColorChoice::Auto,
+        ),
+    };
+
+    CombinedLogger::init(vec![logger])
+        .map_err(|error| eyre!("Failed to initialize logging: {error}"))?;
 
     Ok(())
 }
