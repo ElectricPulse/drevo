@@ -14,7 +14,6 @@ use super::{
 use crate::{
     Render,
     component::{Children, context::Component_context},
-    geometry::Direction,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
     state::{State, Store},
@@ -45,23 +44,19 @@ impl Widget_trait for Header {
             render,
             theme,
             slots,
-            hitbox,
-            problem,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(render).await?;
         let mut name = Text::new(self.name.clone());
         name.style.set(theme.specific.text.title);
-        /*let name = Anchor::new(
+        let name = Anchor::new(
             name,
             Anchors {
                 horizontal: Some(Position::Start),
                 vertical: Some(Position::Middle),
             },
-        );*/
-
-        let name = Anchor::left(name);
+        );
 
         let settings = Settings::new(self.choice.clone());
 
@@ -74,10 +69,6 @@ impl Widget_trait for Header {
         );
 
         let items: Vec<Widget> = vec![Box::new(name), Box::new(settings)];
-
-        // The whole thing is encased in a grid nothing is teoretically stopping the grid from becoming taller
-        // this shrink wraps it to the smallest size
-        //problem.minimize(hitbox.get_dimension(Direction::Vertical), 1).await?;
 
         Ok(vec![display!(Grid::new(items, 0.0))])
     }

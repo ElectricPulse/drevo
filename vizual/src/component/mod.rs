@@ -41,11 +41,11 @@ pub struct Component {
     pub parent: Parent,
     pub children: Children,
     pub slot_manager: Slot_records,
-    /// Logical is a fantastic bodge if you want to disable two annoying default features that come with having parent hitboxes being smaller than child
-    /// ie. child hitbox isnt contained in parent hitbox - like in a dialog window opened from a button
-    /// 1. it disables the default overflow hidden rendering
-    /// 2. it makes focus continue searching for focusables inside it even when the elements hitbox wasnt clicked
-    /// setting it to true is like saying ignore this hitbox it's only exists so that things will align properly
+    /// Marks this component as a logical child rather than a graphical child.
+    ///
+    /// Excludes the component from the layout parent's `children` list after `layout`,
+    /// allowing it to be positioned relative to the parent while being mounted to a different
+    /// graphical container (such as `root`).
     pub logical: bool,
 }
 
