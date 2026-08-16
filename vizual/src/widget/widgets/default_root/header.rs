@@ -71,7 +71,7 @@ impl Widget_trait for Header {
             },
         );
 
-        let items: Vec<Widget> = vec![Box::new(name), Box::new(settings)];
+        let items: Vec<Widget> = vec![Box::new(name), Box::new(settings)];        
 
         Ok(vec![display!(Grid::new(items, 0.0))])
     }

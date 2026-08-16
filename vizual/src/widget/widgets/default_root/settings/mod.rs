@@ -121,9 +121,9 @@ impl Custom_widget_trait for Theme_menu_item {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
+        _logical: &mut bool,
         selected: bool,
     ) -> Result<Children> {
-        // todo: TURN ON LOGICAL HERE
         let current_theme = theme.affect(render).await?;
         let preview_theme = self.choice.resolve(&current_theme);
         let mut text = Text::new(label(self.choice, current_theme.system()));
@@ -261,11 +261,14 @@ impl Widget_trait for Settings {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        logical: &mut bool,
     ) -> Result<Children> {
+        *logical = true;
+
         let focused = focus.get();
         let choice = *self.choice.affect(render.clone()).await?;
         let current_theme = theme.affect(render.clone()).await?;
+
         if !choice.is_selected(&current_theme) {
             let resolved_theme = choice.resolve(&current_theme);
             drop(current_theme);
@@ -321,9 +324,9 @@ impl Widget_trait for Settings {
         _scene: &mut Scene<'_>,
         _text_context: &mut crate::graphics::text::Text_context,
         _context: &Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
+    ) -> Result<()> {
         focus.set_active(true);
-        Ok(None)
+        Ok(())
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {

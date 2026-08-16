@@ -45,6 +45,7 @@ pub struct Component {
     /// ie. child hitbox isnt contained in parent hitbox - like in a dialog window opened from a button
     /// 1. it disables the default overflow hidden rendering
     /// 2. it makes focus continue searching for focusables inside it even when the elements hitbox wasnt clicked
+    /// setting it to true is like saying ignore this hitbox it's only exists so that things will align properly
     pub logical: bool,
 }
 
@@ -144,7 +145,7 @@ impl Shared_component {
         let layer = inherited_layer.max(self.layer);
         let component = self.lock().await?;
         let children = component.children.clone();
-        let logical = component.logical;
+
         drop(component);
         let tree_order = components.len();
         components.push(Layered_component {
@@ -152,10 +153,6 @@ impl Shared_component {
             layer,
             tree_order,
         });
-
-        if logical {
-            return Ok(());
-        }
 
         for child in children {
             child.collect_layered_components(layer, components).await?;
@@ -296,28 +293,32 @@ impl Shared_component {
         text_context: &mut Text_context,
         context: &Render_context<'_>,
     ) -> Result<()> {
-        let (hitbox, parent_hitbox) = {
+        let (hitbox, mask) = {
             let this = self.lock().await?;
             let hitbox = this.hitbox.get_resolved(context.solution);
+            let mut mask: Rect = hitbox.clone();
+            let mut current_parent = this.parent.clone();
 
-            let parent = this.parent.clone();
-
-            let parent_hitbox = if let Some(parent_ref) = parent {
+            while let Some(parent_ref) = current_parent {
                 let parent = parent_ref
                     .upgrade()
                     .wrap_err("Found link to stale parent")?;
                 let parent_lock = parent.lock().await?;
 
-                if parent_lock.logical {
-                    None
-                } else {
-                    Some(parent_lock.hitbox.get_resolved(context.solution))
-                }
-            } else {
-                None
-            };
+                current_parent = parent_lock.parent.clone();
 
-            (hitbox, parent_hitbox)
+                if parent_lock.logical {
+                    // This should in reality just be continue statement as in ignore me but continue clipping
+                    // but since it often is the case that parents of a logical component are often wrapped
+                    // in Anchor or smth than its really hard to turn on logical for all of them
+                    mask = hitbox;
+                    break;
+                }
+
+                let parent_rect = parent_lock.hitbox.get_resolved(context.solution);
+                mask = mask.intersect(parent_rect)
+            }
+            (hitbox, mask)
         };
 
         let mut logical_scene = Vello_scene::new();
@@ -343,15 +344,7 @@ impl Shared_component {
             maybe_hitbox
         };
 
-        if let Some(parent_hitbox) = parent_hitbox {
-            scene.append_clipped(&logical_scene, parent_hitbox, Affine::IDENTITY);
-        } else {
-            scene.scene.append(&logical_scene, None);
-        }
-
-        if let Some(hitbox) = maybe_hitbox {
-            self.lock().await?.hitbox.point_to(&hitbox);
-        };
+        scene.append_clipped(&logical_scene, mask, Affine::IDENTITY);
 
         Ok(())
     }

@@ -46,9 +46,9 @@ impl Widget_trait for Focusable_box {
         _scene: &mut graphics::scene::Scene<'_>,
         _text_context: &mut Text_context,
         _context: &component::Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
+    ) -> Result<()> {
         focus.set_active(true);
-        Ok(None)
+        Ok(())
     }
 }
 

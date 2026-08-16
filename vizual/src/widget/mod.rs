@@ -96,8 +96,8 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
         _scene: &mut Scene<'_>,
         _text_context: &mut Text_context,
         _context: &Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
-        Ok(None)
+    ) -> Result<()> {
+        Ok(())
     }
 
     // Event handling defaults to no action for non-interactive widgets.
@@ -198,7 +198,7 @@ impl Widget_trait for Widget {
         scene: &mut Scene<'_>,
         text_context: &mut Text_context,
         context: &Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
+    ) -> Result<()> {
         (**self)
             .render(render, theme, focus, hitbox, scene, text_context, context)
             .await
@@ -300,7 +300,7 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
         scene: &mut Scene<'_>,
         text_context: &mut Text_context,
         context: &Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
+    ) -> Result<()> {
         self.0
             .lock()
             .await?

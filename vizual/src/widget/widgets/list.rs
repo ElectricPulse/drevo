@@ -69,7 +69,7 @@ impl Widget_trait for List {
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
+    ) -> Result<()> {
         focus.set_active(true);
         let mut y = hitbox.origin.y;
 
@@ -88,7 +88,7 @@ impl Widget_trait for List {
             y += size.height;
         }
 
-        Ok(None)
+        Ok(())
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {

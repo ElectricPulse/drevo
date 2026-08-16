@@ -115,12 +115,12 @@ impl Widget_trait for Paragraph {
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
+    ) -> Result<()> {
         if hitbox.size.width > 0.0 && hitbox.size.height > 0.0 {
             let layout = text_context.build_wrapped_layout(&self.content, hitbox.size.width as f32);
             scene.paint_layout_clipped(&layout, hitbox.origin, hitbox, true);
         }
 
-        Ok(None)
+        Ok(())
     }
 }

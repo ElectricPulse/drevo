@@ -30,6 +30,7 @@ pub trait Custom_widget_trait: Thread_safe {
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
+        logical: &mut bool,
         payload: Self::Payload,
     ) -> Result<Children>;
 }
@@ -63,7 +64,7 @@ where
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
-        _logical: &mut bool,
+        logical: &mut bool,
     ) -> Result<Children> {
         let contents = self
             .widget
@@ -76,6 +77,7 @@ where
                 problem,
                 text_context,
                 slots,
+                logical,
                 self.payload.clone(),
             )
             .await?;
@@ -108,6 +110,7 @@ where
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
+        logical: &mut bool,
         _payload: Self::Payload,
     ) -> Result<Children> {
         Widget_trait::layout(
@@ -120,7 +123,7 @@ where
             problem,
             text_context,
             slots,
-            &mut false,
+            logical,
         )
         .await
     }

@@ -113,7 +113,7 @@ impl Widget_trait for Scroll {
         scene: &mut Scene<'_>,
         _text_context: &mut Text_context,
         context: &Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
+    ) -> Result<()> {
         focus.set_active(true);
 
         if let Some(child) = &self.child_component {
@@ -128,7 +128,7 @@ impl Widget_trait for Scroll {
 
         scrollbars.paint(scene, self.offset, &loaded_theme);
 
-        Ok(None)
+        Ok(())
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {

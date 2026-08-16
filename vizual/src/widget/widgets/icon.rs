@@ -68,10 +68,10 @@ impl Widget_trait for Icon {
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
+    ) -> Result<()> {
         let icon = *self.icon.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
         let _ = text_context.draw_icon(scene, icon, hitbox.origin, self.style.get(&theme));
-        Ok(None)
+        Ok(())
     }
 }

@@ -86,10 +86,10 @@ impl Widget_trait for Text {
         scene: &mut Scene<'_>,
         text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
+    ) -> Result<()> {
         let content = self.content.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
         let _ = text_context.draw_text(scene, &content, hitbox.origin, self.style.get(&theme));
-        Ok(None)
+        Ok(())
     }
 }

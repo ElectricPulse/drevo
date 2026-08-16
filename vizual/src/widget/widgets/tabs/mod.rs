@@ -162,9 +162,9 @@ impl Widget_trait for Tab_bar {
         _scene: &mut Scene<'_>,
         _text_context: &mut crate::graphics::text::Text_context,
         _context: &crate::component::Render_context<'_>,
-    ) -> Result<Option<Hitbox>> {
+    ) -> Result<()> {
         focus.set_active(true);
-        Ok(None)
+        Ok(())
     }
 }
 

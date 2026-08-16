@@ -125,11 +125,6 @@ impl Hitbox {
         Ok(())
     }
 
-    /// Replaces this resolved render-time hitbox with another hitbox.
-    pub(crate) fn point_to(&mut self, hitbox: &Self) {
-        *self = hitbox.clone();
-    }
-
     /// Constrains the derived dimension to match the parent's dimension on one axis.
     pub async fn share_dimension(
         &self,
