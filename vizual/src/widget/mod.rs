@@ -51,6 +51,10 @@ impl Focus_provider {
     }
 }
 
+// These two input structs have been created to solve two issues
+// 1. when adding a new property into input of layout()/render() - which happens often
+//    it means that one doesn't have to fix all the outdated function signatures
+// 2. the function signatures are really big and took ab
 pub struct Layout_input<'a> {
     pub render: Render,
     pub theme: Store<Theme>,
@@ -61,6 +65,7 @@ pub struct Layout_input<'a> {
     pub text_context: &'a mut Text_context,
     pub slots: &'a mut Slots<'a>,
     pub root: &'a crate::component::Shared_component,
+    pub mask: &'a mut bool,
 }
 
 pub struct Render_input<'a, 'scene> {

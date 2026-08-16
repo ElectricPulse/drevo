@@ -2,14 +2,14 @@ pub mod context;
 pub(crate) mod debug;
 
 use async_recursion::async_recursion;
-use color_eyre::eyre::{ContextCompat, Result};
+use color_eyre::eyre::Result;
 use std::sync::{Arc, Weak};
 use vello::{Scene as Vello_scene, kurbo::Affine};
 
 use crate::{
     Render,
     focus::Focused_path,
-    geometry::{Direction, Rect},
+    geometry::Direction,
     graphics::text::Text_context,
     layouter::{Solution, hitbox::Hitbox},
     slot::manager::Slot_records,
@@ -47,6 +47,8 @@ pub struct Component {
     /// allowing it to be positioned relative to the parent while being mounted to a different
     /// graphical container (such as `root`).
     pub logical: bool,
+    /// When true, this component acts as a clipping mask for itself and all its graphical children.
+    pub mask: bool,
 }
 
 /// A component as attached to its parent.
@@ -136,6 +138,7 @@ impl Shared_component {
                 slot_manager,
                 hitbox,
                 focusable,
+                mask,
                 ..
             } = &mut *this;
 
@@ -153,6 +156,7 @@ impl Shared_component {
                     text_context,
                     slots: &mut slots,
                     root,
+                    mask,
                 };
                 let children = widget.layout(input).await?;
 
@@ -235,14 +239,64 @@ impl Shared_component {
         text_context: &mut Text_context,
         context: &Render_context<'_>,
     ) -> Result<()> {
-        self.render_component(render.clone(), theme.clone(), scene, text_context, context)
+        let (is_mask, hitbox, children) = {
+            let this = self.lock().await?;
+            (
+                this.mask,
+                this.hitbox.get_resolved(context.solution),
+                this.children.clone(),
+            )
+        };
+
+        if is_mask {
+            let mut logical_scene = Vello_scene::new();
+            {
+                let mut logical_scene_wrapper =
+                    crate::graphics::scene::Scene::new(&mut logical_scene);
+
+                self.render_component(
+                    render.clone(),
+                    theme.clone(),
+                    &mut logical_scene_wrapper,
+                    text_context,
+                    context,
+                )
+                .await?;
+
+                for mut child in children {
+                    child
+                        .render(
+                            render.clone(),
+                            theme.clone(),
+                            &mut logical_scene_wrapper,
+                            text_context,
+                            context,
+                        )
+                        .await?;
+                }
+            }
+            scene.append_clipped(&logical_scene, hitbox, Affine::IDENTITY);
+        } else {
+            self.render_component(
+                render.clone(),
+                theme.clone(),
+                scene,
+                text_context,
+                context,
+            )
             .await?;
 
-        let children = self.lock().await?.children.clone();
-        for mut child in children {
-            child
-                .render(render.clone(), theme.clone(), scene, text_context, context)
-                .await?;
+            for mut child in children {
+                child
+                    .render(
+                        render.clone(),
+                        theme.clone(),
+                        scene,
+                        text_context,
+                        context,
+                    )
+                    .await?;
+            }
         }
 
         Ok(())
@@ -256,54 +310,25 @@ impl Shared_component {
         text_context: &mut Text_context,
         context: &Render_context<'_>,
     ) -> Result<()> {
-        let (hitbox, mask) = {
+        let hitbox = {
             let this = self.lock().await?;
-            let hitbox = this.hitbox.get_resolved(context.solution);
-            let mut mask: Rect = hitbox.clone();
-            let mut current_parent = this.parent.clone();
-
-            while let Some(parent_ref) = current_parent {
-                let parent = parent_ref
-                    .upgrade()
-                    .wrap_err("Found link to stale parent")?;
-                let parent_lock = parent.lock().await?;
-
-                if parent_lock.logical {
-                    // TODO: In reality there should probably be a distinction between graphical (how to mask, how to find when focus finding)
-                    // and logical parent (where to forward events)
-                    break;
-                }
-
-                current_parent = parent_lock.parent.clone();
-
-                let parent_rect = parent_lock.hitbox.get_resolved(context.solution);
-                mask = mask.intersect(parent_rect);
-            }
-
-            (hitbox, mask)
+            this.hitbox.get_resolved(context.solution)
         };
 
-        let mut logical_scene = Vello_scene::new();
-
-        {
-            let mut logical_scene_wrapper = crate::graphics::scene::Scene::new(&mut logical_scene);
-            let mut this = self.lock().await?;
-            let focused = context.focused_path.contains(self);
-            let mut focus = Focus_provider::new(focused);
-            let input = Render_input {
-                render,
-                theme,
-                focus: &mut focus,
-                hitbox,
-                scene: &mut logical_scene_wrapper,
-                text_context,
-                context,
-            };
-            this.widget.render(input).await?;
-            this.focusable = focus.is_active();
+        let mut this = self.lock().await?;
+        let focused = context.focused_path.contains(self);
+        let mut focus = Focus_provider::new(focused);
+        let input = Render_input {
+            render,
+            theme,
+            focus: &mut focus,
+            hitbox,
+            scene,
+            text_context,
+            context,
         };
-
-        scene.append_clipped(&logical_scene, mask, Affine::IDENTITY);
+        this.widget.render(input).await?;
+        this.focusable = focus.is_active();
 
         Ok(())
     }

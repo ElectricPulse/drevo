@@ -46,6 +46,7 @@ fn component(
         children: Vec::new(),
         slot_manager: Slot_records::new(problem),
         logical: false,
+        mask: false,
     })))
 }
 

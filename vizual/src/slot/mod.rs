@@ -94,6 +94,7 @@ impl Component_slot {
             reference.slot_manager.set_problem(problem);
             reference.hitbox.reset_shared();
             reference.logical = false;
+            reference.mask = false;
             if parent.is_none() {
                 reference.hitbox.make_independent();
             }
@@ -120,6 +121,7 @@ impl Component_slot {
                 parent: None,
                 slot_manager: Slot_records::new(problem),
                 logical: false,
+                mask: false,
             })));
 
             self.reference = lock.as_reference();

@@ -72,10 +72,12 @@ impl Widget_trait for Scroll {
             hitbox,
             problem,
             slots,
+            mask,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
         focus.set_active(true);
+        *mask = true;
 
         let child = display!(self.child.clone());
         self.child_component = Some(child.clone());
