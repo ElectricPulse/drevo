@@ -19,7 +19,6 @@ delegate = "0.13.5"
 dyn-clone = "1.0.20"
 async-recursion = "1.1.1"
 futures = "0.3.32"
-good_lp = { git = "https://github.com/rust-or/good_lp", rev = "e4a73e22ee0003c3c1f34c717b528ee8d18ab35d", default-features = false, features = ["highs"] }
 highs = "2.4.0"
 highs-sys = "1.15.0"
 log = "0.4.29"

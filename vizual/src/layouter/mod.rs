@@ -21,18 +21,15 @@ use std::{
     time::Instant,
 };
 
-use async_recursion::async_recursion;
 use color_eyre::eyre::{Result, eyre};
 use futures::future::BoxFuture;
-use good_lp::{
-    Solution as Good_lp_solution, SolverModel as _, Variable as Solver_variable,
-    highs as highs_solver,
-    solvers::{ObjectiveDirection, ResolutionError},
-};
-use highs::{HighsModelStatus, HighsSolutionStatus, HighsStatus};
+use highs::{Col, HighsModelStatus, HighsStatus, Model, RowProblem, Sense};
 
 use self::{
-    constraint::Constraint, expression::Expression, hitbox::Hitbox, variable::Variable,
+    constraint::Constraint,
+    expression::Expression,
+    hitbox::Hitbox,
+    variable::{Solver_variable, Variable},
     variables::Variables,
 };
 use crate::{
@@ -80,7 +77,7 @@ impl Field for f64 {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Solution {
     values: HashMap<Solver_variable, f64>,
 }
@@ -94,7 +91,7 @@ impl Solution {
     }
 
     #[cfg(test)]
-    fn eval(&self, expression: &Expression) -> f64 {
+    pub(crate) fn eval(&self, expression: &Expression) -> f64 {
         expression.eval_with(&self.values)
     }
 }
@@ -141,114 +138,314 @@ impl Problem {
         );
     }
 
-    async fn solve_objective(
+    fn build_row_problem(
         &self,
         constraints: &[Constraint],
-        direction: ObjectiveDirection,
-        objective: Expression,
-    ) -> std::result::Result<Solution, ResolutionError> {
-        let problem_variables = self.variables.problem();
-        let solver_objective = objective.into_solver();
-        let solver_constraints = constraints
-            .iter()
-            .map(Constraint::into_solver)
-            .collect::<Vec<_>>();
-        let variable_count = self.variables.len();
+        objective: Option<(&Expression, Sense)>,
+    ) -> (RowProblem, Vec<Col>) {
+        let mut problem = RowProblem::default();
+        let metadata = self.variables.all_metadata();
+        let mut cols = Vec::with_capacity(metadata.len());
 
+        for info in &metadata {
+            let col = if info.is_integer {
+                problem.add_integer_column(0.0, info.lower..=info.upper)
+            } else {
+                problem.add_column(0.0, info.lower..=info.upper)
+            };
+            cols.push(col);
+        }
+
+        if let Some((expr, _)) = objective {
+            for (var, coeff) in &expr.coefficients {
+                if var.0 < cols.len() {
+                    problem.change_column_cost(cols[var.0], *coeff);
+                }
+            }
+        }
+
+        for constraint in constraints {
+            let row_factors = constraint
+                .expression
+                .coefficients
+                .iter()
+                .filter_map(|(var, coeff)| {
+                    if var.0 < cols.len() {
+                        Some((cols[var.0], *coeff))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            let rhs = -constraint.expression.constant;
+            if constraint.equality {
+                problem.add_row(rhs..=rhs, row_factors);
+            } else {
+                problem.add_row(..=rhs, row_factors);
+            }
+        }
+
+        (problem, cols)
+    }
+
+    fn build_model(
+        &self,
+        constraints: &[Constraint],
+        objective: Option<(&Expression, Sense)>,
+    ) -> Model {
+        let sense = objective.map(|(_, s)| s).unwrap_or(Sense::Maximise);
+        let (problem, _) = self.build_row_problem(constraints, objective);
+        let mut model = problem.optimise(sense);
+        model.make_quiet();
+        model.set_option("presolve", "on");
+        model.set_option("parallel", "on");
+        model.set_option("mip_rel_gap", 0.0);
+        model.set_option("mip_abs_gap", 0.0);
+        model
+    }
+
+    fn solution_from_highs(&self, solved: highs::SolvedModel) -> Result<Solution> {
+        let solver_solution = solved.get_solution();
+        let variables = self.variables.all();
+        let cols = solver_solution.columns();
+        let mut values = HashMap::with_capacity(variables.len());
+        for var in variables {
+            if var.0 < cols.len() {
+                let _ = values.insert(var, cols[var.0]);
+            }
+        }
+        Ok(Solution { values })
+    }
+
+    fn compute_iis(
+        highs_ptr: *mut std::ffi::c_void,
+        num_cols: usize,
+        num_rows: usize,
+    ) -> Vec<usize> {
+        let mut iis_num_col: highs_sys::HighsInt = 0;
+        let mut iis_num_row: highs_sys::HighsInt = 0;
+        let ret = unsafe {
+            highs_sys::Highs_getIis(
+                highs_ptr,
+                &mut iis_num_col,
+                &mut iis_num_row,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+        };
+        if ret != 0 || (iis_num_col == 0 && iis_num_row == 0) {
+            unsafe {
+                let _ = highs_sys::Highs_setIntOptionValue(
+                    highs_ptr,
+                    c"iis_strategy".as_ptr(),
+                    highs_sys::kHighsIisStrategyFromLpRowPriority,
+                );
+                let _ = highs_sys::Highs_getIis(
+                    highs_ptr,
+                    &mut iis_num_col,
+                    &mut iis_num_row,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                );
+            }
+        }
+        if iis_num_row > 0 {
+            let mut col_index = vec![0 as highs_sys::HighsInt; iis_num_col as usize];
+            let mut row_index = vec![0 as highs_sys::HighsInt; iis_num_row as usize];
+            let mut col_bound = vec![0 as highs_sys::HighsInt; iis_num_col as usize];
+            let mut row_bound = vec![0 as highs_sys::HighsInt; iis_num_row as usize];
+            let mut col_status = vec![0 as highs_sys::HighsInt; num_cols];
+            let mut row_status = vec![0 as highs_sys::HighsInt; num_rows];
+            unsafe {
+                let _ = highs_sys::Highs_getIis(
+                    highs_ptr,
+                    &mut iis_num_col,
+                    &mut iis_num_row,
+                    col_index.as_mut_ptr(),
+                    row_index.as_mut_ptr(),
+                    col_bound.as_mut_ptr(),
+                    row_bound.as_mut_ptr(),
+                    col_status.as_mut_ptr(),
+                    row_status.as_mut_ptr(),
+                );
+            }
+            row_index.into_iter().map(|idx| idx as usize).collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    async fn describe_infeasible(
+        &self,
+        conflict_indices: Vec<usize>,
+        constraints: &[Constraint],
+        component_tree: &Component_tree,
+    ) -> Result<Solution> {
+        let conflicting_constraints = if !conflict_indices.is_empty() {
+            conflict_indices
+                .into_iter()
+                .filter_map(|idx| constraints.get(idx))
+                .collect::<Vec<_>>()
+        } else {
+            constraints.iter().collect::<Vec<_>>()
+        };
+
+        let displayed = self.display_constraints(conflicting_constraints.iter().copied())?;
+        let conflict = self.with_component_tree(
+            displayed,
+            conflicting_constraints
+                .iter()
+                .flat_map(|c| c.expression.referenced_variables()),
+            component_tree,
+        );
+
+        log::error!("layout conflicting constraints:\n{conflict}");
+        Err(eyre!("Layout is overconstrained; conflicting constraints:\n{conflict}"))
+    }
+
+    fn is_unbounded(
+        &self,
+        constraints: &[Constraint],
+        variable: Solver_variable,
+        maximize: bool,
+    ) -> bool {
+        let mut expr = Expression::default();
+        let _ = expr.coefficients.insert(variable, 1.0);
+        let sense = if maximize { Sense::Maximise } else { Sense::Minimise };
+        let model = self.build_model(constraints, Some((&expr, sense)));
+        match model.try_solve() {
+            Ok(solved) => matches!(
+                solved.status(),
+                HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible
+            ),
+            Err(_) => true,
+        }
+    }
+
+    async fn describe_underconstrained(
+        &self,
+        constraints: &[Constraint],
+        objective: &Expression,
+        component_tree: &Component_tree,
+    ) -> Result<Solution> {
+        let mut variables = constraints
+            .iter()
+            .flat_map(|constraint| constraint.expression.referenced_variables())
+            .chain(objective.referenced_variables())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        variables.sort_unstable_by_key(|variable| self.variables.name(*variable));
+
+        let mut underconstrained = Vec::new();
+        let mut details = Vec::new();
+        for variable in variables {
+            let has_no_upper_bound = self.is_unbounded(constraints, variable, true);
+            let has_no_lower_bound = self.is_unbounded(constraints, variable, false);
+            let range = match (has_no_lower_bound, has_no_upper_bound) {
+                (true, true) => "has neither a lower nor an upper bound",
+                (true, false) => "has no lower bound",
+                (false, true) => "has no upper bound",
+                (false, false) => continue,
+            };
+
+            details.push(format!("{} {range}", self.variables.name(variable)));
+            underconstrained.push(variable);
+        }
+
+        let details = match details.is_empty() {
+            true => "Layout is underconstrained; the objective is unbounded, but no individual unbounded variable range was identified".to_string(),
+            false => format!(
+                "Layout is underconstrained; unbounded variable ranges:\n{}",
+                details.join("\n")
+            ),
+        };
+        let msg = self.with_component_tree(details, underconstrained, component_tree);
+        Err(eyre!("{msg}"))
+    }
+
+    async fn solve_objective_with_diagnostics(
+        &self,
+        constraints: &[Constraint],
+        objective: Expression,
+        component_tree: &Component_tree,
+    ) -> Result<Solution> {
+        let variable_count = self.variables.len();
         log_info(
             4,
             format_args!(
                 "solver model: {variable_count} variables, {} constraints",
-                solver_constraints.len(),
+                constraints.len(),
             ),
         );
 
-        let model = log_duration(4, "solver model recreation", || async {
-            problem_variables
-                .optimise(direction, solver_objective)
-                .using(highs_solver)
-                .with_all(solver_constraints)
-                .set_option("presolve", "on")
-                .set_option("parallel", "on")
-                .set_option("mip_rel_gap", 0.0)
-                .set_option("mip_abs_gap", 0.0)
-        })
-        .await;
-
-        let solved = log_duration(4, "solver solve", || async { model.solve() }).await?;
-        let values = self
-            .variables
-            .all()
-            .into_iter()
-            .map(|variable| (variable, solved.value(variable)))
-            .collect::<HashMap<_, _>>();
-
-        Ok(Solution { values })
-    }
-
-    fn solution_from_highs(
-        &self,
-        solved: highs::SolvedModel,
-    ) -> std::result::Result<Solution, ResolutionError> {
-        match solved.status() {
-            HighsModelStatus::Infeasible | HighsModelStatus::UnboundedOrInfeasible => {
-                return Err(ResolutionError::Infeasible);
+        let (status, result) = {
+            let model = self.build_model(constraints, Some((&objective, Sense::Maximise)));
+            match model.try_solve() {
+                Ok(solved) => {
+                    let status = solved.status();
+                    match status {
+                        HighsModelStatus::Optimal
+                        | HighsModelStatus::ObjectiveBound
+                        | HighsModelStatus::ObjectiveTarget => {
+                            (status, Ok(self.solution_from_highs(solved)?))
+                        }
+                        HighsModelStatus::Infeasible => {
+                            let iis = Self::compute_iis(
+                                solved.as_ptr() as *mut std::ffi::c_void,
+                                self.variables.len(),
+                                constraints.len(),
+                            );
+                            (status, Err(iis))
+                        }
+                        _ => (status, Err(Vec::new())),
+                    }
+                }
+                Err(error) => return Err(eyre!("HiGHS error while solving model: {error:?}")),
             }
-            HighsModelStatus::Unbounded => return Err(ResolutionError::Unbounded),
+        };
+
+        match status {
             HighsModelStatus::Optimal
             | HighsModelStatus::ObjectiveBound
-            | HighsModelStatus::ObjectiveTarget
-            | HighsModelStatus::ReachedTimeLimit
-            | HighsModelStatus::ReachedSolutionLimit
-            | HighsModelStatus::ReachedInterrupt
-            | HighsModelStatus::ReachedIterationLimit
-            | HighsModelStatus::ReachedMemoryLimit => {}
-            status => {
-                return Err(ResolutionError::Str(format!(
-                    "HiGHS returned model status {status:?}"
-                )));
+            | HighsModelStatus::ObjectiveTarget => match result {
+                Ok(solution) => Ok(solution),
+                Err(_) => Err(eyre!("expected solution")),
+            },
+            HighsModelStatus::Infeasible => {
+                let conflict_indices = match result {
+                    Ok(_) => Vec::new(),
+                    Err(indices) => indices,
+                };
+                self.describe_infeasible(conflict_indices, constraints, component_tree).await
             }
+            HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
+                self.describe_underconstrained(constraints, &objective, component_tree).await
+            }
+            status => Err(eyre!("HiGHS returned status {status:?}")),
         }
-
-        if solved.primal_solution_status() != HighsSolutionStatus::Feasible {
-            return Err(ResolutionError::Other("NoSolutionFound"));
-        }
-
-        let solver_solution = solved.get_solution();
-        let variables = self.variables.all();
-        if variables.len() != solver_solution.columns().len() {
-            return Err(ResolutionError::Str(format!(
-                "HiGHS returned {} values for {} layout variables",
-                solver_solution.columns().len(),
-                variables.len(),
-            )));
-        }
-
-        let values = variables
-            .into_iter()
-            .zip(solver_solution.columns().iter().copied())
-            .collect::<HashMap<_, _>>();
-        Ok(Solution { values })
     }
 
     fn solve_objectives(
         &self,
         constraints: &[Constraint],
         objectives: &[(usize, Expression)],
-    ) -> std::result::Result<Solution, ResolutionError> {
-        let problem_variables = self.variables.problem();
-        let solver_constraints = constraints
-            .iter()
-            .map(Constraint::into_solver)
-            .collect::<Vec<_>>();
-        let variables = self.variables.all();
-        let variable_count = variables.len();
-
+    ) -> Result<Solution> {
+        let variable_count = self.variables.len();
         let weights = vec![-1.0; objectives.len()];
         let offsets = objectives
             .iter()
             .map(|(_, objective)| objective.constant)
             .collect::<Vec<_>>();
+        let variables = self.variables.all();
         let coefficients = objectives
             .iter()
             .flat_map(|(_, objective)| {
@@ -267,43 +464,28 @@ impl Problem {
             .iter()
             .map(|(priority, _)| {
                 highs_sys::HighsInt::try_from(*priority).map_err(|_| {
-                    ResolutionError::Str(format!(
-                        "layout priority {priority} does not fit HiGHS' priority type"
-                    ))
+                    eyre!("layout priority {priority} does not fit HiGHS' priority type")
                 })
             })
-            .collect::<std::result::Result<Vec<_>, _>>()?;
-        let objective_count = highs_sys::HighsInt::try_from(objectives.len()).map_err(|_| {
-            ResolutionError::Str("too many layout priorities for HiGHS".to_string())
-        })?;
+            .collect::<Result<Vec<_>>>()?;
+        let objective_count = highs_sys::HighsInt::try_from(objectives.len())
+            .map_err(|_| eyre!("too many layout priorities for HiGHS"))?;
 
         log_info(
             2,
             format_args!(
                 "lexicographic model: {variable_count} variables, {} constraints, {} priorities",
-                solver_constraints.len(),
+                constraints.len(),
                 objectives.len(),
             ),
         );
 
         let model_started = Instant::now();
-        let mut model = problem_variables
-            .optimise(ObjectiveDirection::Maximisation, 0)
-            .using(highs_solver)
-            .with_all(solver_constraints)
-            .try_into_inner()?;
-
-        model.set_option("presolve", "on");
-        model.set_option("parallel", "on");
-        model.set_option("mip_rel_gap", 0.0);
-        model.set_option("mip_abs_gap", 0.0);
+        let mut model = self.build_model(constraints, None);
 
         if !objectives.is_empty() {
             model.set_option("blend_multi_objectives", false);
 
-            // SAFETY: `model` owns a live HiGHS instance. Every objective vector remains alive
-            // for this call, and `coefficients` has exactly objective_count * variable_count
-            // entries in the objective-major order required by HiGHS.
             let status = unsafe {
                 highs_sys::Highs_passLinearObjectives(
                     model.as_ptr(),
@@ -319,14 +501,14 @@ impl Problem {
             match HighsStatus::try_from(status) {
                 Ok(HighsStatus::OK) => {}
                 Ok(status) => {
-                    return Err(ResolutionError::Str(format!(
+                    return Err(eyre!(
                         "HiGHS rejected the lexicographic objectives with status {status:?}"
-                    )));
+                    ));
                 }
                 Err(status) => {
-                    return Err(ResolutionError::Str(format!(
+                    return Err(eyre!(
                         "HiGHS returned an invalid status while loading lexicographic objectives: {status:?}"
-                    )));
+                    ));
                 }
             }
         }
@@ -340,88 +522,42 @@ impl Problem {
 
         let solve_started = Instant::now();
         let solved = model.try_solve().map_err(|error| {
-            ResolutionError::Str(format!("HiGHS error while solving model: {error:?}"))
-        });
+            eyre!("HiGHS error while solving model: {error:?}")
+        })?;
         log_info(
             2,
             format_args!("lexicographic solve took {:?}", solve_started.elapsed()),
         );
-        self.solution_from_highs(solved?)
-    }
 
-    async fn is_infeasible(&self, constraints: &[Constraint]) -> Result<bool> {
-        match self
-            .solve_objective(
-                constraints,
-                ObjectiveDirection::Maximisation,
-                Expression::from(0),
-            )
-            .await
-        {
-            Err(ResolutionError::Infeasible) => Ok(true),
-            Err(ResolutionError::Other(str))
-                if str.contains("Infeasible") || str.contains("UnboundedOrInfeasible") =>
-            {
-                Ok(true)
+        match solved.status() {
+            HighsModelStatus::Optimal
+            | HighsModelStatus::ObjectiveBound
+            | HighsModelStatus::ObjectiveTarget => self.solution_from_highs(solved),
+            HighsModelStatus::Infeasible => {
+                let conflict_indices = Self::compute_iis(
+                    solved.as_ptr() as *mut std::ffi::c_void,
+                    self.variables.len(),
+                    constraints.len(),
+                );
+                let conflicting_constraints = conflict_indices
+                    .into_iter()
+                    .filter_map(|idx| constraints.get(idx))
+                    .collect::<Vec<_>>();
+                let displayed = self.display_constraints(conflicting_constraints.iter().copied())?;
+                let conflict = self.with_component_tree(
+                    displayed,
+                    conflicting_constraints
+                        .iter()
+                        .flat_map(|c| c.expression.referenced_variables()),
+                    &Vec::new(),
+                );
+                log::error!("layout conflicting constraints:\n{conflict}");
+                Err(eyre!("Layout is overconstrained; conflicting constraints:\n{conflict}"))
             }
-            Err(ResolutionError::Str(str))
-                if str.contains("Infeasible") || str.contains("UnboundedOrInfeasible") =>
-            {
-                Ok(true)
+            status => {
+                Err(eyre!("HiGHS returned status {status:?}"))
             }
-            Ok(_) | Err(ResolutionError::Unbounded) => Ok(false),
-            Err(error) => Err(error.into()),
         }
-    }
-
-    #[async_recursion]
-    async fn quickxplain(
-        &self,
-        background: Vec<Constraint>,
-        candidates: Vec<Constraint>,
-    ) -> Result<Vec<Constraint>> {
-        if !background.is_empty() && self.is_infeasible(&background).await? {
-            return Ok(Vec::new());
-        }
-
-        if candidates.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        if candidates.len() == 1 {
-            return Ok(candidates);
-        }
-
-        let mid = candidates.len() / 2;
-        let (c1, c2) = candidates.split_at(mid);
-        let c1 = c1.to_vec();
-        let c2 = c2.to_vec();
-
-        let mut b_union_c1 = background.clone();
-        b_union_c1.extend(c1.clone());
-
-        if self.is_infeasible(&b_union_c1).await? {
-            self.quickxplain(background, c1).await
-        } else {
-            let delta2 = self.quickxplain(b_union_c1, c2).await?;
-            let mut b_union_delta2 = background;
-            b_union_delta2.extend(delta2.clone());
-            let delta1 = self.quickxplain(b_union_delta2, c1).await?;
-            let mut result = delta1;
-            result.extend(delta2);
-            Ok(result)
-        }
-    }
-
-    async fn find_conflicting_constraints(
-        &self,
-        constraints: &[Constraint],
-    ) -> Result<Vec<Constraint>> {
-        if !self.is_infeasible(constraints).await? {
-            return Ok(Vec::new());
-        }
-
-        self.quickxplain(Vec::new(), constraints.to_vec()).await
     }
 
     fn display_constraint_side(
@@ -479,9 +615,12 @@ impl Problem {
         Ok(format!("{left} {comparison} {right}"))
     }
 
-    fn display_constraints(&self, constraints: &[Constraint]) -> Result<String> {
+    fn display_constraints<'a>(
+        &self,
+        constraints: impl IntoIterator<Item = &'a Constraint>,
+    ) -> Result<String> {
         constraints
-            .iter()
+            .into_iter()
             .map(|constraint| {
                 Ok(format!(
                     "{}: {}",
@@ -517,102 +656,6 @@ impl Problem {
         }
     }
 
-    async fn is_unbounded(
-        &self,
-        constraints: &[Constraint],
-        objective: Expression,
-    ) -> Result<bool> {
-        match self
-            .solve_objective(constraints, ObjectiveDirection::Maximisation, objective)
-            .await
-        {
-            Err(ResolutionError::Unbounded) | Err(ResolutionError::Infeasible) => Ok(true),
-            Err(ResolutionError::Other(str))
-                if str.contains("Unbounded")
-                    || str.contains("Infeasible")
-                    || str.contains("UnboundedOrInfeasible") =>
-            {
-                Ok(true)
-            }
-            Err(ResolutionError::Str(str))
-                if str.contains("Unbounded")
-                    || str.contains("Infeasible")
-                    || str.contains("UnboundedOrInfeasible") =>
-            {
-                Ok(true)
-            }
-            Ok(_) => Ok(false),
-            Err(error) => Err(error.into()),
-        }
-    }
-
-    async fn describe_underconstrained(
-        &self,
-        constraints: &[Constraint],
-        objective: &Expression,
-        component_tree: &Component_tree,
-    ) -> Result<String> {
-        let mut variables = constraints
-            .iter()
-            .flat_map(|constraint| constraint.expression.referenced_variables())
-            .chain(objective.referenced_variables())
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
-        variables.sort_unstable_by_key(|variable| self.variables.name(*variable));
-
-        let mut underconstrained = Vec::new();
-        let mut details = Vec::new();
-        for variable in variables {
-            let has_no_upper_bound = self
-                .is_unbounded(constraints, Expression::from(variable))
-                .await?;
-            let has_no_lower_bound = self
-                .is_unbounded(constraints, Expression::from(variable) * -1.0)
-                .await?;
-            let range = match (has_no_lower_bound, has_no_upper_bound) {
-                (true, true) => "has neither a lower nor an upper bound",
-                (true, false) => "has no lower bound",
-                (false, true) => "has no upper bound",
-                (false, false) => continue,
-            };
-
-            details.push(format!("{} {range}", self.variables.name(variable)));
-            underconstrained.push(variable);
-        }
-
-        let details = match details.is_empty() {
-            true => "Layout is underconstrained; the objective is unbounded, but no individual unbounded variable range was identified".to_string(),
-            false => format!(
-                "Layout is underconstrained; unbounded variable ranges:\n{}",
-                details.join("\n")
-            ),
-        };
-        Ok(self.with_component_tree(details, underconstrained, component_tree))
-    }
-
-    async fn solve_objective_with_diagnostics(
-        &self,
-        constraints: &[Constraint],
-        objective: Expression,
-        component_tree: &Component_tree,
-    ) -> Result<Solution> {
-        match self
-            .solve_objective(
-                constraints,
-                ObjectiveDirection::Maximisation,
-                objective.clone(),
-            )
-            .await
-        {
-            Ok(solution) => Ok(solution),
-            Err(error) => {
-                self.describe_resolution_error(error, constraints, &objective, component_tree)
-                    .await
-            }
-        }
-    }
-
     async fn solve_objectives_with_diagnostics(
         &self,
         constraints: &[Constraint],
@@ -627,49 +670,13 @@ impl Problem {
                     .fold(Expression::default(), |sum, (_, objective)| {
                         sum + objective.clone()
                     });
-                self.describe_resolution_error(error, constraints, &objective, component_tree)
-                    .await
-            }
-        }
-    }
-
-    async fn describe_resolution_error(
-        &self,
-        error: ResolutionError,
-        constraints: &[Constraint],
-        objective: &Expression,
-        component_tree: &Component_tree,
-    ) -> Result<Solution> {
-        match error {
-            ResolutionError::Infeasible => {
-                let conflict = self.find_conflicting_constraints(constraints).await?;
-                if conflict.is_empty() {
-                    return Err(eyre!(
-                        "{}",
-                        self.describe_underconstrained(constraints, objective, component_tree)
-                            .await?
-                    ));
+                let msg = error.to_string();
+                if msg.contains("Layout is overconstrained") {
+                    Err(error)
+                } else {
+                    self.describe_underconstrained(constraints, &objective, component_tree).await
                 }
-                let displayed_constraints = self.display_constraints(&conflict)?;
-                let conflict = self.with_component_tree(
-                    displayed_constraints,
-                    conflict
-                        .iter()
-                        .flat_map(|constraint| constraint.expression.referenced_variables()),
-                    component_tree,
-                );
-
-                log::error!("layout conflicting constraints:\n{conflict}");
-                Err(eyre!(
-                    "Layout is overconstrained; conflicting constraints:\n{conflict}"
-                ))
             }
-            ResolutionError::Unbounded => Err(eyre!(
-                "{}",
-                self.describe_underconstrained(constraints, objective, component_tree)
-                    .await?
-            )),
-            error => Err(error.into()),
         }
     }
 

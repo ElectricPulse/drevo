@@ -1,13 +1,11 @@
-use good_lp::constraint as solver_constraint;
-
 use super::expression::Expression;
 
 /// A symbolic equality or inequality over layout expressions.
 #[derive(Clone, Debug)]
 pub struct Constraint {
     pub(crate) expression: Expression,
-    equality: bool,
-    name: Option<String>,
+    pub(crate) equality: bool,
+    pub(crate) name: Option<String>,
 }
 
 impl Constraint {
@@ -46,19 +44,6 @@ impl Constraint {
 
     pub fn name(&self) -> Option<&str> {
         self.name.as_deref()
-    }
-
-    pub(crate) fn into_solver(&self) -> good_lp::Constraint {
-        let expression = self.expression.into_solver();
-        let constraint = match self.equality {
-            true => solver_constraint::eq(expression, 0),
-            false => solver_constraint::leq(expression, 0),
-        };
-
-        match &self.name {
-            Some(name) => constraint.set_name(name.clone()),
-            None => constraint,
-        }
     }
 }
 

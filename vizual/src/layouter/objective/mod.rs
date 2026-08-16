@@ -1,5 +1,4 @@
 use color_eyre::eyre::{Result, ensure, eyre};
-use good_lp::VariableDefinition;
 
 use super::{PRIORITY_LEVELS, Problem, expression::Expression, variable::Variable};
 use crate::{component::context::Component_context, constraint};
@@ -93,8 +92,10 @@ impl Problem {
         component_path: String,
         priority: usize,
     ) -> Result<Delta> {
-        let delta = self.variables.make_independent(
-            VariableDefinition::new().min(0).max(1).name(name.clone()),
+        let delta = self.variables.make_independent_bounded(
+            0.0,
+            1.0,
+            false,
             name,
             path,
             component_path,

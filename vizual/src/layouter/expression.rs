@@ -3,11 +3,9 @@ use std::{
     ops::{Add, AddAssign, Div, Mul, Neg, Sub},
 };
 
-use good_lp::{Expression as Solver_expression, Variable as Solver_variable};
+use super::variable::{Solver_variable, Variable};
 
-use super::variable::Variable;
-
-/// A small affine-expression wrapper over the final `good_lp` variables.
+/// A small affine-expression wrapper over layout variables.
 #[derive(Clone, Debug, Default)]
 pub struct Expression {
     pub(crate) coefficients: HashMap<Solver_variable, f64>,
@@ -40,13 +38,6 @@ impl Expression {
                     coefficient * values.get(variable).copied().unwrap_or_default()
                 })
                 .sum::<f64>()
-    }
-
-    pub(crate) fn into_solver(&self) -> Solver_expression {
-        self.coefficients.iter().fold(
-            Solver_expression::from(self.constant),
-            |expression, (variable, coefficient)| expression + *variable * *coefficient,
-        )
     }
 }
 

@@ -1,7 +1,6 @@
 use std::{panic::Location, sync::Arc};
 
 use color_eyre::eyre::Result;
-use good_lp::VariableDefinition;
 
 use crate::{
     layouter::{
@@ -43,8 +42,10 @@ impl Component_context {
         let path = Self::path(Location::caller());
         let component_path = self.component_path.join(".");
         let problem = self.lock().await?;
-        Ok(problem.variables.make_independent(
-            VariableDefinition::new().binary().name(name.clone()),
+        Ok(problem.variables.make_independent_bounded(
+            0.0,
+            1.0,
+            true,
             name,
             path,
             component_path,
@@ -61,7 +62,6 @@ impl Component_context {
         let component_path = self.component_path.join(".");
         let problem = self.lock().await?;
         Ok(problem.variables.make_independent(
-            VariableDefinition::new().min(0).name(name.clone()),
             name,
             path,
             component_path,

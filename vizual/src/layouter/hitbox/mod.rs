@@ -1,5 +1,4 @@
 use color_eyre::eyre::Result;
-use good_lp::VariableDefinition;
 
 use super::{Solution, expression::Expression, variable::Variable, variables::Variables};
 use crate::{
@@ -200,10 +199,5 @@ fn add_variable(
     path: String,
     component_path: String,
 ) -> Variable {
-    variables.make(
-        VariableDefinition::new().name(name.clone()),
-        name,
-        path,
-        component_path,
-    )
+    variables.make(name, path, component_path)
 }

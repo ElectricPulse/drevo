@@ -3,29 +3,25 @@ use std::{
     sync::Mutex,
 };
 
-use good_lp::{ProblemVariables, Variable as Solver_variable, VariableDefinition};
-
-use super::variable::Variable;
+use super::variable::{Solver_variable, Variable};
 use crate::component::debug::Component_tree;
 
 #[derive(Clone)]
-struct Variable_metadata {
-    name: String,
-    path: String,
-    component_path: String,
+pub struct Variable_metadata {
+    pub name: String,
+    pub path: String,
+    pub component_path: String,
+    pub lower: f64,
+    pub upper: f64,
+    pub is_integer: bool,
 }
 
 #[derive(Default)]
 struct Variable_registry {
-    problem: ProblemVariables,
-    metadata: HashMap<Solver_variable, Variable_metadata>,
-    order: Vec<Solver_variable>,
+    variables: Vec<Variable_metadata>,
 }
 
-/// Owns the `good_lp` problem variables used by a layout problem.
-///
-/// Definitions are handed directly to [`ProblemVariables::add`] and are never retained in a
-/// second symbolic-variable representation. The small metadata table exists only for diagnostics.
+/// Owns the solver variables used by a layout problem.
 #[derive(Default)]
 pub struct Variables {
     registry: Mutex<Variable_registry>,
@@ -38,7 +34,18 @@ impl Variables {
 
     pub fn make(
         &self,
-        definition: VariableDefinition,
+        name: impl Into<String>,
+        path: impl Into<String>,
+        component_path: impl Into<String>,
+    ) -> Variable {
+        self.make_bounded(0.0, f64::INFINITY, false, name, path, component_path)
+    }
+
+    pub fn make_bounded(
+        &self,
+        lower: f64,
+        upper: f64,
+        is_integer: bool,
         name: impl Into<String>,
         path: impl Into<String>,
         component_path: impl Into<String>,
@@ -47,52 +54,61 @@ impl Variables {
             .registry
             .lock()
             .expect("layout variable registry poisoned");
-        let variable = registry.problem.add(definition);
-        let _ = registry.metadata.insert(
-            variable,
-            Variable_metadata {
-                name: name.into(),
-                path: path.into(),
-                component_path: component_path.into(),
-            },
-        );
-        registry.order.push(variable);
-        Variable::new(variable)
+        let id = Solver_variable(registry.variables.len());
+        registry.variables.push(Variable_metadata {
+            name: name.into(),
+            path: path.into(),
+            component_path: component_path.into(),
+            lower,
+            upper,
+            is_integer,
+        });
+        Variable::new(id)
     }
 
     pub fn make_independent(
         &self,
-        definition: VariableDefinition,
         name: impl Into<String>,
         path: impl Into<String>,
         component_path: impl Into<String>,
     ) -> Variable {
-        let mut variable = self.make(definition, name, path, component_path);
+        let mut variable = self.make(name, path, component_path);
         variable.make_independent();
         variable
     }
 
-    pub(crate) fn problem(&self) -> ProblemVariables {
+    pub fn make_independent_bounded(
+        &self,
+        lower: f64,
+        upper: f64,
+        is_integer: bool,
+        name: impl Into<String>,
+        path: impl Into<String>,
+        component_path: impl Into<String>,
+    ) -> Variable {
+        let mut variable = self.make_bounded(lower, upper, is_integer, name, path, component_path);
+        variable.make_independent();
+        variable
+    }
+
+    pub(crate) fn all_metadata(&self) -> Vec<Variable_metadata> {
         self.registry
             .lock()
             .expect("layout variable registry poisoned")
-            .problem
+            .variables
             .clone()
     }
 
     pub(crate) fn all(&self) -> Vec<Solver_variable> {
-        self.registry
-            .lock()
-            .expect("layout variable registry poisoned")
-            .order
-            .clone()
+        let len = self.len();
+        (0..len).map(Solver_variable).collect()
     }
 
     pub(crate) fn len(&self) -> usize {
         self.registry
             .lock()
             .expect("layout variable registry poisoned")
-            .problem
+            .variables
             .len()
     }
 
@@ -100,8 +116,8 @@ impl Variables {
         self.registry
             .lock()
             .expect("layout variable registry poisoned")
-            .metadata
-            .get(&variable)
+            .variables
+            .get(variable.0)
             .map(|metadata| metadata.name.clone())
             .unwrap_or_else(|| format!("{variable:?}"))
     }
@@ -117,7 +133,7 @@ impl Variables {
             .expect("layout variable registry poisoned");
         let metadata = variables
             .iter()
-            .filter_map(|variable| registry.metadata.get(variable))
+            .filter_map(|variable| registry.variables.get(variable.0))
             .collect::<Vec<_>>();
         let mut component_paths = BTreeSet::new();
 

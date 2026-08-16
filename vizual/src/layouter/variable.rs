@@ -1,8 +1,10 @@
 use std::hash::{Hash, Hasher};
 
-use good_lp::Variable as Solver_variable;
+/// A solver variable identifier.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Solver_variable(pub usize);
 
-/// A hitbox coordinate backed directly by a `good_lp` variable.
+/// A hitbox coordinate backed directly by a solver variable.
 ///
 /// Coordinates initially share their corresponding parent coordinate. Positioning widgets make
 /// an edge independent when they provide a different equation for it. Sharing is materialized as

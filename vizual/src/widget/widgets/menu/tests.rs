@@ -34,7 +34,7 @@ async fn menu_item_container_submits_on_enter() -> Result<()> {
     let selected_store = Store::new(0);
     let submitted = Store::new(0);
     let variables = crate::layouter::variables::Variables::new();
-    let button_delta = variables.make(good_lp::variable(), "delta", "delta", "delta");
+    let button_delta = variables.make("delta", "delta", "delta");
     let mut container = Menu_item_container {
         index: 1,
         selected: false,
