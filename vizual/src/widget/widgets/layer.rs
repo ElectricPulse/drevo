@@ -40,6 +40,7 @@ impl Widget_trait for Layer {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         let mut child = display!(self.child.clone());
         child.lock().await?.hitbox.make_independent();

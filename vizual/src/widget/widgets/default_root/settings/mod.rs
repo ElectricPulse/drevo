@@ -89,6 +89,7 @@ impl Widget_trait for Empty {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         Ok(Vec::new())
     }
@@ -122,6 +123,7 @@ impl Custom_widget_trait for Theme_menu_item {
         slots: &mut Slots,
         selected: bool,
     ) -> Result<Children> {
+        // todo: TURN ON LOGICAL HERE
         let current_theme = theme.affect(render).await?;
         let preview_theme = self.choice.resolve(&current_theme);
         let mut text = Text::new(label(self.choice, current_theme.system()));
@@ -197,6 +199,7 @@ impl Widget_trait for Positioned_menu {
         problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         let horizontal_difference = hitbox.get_end_position(Direction::Horizontal)
             - self.button.get_end_position(Direction::Horizontal);
@@ -258,6 +261,7 @@ impl Widget_trait for Settings {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         let focused = focus.get();
         let choice = *self.choice.affect(render.clone()).await?;

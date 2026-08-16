@@ -48,6 +48,7 @@ impl Widget_trait for Header {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         let theme = theme.affect(render).await?;
         let mut name = Text::new(self.name.clone());

@@ -25,6 +25,7 @@ impl Widget_trait for Empty_widget {
         _problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut crate::slot::manager::Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         Ok(vec![])
     }

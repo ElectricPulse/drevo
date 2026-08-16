@@ -41,8 +41,10 @@ pub struct Component {
     pub parent: Parent,
     pub children: Children,
     pub slot_manager: Slot_records,
-    /// Makes this component a traversal boundary: the component is included, but its children are
-    /// not visited.
+    /// Logical is a fantastic bodge if you want to disable two annoying default features that come with having parent hitboxes being smaller than child
+    /// ie. child hitbox isnt contained in parent hitbox - like in a dialog window opened from a button
+    /// 1. it disables the default overflow hidden rendering
+    /// 2. it makes focus continue searching for focusables inside it even when the elements hitbox wasnt clicked
     pub logical: bool,
 }
 
@@ -182,6 +184,7 @@ impl Shared_component {
                 slot_manager,
                 hitbox,
                 focusable,
+                logical,
                 ..
             } = &mut *this;
 
@@ -199,6 +202,7 @@ impl Shared_component {
                         problem.clone(),
                         text_context,
                         &mut slots,
+                        logical,
                     )
                     .await?;
 
@@ -295,22 +299,29 @@ impl Shared_component {
         let (hitbox, parent_hitbox) = {
             let this = self.lock().await?;
             let hitbox = this.hitbox.get_resolved(context.solution);
-            let mut clip_rect: Option<Rect> = None;
-            let mut current_parent = this.parent.clone();
-            while let Some(parent_ref) = current_parent {
-                let parent = parent_ref.upgrade().wrap_err("Found link to stale parent")?;
+
+            let parent = this.parent.clone();
+
+            let parent_hitbox = if let Some(parent_ref) = parent {
+                let parent = parent_ref
+                    .upgrade()
+                    .wrap_err("Found link to stale parent")?;
                 let parent_lock = parent.lock().await?;
-                let parent_rect = parent_lock.hitbox.get_resolved(context.solution);
-                clip_rect = match clip_rect {
-                    Some(rect) => Some(rect.intersect(parent_rect)),
-                    None => Some(parent_rect),
-                };
-                current_parent = parent_lock.parent.clone();
-            }
-            (hitbox, clip_rect)
+
+                if parent_lock.logical {
+                    None
+                } else {
+                    Some(parent_lock.hitbox.get_resolved(context.solution))
+                }
+            } else {
+                None
+            };
+
+            (hitbox, parent_hitbox)
         };
 
         let mut logical_scene = Vello_scene::new();
+
         let maybe_hitbox = {
             let mut logical_scene_wrapper = crate::graphics::scene::Scene::new(&mut logical_scene);
             let mut this = self.lock().await?;

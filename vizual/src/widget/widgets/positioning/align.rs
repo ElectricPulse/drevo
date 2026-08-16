@@ -68,6 +68,7 @@ impl Widget_trait for Align {
         problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         for (direction, objective) in [
             (Direction::Horizontal, self.alignments.horizontal),

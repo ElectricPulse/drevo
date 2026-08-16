@@ -16,6 +16,7 @@ impl Widget_trait for Empty {
         _problem: Component_context,
         _text_context: &mut Text_context,
         _slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         Ok(Vec::new())
     }

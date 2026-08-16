@@ -55,6 +55,7 @@ impl Widget_trait for List {
         _problem: crate::component::context::Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut crate::slot::manager::Slots,
+        _logical: &mut bool,
     ) -> Result<crate::component::Children> {
         Ok(vec![])
     }

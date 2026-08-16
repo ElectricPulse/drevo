@@ -80,6 +80,7 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
         _problem: Component_context,
         _text_context: &mut Text_context,
         _slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children>;
 
     // The hitbox must be a resolved hitbox returned by the layouter.
@@ -171,6 +172,7 @@ impl Widget_trait for Widget {
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
+        logical: &mut bool,
     ) -> Result<Children> {
         (**self)
             .layout(
@@ -182,6 +184,7 @@ impl Widget_trait for Widget {
                 problem,
                 text_context,
                 slots,
+                logical,
             )
             .await
     }
@@ -269,6 +272,7 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
+        logical: &mut bool,
     ) -> Result<Children> {
         self.0
             .lock()
@@ -282,6 +286,7 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
                 problem,
                 text_context,
                 slots,
+                logical,
             )
             .await
     }

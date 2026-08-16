@@ -63,6 +63,7 @@ where
         problem: Component_context,
         text_context: &mut Text_context,
         slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         let contents = self
             .widget
@@ -119,6 +120,7 @@ where
             problem,
             text_context,
             slots,
+            &mut false,
         )
         .await
     }

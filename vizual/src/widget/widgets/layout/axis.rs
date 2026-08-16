@@ -56,6 +56,7 @@ impl Widget_trait for Axis {
         problem: Component_context,
         _text_context: &mut crate::graphics::text::Text_context,
         slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         let direction = self.direction;
         let mut elements = Vec::with_capacity(self.elements.len());

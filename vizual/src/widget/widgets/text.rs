@@ -62,6 +62,7 @@ impl Widget_trait for Text {
         problem: Component_context,
         text_context: &mut crate::graphics::text::Text_context,
         _slots: &mut Slots,
+        _logical: &mut bool,
     ) -> Result<Children> {
         let content = self.content.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
