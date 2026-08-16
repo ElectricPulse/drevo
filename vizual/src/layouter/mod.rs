@@ -364,6 +364,11 @@ impl Problem {
             {
                 Ok(true)
             }
+            Err(ResolutionError::Str(str))
+                if str.contains("Infeasible") || str.contains("UnboundedOrInfeasible") =>
+            {
+                Ok(true)
+            }
             Ok(_) | Err(ResolutionError::Unbounded) => Ok(false),
             Err(error) => Err(error.into()),
         }
@@ -521,7 +526,21 @@ impl Problem {
             .solve_objective(constraints, ObjectiveDirection::Maximisation, objective)
             .await
         {
-            Err(ResolutionError::Unbounded) => Ok(true),
+            Err(ResolutionError::Unbounded) | Err(ResolutionError::Infeasible) => Ok(true),
+            Err(ResolutionError::Other(str))
+                if str.contains("Unbounded")
+                    || str.contains("Infeasible")
+                    || str.contains("UnboundedOrInfeasible") =>
+            {
+                Ok(true)
+            }
+            Err(ResolutionError::Str(str))
+                if str.contains("Unbounded")
+                    || str.contains("Infeasible")
+                    || str.contains("UnboundedOrInfeasible") =>
+            {
+                Ok(true)
+            }
             Ok(_) => Ok(false),
             Err(error) => Err(error.into()),
         }
