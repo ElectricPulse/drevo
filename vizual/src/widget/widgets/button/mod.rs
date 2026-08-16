@@ -104,7 +104,9 @@ impl Widget_trait for Button {
     }
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
-        if let Some(handler) = &mut self.click_handler && matches!(key.code, Key_code::Enter) {
+        if let Some(handler) = &mut self.click_handler
+            && matches!(key.code, Key_code::Enter)
+        {
             return handler.on_submit(true).await;
         }
 

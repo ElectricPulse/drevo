@@ -182,7 +182,6 @@ struct App_problem {
     component_context: Component_context,
 }
 
-
 impl App_problem {
     async fn new<T: Widget_trait>(
         root: Shared_widget<T>,
@@ -293,7 +292,7 @@ impl App_problem {
         event: &Event,
         solution: &Solution,
         focus: &mut Focus,
-    ) -> Result<Vizual_msg> {
+    ) -> Result<Option<Vizual_command>> {
         let (hits, children, logical) = {
             let node_lock = node.lock().await?;
             (
@@ -302,36 +301,39 @@ impl App_problem {
                 node_lock.logical,
             )
         };
-        let mut total_message = Vizual_msg::bare();
+
+        if !hits && !logical {
+            return Ok(None);
+        }
 
         // Overlay children may intentionally extend beyond their parent's normal hitbox.
-        if !logical {
-            for child in children.iter().rev() {
-                let message = self
-                    .handle_pointer_press(child.clone(), position, event, solution, focus)
-                    .await?;
-                total_message.join(message);
-                if !total_message.propagate {
-                    return Ok(total_message);
-                }
+        for child in children.iter().rev() {
+            let message = self
+                .handle_pointer_press(child.clone(), position, event, solution, focus)
+                .await?;
+
+            if message.is_some() {
+                return Ok(message);
             }
         }
 
         if !hits {
-            return Vizual_msg::none();
+            return Ok(None);
         }
 
-        let mut node_lock = node.lock().await?;
-        if node_lock.focusable {
-            focus.set(&node);
-            return Vizual_msg::new(Vizual_command::Layout);
+        if !node.lock().await?.focusable {
+            return Ok(None);
         }
 
-        let message = node_lock.widget.forward_event(event).await?;
-        match message.propagate {
-            false => Ok(message),
-            true => Vizual_msg::none(),
-        }
+        focus.set(&node);
+        let cmd = self.drill_event(event, focus).await?;
+
+        // Focus should be turned into state that retriggers layout and thereby causes rerender if needed
+        // for now this will do :)
+        // it should be just like any other state just in this case it automatically gets created and stored on the Component and passed along into layout()
+        let cmd = cmd.join(Vizual_command::Layout);
+
+        Ok(Some(cmd))
     }
 
     async fn drill_event(&mut self, event: &Event, focus: &mut Focus) -> Result<Vizual_command> {
@@ -500,18 +502,27 @@ impl App_problem {
             },
             Event::Pointer(pointer) => {
                 let initial_focus = focus.clone();
-                let message = self
-                    .handle_pointer_press(self.root.clone(), pointer.position, event, solution, focus)
+                let command = self
+                    .handle_pointer_press(
+                        self.root.clone(),
+                        pointer.position,
+                        event,
+                        solution,
+                        focus,
+                    )
                     .await?;
                 if let Some(focused) = initial_focus.upgrade() {
                     if focus.compare(&focused)
-                        && !self.component_hit(&focused, pointer.position, solution).await?
+                        && !self
+                            .component_hit(&focused, pointer.position, solution)
+                            .await?
                     {
                         focus.reset();
                         return Ok(Vizual_command::Layout);
                     }
                 }
-                Ok(message.command)
+
+                Ok(command.unwrap_or(Vizual_command::None))
             }
             Event::Close_requested => Ok(Vizual_command::Quit),
             Event::Wheel(_) | Event::Text(_) => Ok(Vizual_command::None),
@@ -1236,7 +1247,6 @@ fn map_pointer_button(button: MouseButton) -> Pointer_button {
     }
 }
 
-
 fn map_system_theme(theme: Window_theme) -> System_theme {
     if matches!(theme, Window_theme::Dark) {
         System_theme::Dark
@@ -1300,4 +1310,3 @@ pub fn run<T: Widget_trait>(
 
 #[cfg(test)]
 mod tests;
-
