@@ -61,7 +61,10 @@ impl Component_context {
         let path = Self::path(Location::caller());
         let component_path = self.component_path.join(".");
         let problem = self.lock().await?;
-        Ok(problem.variables.make_independent(
+        Ok(problem.variables.make_independent_bounded(
+            0.0,
+            f64::INFINITY,
+            false,
             name,
             path,
             component_path,

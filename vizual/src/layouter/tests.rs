@@ -110,3 +110,44 @@ async fn overconstrained_problem_isolates_conflicts_via_iis() -> Result<()> {
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn scrolled_negative_coordinates_solve_successfully() -> Result<()> {
+    let variables = Arc::new(Variables::new());
+    let mut problem = Problem::new(Arc::clone(&variables));
+    let root = Hitbox::new(
+        &variables,
+        "root".to_string(),
+        "root".to_string(),
+        "test".to_string(),
+    );
+    let child = Hitbox::new(
+        &variables,
+        "child".to_string(),
+        "child".to_string(),
+        "test".to_string(),
+    );
+
+    // Child is scrolled up by 150px relative to root start at y=0, placing child.start.y at -150
+    problem.constrain(constraint!(
+        child.get_start_position(Direction::Vertical)
+            == root.get_start_position(Direction::Vertical) - 150.0
+    ));
+    problem.constrain(constraint!(
+        child.get_end_position(Direction::Vertical)
+            == child.get_start_position(Direction::Vertical) + 500.0
+    ));
+
+    let component_tree = Vec::new();
+    let solution = problem.solve(root, Size::new(800.0, 600.0), &component_tree).await?;
+
+    assert_eq!(
+        solution.eval(&child.get_start_position(Direction::Vertical)),
+        -150.0
+    );
+    assert_eq!(
+        solution.eval(&child.get_end_position(Direction::Vertical)),
+        350.0
+    );
+    Ok(())
+}

@@ -38,7 +38,7 @@ impl Variables {
         path: impl Into<String>,
         component_path: impl Into<String>,
     ) -> Variable {
-        self.make_bounded(0.0, f64::INFINITY, false, name, path, component_path)
+        self.make_bounded(-f64::INFINITY, f64::INFINITY, false, name, path, component_path)
     }
 
     pub fn make_bounded(
