@@ -5,16 +5,7 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use crate::{
-    Vizual_command, Vizual_msg,
-    component::{Children, Render_context, Shared_component, context::Component_context},
-    event::{Event, Key_code, Key_event, Wheel_delta},
-    geometry::{Direction, Point, Rect, Size},
-    graphics::{scene::Scene, text::Text_context},
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::{State, Store},
-    theme::Theme,
-    widget::{Focus_provider, Layout_input, Render_input, Widget, Widget_trait},
+    Vizual_command, Vizual_msg, component::{Children, Render_context, Shared_component, context::Component_context}, constraint, event::{Event, Key_code, Key_event, Wheel_delta}, geometry::{Direction, Point, Rect, Size}, graphics::{scene::Scene, text::Text_context}, layouter::hitbox::Hitbox, slot::manager::Slots, state::{State, Store}, theme::Theme, widget::{Focus_provider, Layout_input, Render_input, Widget, Widget_trait},
 };
 
 use self::bar::Scrollbars;
@@ -73,6 +64,8 @@ impl Widget_trait for Scroll {
             problem,
             slots,
             mask,
+            theme,
+            render,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
@@ -82,19 +75,25 @@ impl Widget_trait for Scroll {
         let child = display!(self.child.clone());
         self.child_component = Some(child.clone());
 
+        let theme = theme.affect(render).await?;
+
+        // Have to constrain element to some minimum size or the minimum screen size calculation will force end < start
+        problem.constrain(constraint!(hitbox.get_dimension(Direction::Horizontal) >= theme.units.em * 5.0)).await?;
+        problem.constrain(constraint!(hitbox.get_dimension(Direction::Vertical) >= theme.units.em * 5.0)).await?;
+
         {
             let mut child_lock = child.lock().await?;
             let child_hitbox = &mut child_lock.hitbox;
             child_hitbox.make_independent();
 
             problem
-                .constrain(crate::constraint!(
+                .constrain(constraint!(
                     child_hitbox.get_start_position(Direction::Horizontal)
                         == hitbox.get_start_position(Direction::Horizontal) - self.offset.x
                 ))
                 .await?;
             problem
-                .constrain(crate::constraint!(
+                .constrain(constraint!(
                     child_hitbox.get_start_position(Direction::Vertical)
                         == hitbox.get_start_position(Direction::Vertical) - self.offset.y
                 ))

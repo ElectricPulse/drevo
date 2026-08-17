@@ -266,10 +266,17 @@ impl App_problem {
             .await?;
         let minimum_size = self.root_size(&solution);
         // TODO: Without this padding the user can still push the screen below the required size somehow, causing the layout to crash.
-        Ok(Size::new(
+        let result = Size::new(
             minimum_size.width + 1.0,
             minimum_size.height + 1.0,
-        ))
+        );
+        log_info(
+            0,
+            format_args!(
+                "calculated minimum screen size: {result:?} (raw: {minimum_size:?})"
+            ),
+        );
+        Ok(result)
     }
 
     async fn solve(&self, size: Size) -> Result<Solution> {
@@ -597,7 +604,10 @@ async fn layout_problem<T: Widget_trait>(
         problem.layout(render, theme, focus, text_context)
     })
     .await?;
-    let minimum_size = problem.minimum_size().await?;
+    let minimum_size = log_duration(0, "app problem minimum size", || {
+        problem.minimum_size()
+    })
+    .await?;
     Ok((problem, minimum_size))
 }
 

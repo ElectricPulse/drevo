@@ -724,19 +724,22 @@ impl Problem {
         root: Hitbox,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
-        let mut constraints = self.constraints.clone();
-        constraints.push(
-            constraint!(root.get_start_position(Direction::Horizontal) == 0)
-                .set_name("minimum_root_horizontal_start".to_string()),
-        );
-        constraints.push(
-            constraint!(root.get_start_position(Direction::Vertical) == 0)
-                .set_name("minimum_root_vertical_start".to_string()),
-        );
-        let root_size =
-            root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
-        self.solve_objective_with_diagnostics(&constraints, root_size * -1.0, component_tree)
-            .await
+        log_duration(0, "layout minimum solve", || async {
+            let mut constraints = self.constraints.clone();
+            constraints.push(
+                constraint!(root.get_start_position(Direction::Horizontal) == 0)
+                    .set_name("minimum_root_horizontal_start".to_string()),
+            );
+            constraints.push(
+                constraint!(root.get_start_position(Direction::Vertical) == 0)
+                    .set_name("minimum_root_vertical_start".to_string()),
+            );
+            let root_size =
+                root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
+            self.solve_objective_with_diagnostics(&constraints, root_size * -1.0, component_tree)
+                .await
+        })
+        .await
     }
 }
 
