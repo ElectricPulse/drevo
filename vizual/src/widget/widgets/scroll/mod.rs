@@ -13,9 +13,63 @@ use self::bar::Scrollbars;
 const SCROLL_STEP: f64 = 130.0;
 
 #[derive(Clone)]
+pub struct Scroll_content {
+    child: Widget,
+    offset: Point,
+}
+
+impl Scroll_content {
+    pub fn new(child: impl Widget_trait, offset: Point) -> Self {
+        Self {
+            child: child.any(),
+            offset,
+        }
+    }
+}
+
+#[async_trait]
+impl Widget_trait for Scroll_content {
+    async fn layout(
+        &mut self,
+        Layout_input {
+            hitbox,
+            problem,
+            mask,
+            slots,
+            ..
+        }: Layout_input<'_>,
+    ) -> Result<Children> {
+        *mask = true;
+
+        let child = display!(self.child.clone());
+
+        {
+            let mut child_lock = child.lock().await?;
+            let child_hitbox = &mut child_lock.hitbox;
+            child_hitbox.make_independent();
+
+            problem
+                .constrain(constraint!(
+                    child_hitbox.get_start_position(Direction::Horizontal)
+                        == hitbox.get_start_position(Direction::Horizontal) - self.offset.x
+                ))
+                .await?;
+            problem
+                .constrain(constraint!(
+                    child_hitbox.get_start_position(Direction::Vertical)
+                        == hitbox.get_start_position(Direction::Vertical) - self.offset.y
+                ))
+                .await?;
+        }
+
+        Ok(vec![child])
+    }
+}
+
+#[derive(Clone)]
 pub struct Scroll {
     child: Widget,
-    child_component: Option<Shared_component>,
+    content_component: Option<Shared_component>,
     offset: Point,
     content_size: Size,
     viewport: Rect,
@@ -25,7 +79,7 @@ impl Scroll {
     pub fn new(child: impl Widget_trait) -> Self {
         Self {
             child: child.any(),
-            child_component: None,
+            content_component: None,
             offset: Point::default(),
             content_size: Size::default(),
             viewport: Rect::default(),
@@ -60,47 +114,17 @@ impl Widget_trait for Scroll {
         &mut self,
         Layout_input {
             focus,
-            hitbox,
-            problem,
             slots,
-            mask,
-            theme,
-            render,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
         focus.set_active(true);
-        *mask = true;
 
-        let child = display!(self.child.clone());
-        self.child_component = Some(child.clone());
+        let content = Scroll_content::new(self.child.clone(), self.offset);
+        let content_component = display!(content);
+        self.content_component = Some(content_component.clone());
 
-        let theme = theme.affect(render).await?;
-
-        // Have to constrain element to some minimum size or the minimum screen size calculation will force end < start
-        problem.constrain(constraint!(hitbox.get_dimension(Direction::Horizontal) >= theme.units.em * 5.0)).await?;
-        problem.constrain(constraint!(hitbox.get_dimension(Direction::Vertical) >= theme.units.em * 5.0)).await?;
-
-        {
-            let mut child_lock = child.lock().await?;
-            let child_hitbox = &mut child_lock.hitbox;
-            child_hitbox.make_independent();
-
-            problem
-                .constrain(constraint!(
-                    child_hitbox.get_start_position(Direction::Horizontal)
-                        == hitbox.get_start_position(Direction::Horizontal) - self.offset.x
-                ))
-                .await?;
-            problem
-                .constrain(constraint!(
-                    child_hitbox.get_start_position(Direction::Vertical)
-                        == hitbox.get_start_position(Direction::Vertical) - self.offset.y
-                ))
-                .await?;
-        }
-
-        Ok(vec![child])
+        Ok(vec![content_component])
     }
 
     async fn render(
@@ -117,9 +141,12 @@ impl Widget_trait for Scroll {
     ) -> Result<()> {
         focus.set_active(true);
 
-        if let Some(child) = &self.child_component {
-            let content = child.get_hitbox().await?.get_resolved(context.solution);
-            self.content_size = content.size;
+        if let Some(content_comp) = &self.content_component {
+            let content_lock = content_comp.lock().await?;
+            if let Some(child) = content_lock.children.first() {
+                let content = child.get_hitbox().await?.get_resolved(context.solution);
+                self.content_size = content.size;
+            }
         }
 
         let loaded_theme = (*theme.affect(render).await?).clone();

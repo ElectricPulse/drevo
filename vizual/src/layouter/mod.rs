@@ -724,7 +724,7 @@ impl Problem {
         root: Hitbox,
         component_tree: &Component_tree,
     ) -> Result<Solution> {
-        log_duration(0, "layout minimum solve", || async {
+        log_duration(2, "layout minimum solve", || async {
             let mut constraints = self.constraints.clone();
             constraints.push(
                 constraint!(root.get_start_position(Direction::Horizontal) == 0)

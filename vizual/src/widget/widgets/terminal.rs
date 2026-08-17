@@ -57,9 +57,11 @@ async fn read(mut output: io::PipeReader, text: Store<String>) -> Result<()> {
 fn get_command(command: &str, working_dir: Option<impl AsRef<Path>>) -> tokio::process::Command {
     let mut process = tokio::process::Command::new("/bin/bash");
     let _ = process.arg("-c").arg(command);
+
     if let Some(directory) = working_dir {
         let _ = process.current_dir(directory);
     }
+    
     process
 }
 
@@ -75,6 +77,7 @@ pub struct Command_handle(pub Command_state);
 
 fn get_program_exit_status(result: std::io::Result<ExitStatus>) -> Result<()> {
     let result = result.wrap_err("")?;
+
     match result.success() {
         true => Ok(()),
         false => bail!("Command exited with {result}"),
@@ -134,7 +137,9 @@ impl Command_handle {
                         inner.command_handle.wait().await
                     }
                 };
+                
                 let command_handle = get_program_exit_status(command_handle);
+
                 match command_handle {
                     Err(error) => Err(error),
                     Ok(()) => read_result.wrap_err("")?,
@@ -158,11 +163,13 @@ fn run_command(
         .stderr(std::process::Stdio::from(stderr))
         .spawn()
         .wrap_err("")?;
+
     let read_handle = tokio::spawn(read(output_reader, text));
     let state = Arc::new(Mutex::new(Command_handle_inner {
         read_handle,
         command_handle,
     }));
+
     Ok(Command_handle(state))
 }
 

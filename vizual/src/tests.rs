@@ -249,7 +249,8 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
         .await?;
     let solution = problem.solve(Size::new(100.0, 80.0)).await?;
     let scroll = problem.root.lock().await?.children[0].clone();
-    let content = scroll.lock().await?.children[0].clone();
+    let scroll_content = scroll.lock().await?.children[0].clone();
+    let content = scroll_content.lock().await?.children[0].clone();
     let scroll_rect = scroll.get_hitbox().await?.get_resolved(&solution);
     let content_rect = content.get_hitbox().await?.get_resolved(&solution);
 

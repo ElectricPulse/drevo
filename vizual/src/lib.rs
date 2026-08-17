@@ -271,7 +271,7 @@ impl App_problem {
             minimum_size.height + 1.0,
         );
         log_info(
-            0,
+            2,
             format_args!(
                 "calculated minimum screen size: {result:?} (raw: {minimum_size:?})"
             ),
