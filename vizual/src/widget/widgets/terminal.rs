@@ -1,24 +1,62 @@
 use std::{path::Path, process::ExitStatus, sync::Arc};
 
 #[cfg(unix)]
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 
+use async_trait::async_trait;
 use color_eyre::eyre::{Result, WrapErr, bail};
+use vizual_macros::display;
 
-use super::{scroll::Scroll, text::Text};
+use super::{layout::axis::Axis, positioning::anchor::Anchor, scroll::Scroll, text::Text};
 use crate::{
+    component::Children,
     config::COMMAND_WAIT_TIMEOUT,
-    state::Store,
+    geometry::Direction,
+    state::{State, Store},
     sync::Mutex,
     unicode,
-    widget::{Shared_widget, Widget_trait as _},
+    widget::{Layout_input, Shared_widget, Widget, Widget_trait},
 };
 
-#[derive(Clone, vizual_macros::Widget_trait)]
-#[widget_trait(field = content)]
+#[derive(Clone)]
 pub struct Terminal {
+    directory: Store<String>,
+    shell: Store<String>,
+    command: Store<String>,
     text: Store<String>,
-    content: Shared_widget<Scroll>,
+    scroll: Shared_widget<Scroll>,
+}
+
+#[async_trait]
+impl Widget_trait for Terminal {
+    async fn layout(
+        &mut self,
+        Layout_input {
+            render,
+            slots,
+            ..
+        }: Layout_input<'_>,
+    ) -> Result<Children> {
+        let directory = self.directory.affect(render.clone()).await?.clone();
+        let shell = self.shell.affect(render.clone()).await?.clone();
+        let command = self.command.affect(render.clone()).await?.clone();
+
+        let directory = Anchor::left(Text::new(format!("Directory: {directory}")));
+        let shell = Anchor::left(Text::new(format!("Shell: {shell}")));
+        let command = Anchor::left(Text::new(command));
+
+        let axis = Axis::new(
+            Direction::Vertical,
+            vec![
+                directory.any(),
+                shell.any(),
+                command.any(),
+                self.scroll.clone().any(),
+            ],
+        );
+
+        Ok(vec![display!(axis)])
+    }
 }
 
 #[cfg(unix)]
@@ -151,12 +189,10 @@ impl Command_handle {
 
 #[cfg(unix)]
 fn run_command(
-    command_str: &str,
     mut command: tokio::process::Command,
     text: Store<String>,
 ) -> Result<Command_handle> {
-    let (output_reader, mut stdout) = io::pipe().wrap_err("")?;
-    writeln!(stdout, "{command_str}").wrap_err("")?;
+    let (output_reader, stdout) = io::pipe().wrap_err("")?;
     let stderr = stdout.try_clone().wrap_err("")?;
     let _ = command.kill_on_drop(true);
     let command_handle = command
@@ -177,16 +213,72 @@ fn run_command(
 
 impl Terminal {
     pub fn new() -> Self {
+        let directory = Store::new(
+            std::env::current_dir()
+                .map(|path| path.display().to_string())
+                .unwrap_or_default(),
+        );
+        let shell = Store::new("/bin/bash".to_string());
+        let command = Store::new(String::new());
         let text = Store::new(String::new());
-        let content = Scroll::new(Text::new(text.clone())).into_shared();
-        Self { text, content }
+        let scroll = Scroll::new(Text::new(text.clone())).into_shared();
+        Self {
+            directory,
+            shell,
+            command,
+            text,
+            scroll,
+        }
+    }
+
+    fn update_info(&self, directory: String, shell: String, command: String) {
+        let dir_store = self.directory.clone();
+        let shell_store = self.shell.clone();
+        let cmd_store = self.command.clone();
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            drop(runtime.spawn(async move {
+                if let Ok(mut g) = dir_store.write().await {
+                    *g = directory;
+                }
+                if let Ok(mut g) = shell_store.write().await {
+                    *g = shell;
+                }
+                if let Ok(mut g) = cmd_store.write().await {
+                    *g = command;
+                }
+            }));
+        } else {
+            let _ = std::thread::spawn(move || {
+                let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                else {
+                    return;
+                };
+                let _ = runtime.block_on(async move {
+                    if let Ok(mut g) = dir_store.write().await {
+                        *g = directory;
+                    }
+                    if let Ok(mut g) = shell_store.write().await {
+                        *g = shell;
+                    }
+                    if let Ok(mut g) = cmd_store.write().await {
+                        *g = command;
+                    }
+                });
+            });
+        }
     }
 
     pub fn run(&self, args: impl Into<String>) -> Result<Command_handle> {
         let command = args.into();
         #[cfg(unix)]
         {
-            run_command(&command, get_command(&command, None::<&Path>), self.text.clone())
+            let current_dir = std::env::current_dir()
+                .map(|path| path.display().to_string())
+                .unwrap_or_default();
+            self.update_info(current_dir, "/bin/bash".to_string(), command.clone());
+            run_command(get_command(&command, None::<&Path>), self.text.clone())
         }
         #[cfg(not(unix))]
         {
@@ -203,7 +295,9 @@ impl Terminal {
         let command = args.into();
         #[cfg(unix)]
         {
-            run_command(&command, get_command(&command, Some(working_dir)), self.text.clone())
+            let dir_str = working_dir.as_ref().display().to_string();
+            self.update_info(dir_str, "/bin/bash".to_string(), command.clone());
+            run_command(get_command(&command, Some(working_dir)), self.text.clone())
         }
         #[cfg(not(unix))]
         {
