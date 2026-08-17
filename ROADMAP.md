@@ -8,6 +8,7 @@ which I haven't implemented because they are complex and make the code even less
 - scroll should render only visible components
 
 ## To-Do list
+- choose if putting everything in a widget in a store really is the way
 - using parley implement text selection copying &c
 - finish text input with parley cursor positioning
 - tab refocuses without clicking
