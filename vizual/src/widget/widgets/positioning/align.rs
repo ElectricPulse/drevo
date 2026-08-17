@@ -26,7 +26,7 @@ pub struct Align {
 impl Align {
     pub fn new(child: impl Widget_trait, alignments: Alignments) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.any(),
             alignments,
         }
     }

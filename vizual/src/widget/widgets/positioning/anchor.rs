@@ -32,7 +32,7 @@ pub struct Anchor {
 impl Anchor {
     pub fn new(child: impl Widget_trait, anchors: Anchors) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.any(),
             anchors,
         }
     }

@@ -33,7 +33,7 @@ pub struct Scroll {
 impl Scroll {
     pub fn new(child: impl Widget_trait) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.any(),
             child_component: None,
             offset: Point::default(),
             content_size: Size::default(),

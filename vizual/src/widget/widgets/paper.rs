@@ -30,7 +30,7 @@ pub struct Paper {
 impl Paper {
     pub fn new(child: impl Widget_trait) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.any(),
             style: crate::style::Style::default(),
         }
     }

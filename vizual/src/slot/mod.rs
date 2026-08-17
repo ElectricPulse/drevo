@@ -80,7 +80,7 @@ impl Component_slot {
         mut problem: Component_context,
         parent: Option<&Hitbox>,
     ) -> Result<Shared_component> {
-        let widget = Box::new(widget);
+        let widget = widget.any();
 
         problem.component_path.push(self.name.clone());
         let component_path = problem.component_path.join(".");

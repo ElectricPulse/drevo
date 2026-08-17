@@ -15,7 +15,7 @@ pub struct Tab_specification {
 impl Tab_specification {
     pub fn new(name: impl Into<String>, widget: impl Widget_trait) -> Self {
         Self {
-            widget: Box::new(widget),
+            widget: widget.any(),
             name: name.into(),
         }
     }

@@ -168,7 +168,7 @@ impl Widget_trait for Popup {
         );
         let button = Anchor::left(button);
         let menu = Anchor::left(self.menu.clone());
-        let axis = Axis::new(Direction::Vertical, vec![Box::new(menu), Box::new(button)]);
+        let axis = Axis::new(Direction::Vertical, vec![menu.any(), button.any()]);
         let block = Title_block::new(axis, "Are you sure you want to quit?");
         let anchor = Anchor::middle(block);
         Ok(vec![display!(anchor)])

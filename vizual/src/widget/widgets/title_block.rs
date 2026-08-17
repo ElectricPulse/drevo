@@ -28,7 +28,7 @@ pub struct Title_block {
 impl Title_block {
     pub fn new(child: impl Widget_trait, title: impl Into<String>) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.any(),
             title: title.into(),
         }
     }
@@ -51,7 +51,7 @@ impl Widget_trait for Title_block {
         let title = Anchor::left(title);
         let child = Anchor::left(self.child.clone());
 
-        let mut axis = Axis::new(Direction::Vertical, vec![Box::new(title), Box::new(child)]);
+        let mut axis = Axis::new(Direction::Vertical, vec![title.any(), child.any()]);
 
         axis.style.set(Axis_style::Gap(theme.units.em * 0.45));
 

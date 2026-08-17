@@ -158,7 +158,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 submitted: self.submitted.clone(),
                 button_delta: button_delta.clone(),
             };
-            rows.push(Box::new(row));
+            rows.push(row.any());
         }
 
         Ok(vec![display!(Axis::new(Direction::Vertical, rows))])
