@@ -1,14 +1,20 @@
-mod bar;
+pub mod bar;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use crate::{
-    Vizual_command, Vizual_msg, component::{Children, Render_context, Shared_component, context::Component_context}, constraint, event::{Event, Key_code, Key_event, Wheel_delta}, geometry::{Direction, Point, Rect, Size}, graphics::{scene::Scene, text::Text_context}, layouter::hitbox::Hitbox, slot::manager::Slots, state::{State, Store}, theme::Theme, widget::{Focus_provider, Layout_input, Render_input, Widget, Widget_trait},
+    Vizual_command, Vizual_msg,
+    component::{Children, Shared_component},
+    constraint,
+    event::{Event, Key_code, Key_event, Wheel_delta},
+    geometry::{Direction, Point, Rect, Size},
+    widget::{
+        Layout_input, Render_input, Widget, Widget_trait,
+        widgets::layout::axis::{Axis, Axis_style},
+    },
 };
-
-use self::bar::Scrollbars;
 
 const SCROLL_STEP: f64 = 130.0;
 
@@ -69,7 +75,7 @@ impl Widget_trait for Scroll_content {
 #[derive(Clone)]
 pub struct Scroll {
     child: Widget,
-    content_component: Option<Shared_component>,
+    root_component: Option<Shared_component>,
     offset: Point,
     content_size: Size,
     viewport: Rect,
@@ -79,7 +85,7 @@ impl Scroll {
     pub fn new(child: impl Widget_trait) -> Self {
         Self {
             child: child.any(),
-            content_component: None,
+            root_component: None,
             offset: Point::default(),
             content_size: Size::default(),
             viewport: Rect::default(),
@@ -120,42 +126,67 @@ impl Widget_trait for Scroll {
     ) -> Result<Children> {
         focus.set_active(true);
 
-        let content = Scroll_content::new(self.child.clone(), self.offset);
-        let content_component = display!(content);
-        self.content_component = Some(content_component.clone());
+        let content_widget = Scroll_content::new(self.child.clone(), self.offset);
 
-        Ok(vec![content_component])
+        let has_vertical = self.content_size.height > self.viewport.size.height && self.viewport.size.height > 0.0;
+        let has_horizontal = self.content_size.width > self.viewport.size.width && self.viewport.size.width > 0.0;
+
+        let content_column = match has_horizontal {
+            true => {
+                let h_bar = bar::Scrollbar::new(
+                    Direction::Horizontal,
+                    self.offset.x,
+                    self.viewport.size.width,
+                    self.content_size.width,
+                );
+                let mut v_axis = Axis::new(Direction::Vertical, vec![content_widget.any(), h_bar.any()]);
+                v_axis.style.set(Axis_style::Gap(0.0));
+                v_axis.any()
+            }
+            false => content_widget.any(),
+        };
+
+        let root_widget = match has_vertical {
+            true => {
+                let v_bar = bar::Scrollbar::new(
+                    Direction::Vertical,
+                    self.offset.y,
+                    self.viewport.size.height,
+                    self.content_size.height,
+                );
+                let mut h_axis = Axis::new(Direction::Horizontal, vec![content_column, v_bar.any()]);
+                h_axis.style.set(Axis_style::Gap(0.0));
+                h_axis.any()
+            }
+            false => content_column,
+        };
+
+        let component = display!(root_widget);
+        self.root_component = Some(component.clone());
+
+        Ok(vec![component])
     }
 
     async fn render(
         &mut self,
         Render_input {
-            render,
-            theme,
             focus,
-            hitbox,
-            scene,
             context,
             ..
         }: Render_input<'_, '_>,
     ) -> Result<()> {
         focus.set_active(true);
 
-        if let Some(content_comp) = &self.content_component {
-            let content_lock = content_comp.lock().await?;
-            if let Some(child) = content_lock.children.first() {
-                let content = child.get_hitbox().await?.get_resolved(context.solution);
-                self.content_size = content.size;
+        if let Some(root_comp) = &self.root_component {
+            if let Some((content_comp, child_comp)) = find_scroll_content_and_child(root_comp).await? {
+                let viewport_rect = content_comp.get_hitbox().await?.get_resolved(context.solution);
+                let content_rect = child_comp.get_hitbox().await?.get_resolved(context.solution);
+                self.viewport = viewport_rect;
+                self.content_size = content_rect.size;
             }
         }
 
-        let loaded_theme = (*theme.affect(render).await?).clone();
-        let scrollbars = Scrollbars::new(hitbox, self.content_size, &loaded_theme);
-        self.viewport = scrollbars.viewport();
         self.clamp_offset();
-
-        scrollbars.paint(scene, self.offset, &loaded_theme);
-
         Ok(())
     }
 
@@ -196,6 +227,24 @@ impl Widget_trait for Scroll {
             false => Vizual_msg::none(),
         }
     }
+}
+
+async fn find_scroll_content_and_child(
+    root: &Shared_component,
+) -> Result<Option<(Shared_component, Shared_component)>> {
+    let mut stack = vec![root.clone()];
+    while let Some(current) = stack.pop() {
+        let lock = current.lock().await?;
+        if lock.mask {
+            if let Some(child) = lock.children.first() {
+                return Ok(Some((current.clone(), child.clone())));
+            }
+        }
+        for child in &lock.children {
+            stack.push(child.clone());
+        }
+    }
+    Ok(None)
 }
 
 #[cfg(test)]

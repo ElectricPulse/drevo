@@ -1,14 +1,10 @@
 use super::*;
 
 #[test]
-fn one_scrollbar_can_make_the_other_axis_overflow() {
-    let scrollbars = Scrollbars::new(
-        Rect::new(0.0, 0.0, 100.0, 100.0),
-        Size::new(100.0, 101.0),
-        &crate::theme::dark_theme(),
-    );
-
-    assert!(scrollbars.horizontal.is_some());
-    assert!(scrollbars.vertical.is_some());
-    assert_eq!(scrollbars.viewport.size, Size::new(88.0, 88.0));
+fn scrollbar_style_calculates_dimensions() {
+    let theme = crate::theme::dark_theme();
+    let style = Scrollbar_style::new(&theme);
+    assert_eq!(style.gutter, theme.units.em * 0.75);
+    assert_eq!(style.rail, theme.units.em * 0.25);
+    assert_eq!(style.thumb, theme.units.em * 0.5);
 }
