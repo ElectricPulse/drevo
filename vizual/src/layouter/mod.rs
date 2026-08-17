@@ -311,6 +311,57 @@ impl Problem {
         Err(eyre!("Layout is overconstrained; conflicting constraints:\n{conflict}"))
     }
 
+    fn compute_primal_ray(
+        highs_ptr: *const std::ffi::c_void,
+        num_cols: usize,
+    ) -> Vec<(Solver_variable, f64)> {
+        let mut has_primal_ray: highs_sys::HighsInt = 0;
+        let mut primal_ray_values = vec![0.0f64; num_cols];
+        let ret = unsafe {
+            highs_sys::Highs_getPrimalRay(
+                highs_ptr,
+                &mut has_primal_ray,
+                primal_ray_values.as_mut_ptr(),
+            )
+        };
+        if ret == highs_sys::HighsStatuskOk && has_primal_ray == 1 {
+            primal_ray_values
+                .into_iter()
+                .enumerate()
+                .filter_map(|(idx, val)| (val.abs() > 1e-6).then_some((Solver_variable(idx), val)))
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    fn display_expression(&self, expression: &Expression) -> String {
+        let mut terms = expression
+            .coefficients
+            .iter()
+            .map(|(variable, coefficient)| {
+                let name = self.variables.name(*variable);
+                if *coefficient == 1.0 {
+                    name
+                } else if *coefficient == -1.0 {
+                    format!("-{name}")
+                } else {
+                    format!("{coefficient} {name}")
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if expression.constant != 0.0 {
+            terms.push(format!("{}", expression.constant));
+        }
+
+        if terms.is_empty() {
+            "0".to_string()
+        } else {
+            terms.join(" + ")
+        }
+    }
+
     fn is_unbounded(
         &self,
         constraints: &[Constraint],
@@ -334,41 +385,63 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objective: &Expression,
+        priority: Option<usize>,
+        primal_ray: &[(Solver_variable, f64)],
         component_tree: &Component_tree,
     ) -> Result<Solution> {
-        let mut variables = constraints
-            .iter()
-            .flat_map(|constraint| constraint.expression.referenced_variables())
-            .chain(objective.referenced_variables())
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
-        variables.sort_unstable_by_key(|variable| self.variables.name(*variable));
-
         let mut underconstrained = Vec::new();
         let mut details = Vec::new();
-        for variable in variables {
-            let has_no_upper_bound = self.is_unbounded(constraints, variable, true);
-            let has_no_lower_bound = self.is_unbounded(constraints, variable, false);
-            let range = match (has_no_lower_bound, has_no_upper_bound) {
-                (true, true) => "has neither a lower nor an upper bound",
-                (true, false) => "has no lower bound",
-                (false, true) => "has no upper bound",
-                (false, false) => continue,
+
+        if !primal_ray.is_empty() {
+            for (variable, val) in primal_ray {
+                let direction = if *val > 0.0 {
+                    "grows to +infinity"
+                } else {
+                    "grows to -infinity"
+                };
+                details.push(format!("{} {direction}", self.variables.name(*variable)));
+                underconstrained.push(*variable);
+            }
+        } else {
+            let objective_vars = objective.referenced_variables().collect::<Vec<_>>();
+            let candidate_vars = if !objective_vars.is_empty() {
+                objective_vars
+            } else {
+                constraints
+                    .iter()
+                    .flat_map(|constraint| constraint.expression.referenced_variables())
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect()
             };
 
-            details.push(format!("{} {range}", self.variables.name(variable)));
-            underconstrained.push(variable);
+            for variable in candidate_vars {
+                let has_no_upper_bound = self.is_unbounded(constraints, variable, true);
+                let has_no_lower_bound = self.is_unbounded(constraints, variable, false);
+                let range = match (has_no_lower_bound, has_no_upper_bound) {
+                    (true, true) => "has neither a lower nor an upper bound",
+                    (true, false) => "has no lower bound",
+                    (false, true) => "has no upper bound",
+                    (false, false) => continue,
+                };
+
+                details.push(format!("{} {range}", self.variables.name(variable)));
+                underconstrained.push(variable);
+            }
         }
 
-        let details = match details.is_empty() {
-            true => "Layout is underconstrained; the objective is unbounded, but no individual unbounded variable range was identified".to_string(),
-            false => format!(
-                "Layout is underconstrained; unbounded variable ranges:\n{}",
-                details.join("\n")
-            ),
+        let expr_str = self.display_expression(objective);
+        let header = match priority {
+            Some(p) => format!("Layout is underconstrained; priority {p} objective ({expr_str}) is unbounded"),
+            None => format!("Layout is underconstrained; objective ({expr_str}) is unbounded"),
         };
-        let msg = self.with_component_tree(details, underconstrained, component_tree);
+
+        let message = match details.is_empty() {
+            true => header,
+            false => format!("{header}; unbounded variable ranges:\n{}", details.join("\n")),
+        };
+
+        let msg = self.with_component_tree(message, underconstrained, component_tree);
         Err(eyre!("{msg}"))
     }
 
@@ -387,7 +460,7 @@ impl Problem {
             ),
         );
 
-        let (status, result) = {
+        let (status, result, primal_ray) = {
             let model = self.build_model(constraints, Some((&objective, Sense::Maximise)));
             match model.try_solve() {
                 Ok(solved) => {
@@ -396,7 +469,7 @@ impl Problem {
                         HighsModelStatus::Optimal
                         | HighsModelStatus::ObjectiveBound
                         | HighsModelStatus::ObjectiveTarget => {
-                            (status, Ok(self.solution_from_highs(solved)?))
+                            (status, Ok(self.solution_from_highs(solved)?), Vec::new())
                         }
                         HighsModelStatus::Infeasible => {
                             let iis = Self::compute_iis(
@@ -404,9 +477,16 @@ impl Problem {
                                 self.variables.len(),
                                 constraints.len(),
                             );
-                            (status, Err(iis))
+                            (status, Err(iis), Vec::new())
                         }
-                        _ => (status, Err(Vec::new())),
+                        HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
+                            let primal_ray = Self::compute_primal_ray(
+                                solved.as_ptr() as *const std::ffi::c_void,
+                                self.variables.len(),
+                            );
+                            (status, Err(Vec::new()), primal_ray)
+                        }
+                        _ => (status, Err(Vec::new()), Vec::new()),
                     }
                 }
                 Err(error) => return Err(eyre!("HiGHS error while solving model: {error:?}")),
@@ -428,7 +508,7 @@ impl Problem {
                 self.describe_infeasible(conflict_indices, constraints, component_tree).await
             }
             HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
-                self.describe_underconstrained(constraints, &objective, component_tree).await
+                self.describe_underconstrained(constraints, &objective, None, &primal_ray, component_tree).await
             }
             status => Err(eyre!("HiGHS returned status {status:?}")),
         }
@@ -665,19 +745,92 @@ impl Problem {
         match self.solve_objectives(constraints, objectives) {
             Ok(solution) => Ok(solution),
             Err(error) => {
-                let objective = objectives
-                    .iter()
-                    .fold(Expression::default(), |sum, (_, objective)| {
-                        sum + objective.clone()
-                    });
                 let msg = error.to_string();
                 if msg.contains("Layout is overconstrained") {
                     Err(error)
                 } else {
-                    self.describe_underconstrained(constraints, &objective, component_tree).await
+                    self.diagnose_objectives_failure(constraints, objectives, component_tree)
+                        .await
                 }
             }
         }
+    }
+
+    async fn diagnose_objectives_failure(
+        &self,
+        constraints: &[Constraint],
+        objectives: &[(usize, Expression)],
+        component_tree: &Component_tree,
+    ) -> Result<Solution> {
+        for (priority, objective) in objectives {
+            let model = self.build_model(constraints, Some((objective, Sense::Maximise)));
+            let failure = match model.try_solve() {
+                Ok(solved) => match solved.status() {
+                    HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
+                        let primal_ray = Self::compute_primal_ray(
+                            solved.as_ptr() as *const std::ffi::c_void,
+                            self.variables.len(),
+                        );
+                        Some(Err(primal_ray))
+                    }
+                    HighsModelStatus::Infeasible => {
+                        let iis = Self::compute_iis(
+                            solved.as_ptr() as *mut std::ffi::c_void,
+                            self.variables.len(),
+                            constraints.len(),
+                        );
+                        Some(Ok(iis))
+                    }
+                    _ => None,
+                },
+                Err(_) => None,
+            };
+
+            match failure {
+                Some(Err(primal_ray)) => {
+                    return self
+                        .describe_underconstrained(
+                            constraints,
+                            objective,
+                            Some(*priority),
+                            &primal_ray,
+                            component_tree,
+                        )
+                        .await;
+                }
+                Some(Ok(iis)) => {
+                    return self.describe_infeasible(iis, constraints, component_tree).await;
+                }
+                None => {}
+            }
+        }
+
+        let combined_objective = objectives
+            .iter()
+            .fold(Expression::default(), |sum, (_, objective)| {
+                sum + objective.clone()
+            });
+
+        let primal_ray = {
+            let model = self.build_model(constraints, Some((&combined_objective, Sense::Maximise)));
+            if let Ok(solved) = model.try_solve() {
+                Self::compute_primal_ray(
+                    solved.as_ptr() as *const std::ffi::c_void,
+                    self.variables.len(),
+                )
+            } else {
+                Vec::new()
+            }
+        };
+
+        self.describe_underconstrained(
+            constraints,
+            &combined_objective,
+            None,
+            &primal_ray,
+            component_tree,
+        )
+        .await
     }
 
     async fn full_solve(
