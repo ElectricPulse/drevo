@@ -852,11 +852,7 @@ impl Window_app {
         }
     }
 
-    fn create_window(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        initial_size: Size,
-    ) {
+    fn create_window(&mut self, event_loop: &ActiveEventLoop, initial_size: Size) {
         let window = match event_loop.create_window(
             Window::default_attributes()
                 .with_title(self.title.clone())

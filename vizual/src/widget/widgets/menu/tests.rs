@@ -42,6 +42,7 @@ async fn menu_item_container_submits_on_enter() -> Result<()> {
         selected_store: selected_store.clone(),
         submitted: submitted.clone(),
         button_delta,
+        item_block: true,
     };
 
     let message = container

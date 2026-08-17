@@ -50,6 +50,7 @@ struct Menu_item_container<Choice: Thread_safe + Clone> {
     selected_store: Store<usize>,
     submitted: Store<Choice>,
     button_delta: Variable,
+    item_block: bool,
 }
 
 impl<Choice: Thread_safe + Clone> Menu_item_container<Choice> {
@@ -67,13 +68,18 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_container<Choice> {
         Layout_input { slots, .. }: Layout_input<'_>,
     ) -> Result<Children> {
         let content = Custom_widget::new(self.widget.clone(), self.selected);
-        let mut button = Button::around(content);
-        button.highlighted = self.selected;
-        button.focusable = true;
-        button.delta = Some(self.button_delta.clone());
-        let button = Anchor::left(button);
+        let widget: Widget = match self.item_block {
+            true => {
+                let mut button = Button::around(content);
+                button.highlighted = self.selected;
+                button.focusable = true;
+                button.delta = Some(self.button_delta.clone());
+                Anchor::left(button).any()
+            }
+            false => Anchor::left(content).any(),
+        };
 
-        Ok(vec![display!(button)])
+        Ok(vec![display!(widget)])
     }
 
     async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
@@ -99,6 +105,7 @@ pub struct Menu<Choice: Thread_safe> {
     // identifying their ID.
     pub selected: Store<usize>,
     pub submitted: Store<Choice>,
+    pub item_block: bool,
 }
 
 impl<Choice: Thread_safe + Clone> Menu<Choice> {
@@ -112,6 +119,7 @@ impl<Choice: Thread_safe + Clone> Menu<Choice> {
             items,
             selected: Store::new(default_item),
             submitted: Store::new(default_choice),
+            item_block: true,
         })
     }
 
@@ -157,6 +165,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 selected_store: self.selected.clone(),
                 submitted: self.submitted.clone(),
                 button_delta: button_delta.clone(),
+                item_block: self.item_block,
             };
             rows.push(row.any());
         }

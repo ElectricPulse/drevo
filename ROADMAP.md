@@ -8,8 +8,11 @@ which I haven't implemented because they are complex and make the code even less
 - scroll should render only visible components
 
 ## To-Do list
+- add Floem like API - where Children is just a (Anchor, Anchor2) with no .as_any() or vec![] calls
+- think about if scroll couldnt alter hitboxes after layout - to improve performance
 - choose if putting everything in a widget in a store really is the way
-- using parley implement text selection copying &c
+- using parley implement text selection copying cursor &c
+- add an example patmat build
 - finish text input with parley cursor positioning
 - tab refocuses without clicking
 - in apps like react the same lifetime used to track widget is the same as the component lifetime ie. a stable id used in slots.set() means you dont have to store menu under `Shared_widget<Menu>`. Since Menu needs to keep state of the selected item
