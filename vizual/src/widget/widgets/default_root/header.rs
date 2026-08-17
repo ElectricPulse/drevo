@@ -12,13 +12,9 @@ use super::{
     settings::Settings,
 };
 use crate::{
-    Render,
-    component::{Children, context::Component_context},
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
+    component::Children,
     state::{State, Store},
-    theme::Theme,
-    widget::{Focus_provider, Layout_input, Widget, Widget_trait},
+    widget::{Layout_input, Widget, Widget_trait},
 };
 
 #[derive(Clone)]
@@ -50,13 +46,7 @@ impl Widget_trait for Header {
         let theme = theme.affect(render).await?;
         let mut name = Text::new(self.name.clone());
         name.style.set(theme.specific.text.title);
-        let name = Anchor::new(
-            name,
-            Anchors {
-                horizontal: Some(Position::Start),
-                vertical: Some(Position::Middle),
-            },
-        );
+        let name = Anchor::left(name);
 
         let settings = Settings::new(self.choice.clone());
 
