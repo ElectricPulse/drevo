@@ -1,7 +1,7 @@
 use std::{path::Path, process::ExitStatus, sync::Arc};
 
 #[cfg(unix)]
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 
 use color_eyre::eyre::{Result, WrapErr, bail};
 
@@ -41,7 +41,7 @@ async fn read(mut output: io::PipeReader, text: Store<String>) -> Result<()> {
             match group {
                 Ok(character) => new_text.push(character),
                 Err(unicode::Error::InvalidEndingSequence { bytes }) => queue = bytes,
-                Err(unicode::Error::InvalidSequence) => new_text.push('�'),
+                Err(unicode::Error::InvalidSequence) => new_text.push('\u{FFFD}'),
             }
         }
 
@@ -151,10 +151,12 @@ impl Command_handle {
 
 #[cfg(unix)]
 fn run_command(
+    command_str: &str,
     mut command: tokio::process::Command,
     text: Store<String>,
 ) -> Result<Command_handle> {
-    let (output_reader, stdout) = io::pipe().wrap_err("")?;
+    let (output_reader, mut stdout) = io::pipe().wrap_err("")?;
+    writeln!(stdout, "{command_str}").wrap_err("")?;
     let stderr = stdout.try_clone().wrap_err("")?;
     let _ = command.kill_on_drop(true);
     let command_handle = command
@@ -184,7 +186,7 @@ impl Terminal {
         let command = args.into();
         #[cfg(unix)]
         {
-            run_command(get_command(&command, None::<&Path>), self.text.clone())
+            run_command(&command, get_command(&command, None::<&Path>), self.text.clone())
         }
         #[cfg(not(unix))]
         {
@@ -201,7 +203,7 @@ impl Terminal {
         let command = args.into();
         #[cfg(unix)]
         {
-            run_command(get_command(&command, Some(working_dir)), self.text.clone())
+            run_command(&command, get_command(&command, Some(working_dir)), self.text.clone())
         }
         #[cfg(not(unix))]
         {
