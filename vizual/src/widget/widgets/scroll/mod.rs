@@ -10,6 +10,7 @@ use crate::{
     constraint,
     event::{Event, Key_code, Key_event, Wheel_delta},
     geometry::{Direction, Point, Rect, Size},
+    state::State,
     widget::{
         Layout_input, Render_input, Widget, Widget_trait,
         widgets::layout::axis::{Axis, Axis_style},
@@ -42,10 +43,25 @@ impl Widget_trait for Scroll_content {
             problem,
             mask,
             slots,
+            render,
+            theme,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
         *mask = true;
+
+        let theme = theme.affect(render).await?;
+
+        problem
+            .constrain(constraint!(
+                hitbox.get_dimension(Direction::Horizontal) >= theme.units.em * 5.0
+            ))
+            .await?;
+        problem
+            .constrain(constraint!(
+                hitbox.get_dimension(Direction::Vertical) >= theme.units.em * 5.0
+            ))
+            .await?;
 
         let child = display!(self.child.clone());
 

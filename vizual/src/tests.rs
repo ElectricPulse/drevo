@@ -301,7 +301,7 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
     problem
         .layout(render.clone(), theme.clone(), &focus, &mut text_context)
         .await?;
-    let solution = problem.solve(Size::new(40.0, 30.0)).await?;
+    let solution = problem.solve(Size::new(80.0, 80.0)).await?;
     let scroll = problem.root.lock().await?.children[0].clone();
     focus.set(&scroll);
 
@@ -341,7 +341,7 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
     problem
         .layout(render.clone(), theme.clone(), &focus, &mut text_context)
         .await?;
-    let solution = problem.solve(Size::new(40.0, 30.0)).await?;
+    let solution = problem.solve(Size::new(80.0, 80.0)).await?;
 
     let _scene = problem
         .render(render, theme, &focus, &solution, &mut text_context)
