@@ -9,10 +9,11 @@ pub(crate) const DEFAULT_SCREEN_SIZE: Size = Size::new(800.0, 600.0);
 
 // Since there is not yet a universal mechanism for window size negotiation where the OS
 // asks "can you do this size?" and the window answers, we set the minimum window size to a static
-// default and let the view clip/scroll. That is because calculating a minimum window size needs
-// to be done for each layout—which basically doubles the layout time—not to mention the fact that
-// minimum window height depends on the current window width and vice versa. It is not a single
-// minimum window size but viable window sizes.
+// default. We are not letting content get clipped; instead the whole root is rendered in a scroll.
+// 100x100 is chosen as the minimum size so that the scroll bars fit.
+// That is because calculating a minimum window size needs to be done for each layout—which
+// basically doubles the layout time—not to mention the fact that minimum window height depends
+// on the current window width and vice versa. It is not a single minimum window size but viable window sizes.
 pub(crate) const MINIMUM_WINDOW_SIZE: Size = Size::new(100.0, 100.0);
 
 // TODO: solve this some other way
