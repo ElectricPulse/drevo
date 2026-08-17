@@ -55,10 +55,10 @@ dyn_clone::clone_trait_object!(Setter_callback);
 
 pub type Setter = Box<dyn Setter_callback>;
 
-const PRIORITY_LEVELS: usize = 2;
+const PRIORITY_LEVELS: usize = 3;
 type Priority_objective = Vec<Expression>;
 // As of this moment the usage of priorities has crystalized like this:
-// Minimum screen size is solved separately before these layout objectives.
+// 2 is for minimizing the root dimension to fit the window size.
 // 1 is for gaps, spaces, margins, and paddings.
 // 0 is for shrink wrap of parents around their children
 
@@ -129,12 +129,12 @@ impl Problem {
                 .set_name("root_vertical_start".to_string()),
         );
         constraints.push(
-            constraint!(root.get_end_position(Direction::Horizontal) == screen.width)
-                .set_name("root_horizontal_end".to_string()),
+            constraint!(root.get_dimension(Direction::Horizontal) >= screen.width)
+                .set_name("root_horizontal_min".to_string()),
         );
         constraints.push(
-            constraint!(root.get_end_position(Direction::Vertical) == screen.height)
-                .set_name("root_vertical_end".to_string()),
+            constraint!(root.get_dimension(Direction::Vertical) >= screen.height)
+                .set_name("root_vertical_min".to_string()),
         );
     }
 
@@ -443,75 +443,6 @@ impl Problem {
 
         let msg = self.with_component_tree(message, underconstrained, component_tree);
         Err(eyre!("{msg}"))
-    }
-
-    async fn solve_objective_with_diagnostics(
-        &self,
-        constraints: &[Constraint],
-        objective: Expression,
-        component_tree: &Component_tree,
-    ) -> Result<Solution> {
-        let variable_count = self.variables.len();
-        log_info(
-            4,
-            format_args!(
-                "solver model: {variable_count} variables, {} constraints",
-                constraints.len(),
-            ),
-        );
-
-        let (status, result, primal_ray) = {
-            let model = self.build_model(constraints, Some((&objective, Sense::Maximise)));
-            match model.try_solve() {
-                Ok(solved) => {
-                    let status = solved.status();
-                    match status {
-                        HighsModelStatus::Optimal
-                        | HighsModelStatus::ObjectiveBound
-                        | HighsModelStatus::ObjectiveTarget => {
-                            (status, Ok(self.solution_from_highs(solved)?), Vec::new())
-                        }
-                        HighsModelStatus::Infeasible => {
-                            let iis = Self::compute_iis(
-                                solved.as_ptr() as *mut std::ffi::c_void,
-                                self.variables.len(),
-                                constraints.len(),
-                            );
-                            (status, Err(iis), Vec::new())
-                        }
-                        HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
-                            let primal_ray = Self::compute_primal_ray(
-                                solved.as_ptr() as *const std::ffi::c_void,
-                                self.variables.len(),
-                            );
-                            (status, Err(Vec::new()), primal_ray)
-                        }
-                        _ => (status, Err(Vec::new()), Vec::new()),
-                    }
-                }
-                Err(error) => return Err(eyre!("HiGHS error while solving model: {error:?}")),
-            }
-        };
-
-        match status {
-            HighsModelStatus::Optimal
-            | HighsModelStatus::ObjectiveBound
-            | HighsModelStatus::ObjectiveTarget => match result {
-                Ok(solution) => Ok(solution),
-                Err(_) => Err(eyre!("expected solution")),
-            },
-            HighsModelStatus::Infeasible => {
-                let conflict_indices = match result {
-                    Ok(_) => Vec::new(),
-                    Err(indices) => indices,
-                };
-                self.describe_infeasible(conflict_indices, constraints, component_tree).await
-            }
-            HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
-                self.describe_underconstrained(constraints, &objective, None, &primal_ray, component_tree).await
-            }
-            status => Err(eyre!("HiGHS returned status {status:?}")),
-        }
     }
 
     fn solve_objectives(
@@ -843,8 +774,12 @@ impl Problem {
         Self::constrain_root_to_screen(&mut constraints, &root, screen);
 
         log_duration(0, "layout full solve", || async {
-            let objectives = self
-                .objectives
+            let mut objectives_array = self.objectives.clone();
+            let root_width = root.get_dimension(Direction::Horizontal);
+            let root_height = root.get_dimension(Direction::Vertical);
+            objectives_array[2].push((root_width + root_height) * -1.0);
+
+            let objectives = objectives_array
                 .iter()
                 .enumerate()
                 .filter_map(|(priority, priority_objectives)| {
@@ -870,29 +805,6 @@ impl Problem {
     ) -> Result<Solution> {
         self.full_solve(self.constraints.clone(), root, screen, component_tree)
             .await
-    }
-
-    pub(crate) async fn solve_minimum(
-        &self,
-        root: Hitbox,
-        component_tree: &Component_tree,
-    ) -> Result<Solution> {
-        log_duration(2, "layout minimum solve", || async {
-            let mut constraints = self.constraints.clone();
-            constraints.push(
-                constraint!(root.get_start_position(Direction::Horizontal) == 0)
-                    .set_name("minimum_root_horizontal_start".to_string()),
-            );
-            constraints.push(
-                constraint!(root.get_start_position(Direction::Vertical) == 0)
-                    .set_name("minimum_root_vertical_start".to_string()),
-            );
-            let root_size =
-                root.get_dimension(Direction::Horizontal) + root.get_dimension(Direction::Vertical);
-            self.solve_objective_with_diagnostics(&constraints, root_size * -1.0, component_tree)
-                .await
-        })
-        .await
     }
 }
 

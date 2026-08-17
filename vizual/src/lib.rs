@@ -60,7 +60,7 @@ use winit::{
 };
 
 use component::{Child_reference, Shared_component, context::Component_context};
-use config::DEFAULT_SCREEN_SIZE;
+use config::{DEFAULT_SCREEN_SIZE, MINIMUM_WINDOW_SIZE};
 use event::{
     Event, Key_code, Key_event, Modifiers, Pointer_button, Pointer_event, Wheel_delta, Wheel_event,
 };
@@ -250,33 +250,6 @@ impl App_problem {
             .await?;
 
         Ok(())
-    }
-
-    fn root_size(&self, solution: &Solution) -> Size {
-        self.root_hitbox.get_resolved(solution).size
-    }
-
-    async fn minimum_size(&self) -> Result<Size> {
-        let component_tree = self.root.component_tree().await?;
-        let solution = self
-            .component_context
-            .lock()
-            .await?
-            .solve_minimum(self.root_hitbox.clone(), &component_tree)
-            .await?;
-        let minimum_size = self.root_size(&solution);
-        // TODO: Without this padding the user can still push the screen below the required size somehow, causing the layout to crash.
-        let result = Size::new(
-            minimum_size.width + 1.0,
-            minimum_size.height + 1.0,
-        );
-        log_info(
-            2,
-            format_args!(
-                "calculated minimum screen size: {result:?} (raw: {minimum_size:?})"
-            ),
-        );
-        Ok(result)
     }
 
     async fn solve(&self, size: Size) -> Result<Solution> {
@@ -583,8 +556,7 @@ enum Ui_input {
 
 // TODO: This message-passing layer is probably unnecessary.
 enum User_event {
-    Initialize(Size, Size),
-    Minimum_size(Size),
+    Initialize(Size),
     Scene(Scene),
     Exit,
     Error(String),
@@ -598,17 +570,13 @@ async fn layout_problem<T: Widget_trait>(
     root_slot: &mut Component_slot,
     text_context: &mut Text_context,
     variables: Arc<Variables>,
-) -> Result<(App_problem, Size)> {
+) -> Result<App_problem> {
     let mut problem = App_problem::new(root, root_slot, variables).await?;
     log_duration(0, "app problem layout", || {
         problem.layout(render, theme, focus, text_context)
     })
     .await?;
-    let minimum_size = log_duration(0, "app problem minimum size", || {
-        problem.minimum_size()
-    })
-    .await?;
-    Ok((problem, minimum_size))
+    Ok(problem)
 }
 
 async fn ui_loop<T: Widget_trait>(
@@ -626,7 +594,6 @@ async fn ui_loop<T: Widget_trait>(
     let mut app_problem: Option<App_problem> = None;
     let mut solution = None;
     let mut window_size = None;
-    let mut pending_minimum_size: Option<Size> = None;
     let mut render_open = true;
     let mut buffered_input = None;
 
@@ -682,51 +649,18 @@ async fn ui_loop<T: Widget_trait>(
                 continue;
             }
             Ui_input::Initialize(maximum_size) => {
-                // This technically performs one extra layout call before the window-driven layout loop starts.
-                let (_, minimum_size) = layout_problem(
-                    root.clone(),
-                    render.clone(),
-                    theme.clone(),
-                    &focus,
-                    &mut root_slot,
-                    &mut text_context,
-                    Arc::clone(&variables),
-                )
-                .await?;
-                let default_size = Size::new(
+                let initial_size = Size::new(
                     DEFAULT_SCREEN_SIZE.width.min(maximum_size.width),
                     DEFAULT_SCREEN_SIZE.height.min(maximum_size.height),
-                );
-                let initial_size = Size::new(
-                    minimum_size.width.max(default_size.width),
-                    minimum_size.height.max(default_size.height),
-                );
-                let dimension_source = |minimum: f64, default: f64, maximum: f64| match (
-                    minimum >= default.min(maximum),
-                    maximum < default,
-                ) {
-                    (true, _) => "layout minimum dimension snapped",
-                    (false, true) => "screen display size bound snapped",
-                    (false, false) => "default snapped",
-                };
-                let width_source = dimension_source(
-                    minimum_size.width,
-                    DEFAULT_SCREEN_SIZE.width,
-                    maximum_size.width,
-                );
-                let height_source = dimension_source(
-                    minimum_size.height,
-                    DEFAULT_SCREEN_SIZE.height,
-                    maximum_size.height,
                 );
                 log_info(
                     0,
                     format_args!(
-                        "initial screen size {initial_size:?}; width: {width_source}; height: {height_source}; minimum layout: {minimum_size:?}, default: {DEFAULT_SCREEN_SIZE:?}, display: {maximum_size:?}"
+                        "initial screen size {initial_size:?}, default: {DEFAULT_SCREEN_SIZE:?}, display: {maximum_size:?}"
                     ),
                 );
                 if proxy
-                    .send_event(User_event::Initialize(initial_size, minimum_size))
+                    .send_event(User_event::Initialize(initial_size))
                     .is_err()
                 {
                     break;
@@ -735,18 +669,9 @@ async fn ui_loop<T: Widget_trait>(
             }
             Ui_input::Resize(size) => {
                 window_size = Some(size);
-                match pending_minimum_size {
-                    Some(minimum) if size.width < minimum.width || size.height < minimum.height => {
-                        continue;
-                    }
-                    Some(_) => {
-                        pending_minimum_size = None;
-                        Vizual_command::Resolve
-                    }
-                    None => match app_problem.is_some() {
-                        true => Vizual_command::Resolve,
-                        false => Vizual_command::Layout,
-                    },
+                match app_problem.is_some() {
+                    true => Vizual_command::Resolve,
+                    false => Vizual_command::Layout,
                 }
             }
             Ui_input::Render => Vizual_command::Layout,
@@ -774,7 +699,7 @@ async fn ui_loop<T: Widget_trait>(
         }
 
         if matches!(command, Vizual_command::Layout) {
-            let (problem, minimum) = layout_problem(
+            let problem = layout_problem(
                 root.clone(),
                 render.clone(),
                 theme.clone(),
@@ -784,12 +709,9 @@ async fn ui_loop<T: Widget_trait>(
                 Arc::clone(&variables),
             )
             .await?;
+            solution = Some(problem.solve(size).await?);
             app_problem = Some(problem);
-            pending_minimum_size = Some(minimum);
-            if proxy.send_event(User_event::Minimum_size(minimum)).is_err() {
-                break;
-            }
-            continue;
+            command = Vizual_command::Render;
         } else if matches!(command, Vizual_command::Resolve) {
             if let Some(problem) = &app_problem {
                 solution = Some(problem.solve(size).await?);
@@ -934,7 +856,6 @@ impl Window_app {
         &mut self,
         event_loop: &ActiveEventLoop,
         initial_size: Size,
-        minimum_size: Size,
     ) {
         let window = match event_loop.create_window(
             Window::default_attributes()
@@ -943,7 +864,10 @@ impl Window_app {
                 //.with_decorations(false)
                 //.with_resizable(true)
                 .with_inner_size(LogicalSize::new(initial_size.width, initial_size.height))
-                .with_min_inner_size(LogicalSize::new(minimum_size.width, minimum_size.height)),
+                .with_min_inner_size(LogicalSize::new(
+                    MINIMUM_WINDOW_SIZE.width,
+                    MINIMUM_WINDOW_SIZE.height,
+                )),
         ) {
             Ok(window) => Arc::new(window),
             Err(error) => {
@@ -1160,48 +1084,9 @@ impl ApplicationHandler<User_event> for Window_app {
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: User_event) {
         match event {
-            User_event::Initialize(initial_size, minimum_size) => {
+            User_event::Initialize(initial_size) => {
                 self.initializing = false;
-                self.create_window(event_loop, initial_size, minimum_size);
-            }
-            User_event::Minimum_size(size) => {
-                let mut send_size = false;
-                let requested_size = self.state.as_ref().and_then(|state| {
-                    let current_size = state
-                        .window
-                        .inner_size()
-                        .to_logical::<f64>(self.scale_factor);
-                    let minimum_size = LogicalSize::new(size.width, size.height);
-                    state.window.set_min_inner_size(Some(minimum_size));
-
-                    match (
-                        current_size.width < minimum_size.width,
-                        current_size.height < minimum_size.height,
-                    ) {
-                        (false, false) => {
-                            send_size = true;
-                            None
-                        }
-                        _ => {
-                            let requested_size = LogicalSize::new(
-                                current_size.width.max(minimum_size.width),
-                                current_size.height.max(minimum_size.height),
-                            );
-                            log_info(
-                                0,
-                                format_args!(
-                                    "auto resize requested from {current_size:?} to {requested_size:?} for minimum size {minimum_size:?}"
-                                ),
-                            );
-                            state.window.request_inner_size(requested_size)
-                        }
-                    }
-                });
-                match requested_size {
-                    Some(size) => self.resize(size),
-                    None if send_size => self.send_size(),
-                    None => {}
-                }
+                self.create_window(event_loop, initial_size);
             }
             User_event::Scene(scene) => {
                 self.scene = Some(scene);

@@ -91,9 +91,6 @@ async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Res
     problem
         .layout(render, theme, &focus, &mut text_context)
         .await?;
-    let minimum = problem.minimum_size().await?;
-    assert!(minimum.width > 0.0);
-    assert!(minimum.height > 0.0);
     let _ = problem.solve(Size::new(800.0, 600.0)).await?;
 
     Ok(())

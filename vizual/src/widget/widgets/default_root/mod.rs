@@ -7,13 +7,10 @@ use vizual_macros::display;
 use self::header::Header;
 use super::{layout::axis::Axis, paper::Paper};
 use crate::{
-    component::{Children, context::Component_context},
+    component::Children,
     geometry::Direction,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
     state::{State, Store},
-    theme::Theme,
-    widget::{Focus_provider, Layout_input, Widget, Widget_trait},
+    widget::{Layout_input, Widget, Widget_trait},
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
