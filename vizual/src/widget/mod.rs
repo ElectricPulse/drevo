@@ -38,11 +38,11 @@ impl Focus_provider {
     }
 
     pub fn get(&mut self) -> bool {
-        self.set_active(true);
+        self.set_interactive(true);
         self.focused
     }
 
-    pub fn set_active(&mut self, active: bool) {
+    pub fn set_interactive(&mut self, active: bool) {
         self.active = active;
     }
 

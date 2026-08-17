@@ -7,7 +7,10 @@ use async_trait::async_trait;
 use color_eyre::eyre::{Result, WrapErr, bail};
 use vizual_macros::display;
 
-use super::{layout::axis::Axis, positioning::anchor::Anchor, scroll::Scroll, text::Text};
+use super::{
+    layout::axis::Axis, paragraph::Paragraph, positioning::anchor::Anchor, scroll::Scroll,
+    text::Text,
+};
 use crate::{
     component::Children,
     config::COMMAND_WAIT_TIMEOUT,
@@ -33,15 +36,19 @@ impl Widget_trait for Terminal {
         &mut self,
         Layout_input {
             render,
+            theme,
             slots,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
+        let theme = theme.affect(render.clone()).await?;
         let directory = self.directory.affect(render.clone()).await?.clone();
         let shell = self.shell.affect(render.clone()).await?.clone();
         let command = self.command.affect(render.clone()).await?.clone();
 
-        let directory = Anchor::left(Text::new(format!("Directory: {directory}")));
+        let mut directory_paragraph = Paragraph::new(Direction::Horizontal, theme.units.em * 25.0);
+        directory_paragraph.set_content(format!("Directory: {directory}"));
+        let directory = Anchor::left(directory_paragraph);
         let shell = Anchor::left(Text::new(format!("Shell: {shell}")));
         let command = Anchor::left(Text::new(command));
 

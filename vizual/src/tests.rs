@@ -27,7 +27,7 @@ impl Widget_trait for Focusable_box {
             ..
         }: Layout_input<'_>,
     ) -> Result<component::Children> {
-        focus.set_active(true);
+        focus.set_interactive(true);
         for direction in [Direction::Horizontal, Direction::Vertical] {
             hitbox
                 .set_static_dimension(&problem, direction, 20.0)
@@ -36,11 +36,8 @@ impl Widget_trait for Focusable_box {
         Ok(Vec::new())
     }
 
-    async fn render(
-        &mut self,
-        Render_input { focus, .. }: Render_input<'_, '_>,
-    ) -> Result<()> {
-        focus.set_active(true);
+    async fn render(&mut self, Render_input { focus, .. }: Render_input<'_, '_>) -> Result<()> {
+        focus.set_interactive(true);
         Ok(())
     }
 }
@@ -56,7 +53,7 @@ impl Widget_trait for Offset_click {
             ..
         }: Layout_input<'_>,
     ) -> Result<component::Children> {
-        focus.set_active(true);
+        focus.set_interactive(true);
         hitbox
             .set_static_dimension(&problem, crate::geometry::Direction::Horizontal, 100.0)
             .await?;
@@ -67,11 +64,8 @@ impl Widget_trait for Offset_click {
         Ok(Vec::new())
     }
 
-    async fn render(
-        &mut self,
-        Render_input { focus, .. }: Render_input<'_, '_>,
-    ) -> Result<()> {
-        focus.set_active(true);
+    async fn render(&mut self, Render_input { focus, .. }: Render_input<'_, '_>) -> Result<()> {
+        focus.set_interactive(true);
         Ok(())
     }
 
@@ -86,8 +80,7 @@ async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Res
     let render = render_manager.render;
     let theme = Store::new(theme::dark_theme());
     let body = Anchor::top_left(Text::new("Body"));
-    let application =
-        Default_root::new("Test", Grid::new(vec![body.any()], 0.0)).into_shared();
+    let application = Default_root::new("Test", Grid::new(vec![body.any()], 0.0)).into_shared();
     let root = Root::new(application).into_shared();
     let mut root_slot = Component_slot::new();
     let variables = Arc::new(Variables::new());
@@ -236,8 +229,7 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
     let render_manager = Render_manager::new();
     let render = render_manager.render;
     let theme = Store::new(theme::dark_theme());
-    let root =
-        Root::new(Scroll::new(Text::new("Scrollable content ".repeat(20)))).into_shared();
+    let root = Root::new(Scroll::new(Text::new("Scrollable content ".repeat(20)))).into_shared();
     let mut root_slot = Component_slot::new();
     let variables = Arc::new(Variables::new());
     let mut text_context = Text_context::new();

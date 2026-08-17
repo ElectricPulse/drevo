@@ -55,7 +55,7 @@ impl Widget_trait for List {
             ..
         }: Render_input<'_, '_>,
     ) -> Result<()> {
-        focus.set_active(true);
+        focus.set_interactive(true);
         let mut y = hitbox.origin.y;
 
         for (index, item) in self.items.iter().enumerate() {

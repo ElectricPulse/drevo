@@ -105,7 +105,7 @@ impl Widget_trait for Text_input {
             focus, slots, ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        focus.set_active(true);
+        focus.set_interactive(true);
 
         let content = Text::new(self.input.clone());
 

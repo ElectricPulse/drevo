@@ -140,7 +140,7 @@ impl Widget_trait for Scroll {
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        focus.set_active(true);
+        focus.set_interactive(true);
 
         let content_widget = Scroll_content::new(self.child.clone(), self.offset);
 
@@ -191,7 +191,7 @@ impl Widget_trait for Scroll {
             ..
         }: Render_input<'_, '_>,
     ) -> Result<()> {
-        focus.set_active(true);
+        focus.set_interactive(true);
 
         if let Some(root_comp) = &self.root_component {
             if let Some((content_comp, child_comp)) = find_scroll_content_and_child(root_comp).await? {

@@ -32,7 +32,7 @@ impl Widget_trait for Counter {
         _text_context: &mut vizual::graphics::text::Text_context,
         slots: &mut Slots,
     ) -> Result<Children> {
-        focus.set_active(true);
+        focus.set_interactive(true);
         let text = Text::new(format!("Count: {} (use ↑ and ↓)", self.value));
         Ok(vec![display!(text)])
     }

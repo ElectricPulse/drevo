@@ -59,7 +59,7 @@ impl Widget_trait for Block {
             focus, slots, ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        focus.set_active(self.focusable);
+        focus.set_interactive(self.focusable);
         let style = self.style;
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
         let mut space = Space::uniform(self.child.clone(), style.padding + border_thickness, 1);

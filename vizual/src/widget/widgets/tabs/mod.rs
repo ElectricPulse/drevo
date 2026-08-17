@@ -103,7 +103,7 @@ impl Widget_trait for Tab_bar {
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        focus.set_active(true);
+        focus.set_interactive(true);
         let mut buttons: Vec<Widget> = Vec::with_capacity(self.pages.len());
 
         let selected_page = *self.selected_page.affect(render.clone()).await?;
@@ -155,7 +155,7 @@ impl Widget_trait for Tab_bar {
         &mut self,
         Render_input { focus, .. }: Render_input<'_, '_>,
     ) -> Result<()> {
-        focus.set_active(true);
+        focus.set_interactive(true);
         Ok(())
     }
 }

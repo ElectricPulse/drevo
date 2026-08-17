@@ -300,7 +300,7 @@ impl Widget_trait for Settings {
         &mut self,
         Render_input { focus, .. }: Render_input<'_, '_>,
     ) -> Result<()> {
-        focus.set_active(true);
+        focus.set_interactive(true);
         Ok(())
     }
 
