@@ -14,6 +14,7 @@ pub(crate) const DEFAULT_SCREEN_SIZE: Size = Size::new(800.0, 600.0);
 // That is because calculating a minimum window size needs to be done for each layout—which
 // basically doubles the layout time—not to mention the fact that minimum window height depends
 // on the current window width and vice versa. It is not a single minimum window size but viable window sizes.
+// Besides allowing the window to be scrollable on really small devices while really annoying provides a last resort fallback instead of crashing
 pub(crate) const MINIMUM_WINDOW_SIZE: Size = Size::new(100.0, 100.0);
 
 // TODO: solve this some other way
