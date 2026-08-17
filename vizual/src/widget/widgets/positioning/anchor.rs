@@ -57,6 +57,16 @@ impl Anchor {
         )
     }
 
+    pub fn top(child: impl Widget_trait) -> Self {
+        Self::new(
+            child,
+            Anchors {
+                horizontal: None,
+                vertical: Some(Position::Start),
+            },
+        )
+    }
+
     pub fn top_left(child: impl Widget_trait) -> Self {
         Self::new(
             child,
