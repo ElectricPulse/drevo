@@ -46,7 +46,13 @@ impl Widget_trait for Header {
         let theme = theme.affect(render).await?;
         let mut name = Text::new(self.name.clone());
         name.style.set(theme.specific.text.title);
-        let name = Anchor::left(name);
+        let name = Anchor::new(
+            name,
+            Anchors {
+                horizontal: Some(Position::Start),
+                vertical: Some(Position::Middle),
+            },
+        );
 
         let settings = Settings::new(self.choice.clone());
 

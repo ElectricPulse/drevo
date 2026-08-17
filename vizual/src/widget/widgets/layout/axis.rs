@@ -31,6 +31,7 @@ pub struct Axis {
     pub style: Style<Axis_style>,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
+    pub limit_cross: bool,
 }
 
 impl Axis {
@@ -40,6 +41,7 @@ impl Axis {
             elements,
             style: Style::default(),
             priority: 1,
+            limit_cross: false,
         }
     }
 }
@@ -66,12 +68,14 @@ impl Widget_trait for Axis {
             elements.push(container);
         }
 
-        if elements.len() >= 2 {
+        if self.limit_cross {
             let cross_direction = direction.flip();
             problem
                 .minimize(hitbox.get_dimension(cross_direction), 0)
                 .await?;
+        }
 
+        if elements.len() >= 2 {
             let theme = theme.affect(render).await?;
             let Axis_style::Gap(gap) = self.style.get(&theme);
             // One delta controls every gap belonging to this axis.
