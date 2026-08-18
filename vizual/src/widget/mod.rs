@@ -175,6 +175,12 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
     }
 }
 
+impl<T: Widget_trait> Into<Widget> for T {
+    fn into(self) -> Widget {
+        Box::new(self)
+    }
+}
+
 dyn_clone::clone_trait_object!(Widget_trait);
 
 #[derive_where(Clone)]

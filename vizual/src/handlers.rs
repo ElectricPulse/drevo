@@ -4,7 +4,7 @@ use color_eyre::eyre::Result;
 use crate::{Vizual_command, Vizual_msg, sync::Thread_safe};
 
 #[async_trait]
-pub trait Submit_handler<T: Thread_safe>: Thread_safe + dyn_clone::DynClone {
+pub trait Submit_handler<T: Thread_safe + Clone>: Thread_safe + dyn_clone::DynClone {
     async fn on_submit(&mut self, payload: T) -> Result<Vizual_msg>;
 }
 
@@ -45,7 +45,7 @@ impl Into_submit_result for Vizual_command {
 }
 
 #[async_trait]
-impl<F, Fut, T, Output> Submit_handler<T> for F
+impl<F, Fut, T: Clone, Output> Submit_handler<T> for F
 where
     F: FnMut(T) -> Fut + Clone + Thread_safe,
     Fut: std::future::Future<Output = Output> + Send + 'static,
@@ -69,7 +69,7 @@ impl Command_submit_handler {
 }
 
 #[async_trait]
-impl<T: Thread_safe> Submit_handler<T> for Command_submit_handler {
+impl<T: Thread_safe + Clone> Submit_handler<T> for Command_submit_handler {
     async fn on_submit(&mut self, _payload: T) -> Result<Vizual_msg> {
         Vizual_msg::new(self.command.clone())
     }
