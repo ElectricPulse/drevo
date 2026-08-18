@@ -2,15 +2,10 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual::{
     Vizual_command, Vizual_msg,
-    component::{Children, context::Component_context},
+    component::Children,
     event::{Key_code, Key_event},
-    layouter::hitbox::Hitbox,
     render_manager::Render_manager,
-    slot::manager::Slots,
-    widget::{
-        Focus_provider, Widget_trait,
-        widgets::text::Text,
-    },
+    widget::{Layout_input, Widget_trait, widgets::text::Text},
 };
 use vizual_macros::display;
 
@@ -23,14 +18,11 @@ struct Counter {
 impl Widget_trait for Counter {
     async fn layout(
         &mut self,
-        _render: vizual::Render,
-        _theme: vizual::state::Store<vizual::theme::Theme>,
-        focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut vizual::graphics::text::Text_context,
-        slots: &mut Slots,
+        Layout_input {
+            focus,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         focus.set_interactive(true);
         let text = Text::new(format!("Count: {} (use ↑ and ↓)", self.value));

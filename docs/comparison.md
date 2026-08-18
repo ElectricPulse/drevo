@@ -85,18 +85,17 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual::{
     Vizual_command,
-    component::{Children, context::Component_context},
+    component::Children,
     handlers::Command_submit_handler,
-    layouter::{hitbox::Hitbox, objective::Objective},
     render_manager::Render_manager,
-    slot::manager::Slots,
-    state::State,
     widget::{
-        Focus_provider, Widget_trait,
+        Layout_input, Widget_trait,
         widgets::{
-            anchor::{Anchor, Anchors, Position},
             button::Button,
-            space::Space,
+            positioning::{
+                anchor::{Anchor, Anchor_position, Anchors},
+                space::Space,
+            },
             text::Text,
         },
     },
@@ -109,30 +108,28 @@ struct Hello;
 impl Widget_trait for Hello {
     async fn layout(
         &mut self,
-        render: vizual::Render,
-        theme: vizual::state::Store<vizual::theme::Theme>,
-        _focus: &mut Focus_provider,
-        _hitbox: &mut Hitbox,
-        _parent: Hitbox,
-        _problem: Component_context,
-        _text_context: &mut vizual::graphics::text::Text_context,
-        slots: &mut Slots,
+        Layout_input {
+            render,
+            theme,
+            slots,
+            ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(render).await?;
         let mut title = Text::new("Hello, world!");
         title.style.set(theme.specific.text.title);
-        let title = Anchor::center(display!(title));
+        let title = Anchor::center(title);
 
         let goodbye = Button::new(
             Text::new("Goodbye!"),
             Box::new(Command_submit_handler::new(Vizual_command::Quit)),
         );
-        let goodbye = Space::left(display!(goodbye), 5.0, Objective::default(), 1);
+        let goodbye = Space::left(goodbye, 5.0, 1);
         let goodbye = Anchor::new(
-            display!(goodbye),
+            goodbye,
             Anchors {
-                horizontal: Some(Position::End),
-                vertical: Some(Position::Middle),
+                horizontal: Some(Anchor_position::End),
+                vertical: Some(Anchor_position::Middle),
             },
         );
 

@@ -188,7 +188,7 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
         },
     };
     let block = Block_style {
-        padding: units.em * 0.70,
+        padding: units.em * 0.8,
         background: semantic.surface,
         border: Border_style {
             thickness: BORDER_SIZE,
