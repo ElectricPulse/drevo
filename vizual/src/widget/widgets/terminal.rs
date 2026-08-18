@@ -103,7 +103,13 @@ async fn read(mut output: io::PipeReader, text: Store<String>) -> Result<()> {
 #[cfg(unix)]
 fn get_command(command: &str, working_dir: Option<impl AsRef<Path>>) -> tokio::process::Command {
     let mut process = tokio::process::Command::new("/bin/bash");
-    let _ = process.arg("-c").arg(command);
+    let _ = process
+        .arg("-c")
+        .arg(command)
+        .env("CLICOLOR_FORCE", "1")
+        .env("FORCE_COLOR", "1")
+        .env("TERM", "xterm-256color")
+        .env("COLORTERM", "truecolor");
 
     if let Some(directory) = working_dir {
         let _ = process.current_dir(directory);
