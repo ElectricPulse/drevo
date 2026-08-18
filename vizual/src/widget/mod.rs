@@ -60,8 +60,8 @@ impl Focus_provider {
 // 2. the function signatures are really big and even though no component used even a
 //    fraction of everything present in the arguments they still took up a couple lines that one had to copy paste
 // Now as for what this huge argument list says about the state of the current architecture:
-// I think its obsenely huge and should be made smaller - functional programming explicitly tries to avoid functions that seemingly take in everything
-// it's a sign of failure to seperate concerns and a failure to implement abstractions
+// I think its obscenely huge and should be made smaller - functional programming explicitly tries to avoid functions that seemingly take in everything
+// it's a sign of failure to separate concerns and a failure to implement abstractions
 pub struct Layout_input<'a> {
     pub render: Render,
     pub theme: Store<Theme>,

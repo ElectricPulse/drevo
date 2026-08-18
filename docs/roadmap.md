@@ -21,7 +21,7 @@ which I haven't implemented because they are complex and make the code even less
 - tab refocuses without clicking
 - in apps like react the same lifetime used to track widget is the same as the component lifetime ie. a stable id used in slots.set() means you dont have to store menu under `Shared_widget<Menu>`. Since Menu needs to keep state of the selected item
 - make scroll bars draggable
-- fix the occasional ~500 ms stutter during scrollin
+- fix the occasional ~500 ms stutter during scrolling
 - figure out a better Paragraph sizing and constraint-negotiation model
 - switch to vello hybrid
 - Switch to microlp once it adds presolve and priorities
@@ -36,7 +36,7 @@ which I haven't implemented because they are complex and make the code even less
   their resulting heights as layout branches for the solver to choose between.
 - Implement scaling fonts down for constrained layouts, which is useful on
   mobile screens.
-- a widget shouldn't have to recoincile itself between system theme or override
+- a widget shouldn't have to reconcile itself between system theme or override
 - When Winit exposes cross-platform window-size negotiation, let the window
   manager propose a size and have Vizual respond with a supported size instead
   of calculating and publishing a minimum window size in advance.
@@ -62,7 +62,7 @@ which I haven't implemented because they are complex and make the code even less
   focus when replacing one widget with another, but many widgets do not expose
   child-slot support even though that transition is possible.
     You can pass display!() widget into a impl Widget_trait - how does that work? - the first child is just never used probably
-  Right now estabilishing a component lifetime also sets its hitbox (from the current parent) - these two would have to be seperated - one is lifetime creation,
+  Right now establishing a component lifetime also sets its hitbox (from the current parent) - these two would have to be separated - one is lifetime creation,
   second is mounting and hitbox creation
 - add some cool animations to elements to showcase the real time capabilities
 - for no focus components I don't think they need to have stable known lifetime in between

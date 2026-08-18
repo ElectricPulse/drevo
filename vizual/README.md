@@ -2,11 +2,11 @@
 
 # Vizual
 
-Vizual (ˈvizuaːl) is a component-based Rust UI framework with built in state managment and MILP layouter
+Vizual (ˈvizuaːl) is a component-based Rust UI framework with built-in state management and MILP layouter
 
 ## Features
 - A robust modular component system with prebuilts for alignment, vertical/horizontal layout and grid.
-This avoids the ad-hoc method for every alignment, layout written specificly for each component
+This avoids the ad-hoc method for every alignment, layout written specifically for each component
 - State system heavily inspired by [React](https://react.dev/)
 This avoids the sometimes insanely verbose and repetitive ELM architecture of a message for everything
 - MILP powered layouting system inspired by [iOS Auto Layout](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html) which is built on [Cassowary](https://constraints.cs.washington.edu/solvers/cassowary-tochi.pdf)
@@ -100,5 +100,5 @@ runtime remains active for asynchronous widget and background work.
 See [docs/roadmap.md](docs/roadmap.md) for known bugs and planned work.
 
 ## Technologies used
-- [winit](https://github.com/rust-windowing/winit) for window managment
+- [winit](https://github.com/rust-windowing/winit) for window management
 - [vello](https://github.com/linebender/vello) for graphics
