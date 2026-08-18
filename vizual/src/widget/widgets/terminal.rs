@@ -47,7 +47,10 @@ impl Widget_trait for Terminal {
         let command = self.command.affect(render.clone()).await?.clone();
 
         let mut directory_paragraph = Paragraph::new(Direction::Horizontal, theme.units.em * 35.0);
-        directory_paragraph.set_content(format!("Directory: {directory}"));
+        directory_paragraph.set_styled_content(
+            format!("Directory: {directory}"),
+            theme.specific.text.paragraph,
+        );
         let directory = Anchor::left(directory_paragraph);
         let shell = Anchor::left(Text::new(format!("Shell: {shell}")));
         let command = Anchor::left(Text::new(command));
