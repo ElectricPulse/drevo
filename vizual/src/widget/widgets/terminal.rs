@@ -8,8 +8,8 @@ use color_eyre::eyre::{Result, WrapErr, bail};
 use vizual_macros::display;
 
 use super::{
-    layout::axis::Axis, linebreak::Linebreak, paragraph::Paragraph, positioning::anchor::Anchor,
-    scroll::Scroll, text::Text,
+    ansi::Ansi, layout::axis::Axis, linebreak::Linebreak, paragraph::Paragraph,
+    positioning::anchor::Anchor, scroll::Scroll, text::Text,
 };
 use crate::{
     component::Children,
@@ -236,7 +236,7 @@ impl Terminal {
         let shell = Store::new("/bin/bash".to_string());
         let command = Store::new(String::new());
         let text = Store::new(String::new());
-        let scroll = Scroll::new(Text::ansi(text.clone())).into_shared();
+        let scroll = Scroll::new(Ansi::new(text.clone())).into_shared();
         Self {
             directory,
             shell,

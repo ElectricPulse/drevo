@@ -1,43 +1,22 @@
-use super::super::{Layout_input, Render_input, Widget_trait};
-use crate::{
-    component::Children,
-    config::DEFAULT_FONT_SIZE,
-    geometry::Direction,
-    state::State,
-    style::{Color, Style},
-    theme::Theme,
-};
 use async_trait::async_trait;
 use color_eyre::Result;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Text_style {
-    pub size: f32,
-    pub color: Color,
-}
-
-impl Default for Text_style {
-    fn default() -> Self {
-        Self {
-            size: DEFAULT_FONT_SIZE,
-            color: Color::White,
-        }
-    }
-}
-
-impl From<Theme> for Text_style {
-    fn from(theme: Theme) -> Self {
-        theme.specific.text.paragraph
-    }
-}
+use super::super::{Layout_input, Render_input, Widget_trait};
+use super::text::Text_style;
+use crate::{
+    component::Children,
+    geometry::Direction,
+    state::State,
+    style::Style,
+};
 
 #[derive(Clone)]
-pub struct Text {
+pub struct Ansi {
     content: State<String>,
     pub style: Style<Text_style>,
 }
 
-impl Text {
+impl Ansi {
     pub fn new(content: impl Into<State<String>>) -> Self {
         Self {
             content: content.into(),
@@ -47,7 +26,7 @@ impl Text {
 }
 
 #[async_trait]
-impl Widget_trait for Text {
+impl Widget_trait for Ansi {
     async fn layout(
         &mut self,
         Layout_input {
@@ -61,7 +40,8 @@ impl Widget_trait for Text {
     ) -> Result<Children> {
         let content = self.content.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
-        let size = text_context.measure(&content, self.style.get(&theme).size);
+        let font_size = self.style.get(&theme).size;
+        let size = text_context.measure_ansi(&content, font_size);
         hitbox
             .set_static_dimension(&problem, Direction::Horizontal, size.width)
             .await?;
@@ -85,7 +65,8 @@ impl Widget_trait for Text {
     ) -> Result<()> {
         let content = self.content.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
-        let _ = text_context.draw_text(scene, &content, hitbox.origin, self.style.get(&theme));
+        let style = self.style.get(&theme);
+        let _ = text_context.draw_ansi_text(scene, &content, hitbox.origin, style.size);
         Ok(())
     }
 }
