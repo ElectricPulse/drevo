@@ -5,6 +5,8 @@ edition = "2024"
 description = "Procedural macros for the Vizual UI framework"
 repository = "https://github.com/ElectricPulse/vizual"
 license = "Apache-2.0"
+categories = ["gui", "development-tools::procedural-macro-helpers"]
+keywords = ["gui", "ui", "macros", "derive", "vizual"]
 
 [lib]
 proc-macro = true

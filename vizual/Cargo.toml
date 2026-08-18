@@ -6,6 +6,8 @@ description = "An async, solver-driven desktop UI framework rendered with Vello"
 repository = "https://github.com/ElectricPulse/vizual"
 license = "Apache-2.0"
 readme = "README.md"
+categories = ["gui", "rendering", "asynchronous"]
+keywords = ["gui", "ui", "layout", "vello", "solver"]
 
 [dependencies]
 derive-where.workspace = true
