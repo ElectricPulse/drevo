@@ -32,7 +32,7 @@ use crate::{
     widget::{
         Focus_provider, Layout_input, Render_input, Widget, Widget_trait,
         custom_widget::Custom_widget_trait,
-        widgets::{paper::Paper, positioning::anchor::Position},
+        widgets::{paper::Paper, positioning::anchor::Anchor_position},
     },
 };
 
@@ -130,7 +130,7 @@ impl Custom_widget_trait for Theme_menu_item {
             swatch,
             Anchors {
                 horizontal: None,
-                vertical: Some(Position::Middle),
+                vertical: Some(Anchor_position::Middle),
             },
         );
 
@@ -259,8 +259,8 @@ impl Widget_trait for Settings {
         let button = Anchor::new(
             button,
             Anchors {
-                horizontal: Some(Position::End),
-                vertical: Some(Position::Start),
+                horizontal: Some(Anchor_position::End),
+                vertical: Some(Anchor_position::Start),
             },
         );
         let button = display!(button);

@@ -11,7 +11,7 @@ use color_eyre::Result;
 use vizual_macros::display;
 
 #[derive(Clone, Copy)]
-pub enum Position {
+pub enum Anchor_position {
     Start,
     Middle,
     End,
@@ -19,8 +19,8 @@ pub enum Position {
 
 #[derive(Clone)]
 pub struct Anchors {
-    pub horizontal: Option<Position>,
-    pub vertical: Option<Position>,
+    pub horizontal: Option<Anchor_position>,
+    pub vertical: Option<Anchor_position>,
 }
 
 #[derive(Clone)]
@@ -41,7 +41,7 @@ impl Anchor {
         Self::new(
             child,
             Anchors {
-                horizontal: Some(Position::Start),
+                horizontal: Some(Anchor_position::Start),
                 vertical: None,
             },
         )
@@ -51,7 +51,7 @@ impl Anchor {
         Self::new(
             child,
             Anchors {
-                horizontal: Some(Position::End),
+                horizontal: Some(Anchor_position::End),
                 vertical: None,
             },
         )
@@ -62,7 +62,7 @@ impl Anchor {
             child,
             Anchors {
                 horizontal: None,
-                vertical: Some(Position::Start),
+                vertical: Some(Anchor_position::Start),
             },
         )
     }
@@ -71,8 +71,8 @@ impl Anchor {
         Self::new(
             child,
             Anchors {
-                horizontal: Some(Position::Start),
-                vertical: Some(Position::Start),
+                horizontal: Some(Anchor_position::Start),
+                vertical: Some(Anchor_position::Start),
             },
         )
     }
@@ -81,8 +81,8 @@ impl Anchor {
         Self::new(
             child,
             Anchors {
-                horizontal: Some(Position::Middle),
-                vertical: Some(Position::Middle),
+                horizontal: Some(Anchor_position::Middle),
+                vertical: Some(Anchor_position::Middle),
             },
         )
     }
@@ -92,11 +92,11 @@ impl Anchor {
         problem: &Component_context,
         parent: &Hitbox,
         hitbox: &mut Hitbox,
-        position: Option<Position>,
+        position: Option<Anchor_position>,
         direction: Direction,
     ) -> Result<()> {
         match position {
-            Some(Position::Start) => {
+            Some(Anchor_position::Start) => {
                 hitbox.make_end_independent(direction);
                 problem
                     .constrain(constraint!(
@@ -104,7 +104,7 @@ impl Anchor {
                     ))
                     .await?;
             }
-            Some(Position::Middle) => {
+            Some(Anchor_position::Middle) => {
                 hitbox.make_start_independent(direction);
                 hitbox.make_end_independent(direction);
 
@@ -129,7 +129,7 @@ impl Anchor {
                     .await?;
                 problem.minimize(start_margin, 0).await?;
             }
-            Some(Position::End) => {
+            Some(Anchor_position::End) => {
                 hitbox.make_start_independent(direction);
                 problem
                     .constrain(constraint!(

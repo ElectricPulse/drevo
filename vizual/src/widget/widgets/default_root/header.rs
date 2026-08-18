@@ -5,7 +5,7 @@ use vizual_macros::display;
 use super::{
     super::{
         layout::grid::Grid,
-        positioning::anchor::{Anchor, Anchors, Position},
+        positioning::anchor::{Anchor, Anchors, Anchor_position},
         text::Text,
     },
     Theme_choice,
@@ -49,8 +49,8 @@ impl Widget_trait for Header {
         let name = Anchor::new(
             name,
             Anchors {
-                horizontal: Some(Position::Start),
-                vertical: Some(Position::Middle),
+                horizontal: Some(Anchor_position::Start),
+                vertical: Some(Anchor_position::Middle),
             },
         );
 
@@ -59,8 +59,8 @@ impl Widget_trait for Header {
         let settings = Anchor::new(
             settings,
             Anchors {
-                horizontal: Some(Position::End),
-                vertical: Some(Position::Start),
+                horizontal: Some(Anchor_position::End),
+                vertical: Some(Anchor_position::Start),
             },
         );
 

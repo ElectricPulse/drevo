@@ -148,8 +148,9 @@ impl<Choice: Thread_safe> Menu<Choice> {
         Ok(())
     }
 
-    pub async fn set_submitted(&mut self, state: impl Into<State<Choice>>) -> Result<()> {
-        self.submitted.set(state).await
+    pub async fn set_submitted(&mut self, store: Store<Choice>) -> Result<()> {
+        self.submitted = store;
+        Ok(())
     }
 }
 
