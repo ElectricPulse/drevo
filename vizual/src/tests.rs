@@ -155,14 +155,17 @@ async fn width_constrained_paragraph_derives_its_wrapped_height() -> Result<()> 
     let content = "a paragraph which wraps over several lines";
     let width = 80.0;
     let mut paragraph = Paragraph::new(Direction::Horizontal, width);
-    paragraph.set_content(content);
+    paragraph.set_styled_content(content, theme::dark_theme().specific.text.paragraph);
     let root = Root::new(Anchor::top_left(paragraph)).into_shared();
     let mut root_slot = Component_slot::new();
     let variables = Arc::new(Variables::new());
     let mut text_context = Text_context::new();
     let expected_height = f64::from(
         text_context
-            .build_wrapped_layout(&Styled_text::ansi(content), width as f32)
+            .build_wrapped_layout(
+                &Styled_text::styled(content, theme::dark_theme().specific.text.paragraph),
+                width as f32,
+            )
             .height(),
     );
     let focus = Focus::new();
@@ -189,14 +192,17 @@ async fn height_constrained_paragraph_derives_a_fitting_width() -> Result<()> {
     let content = "one two three four five six seven eight nine ten eleven twelve";
     let height = 60.0;
     let mut paragraph = Paragraph::new(Direction::Vertical, height);
-    paragraph.set_content(content);
+    paragraph.set_styled_content(content, theme::dark_theme().specific.text.paragraph);
     let root = Root::new(Anchor::top_left(paragraph)).into_shared();
     let mut root_slot = Component_slot::new();
     let variables = Arc::new(Variables::new());
     let mut text_context = Text_context::new();
     let natural_width = f64::from(
         text_context
-            .build_layout(&Styled_text::ansi(content))
+            .build_layout(&Styled_text::styled(
+                content,
+                theme::dark_theme().specific.text.paragraph,
+            ))
             .full_width(),
     );
     let focus = Focus::new();
@@ -211,7 +217,10 @@ async fn height_constrained_paragraph_derives_a_fitting_width() -> Result<()> {
     let paragraph = paragraph.get_hitbox().await?.get_resolved(&solution);
     let wrapped_height = f64::from(
         text_context
-            .build_wrapped_layout(&Styled_text::ansi(content), paragraph.size.width as f32)
+            .build_wrapped_layout(
+                &Styled_text::styled(content, theme::dark_theme().specific.text.paragraph),
+                paragraph.size.width as f32,
+            )
             .height(),
     );
 

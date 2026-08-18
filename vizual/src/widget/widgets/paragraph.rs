@@ -22,15 +22,10 @@ impl Paragraph {
     pub fn new(direction: Direction, size: f64) -> Self {
         assert!(size.is_finite() && size >= 0.0);
         Self {
-            content: Styled_text::ansi(""),
+            content: Styled_text::styled("", Text_style::default()),
             static_direction: direction,
             static_size: size,
         }
-    }
-
-    pub fn set_content(&mut self, content: impl Into<String>) {
-        let content = content.into();
-        self.content = Styled_text::ansi(&content);
     }
 
     pub fn set_styled_content(&mut self, content: impl Into<String>, style: Text_style) {

@@ -61,7 +61,9 @@ Then replace `src/main.rs` with:
 ```rust
 use color_eyre::eyre::Result;
 use vizual::{
+    geometry::Direction,
     render_manager::Render_manager,
+    theme,
     widget::{Widget_trait as _, widgets::paragraph::Paragraph},
 };
 
@@ -70,8 +72,8 @@ async fn main() -> Result<()> {
     color_eyre::install()?;
 
     let render_manager = Render_manager::new();
-    let mut paragraph = Paragraph::new();
-    paragraph.set_content("Hello from Vizual".into());
+    let mut paragraph = Paragraph::new(Direction::Horizontal, 320.0);
+    paragraph.set_styled_content("Hello from Vizual", theme::dark_theme().specific.text.paragraph);
 
     vizual::run("Vizual example", paragraph.into_shared(), render_manager)
 }
