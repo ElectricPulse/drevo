@@ -3,7 +3,7 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Layout_input, Shared_widget, Widget_trait},
+    super::{Focus_provider, Layout_input, Widget_trait},
     button::Button,
     layout::axis::Axis,
     menu::{Menu, Menu_item},
@@ -106,7 +106,7 @@ impl Submit_handler<Popup_options> for Popup_submit_handler {
 
 #[derive(Clone)]
 struct Popup_button_handler {
-    menu: Shared_widget<Menu<Popup_options>>,
+    menu: Menu<Popup_options>,
     submit_handler: Box<dyn Submit_handler<Popup_options>>,
 }
 
@@ -120,7 +120,7 @@ impl Submit_handler<bool> for Popup_button_handler {
 
 #[derive(Clone)]
 pub struct Popup {
-    menu: Shared_widget<Menu<Popup_options>>,
+    menu: Menu<Popup_options>,
     submit_handler: Box<dyn Submit_handler<Popup_options>>,
 }
 
@@ -132,7 +132,7 @@ impl Popup {
                 Box::new(Popup_menu_item { option })
             })
             .collect();
-        let menu = Menu::new(items, 0).await?.into_shared();
+        let menu = Menu::new(items, 0).await?;
         let submit_handler: Box<dyn Submit_handler<Popup_options>> =
             Box::new(Popup_submit_handler {
                 subhandler: Box::new(submit_handler),

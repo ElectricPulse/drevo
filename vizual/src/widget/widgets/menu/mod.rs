@@ -63,10 +63,7 @@ impl<Choice: Thread_safe + Clone> Menu_item_container<Choice> {
 
 #[async_trait]
 impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_container<Choice> {
-    async fn layout(
-        &mut self,
-        Layout_input { slots, .. }: Layout_input<'_>,
-    ) -> Result<Children> {
+    async fn layout(&mut self, Layout_input { slots, .. }: Layout_input<'_>) -> Result<Children> {
         let content = Custom_widget::new(self.widget.clone(), self.selected);
         let widget: Widget = match self.item_block {
             true => {
