@@ -55,6 +55,7 @@ pub struct Text_styles {
     pub subtitle: Text_style,
     pub selected_subtitle: Text_style,
     pub paragraph: Text_style,
+    pub button: Text_style,
 }
 
 #[derive(Clone, PartialEq)]
@@ -183,7 +184,11 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
             color: semantic.text.normal,
         },
         paragraph: Text_style {
-            size: units.em as f32 * 0.875,
+            size: units.em as f32 * 0.915,
+            color: semantic.text.normal,
+        },
+        button: Text_style {
+            size: units.em as f32 * 1.3,
             color: semantic.text.normal,
         },
     };
@@ -210,7 +215,7 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
     let paper = Paper_style { block };
     let button_background = paper.block.background.lighten(10);
     let button_block = Block_style {
-        padding: block.padding * 0.5,
+        padding: block.padding * 0.6,
         background: button_background,
         border: Border_style {
             thickness: BORDER_SIZE,

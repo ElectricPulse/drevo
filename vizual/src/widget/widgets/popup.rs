@@ -156,7 +156,7 @@ impl Widget_trait for Popup {
     ) -> Result<Children> {
         let theme = theme.affect(render).await?;
         let mut text = Text::new("Submit");
-        text.style.set(theme.specific.text.selected_subtitle);
+        text.style.set(theme.specific.text.button);
         let button = Button::new(
             text,
             Popup_button_handler {
