@@ -11,6 +11,10 @@ This avoids the ad-hoc method for every alignment, layout written specificly for
 This avoids the sometimes insanely verbose and repetitive ELM architecture of a message for everything
 - MILP powered layouting system inspired by [iOS Auto Layout](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html) which is built on [Cassowary](https://constraints.cs.washington.edu/solvers/cassowary-tochi.pdf)
 - Structural navigation via ```Tab``` and ```Shift + Tab``` for accessibility
+
+## Architecture
+- To get clicked, a component has to be able to get focused for now.
+
 ## Demo
 ![demo](assets/demo.gif)
 
