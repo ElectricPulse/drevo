@@ -75,9 +75,9 @@ runtime remains active for asynchronous widget and background work.
 ## Pre-release notes
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
-## Roadmap
+## [Roadmap](docs/roadmap.md)
 
-See [ROADMAP.md](ROADMAP.md) for known bugs and planned work.
+See [docs/roadmap.md](docs/roadmap.md) for known bugs and planned work.
 
 ## Technologies used
 - [winit](https://github.com/rust-windowing/winit) for window managment
