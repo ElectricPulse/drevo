@@ -21,6 +21,25 @@ See the full [Architecture guide](docs/architecture.md) for details on the layou
 - **Heterogeneous Tuple Layout**: Multi-child layout containers (`Axis`, `Grid`) accept tuples of arbitrary concrete widget types directly via `Into_widgets`.
 - **Event Routing & Focus**: Pointer clicks and keyboard events are routed hierarchically through active focus chains (to get clicked, a component has to be able to get focused for now).
 
+## Performance
+
+Currently the performance — mainly visible when scrolling — is inadequate, somewhere around 5 FPS.
+
+The bottleneck it would seem is the layouter, and it truly does add a pretty big delay to a rerender as there is currently no way to decouple or destructure the problem: it always requires a resolve of the entire system. This is unnecessary in things like a button changing color or a button changing size inside a scroll (constraints should take in `State` and only relayout if state changed).
+
+Even so, re-solving the entire system puts the app in the 20–30 FPS range (~40ms solve). The difference in FPS is made up of a very immature render system in reality. It is not parallel and it is slow — mainly because of Parley constructs being recreated on every render.
+
+Here is proof:
+
+```text
+app problem layout took 79.471867ms
+17:52:25 [INFO]   lexicographic model: 7805 variables, 3593 constraints, 3 priorities
+17:52:25 [INFO]     lexicographic model recreation took 6.354568ms
+17:52:25 [INFO]   lexicographic solve took 24.950131ms
+17:52:25 [INFO] layout full solve took 40.687032ms
+17:52:25 [INFO] app problem render took 45.587774ms
+```
+
 ## Demo
 ![demo](assets/demo.gif)
 
