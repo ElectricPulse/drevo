@@ -47,7 +47,7 @@ impl Custom_widget_trait for Boolean_menu_item {
     ) -> Result<Children> {
         let theme = theme.affect(render).await?;
         let mut text = Text::new(self.label());
-        let mut style = theme.specific.text.subtitle;
+        let mut style = theme.specific.text.button;
         if !selected {
             style.color = theme.semantic.text.muted;
         }

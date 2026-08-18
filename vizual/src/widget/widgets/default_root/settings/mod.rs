@@ -106,7 +106,7 @@ impl Custom_widget_trait for Theme_menu_item {
         let current_theme = theme.affect(render).await?;
         let preview_theme = self.choice.resolve(&current_theme);
         let mut text = Text::new(label(self.choice, current_theme.system()));
-        let mut style = current_theme.specific.text.subtitle;
+        let mut style = current_theme.specific.text.button;
         if !selected {
             style.color = current_theme.semantic.text.muted;
         }

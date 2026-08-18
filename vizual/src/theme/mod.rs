@@ -183,7 +183,7 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
             color: semantic.text.normal,
         },
         button: Text_style {
-            size: units.em as f32 * 1.3,
+            size: units.em as f32 * 1.05,
             color: semantic.text.normal,
         },
     };
