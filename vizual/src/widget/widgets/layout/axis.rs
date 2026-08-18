@@ -7,7 +7,7 @@ use crate::{
     state::{State, Store},
     style::Style,
     theme::Theme,
-    widget::{Layout_input, Widget, Widget_trait, widgets::container::Container},
+    widget::{Into_widgets, Layout_input, Widget, Widget_trait, widgets::container::Container},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -35,10 +35,10 @@ pub struct Axis {
 }
 
 impl Axis {
-    pub fn new(direction: Direction, elements: Vec<Widget>) -> Self {
+    pub fn new(direction: Direction, elements: impl Into_widgets) -> Self {
         Self {
             direction,
-            elements,
+            elements: elements.into(),
             style: Style::default(),
             priority: 1,
             limit_cross: false,

@@ -9,7 +9,7 @@ use crate::{
         hitbox::Hitbox,
     },
     slot::manager::Slots,
-    widget::{Focus_provider, Layout_input, Widget, Widget_trait},
+    widget::{Focus_provider, Into_widgets, Layout_input, Widget, Widget_trait},
 };
 
 #[derive(Clone)]
@@ -19,8 +19,11 @@ pub struct Grid {
 }
 
 impl Grid {
-    pub fn new(children: Vec<Widget>, gap: f64) -> Self {
-        Self { children, gap }
+    pub fn new(children: impl Into_widgets, gap: f64) -> Self {
+        Self {
+            children: children.into(),
+            gap,
+        }
     }
 }
 

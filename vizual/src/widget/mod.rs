@@ -1,5 +1,8 @@
+pub mod conversion;
 pub mod custom_widget;
 pub mod widgets;
+
+pub use conversion::Into_widgets;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -172,12 +175,6 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
         Self: Sized,
     {
         Ok(vec![slot.set(self, problem).await?])
-    }
-}
-
-impl<T: Widget_trait> Into<Widget> for T {
-    fn into(self) -> Widget {
-        Box::new(self)
     }
 }
 
