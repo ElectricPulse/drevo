@@ -28,7 +28,7 @@ pub struct Scroll_content {
 impl Scroll_content {
     pub fn new(child: impl Widget_trait, offset: Point) -> Self {
         Self {
-            child: child.any(),
+            child: Box::new(child),
             offset,
         }
     }
@@ -100,7 +100,7 @@ pub struct Scroll {
 impl Scroll {
     pub fn new(child: impl Widget_trait) -> Self {
         Self {
-            child: child.any(),
+            child: Box::new(child),
             root_component: None,
             offset: Point::default(),
             content_size: Size::default(),
@@ -147,7 +147,7 @@ impl Widget_trait for Scroll {
         let has_vertical = self.content_size.height > self.viewport.size.height && self.viewport.size.height > 0.0;
         let has_horizontal = self.content_size.width > self.viewport.size.width && self.viewport.size.width > 0.0;
 
-        let content_column = match has_horizontal {
+        let content_column: Widget = match has_horizontal {
             true => {
                 let h_bar = bar::Scrollbar::new(
                     Direction::Horizontal,
@@ -155,14 +155,14 @@ impl Widget_trait for Scroll {
                     self.viewport.size.width,
                     self.content_size.width,
                 );
-                let mut v_axis = Axis::new(Direction::Vertical, vec![content_widget.any(), h_bar.any()]);
+                let mut v_axis = Axis::new(Direction::Vertical, (content_widget, h_bar));
                 v_axis.style.set(Axis_style::Gap(0.0));
-                v_axis.any()
+                Box::new(v_axis)
             }
-            false => content_widget.any(),
+            false => Box::new(content_widget),
         };
 
-        let root_widget = match has_vertical {
+        let root_widget: Widget = match has_vertical {
             true => {
                 let v_bar = bar::Scrollbar::new(
                     Direction::Vertical,
@@ -170,9 +170,9 @@ impl Widget_trait for Scroll {
                     self.viewport.size.height,
                     self.content_size.height,
                 );
-                let mut h_axis = Axis::new(Direction::Horizontal, vec![content_column, v_bar.any()]);
+                let mut h_axis = Axis::new(Direction::Horizontal, (content_column, v_bar));
                 h_axis.style.set(Axis_style::Gap(0.0));
-                h_axis.any()
+                Box::new(h_axis)
             }
             false => content_column,
         };

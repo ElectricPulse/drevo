@@ -43,7 +43,7 @@ pub struct Block {
 impl Block {
     pub fn new(child: impl Widget_trait, style: Block_style) -> Self {
         Self {
-            child: child.any(),
+            child: Box::new(child),
             style,
             focusable: false,
             delta: None,

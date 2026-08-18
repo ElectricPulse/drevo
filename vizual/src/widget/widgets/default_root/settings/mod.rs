@@ -136,7 +136,7 @@ impl Custom_widget_trait for Theme_menu_item {
 
         let row = Axis::new(
             Direction::Horizontal,
-            vec![text.any(), swatch.any()],
+            (text, swatch),
         );
         Ok(vec![display!(row)])
     }
@@ -162,7 +162,7 @@ struct Positioned_menu {
 impl Positioned_menu {
     fn new(child: impl Widget_trait, button: Hitbox) -> Self {
         Self {
-            child: child.any(),
+            child: Box::new(child),
             button,
         }
     }

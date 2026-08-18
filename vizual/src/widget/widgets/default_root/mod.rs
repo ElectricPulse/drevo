@@ -31,7 +31,7 @@ impl Default_root {
     pub fn new(title: impl Into<String>, widget: impl Widget_trait) -> Self {
         Self {
             title: title.into(),
-            widget: widget.any(),
+            widget: Box::new(widget),
             theme_choice: Store::new(Theme_choice::System),
         }
     }
@@ -54,7 +54,7 @@ impl Widget_trait for Default_root {
 
         let header = Header::new(self.title.clone(), self.theme_choice.clone());
 
-        let axis = Axis::new(Direction::Vertical, vec![header.any(), body.any()]);
+        let axis = Axis::new(Direction::Vertical, (header, body));
 
         let mut root = Paper::new(axis);
         root.style.set(theme_value.specific.root);

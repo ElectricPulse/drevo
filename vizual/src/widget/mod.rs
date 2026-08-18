@@ -152,6 +152,13 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
         self.on_other_event(event).await
     }
 
+    fn as_any(self) -> Widget
+    where
+        Self: Sized,
+    {
+        Box::new(self)
+    }
+
     fn any(self) -> Widget
     where
         Self: Sized,

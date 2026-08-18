@@ -54,12 +54,12 @@ impl Widget_trait for Terminal {
 
         let axis = Axis::new(
             Direction::Vertical,
-            vec![
-                directory.any(),
-                shell.any(),
-                command.any(),
-                self.scroll.clone().any(),
-            ],
+            (
+                directory,
+                shell,
+                command,
+                self.scroll.clone(),
+            ),
         );
 
         Ok(vec![display!(axis)])

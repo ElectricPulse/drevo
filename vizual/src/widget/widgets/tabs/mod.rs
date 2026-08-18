@@ -117,7 +117,7 @@ impl Widget_trait for Tab_bar {
             });
             let button = page.tab.button(text, self.selected_page.clone());
             let button = Anchor::left(button);
-            buttons.push(button.any());
+            buttons.push(button.as_any());
         }
 
         let axis = Axis::new(Direction::Horizontal, buttons);
@@ -166,15 +166,11 @@ impl Widget_trait for Tabs {
         &mut self,
         Layout_input { slots, .. }: Layout_input<'_>,
     ) -> Result<Children> {
-        let mut elements: Vec<Widget> = vec![self.header.clone().any()];
-        {
-            let selected = self.header.lock().await?.get_selected().await?;
-            if let Some(widget) = selected {
-                elements.push(widget.any());
-            }
-        }
-
-        let axis = Axis::new(Direction::Vertical, elements);
+        let selected = self.header.lock().await?.get_selected().await?;
+        let axis = match selected {
+            Some(widget) => Axis::new(Direction::Vertical, (self.header.clone(), widget)),
+            None => Axis::new(Direction::Vertical, (self.header.clone(),)),
+        };
         Ok(vec![display!(axis)])
     }
 }

@@ -1,6 +1,6 @@
 use crate::widget::{Widget, Widget_trait};
 
-/// A trait for converting heterogeneous collections of widgets into a [`Vec<Widget>`].
+/// A trait for converting collections of widgets into a [`Vec<Widget>`].
 ///
 /// A new trait was created for this because otherwise one would have to generate a
 /// `From<(tuple)>` for `Vec<Widget>`, which isn't allowed because of Rust's orphan rules
@@ -22,21 +22,15 @@ pub trait Into_widgets {
     }
 }
 
-impl<T: Widget_trait + 'static> Into_widgets for Vec<T> {
-    fn into_widgets(self) -> Vec<Widget> {
-        self.into_iter().map(|widget| widget.any()).collect()
-    }
-}
-
-impl<T: Widget_trait + 'static, const N: usize> Into_widgets for [T; N] {
-    fn into_widgets(self) -> Vec<Widget> {
-        self.into_iter().map(|widget| widget.any()).collect()
-    }
-}
-
 impl Into_widgets for () {
     fn into_widgets(self) -> Vec<Widget> {
         Vec::new()
+    }
+}
+
+impl Into_widgets for Vec<Widget> {
+    fn into_widgets(self) -> Vec<Widget> {
+        self
     }
 }
 
@@ -47,7 +41,7 @@ macro_rules! impl_into_widgets_for_tuples {
             impl<$($T: Widget_trait + 'static),+> Into_widgets for ($($T,)+) {
                 fn into_widgets(self) -> Vec<Widget> {
                     let ($($T,)+) = self;
-                    vec![$($T.any()),+]
+                    vec![$(Box::new($T)),+]
                 }
             }
         )+

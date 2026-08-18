@@ -80,7 +80,7 @@ async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Res
     let render = render_manager.render;
     let theme = Store::new(theme::dark_theme());
     let body = Anchor::top_left(Text::new("Body"));
-    let application = Default_root::new("Test", Grid::new(vec![body.any()], 0.0)).into_shared();
+    let application = Default_root::new("Test", Grid::new((body,), 0.0)).into_shared();
     let root = Root::new(application).into_shared();
     let mut root_slot = Component_slot::new();
     let variables = Arc::new(Variables::new());

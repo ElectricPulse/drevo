@@ -74,9 +74,9 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_container<Choice> {
                 button.highlighted = self.selected;
                 button.focusable = true;
                 button.delta = Some(self.button_delta.clone());
-                Anchor::left(button).any()
+                Box::new(Anchor::left(button))
             }
-            false => Anchor::left(content).any(),
+            false => Box::new(Anchor::left(content)),
         };
 
         Ok(vec![display!(widget)])
@@ -167,7 +167,7 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
                 button_delta: button_delta.clone(),
                 item_block: self.item_block,
             };
-            rows.push(row.any());
+            rows.push(row.as_any());
         }
 
         Ok(vec![display!(Axis::new(Direction::Vertical, rows))])
