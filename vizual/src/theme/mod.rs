@@ -183,7 +183,7 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
             color: semantic.text.normal,
         },
         paragraph: Text_style {
-            size: units.em as f32 * 0.575,
+            size: units.em as f32 * 0.875,
             color: semantic.text.normal,
         },
     };
@@ -209,11 +209,22 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
     };
     let paper = Paper_style { block };
     let button_background = paper.block.background.lighten(10);
-    let button = Button_style {
-        block: Block_style {
-            background: button_background,
-            ..block
+    let button_block = Block_style {
+        padding: block.padding * 0.5,
+        background: button_background,
+        border: Border_style {
+            thickness: BORDER_SIZE,
+            color: semantic.border,
+            radius: units.em * 0.5,
         },
+        focused_border: Border_style {
+            thickness: BORDER_SIZE,
+            color: semantic.focus,
+            radius: units.em * 0.5,
+        },
+    };
+    let button = Button_style {
+        block: button_block,
         highlight: button_background.darken(15),
     };
     let root = Paper_style {
