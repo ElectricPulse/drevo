@@ -341,7 +341,7 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
     let command = problem
         .handle_event(
             &Event::Pointer(Pointer_event {
-                position: Point::new(14.0, 10.0),
+                position: Point::new(20.0, 20.0),
                 button: Pointer_button::Primary,
             }),
             &solution,

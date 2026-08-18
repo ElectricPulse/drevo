@@ -13,7 +13,7 @@ use crate::{
     widget::{
         Layout_input, Render_input, Widget, Widget_trait,
         widgets::{
-            block::Block,
+            block::{Block, Block_style},
             layout::axis::{Axis, Axis_style},
         },
     },
@@ -56,12 +56,12 @@ impl Widget_trait for Scroll_content {
 
         problem
             .constrain(constraint!(
-                hitbox.get_dimension(Direction::Horizontal) >= theme.units.em * 5.0
+                hitbox.get_dimension(Direction::Horizontal) >= theme.units.em * 3.0
             ))
             .await?;
         problem
             .constrain(constraint!(
-                hitbox.get_dimension(Direction::Vertical) >= theme.units.em * 5.0
+                hitbox.get_dimension(Direction::Vertical) >= theme.units.em * 3.0
             ))
             .await?;
 
@@ -97,6 +97,7 @@ pub struct Scroll {
     offset: Point,
     content_size: Size,
     viewport: Rect,
+    pub style: Option<Block_style>,
 }
 
 impl Scroll {
@@ -107,6 +108,7 @@ impl Scroll {
             offset: Point::default(),
             content_size: Size::default(),
             viewport: Rect::default(),
+            style: None,
         }
     }
 
@@ -148,8 +150,10 @@ impl Widget_trait for Scroll {
 
         let content_widget = Scroll_content::new(self.child.clone(), self.offset);
 
-        let has_vertical = self.content_size.height > self.viewport.size.height && self.viewport.size.height > 0.0;
-        let has_horizontal = self.content_size.width > self.viewport.size.width && self.viewport.size.width > 0.0;
+        let has_vertical =
+            self.content_size.height > self.viewport.size.height && self.viewport.size.height > 0.0;
+        let has_horizontal =
+            self.content_size.width > self.viewport.size.width && self.viewport.size.width > 0.0;
 
         let content_column: Widget = match has_horizontal {
             true => {
@@ -182,7 +186,8 @@ impl Widget_trait for Scroll {
         };
 
         let theme = theme.affect(render).await?;
-        let mut block = Block::new(root_widget, theme.specific.paper.block);
+        let block_style = self.style.unwrap_or(theme.specific.paper.block);
+        let mut block = Block::new(root_widget, block_style);
         block.focusable = true;
 
         let component = display!(block);
@@ -193,18 +198,22 @@ impl Widget_trait for Scroll {
 
     async fn render(
         &mut self,
-        Render_input {
-            focus,
-            context,
-            ..
-        }: Render_input<'_, '_>,
+        Render_input { focus, context, .. }: Render_input<'_, '_>,
     ) -> Result<()> {
         focus.set_interactive(true);
 
         if let Some(root_comp) = &self.root_component {
-            if let Some((content_comp, child_comp)) = find_scroll_content_and_child(root_comp).await? {
-                let viewport_rect = content_comp.get_hitbox().await?.get_resolved(context.solution);
-                let content_rect = child_comp.get_hitbox().await?.get_resolved(context.solution);
+            if let Some((content_comp, child_comp)) =
+                find_scroll_content_and_child(root_comp).await?
+            {
+                let viewport_rect = content_comp
+                    .get_hitbox()
+                    .await?
+                    .get_resolved(context.solution);
+                let content_rect = child_comp
+                    .get_hitbox()
+                    .await?
+                    .get_resolved(context.solution);
                 self.viewport = viewport_rect;
                 self.content_size = content_rect.size;
             }

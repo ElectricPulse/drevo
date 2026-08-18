@@ -25,9 +25,8 @@ See the full [Architecture guide](docs/architecture.md) for details on the layou
 
 Currently the performance — mainly visible when scrolling — is inadequate, somewhere around 5 FPS.
 
-The bottleneck it would seem is the layouter, and it truly does add a pretty big delay to a rerender as there is currently no way to decouple or destructure the problem: it always requires a resolve of the entire system. This is unnecessary in things like a button changing color or a button changing size inside a scroll (constraints should take in `State` and only relayout if state changed).
-
-Even so, re-solving the entire system puts the app in the 20–30 FPS range (~40ms solve). The difference in FPS is made up of a very immature render system in reality. It is not parallel and it is slow — mainly because of Parley constructs being recreated on every render.
+The bottleneck at a first glance is obviously the obscene MILP layouter, and it truly does add a pretty big delay to a rerender as there is currently no way to decouple or destructure the MILP problem: it always requires a resolve of the entire system.
+Even so, re-solving the entire system puts the app in the 25-50 FPS range (~20-30ms solve). The difference in FPS is made up of a very immature render system in reality. It is not parallel and it is slow — mainly because of Parley constructs being recreated on every render.
 
 Here is proof:
 

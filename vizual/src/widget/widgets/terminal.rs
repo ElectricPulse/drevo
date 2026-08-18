@@ -236,7 +236,10 @@ impl Terminal {
         let shell = Store::new("/bin/bash".to_string());
         let command = Store::new(String::new());
         let text = Store::new(String::new());
-        let scroll = Scroll::new(Ansi::new(text.clone())).into_shared();
+        let dark_style = crate::theme::dark_theme().specific.paper.block;
+        let mut scroll = Scroll::new(Ansi::new(text.clone()));
+        scroll.style = Some(dark_style);
+        let scroll = scroll.into_shared();
         Self {
             directory,
             shell,
