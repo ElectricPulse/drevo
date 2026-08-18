@@ -10,7 +10,6 @@ which I haven't implemented because they are complex and make the code even less
 ## To-Do list
 - add a global popup - save & exit, exit, cancel that will work for configurator as of now
 - most of the Submit_handlers could be converted into closures
-- add Floem like API - where Children is just a (Anchor, Anchor2) with no .as_any() or vec![] calls
 - think about if scroll couldnt alter hitboxes after layout - to improve performance
 - choose if putting everything in a widget in a store really is the way
 - using parley implement text selection copying cursor &c

@@ -382,6 +382,7 @@ impl App_problem {
         let (found, _) = self
             .find_focus(None, self.root.clone(), skip_count, direction, true, focus)
             .await?;
+        
         Ok(found)
     }
 

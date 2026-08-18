@@ -255,7 +255,6 @@ impl Widget_trait for Settings {
         let icon = Icon::new(Lucide_icon::Settings);
         let mut button = Button::around(icon);
         button.highlighted = focused;
-        button.focusable = true;
 
         let button = Anchor::new(
             button,

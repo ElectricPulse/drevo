@@ -72,7 +72,6 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_container<Choice> {
             true => {
                 let mut button = Button::around(content);
                 button.highlighted = self.selected;
-                button.focusable = true;
                 button.delta = Some(self.button_delta.clone());
                 Box::new(Anchor::left(button))
             }

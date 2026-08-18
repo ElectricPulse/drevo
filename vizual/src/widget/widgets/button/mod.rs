@@ -37,7 +37,6 @@ pub struct Button {
     // so there is no reason for me to implement a Submit_without_payload_handler right now
     click_handler: Option<Box<dyn Submit_handler<bool>>>,
     pub highlighted: bool,
-    pub focusable: bool,
     pub delta: Option<Delta>,
 }
 
@@ -56,7 +55,6 @@ impl Button {
             content: content.as_any(),
             click_handler: Some(Box::new(click_handler)),
             highlighted: false,
-            focusable: false,
             delta: None,
         }
     }
@@ -66,7 +64,6 @@ impl Button {
             content: content.as_any(),
             click_handler: None,
             highlighted: false,
-            focusable: false,
             delta: None,
         }
     }
@@ -87,7 +84,7 @@ impl Widget_trait for Button {
         let style = resolve_block_style(&theme, self.highlighted);
 
         let mut block = Block::new(self.content.clone(), style);
-        block.focusable = self.focusable;
+        block.focusable = true;
         block.delta = self.delta.clone();
 
         Ok(vec![display!(block)])
