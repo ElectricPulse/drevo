@@ -8,8 +8,8 @@ use color_eyre::eyre::{Result, WrapErr, bail};
 use vizual_macros::display;
 
 use super::{
-    block::Block, layout::axis::Axis, linebreak::Linebreak, paragraph::Paragraph,
-    positioning::anchor::Anchor, scroll::Scroll, text::Text,
+    layout::axis::Axis, linebreak::Linebreak, paragraph::Paragraph, positioning::anchor::Anchor,
+    scroll::Scroll, text::Text,
 };
 use crate::{
     component::Children,
@@ -52,9 +52,6 @@ impl Widget_trait for Terminal {
         let shell = Anchor::left(Text::new(format!("Shell: {shell}")));
         let command = Anchor::left(Text::new(command));
 
-        let mut scroll = Block::new(self.scroll.clone(), theme.specific.paper.block);
-        scroll.focusable = true;
-
         let axis = Axis::new(
             Direction::Vertical,
             (
@@ -62,7 +59,7 @@ impl Widget_trait for Terminal {
                 shell,
                 command,
                 Linebreak::new(Direction::Horizontal),
-                scroll,
+                self.scroll.clone(),
             ),
         );
 
@@ -233,7 +230,7 @@ impl Terminal {
         let shell = Store::new("/bin/bash".to_string());
         let command = Store::new(String::new());
         let text = Store::new(String::new());
-        let scroll = Scroll::new(Text::new(text.clone())).into_shared();
+        let scroll = Scroll::new(Text::ansi(text.clone())).into_shared();
         Self {
             directory,
             shell,

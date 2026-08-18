@@ -13,7 +13,10 @@ use crate::{
     state::State,
     widget::{
         Layout_input, Render_input, Widget, Widget_trait,
-        widgets::layout::axis::{Axis, Axis_style},
+        widgets::{
+            block::Block,
+            layout::axis::{Axis, Axis_style},
+        },
     },
 };
 
@@ -135,6 +138,8 @@ impl Widget_trait for Scroll {
     async fn layout(
         &mut self,
         Layout_input {
+            render,
+            theme,
             focus,
             slots,
             ..
@@ -177,7 +182,11 @@ impl Widget_trait for Scroll {
             false => content_column,
         };
 
-        let component = display!(root_widget);
+        let theme = theme.affect(render).await?;
+        let mut block = Block::new(root_widget, theme.specific.paper.block);
+        block.focusable = true;
+
+        let component = display!(block);
         self.root_component = Some(component.clone());
 
         Ok(vec![component])
@@ -245,7 +254,7 @@ impl Widget_trait for Scroll {
     }
 }
 
-async fn find_scroll_content_and_child(
+pub(crate) async fn find_scroll_content_and_child(
     root: &Shared_component,
 ) -> Result<Option<(Shared_component, Shared_component)>> {
     let mut stack = vec![root.clone()];

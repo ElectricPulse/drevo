@@ -137,6 +137,21 @@ impl Text_context {
         size
     }
 
+    pub fn draw_ansi_text(
+        &mut self,
+        scene: &mut Graphics_scene<'_>,
+        content: &str,
+        origin: Point,
+        font_size: f32,
+    ) -> Size {
+        let mut text = Styled_text::ansi(content);
+        text.size = font_size;
+        let layout = self.build_layout(&text);
+        let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
+        scene.paint_layout(&layout, origin, true);
+        size
+    }
+
     pub(crate) fn draw_icon(
         &mut self,
         scene: &mut Graphics_scene<'_>,
@@ -170,6 +185,13 @@ impl Text_context {
                 color: Color::White,
             },
         ));
+        Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
+    }
+
+    pub fn measure_ansi(&mut self, content: &str, font_size: f32) -> Size {
+        let mut text = Styled_text::ansi(content);
+        text.size = font_size;
+        let layout = self.build_layout(&text);
         Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
     }
 

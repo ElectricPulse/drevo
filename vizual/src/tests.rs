@@ -236,15 +236,18 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
     problem
         .layout(render.clone(), theme.clone(), &focus, &mut text_context)
         .await?;
-    let solution = problem.solve(Size::new(100.0, 80.0)).await?;
+    let solution = problem.solve(Size::new(100.0, 100.0)).await?;
     let scroll = problem.root.lock().await?.children[0].clone();
-    let scroll_content = scroll.lock().await?.children[0].clone();
-    let content = scroll_content.lock().await?.children[0].clone();
+    let (scroll_content, content) =
+        widget::widgets::scroll::find_scroll_content_and_child(&scroll)
+            .await?
+            .unwrap();
     let scroll_rect = scroll.get_hitbox().await?.get_resolved(&solution);
+    let scroll_content_rect = scroll_content.get_hitbox().await?.get_resolved(&solution);
     let content_rect = content.get_hitbox().await?.get_resolved(&solution);
 
-    assert_eq!(scroll_rect, Rect::new(0.0, 0.0, 100.0, 80.0));
-    assert_eq!(content_rect.origin, Point::new(0.0, 0.0));
+    assert_eq!(scroll_rect, Rect::new(0.0, 0.0, 100.0, 100.0));
+    assert_eq!(content_rect.origin, scroll_content_rect.origin);
     assert!(content_rect.size.width > 100.0);
 
     let _scene = problem

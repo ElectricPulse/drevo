@@ -1,13 +1,9 @@
-use super::super::{Focus_provider, Layout_input, Render_input, Widget_trait};
+use super::super::{Layout_input, Render_input, Widget_trait};
 use crate::{
     component::Children,
-    component::context::Component_context,
     config::DEFAULT_FONT_SIZE,
-    geometry::{Direction, Rect},
-    graphics::scene::Scene,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::{State, Store},
+    geometry::Direction,
+    state::State,
     style::{Color, Style},
     theme::Theme,
 };
@@ -39,6 +35,7 @@ impl From<Theme> for Text_style {
 pub struct Text {
     content: State<String>,
     pub style: Style<Text_style>,
+    pub ansi: bool,
 }
 
 impl Text {
@@ -46,6 +43,15 @@ impl Text {
         Self {
             content: content.into(),
             style: Style::default(),
+            ansi: false,
+        }
+    }
+
+    pub fn ansi(content: impl Into<State<String>>) -> Self {
+        Self {
+            content: content.into(),
+            style: Style::default(),
+            ansi: true,
         }
     }
 }
@@ -65,7 +71,11 @@ impl Widget_trait for Text {
     ) -> Result<Children> {
         let content = self.content.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
-        let size = text_context.measure(&content, self.style.get(&theme).size);
+        let font_size = self.style.get(&theme).size;
+        let size = match self.ansi {
+            true => text_context.measure_ansi(&content, font_size),
+            false => text_context.measure(&content, font_size),
+        };
         hitbox
             .set_static_dimension(&problem, Direction::Horizontal, size.width)
             .await?;
@@ -89,7 +99,15 @@ impl Widget_trait for Text {
     ) -> Result<()> {
         let content = self.content.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
-        let _ = text_context.draw_text(scene, &content, hitbox.origin, self.style.get(&theme));
+        let style = self.style.get(&theme);
+        match self.ansi {
+            true => {
+                let _ = text_context.draw_ansi_text(scene, &content, hitbox.origin, style.size);
+            }
+            false => {
+                let _ = text_context.draw_text(scene, &content, hitbox.origin, style);
+            }
+        }
         Ok(())
     }
 }
