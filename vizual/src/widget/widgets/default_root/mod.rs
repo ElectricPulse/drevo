@@ -31,7 +31,7 @@ impl Default_root {
     pub fn new(title: impl Into<String>, widget: impl Widget_trait) -> Self {
         Self {
             title: title.into(),
-            widget: Box::new(widget),
+            widget: widget.as_any(),
             theme_choice: Store::new(Theme_choice::System),
         }
     }

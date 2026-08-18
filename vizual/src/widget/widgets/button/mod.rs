@@ -53,7 +53,7 @@ fn resolve_block_style(theme: &Theme, highlighted: bool) -> Block_style {
 impl Button {
     pub fn new(content: impl Widget_trait, click_handler: impl Submit_handler<bool>) -> Self {
         Self {
-            content: Box::new(content),
+            content: content.as_any(),
             click_handler: Some(Box::new(click_handler)),
             highlighted: false,
             focusable: false,
@@ -63,7 +63,7 @@ impl Button {
 
     pub fn around(content: impl Widget_trait) -> Self {
         Self {
-            content: Box::new(content),
+            content: content.as_any(),
             click_handler: None,
             highlighted: false,
             focusable: false,

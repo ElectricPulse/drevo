@@ -20,7 +20,7 @@ pub struct Container {
 impl Container {
     pub fn new(child: impl Widget_trait) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.as_any(),
             fixed_size: None,
         }
     }

@@ -28,7 +28,7 @@ pub struct Title_block {
 impl Title_block {
     pub fn new(child: impl Widget_trait, title: impl Into<String>) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.as_any(),
             title: title.into(),
         }
     }

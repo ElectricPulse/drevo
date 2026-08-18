@@ -28,7 +28,7 @@ pub struct Scroll_content {
 impl Scroll_content {
     pub fn new(child: impl Widget_trait, offset: Point) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.as_any(),
             offset,
         }
     }
@@ -100,7 +100,7 @@ pub struct Scroll {
 impl Scroll {
     pub fn new(child: impl Widget_trait) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.as_any(),
             root_component: None,
             offset: Point::default(),
             content_size: Size::default(),

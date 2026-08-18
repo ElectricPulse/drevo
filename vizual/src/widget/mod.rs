@@ -159,13 +159,6 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
         Box::new(self)
     }
 
-    fn any(self) -> Widget
-    where
-        Self: Sized,
-    {
-        Box::new(self)
-    }
-
     fn into_shared(self) -> Shared_widget<Self>
     where
         Self: Sized,

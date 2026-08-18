@@ -41,7 +41,7 @@ macro_rules! impl_into_widgets_for_tuples {
             impl<$($T: Widget_trait + 'static),+> Into_widgets for ($($T,)+) {
                 fn into_widgets(self) -> Vec<Widget> {
                     let ($($T,)+) = self;
-                    vec![$(Box::new($T)),+]
+                    vec![$($T.as_any()),+]
                 }
             }
         )+

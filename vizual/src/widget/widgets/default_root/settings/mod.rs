@@ -162,7 +162,7 @@ struct Positioned_menu {
 impl Positioned_menu {
     fn new(child: impl Widget_trait, button: Hitbox) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.as_any(),
             button,
         }
     }

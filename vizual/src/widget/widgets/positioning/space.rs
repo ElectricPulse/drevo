@@ -62,7 +62,7 @@ impl Space {
         priority: usize,
     ) -> Self {
         Self {
-            child: Box::new(child),
+            child: child.as_any(),
             spaces: Spaces {
                 left,
                 right,

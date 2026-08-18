@@ -14,7 +14,7 @@ pub struct Root(Widget);
 
 impl Root {
     pub fn new(widget: impl Widget_trait) -> Self {
-        Self(Box::new(widget))
+        Self(widget.as_any())
     }
 }
 
