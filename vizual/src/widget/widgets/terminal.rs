@@ -91,7 +91,8 @@ async fn read(mut output: io::PipeReader, text: Store<String>) -> Result<()> {
         }
 
         if !new_text.is_empty() {
-            text.write().await?.push_str(&new_text);
+            let current = text.read().await?.clone();
+            text.set(format!("{current}{new_text}")).await?;
         }
     }
 
@@ -244,15 +245,9 @@ impl Terminal {
         let cmd_store = self.command.clone();
         if let Ok(runtime) = tokio::runtime::Handle::try_current() {
             drop(runtime.spawn(async move {
-                if let Ok(mut g) = dir_store.write().await {
-                    *g = directory;
-                }
-                if let Ok(mut g) = shell_store.write().await {
-                    *g = shell;
-                }
-                if let Ok(mut g) = cmd_store.write().await {
-                    *g = command;
-                }
+                let _ = dir_store.set(directory).await;
+                let _ = shell_store.set(shell).await;
+                let _ = cmd_store.set(command).await;
             }));
         } else {
             let _ = std::thread::spawn(move || {
@@ -263,15 +258,9 @@ impl Terminal {
                     return;
                 };
                 let _ = runtime.block_on(async move {
-                    if let Ok(mut g) = dir_store.write().await {
-                        *g = directory;
-                    }
-                    if let Ok(mut g) = shell_store.write().await {
-                        *g = shell;
-                    }
-                    if let Ok(mut g) = cmd_store.write().await {
-                        *g = command;
-                    }
+                    let _ = dir_store.set(directory).await;
+                    let _ = shell_store.set(shell).await;
+                    let _ = cmd_store.set(command).await;
                 });
             });
         }

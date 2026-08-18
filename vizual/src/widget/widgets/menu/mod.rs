@@ -22,7 +22,7 @@ use crate::{
     handlers::Retrieve_handler,
     layouter::{hitbox::Hitbox, variable::Variable},
     slot::manager::Slots,
-    state::{State, Store},
+    state::{State, State_trait, Store},
     sync::Thread_safe,
     theme::Theme,
     utils::{get_next_index, get_previous_index},
@@ -42,8 +42,7 @@ dyn_clone::clone_trait_object!(<Choice> Menu_item_trait<Choice> where Choice: Th
 
 pub type Menu_item<Choice> = Box<dyn Menu_item_trait<Choice>>;
 
-#[derive(Clone)]
-struct Menu_item_container<Choice: Thread_safe + Clone> {
+struct Menu_item_container<Choice: Thread_safe> {
     index: usize,
     selected: bool,
     widget: Menu_item<Choice>,
@@ -53,16 +52,30 @@ struct Menu_item_container<Choice: Thread_safe + Clone> {
     item_block: bool,
 }
 
-impl<Choice: Thread_safe + Clone> Menu_item_container<Choice> {
+impl<Choice: Thread_safe> Clone for Menu_item_container<Choice> {
+    fn clone(&self) -> Self {
+        Self {
+            index: self.index,
+            selected: self.selected,
+            widget: self.widget.clone(),
+            selected_store: self.selected_store.clone(),
+            submitted: self.submitted.clone(),
+            button_delta: self.button_delta.clone(),
+            item_block: self.item_block,
+        }
+    }
+}
+
+impl<Choice: Thread_safe> Menu_item_container<Choice> {
     async fn submit(&mut self) -> Result<Vizual_msg> {
-        *self.selected_store.write().await? = self.index;
-        *self.submitted.write().await? = self.widget.on_retrieve().await?;
+        self.selected_store.set(self.index).await?;
+        self.submitted.set(self.widget.on_retrieve().await?).await?;
         Vizual_msg::new(Vizual_command::Layout)
     }
 }
 
 #[async_trait]
-impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_container<Choice> {
+impl<Choice: Thread_safe> Widget_trait for Menu_item_container<Choice> {
     async fn layout(&mut self, Layout_input { slots, .. }: Layout_input<'_>) -> Result<Children> {
         let content = Custom_widget::new(self.widget.clone(), self.selected);
         let widget: Widget = match self.item_block {
@@ -91,20 +104,25 @@ impl<Choice: Thread_safe + Clone> Widget_trait for Menu_item_container<Choice> {
     }
 }
 
-#[derive(Clone)]
 pub struct Menu<Choice: Thread_safe> {
     items: Vec<Menu_item<Choice>>,
-    // Note: For now there is no reordering or filtering of the items, but even if that were needed
-    // a separate list of indices could be created for that. What is important for now and into the future:
-    // there is no need for a menu where you want the items to persist yet change the underlying widget
-    // (i.e. change items at runtime) — in that case an extra wrapper around the items would have to be passed
-    // identifying their ID.
     pub selected: Store<usize>,
-    pub submitted: Store<Choice>,
+    submitted: Store<Choice>,
     pub item_block: bool,
 }
 
-impl<Choice: Thread_safe + Clone> Menu<Choice> {
+impl<Choice: Thread_safe> Clone for Menu<Choice> {
+    fn clone(&self) -> Self {
+        Self {
+            items: self.items.clone(),
+            selected: self.selected.clone(),
+            submitted: self.submitted.clone(),
+            item_block: self.item_block,
+        }
+    }
+}
+
+impl<Choice: Thread_safe> Menu<Choice> {
     pub async fn new(mut items: Vec<Menu_item<Choice>>, default_item: usize) -> Result<Self> {
         let item = items
             .get_mut(default_item)
@@ -125,21 +143,25 @@ impl<Choice: Thread_safe + Clone> Menu<Choice> {
             .get_mut(index)
             .ok_or_else(|| eyre!("Menu item index {index} is out of range"))?;
         let value = item.on_retrieve().await?;
-        *self.selected.write().await? = index;
-        *self.submitted.write().await? = value;
+        self.selected.set(index).await?;
+        self.submitted.set(value).await?;
         Ok(())
     }
-}
 
-#[async_trait]
-impl<Choice: Thread_safe + Clone> Retrieve_handler<Choice> for Menu<Choice> {
-    async fn on_retrieve(&mut self) -> Result<Choice> {
-        Ok(self.submitted.read().await?.clone())
+    pub async fn set_submitted(&mut self, state: impl Into<State<Choice>>) -> Result<()> {
+        self.submitted.set(state).await
     }
 }
 
 #[async_trait]
-impl<Choice: Thread_safe + Clone> Widget_trait for Menu<Choice> {
+impl<Choice: Thread_safe> Retrieve_handler<Choice> for Menu<Choice> {
+    async fn on_retrieve(&mut self) -> Result<State<Choice>> {
+        Ok(self.submitted.clone().into())
+    }
+}
+
+#[async_trait]
+impl<Choice: Thread_safe> Widget_trait for Menu<Choice> {
     async fn layout(
         &mut self,
         Layout_input {

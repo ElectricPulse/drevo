@@ -37,12 +37,12 @@ impl From<Theme> for Text_style {
 
 #[derive(Clone)]
 pub struct Text {
-    content: Box<dyn State<Output = String>>,
+    content: State<String>,
     pub style: Style<Text_style>,
 }
 
 impl Text {
-    pub fn new(content: impl Into<Box<dyn State<Output = String>>>) -> Self {
+    pub fn new(content: impl Into<State<String>>) -> Self {
         Self {
             content: content.into(),
             style: Style::default(),

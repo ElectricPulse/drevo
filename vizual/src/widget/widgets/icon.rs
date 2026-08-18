@@ -19,12 +19,12 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Icon {
-    icon: Box<dyn State<Output = Lucide_icon>>,
+    icon: State<Lucide_icon>,
     pub style: Style<Text_style>,
 }
 
 impl Icon {
-    pub fn new(icon: impl Into<Box<dyn State<Output = Lucide_icon>>>) -> Self {
+    pub fn new(icon: impl Into<State<Lucide_icon>>) -> Self {
         Self {
             icon: icon.into(),
             style: Style::default(),

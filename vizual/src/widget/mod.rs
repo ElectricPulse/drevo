@@ -220,7 +220,7 @@ where
     T: Retrieve_handler<Value> + Thread_safe + ?Sized,
     Value: Thread_safe,
 {
-    async fn on_retrieve(&mut self) -> Result<Value> {
+    async fn on_retrieve(&mut self) -> Result<crate::state::State<Value>> {
         self.lock().await?.on_retrieve().await
     }
 }

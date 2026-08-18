@@ -646,7 +646,7 @@ async fn ui_loop<T: Widget_trait>(
         let mut command = match input {
             Ui_input::System_theme(system) => {
                 let updated = theme.read().await?.set_system(system);
-                *theme.write().await? = updated;
+                theme.set(updated).await?;
                 continue;
             }
             Ui_input::Initialize(maximum_size) => {

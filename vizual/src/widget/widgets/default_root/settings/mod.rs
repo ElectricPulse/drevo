@@ -86,8 +86,8 @@ struct Theme_menu_item {
 
 #[async_trait]
 impl Retrieve_handler<Theme_choice> for Theme_menu_item {
-    async fn on_retrieve(&mut self) -> Result<Theme_choice> {
-        Ok(self.choice)
+    async fn on_retrieve(&mut self) -> Result<State<Theme_choice>> {
+        Ok(self.choice.into())
     }
 }
 
@@ -249,7 +249,7 @@ impl Widget_trait for Settings {
         if !choice.is_selected(&current_theme) {
             let resolved_theme = choice.resolve(&current_theme);
             drop(current_theme);
-            *theme.write().await? = resolved_theme;
+            theme.set(resolved_theme).await?;
         }
 
         let icon = Icon::new(Lucide_icon::Settings);
@@ -282,7 +282,7 @@ impl Widget_trait for Settings {
             .collect::<Vec<_>>();
 
         let mut menu = Menu::new(items, selected_index).await?;
-        menu.submitted = self.choice.clone();
+        menu.set_submitted(self.choice.clone()).await?;
         let menu = Paper::new(menu);
 
         let menu = Positioned_menu::new(menu, button.get_hitbox().await?);
@@ -318,7 +318,7 @@ impl Widget_trait for Settings {
             Key_code::Arrow_up => get_previous_index(Theme_choice::ALL.len(), index),
             _ => get_next_index(Theme_choice::ALL.len(), index),
         };
-        *self.choice.write().await? = Theme_choice::ALL[index];
+        self.choice.set(Theme_choice::ALL[index]).await?;
 
         Vizual_msg::new(Vizual_command::Layout)
     }

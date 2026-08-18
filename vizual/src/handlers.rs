@@ -1,7 +1,11 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-use crate::{Vizual_command, Vizual_msg, sync::Thread_safe};
+use crate::{
+    Vizual_command, Vizual_msg,
+    state::State,
+    sync::Thread_safe,
+};
 
 #[async_trait]
 pub trait Submit_handler<T: Thread_safe + Clone>: Thread_safe + dyn_clone::DynClone {
@@ -76,8 +80,8 @@ impl<T: Thread_safe + Clone> Submit_handler<T> for Command_submit_handler {
 }
 
 #[async_trait]
-pub trait Retrieve_handler<Value>: Thread_safe + dyn_clone::DynClone {
-    async fn on_retrieve(&mut self) -> Result<Value>;
+pub trait Retrieve_handler<Value: Thread_safe>: Thread_safe + dyn_clone::DynClone {
+    async fn on_retrieve(&mut self) -> Result<State<Value>>;
 }
 
-dyn_clone::clone_trait_object!(<Value> Retrieve_handler<Value>);
+dyn_clone::clone_trait_object!(<Value> Retrieve_handler<Value> where Value: Thread_safe);

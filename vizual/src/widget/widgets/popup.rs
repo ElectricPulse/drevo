@@ -19,7 +19,7 @@ use crate::{
     handlers::{Retrieve_handler, Submit_handler},
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::{State, Store},
+    state::{State, State_trait, Store},
     theme::Theme,
     widget::custom_widget::Custom_widget_trait,
 };
@@ -58,8 +58,8 @@ struct Popup_menu_item {
 
 #[async_trait]
 impl Retrieve_handler<Popup_options> for Popup_menu_item {
-    async fn on_retrieve(&mut self) -> Result<Popup_options> {
-        Ok(self.option)
+    async fn on_retrieve(&mut self) -> Result<State<Popup_options>> {
+        Ok(self.option.into())
     }
 }
 
@@ -113,7 +113,8 @@ struct Popup_button_handler {
 #[async_trait]
 impl Submit_handler<bool> for Popup_button_handler {
     async fn on_submit(&mut self, _focused: bool) -> Result<Vizual_msg> {
-        let option = self.menu.on_retrieve().await?;
+        let option_state = self.menu.on_retrieve().await?;
+        let option = *option_state.read().await?;
         self.submit_handler.on_submit(option).await
     }
 }

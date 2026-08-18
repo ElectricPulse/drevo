@@ -76,7 +76,7 @@ impl Tab_bar {
 
     async fn set_page_index(&self, page_index: usize) -> Result<()> {
         if let Some(page) = self.pages.get(page_index) {
-            *self.selected_page.write().await? = page.tab.id;
+            self.selected_page.set(page.tab.id).await?;
         }
         Ok(())
     }

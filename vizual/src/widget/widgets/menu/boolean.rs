@@ -11,7 +11,7 @@ use crate::{
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
     slot::manager::Slots,
-    state::{State, Store},
+    state::{State, State_trait, Store},
     theme::Theme,
     widget::{Layout_input, custom_widget::Custom_widget_trait},
 };
@@ -29,8 +29,8 @@ impl Boolean_menu_item {
 
 #[async_trait]
 impl Retrieve_handler<bool> for Boolean_menu_item {
-    async fn on_retrieve(&mut self) -> Result<bool> {
-        Ok(self.value)
+    async fn on_retrieve(&mut self) -> Result<State<bool>> {
+        Ok(self.value.into())
     }
 }
 

@@ -8,8 +8,8 @@ impl Widget_trait for Ordinary_menu_item {}
 
 #[async_trait]
 impl Retrieve_handler<usize> for Ordinary_menu_item {
-    async fn on_retrieve(&mut self) -> Result<usize> {
-        Ok(self.0)
+    async fn on_retrieve(&mut self) -> Result<State<usize>> {
+        Ok(self.0.into())
     }
 }
 
@@ -24,8 +24,8 @@ fn ordinary_widgets_automatically_satisfy_menu_item_trait() {
 async fn menu_initializes_and_submits() -> Result<()> {
     let first: Menu_item<usize> = Box::new(Ordinary_menu_item(0));
     let second: Menu_item<usize> = Box::new(Ordinary_menu_item(1));
-    let menu = Menu::new(vec![first, second], 0).await?;
-    assert_eq!(*menu.submitted.read().await?, 0);
+    let mut menu = Menu::new(vec![first, second], 0).await?;
+    assert_eq!(*menu.on_retrieve().await?.read().await?, 0);
     Ok(())
 }
 
