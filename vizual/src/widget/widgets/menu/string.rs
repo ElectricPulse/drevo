@@ -41,10 +41,11 @@ impl Custom_widget_trait for String_menu_item {
     ) -> Result<Children> {
         let theme = theme.affect(render).await?;
         let mut text = Text::new(self.value.clone());
-        text.style.set(match selected {
-            true => theme.specific.text.selected_subtitle,
-            false => theme.specific.text.subtitle,
-        });
+        let mut style = theme.specific.text.subtitle;
+        if !selected {
+            style.color = theme.semantic.text.muted;
+        }
+        text.style.set(style);
 
         Ok(vec![display!(text)])
     }

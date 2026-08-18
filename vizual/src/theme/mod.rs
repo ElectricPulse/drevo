@@ -53,7 +53,6 @@ pub struct Text_semantic {
 pub struct Text_styles {
     pub title: Text_style,
     pub subtitle: Text_style,
-    pub selected_subtitle: Text_style,
     pub paragraph: Text_style,
     pub button: Text_style,
 }
@@ -176,10 +175,6 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
             color: semantic.text.muted,
         },
         subtitle: Text_style {
-            size: units.em as f32,
-            color: semantic.text.muted,
-        },
-        selected_subtitle: Text_style {
             size: units.em as f32,
             color: semantic.text.normal,
         },

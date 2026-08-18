@@ -106,11 +106,11 @@ impl Custom_widget_trait for Theme_menu_item {
         let current_theme = theme.affect(render).await?;
         let preview_theme = self.choice.resolve(&current_theme);
         let mut text = Text::new(label(self.choice, current_theme.system()));
-
-        text.style.set(match selected {
-            true => current_theme.specific.text.selected_subtitle,
-            false => current_theme.specific.text.subtitle,
-        });
+        let mut style = current_theme.specific.text.subtitle;
+        if !selected {
+            style.color = current_theme.semantic.text.muted;
+        }
+        text.style.set(style);
 
         let border = preview_theme.specific.paper.block.border;
         let swatch = Block::new(

@@ -107,10 +107,11 @@ impl Widget_trait for Tab_bar {
         for page in self.pages.iter_mut() {
             let active = selected_page == page.tab.id;
             let mut text = Text::new(&page.tab.specification.name);
-            text.style.set(match active {
-                true => theme.specific.text.selected_subtitle,
-                false => theme.specific.text.subtitle,
-            });
+            let mut style = theme.specific.text.subtitle;
+            if !active {
+                style.color = theme.semantic.text.muted;
+            }
+            text.style.set(style);
             let button = page.tab.button(text, self.selected_page.clone());
             let button = Anchor::left(button);
             buttons.push(button.as_any());
