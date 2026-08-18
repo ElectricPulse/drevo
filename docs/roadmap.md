@@ -65,3 +65,4 @@ which I haven't implemented because they are complex and make the code even less
 - for no focus components I don't think they need to have stable known lifetime in between
  layout() calls
 - Distinguish between graphical parent (how to mask/clip, how to resolve render hierarchy and hit-testing) and logical parent (where to forward events and preserve logical widget relationships, e.g. floating menus / portals).
+- add a follow feature to terminal.rs (auto-scroll to bottom as new output arrives)
