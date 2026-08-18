@@ -183,12 +183,12 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
             color: semantic.text.normal,
         },
         paragraph: Text_style {
-            size: units.em as f32 * 0.875,
+            size: units.em as f32 * 0.575,
             color: semantic.text.normal,
         },
     };
     let block = Block_style {
-        padding: units.em * 0.75,
+        padding: units.em * 0.70,
         background: semantic.surface,
         border: Border_style {
             thickness: BORDER_SIZE,
@@ -218,7 +218,7 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
     };
     let root = Paper_style {
         block: Block_style {
-            padding: units.em * 1.2,
+            padding: units.em * 1.0,
             background: semantic.background,
             border: Border_style {
                 thickness: 0.0,
