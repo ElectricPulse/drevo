@@ -71,7 +71,7 @@ use layouter::{Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
 use render_manager::{Render_manager, Render_reciever};
 use slot::Component_slot;
-use state::{State, Store};
+use state::Store;
 use sync::Mutex;
 use theme::{System_theme, Theme};
 use widget::{Shared_widget, Widget_trait, widgets::root::Root};

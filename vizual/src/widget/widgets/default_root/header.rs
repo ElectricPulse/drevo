@@ -13,8 +13,8 @@ use super::{
 };
 use crate::{
     component::Children,
-    state::{State, Store},
-    widget::{Layout_input, Widget, Widget_trait},
+    state::Store,
+    widget::{Layout_input, Widget_trait},
 };
 
 #[derive(Clone)]

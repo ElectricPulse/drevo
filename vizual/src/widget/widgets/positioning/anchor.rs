@@ -3,8 +3,7 @@ use crate::{
     constraint,
     geometry::Direction,
     layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    widget::{Focus_provider, Layout_input, Widget, Widget_trait},
+    widget::{Layout_input, Widget, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::Result;

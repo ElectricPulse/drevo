@@ -3,18 +3,14 @@ use color_eyre::Result;
 use lucide_icons::Icon as Lucide_icon;
 
 use super::{
-    super::{Focus_provider, Layout_input, Render_input, Widget_trait},
+    super::{Layout_input, Render_input, Widget_trait},
     text::Text_style,
 };
 use crate::{
-    component::{Children, context::Component_context},
-    geometry::{Direction, Rect},
-    graphics::scene::Scene,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::{State, Store},
+    component::Children,
+    geometry::Direction,
+    state::State,
     style::Style,
-    theme::Theme,
 };
 
 #[derive(Clone)]

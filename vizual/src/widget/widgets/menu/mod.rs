@@ -7,7 +7,7 @@ use vizual_macros::display;
 
 use super::{
     super::{
-        Focus_provider, Layout_input, Widget, Widget_trait,
+        Layout_input, Widget, Widget_trait,
         custom_widget::{Custom_widget, Custom_widget_trait},
     },
     button::Button,
@@ -16,15 +16,13 @@ use super::{
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    component::{Children, context::Component_context},
+    component::Children,
     event::{Key_code, Key_event, Pointer_event},
     geometry::Direction,
     handlers::Retrieve_handler,
-    layouter::{hitbox::Hitbox, variable::Variable},
-    slot::manager::Slots,
-    state::{State, State_trait, Store},
+    layouter::variable::Variable,
+    state::{State, Store},
     sync::Thread_safe,
-    theme::Theme,
     utils::{get_next_index, get_previous_index},
 };
 

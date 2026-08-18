@@ -1,12 +1,10 @@
 use color_eyre::eyre::Result;
 use vizual_macros::display;
 
-use super::super::{Focus_provider, Layout_input, Widget, Widget_trait};
+use super::super::{Layout_input, Widget, Widget_trait};
 use crate::{
-    component::{Children, context::Component_context},
+    component::Children,
     event::Key_event,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
 };
 
 #[derive(Clone)]

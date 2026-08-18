@@ -3,19 +3,15 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Layout_input, Widget_trait},
+    super::{Layout_input, Widget_trait},
     layout::axis::{Axis, Axis_style},
     paper::Paper,
     positioning::anchor::Anchor,
     text::Text,
 };
 use crate::{
-    component::{Children, context::Component_context},
+    component::Children,
     geometry::Direction,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::{State, Store},
-    theme::Theme,
     widget::Widget,
 };
 

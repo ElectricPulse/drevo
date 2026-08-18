@@ -3,17 +3,15 @@ use color_eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Layout_input, Widget_trait},
+    super::{Layout_input, Widget_trait},
     block::{Block, Block_style},
 };
 use crate::{
     Vizual_msg,
-    component::{Children, context::Component_context},
+    component::Children,
     event::{Key_code, Key_event, Pointer_event},
     handlers::Submit_handler,
-    layouter::{hitbox::Hitbox, objective::Delta},
-    slot::manager::Slots,
-    state::{State, Store},
+    layouter::objective::Delta,
     style::Color,
     theme::Theme,
     widget::Widget,

@@ -2,14 +2,10 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use crate::{
-    component::{Children, context::Component_context},
+    component::Children,
     geometry::Direction,
-    layouter::{
-        constraints::{prohibit_overlap, shrink_wrap},
-        hitbox::Hitbox,
-    },
-    slot::manager::Slots,
-    widget::{Focus_provider, Into_widgets, Layout_input, Widget, Widget_trait},
+    layouter::constraints::{prohibit_overlap, shrink_wrap},
+    widget::{Into_widgets, Layout_input, Widget, Widget_trait},
 };
 
 #[derive(Clone)]

@@ -3,16 +3,13 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{super::Focus_provider, text::Text},
+    super::text::Text,
     Menu, Menu_item,
 };
 use crate::{
-    component::{Children, context::Component_context},
+    component::Children,
     handlers::Retrieve_handler,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::{State, State_trait, Store},
-    theme::Theme,
+    state::State,
     widget::{Layout_input, custom_widget::Custom_widget_trait},
 };
 

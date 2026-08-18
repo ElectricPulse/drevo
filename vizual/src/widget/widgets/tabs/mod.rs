@@ -6,20 +6,16 @@ use uuid::Uuid;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Layout_input, Render_input, Shared_widget, Widget, Widget_trait},
+    super::{Layout_input, Render_input, Shared_widget, Widget, Widget_trait},
     layout::axis::Axis,
     positioning::anchor::Anchor,
     text::Text,
 };
 use crate::{
-    component::{Children, context::Component_context},
+    component::Children,
     event::{Key_code, Key_event},
-    geometry::{Direction, Rect},
-    graphics::scene::Scene,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::{State, Store},
-    theme::Theme,
+    geometry::Direction,
+    state::Store,
 };
 
 use self::tab::{Tab, Tab_specification};

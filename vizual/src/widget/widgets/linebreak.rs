@@ -1,14 +1,9 @@
 use crate::{
-    component::{Children, context::Component_context},
+    component::Children,
     config::BORDER_SIZE,
     constraint,
-    geometry::{Direction, Rect},
-    graphics::scene::Scene,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::{State, Store},
-    theme::Theme,
-    widget::{Focus_provider, Layout_input, Render_input, Widget_trait},
+    geometry::Direction,
+    widget::{Layout_input, Render_input, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;

@@ -2,18 +2,14 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual_macros::display;
 
-use super::super::{Focus_provider, Layout_input, Widget_trait};
+use super::super::{Layout_input, Widget_trait};
 use super::title_block::Title_block;
 use crate::{
     Vizual_command, Vizual_msg,
-    component::{Children, context::Component_context},
+    component::Children,
     event::{Event, Key_code, Key_event},
     handlers::Submit_handler,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::Store,
     style::Color,
-    theme::Theme,
     widget::widgets::{
         block::{Block, Block_style, Border_style},
         text::Text,

@@ -2,12 +2,10 @@ use async_trait::async_trait;
 use color_eyre::Result;
 use vizual_macros::display;
 
-use super::super::{Focus_provider, Layout_input, Widget, Widget_trait};
+use super::super::{Layout_input, Widget, Widget_trait};
 use crate::{
-    component::{Children, context::Component_context},
+    component::Children,
     geometry::{Direction, Size},
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
 };
 
 /// Gives a child an intermediate hitbox with an optional static size.

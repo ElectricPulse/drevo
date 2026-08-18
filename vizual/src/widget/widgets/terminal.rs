@@ -15,10 +15,10 @@ use crate::{
     component::Children,
     config::COMMAND_WAIT_TIMEOUT,
     geometry::Direction,
-    state::{State, Store},
+    state::Store,
     sync::Mutex,
     unicode,
-    widget::{Layout_input, Shared_widget, Widget, Widget_trait},
+    widget::{Layout_input, Shared_widget, Widget_trait},
 };
 
 #[derive(Clone)]

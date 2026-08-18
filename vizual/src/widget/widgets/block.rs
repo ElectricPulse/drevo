@@ -1,16 +1,13 @@
 use super::{
-    super::{Focus_provider, Layout_input, Render_input, Widget_trait},
+    super::{Layout_input, Render_input, Widget_trait},
     positioning::space::Space,
 };
 use crate::{
-    component::{Children, context::Component_context},
+    component::Children,
     geometry::Rect,
     graphics::scene::Scene,
-    layouter::{hitbox::Hitbox, objective::Delta},
-    slot::manager::Slots,
-    state::Store,
+    layouter::objective::Delta,
     style::Color,
-    theme::Theme,
     widget::Widget,
 };
 use async_trait::async_trait;

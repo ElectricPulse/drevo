@@ -3,16 +3,10 @@ use std::ops::DerefMut;
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, eyre};
 
-use super::{Focus_provider, Widget_trait};
+use super::Widget_trait;
 use crate::{
-    Render,
-    component::{Children, Shared_component, context::Component_context},
-    graphics::text::Text_context,
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::Store,
+    component::Children,
     sync::Thread_safe,
-    theme::Theme,
 };
 
 // TODO: Merge Custom_widget_trait into Widget_trait once payload-based layout is supported there.

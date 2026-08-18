@@ -7,8 +7,7 @@ use crate::{
     constraint,
     geometry::Direction,
     layouter::{hitbox::Hitbox, objective::Objective},
-    slot::manager::Slots,
-    widget::{Focus_provider, Layout_input, Widget, Widget_trait},
+    widget::{Layout_input, Widget, Widget_trait},
 };
 
 #[derive(Clone)]

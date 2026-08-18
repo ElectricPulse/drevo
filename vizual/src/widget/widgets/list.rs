@@ -2,14 +2,12 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use super::{
-    super::{Focus_provider, Render_input, Widget_trait},
+    super::{Render_input, Widget_trait},
     text::Text_style,
 };
 use crate::{
     event::{Key_code, Key_event},
-    geometry::{Point, Rect},
-    graphics::scene::Scene,
-    layouter::hitbox::Hitbox,
+    geometry::Point,
     utils::{bind_index, get_next_index, get_previous_index},
 };
 

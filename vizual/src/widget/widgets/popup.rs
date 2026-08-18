@@ -3,7 +3,7 @@ use color_eyre::eyre::Result;
 use vizual_macros::display;
 
 use super::{
-    super::{Focus_provider, Layout_input, Widget_trait},
+    super::{Layout_input, Widget_trait},
     button::Button,
     layout::axis::Axis,
     menu::{Menu, Menu_item},
@@ -13,14 +13,11 @@ use super::{
 };
 use crate::{
     Vizual_command, Vizual_msg,
-    component::{Children, context::Component_context},
+    component::Children,
     event::{Event, Key_event, Pointer_event},
     geometry::Direction,
     handlers::{Retrieve_handler, Submit_handler},
-    layouter::hitbox::Hitbox,
-    slot::manager::Slots,
-    state::{State, State_trait, Store},
-    theme::Theme,
+    state::State,
     widget::custom_widget::Custom_widget_trait,
 };
 

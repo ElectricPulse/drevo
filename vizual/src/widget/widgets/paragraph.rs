@@ -1,11 +1,10 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-use super::super::{Focus_provider, Layout_input, Render_input, Widget_trait};
+use super::super::{Layout_input, Render_input, Widget_trait};
 use crate::{
-    geometry::{Direction, Rect, Size},
-    graphics::{scene::Scene, text::Styled_text},
-    layouter::hitbox::Hitbox,
+    geometry::{Direction, Size},
+    graphics::text::Styled_text,
     widget::widgets::text::Text_style,
 };
 

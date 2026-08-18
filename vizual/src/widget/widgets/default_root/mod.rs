@@ -9,7 +9,7 @@ use super::{layout::axis::Axis, paper::Paper};
 use crate::{
     component::Children,
     geometry::Direction,
-    state::{State, Store},
+    state::Store,
     widget::{Layout_input, Widget, Widget_trait},
 };
 

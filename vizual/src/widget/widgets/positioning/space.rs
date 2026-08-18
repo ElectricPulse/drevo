@@ -4,11 +4,9 @@ use crate::{
     geometry::Direction,
     layouter::{
         expression::Expression,
-        hitbox::Hitbox,
         objective::Delta,
     },
-    slot::manager::Slots,
-    widget::{Focus_provider, Layout_input, Widget, Widget_trait},
+    widget::{Layout_input, Widget, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, ensure};
