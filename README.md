@@ -13,7 +13,19 @@ This avoids the sometimes insanely verbose and repetitive ELM architecture of a 
 - Structural navigation via ```Tab``` and ```Shift + Tab``` for accessibility
 
 ## Architecture
-- To get clicked, a component has to be able to get focused for now.
+
+### Granular State Management
+- **Targeted Reactivity**: State is managed through `Store<T>` and `State<T>`. Instead of monolithic ELM-style message loops or top-down virtual DOM diffs, components subscribe directly to the specific stores they read via `store.affect(render).await`.
+- **Deduplicated Updates**: When a store value is modified via `write().await`, only the registered components subscribing to that state are scheduled for re-layout and re-render through the `Render_manager`.
+
+### MILP Constraint Layouter
+- **Multi-Objective Constraint Solving**: Layout geometry is solved using Mixed-Integer Linear Programming (MILP) with lexicographical priority levels, inspired by Cassowary and iOS Auto Layout.
+- **Declarative Composition**: Widgets declare layout relationships (Hitbox dimensions, Axis alignments, Grids, Anchors, and Spacing) as mathematical constraints rather than hardcoded pixel calculations.
+- **Content-Driven Resolution**: Higher-priority constraints define strict structural requirements, while lower-priority objectives handle flexible spacing and content wrapping (e.g. paragraphs deriving wrapped height from resolved width).
+
+### Component Model & Event Routing
+- **Tuple-Driven Composition**: Multi-child containers like `Axis` and `Grid` accept heterogeneous tuples of widgets directly (e.g. `(Anchor::left(title), body)`) via the `Into_widgets` trait.
+- **Focus-Driven Interaction**: Pointer clicks and keyboard events are routed hierarchically through active focus chains (to get clicked, a component has to be able to get focused for now).
 
 ## Demo
 ![demo](assets/demo.gif)
