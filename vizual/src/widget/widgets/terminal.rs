@@ -248,6 +248,7 @@ impl Terminal {
     pub fn new() -> Self {
         let directory = Store::new(
             std::env::current_dir()
+                .map(|path| std::fs::canonicalize(&path).unwrap_or(path))
                 .map(|path| path.display().to_string())
                 .unwrap_or_default(),
         );
@@ -299,6 +300,7 @@ impl Terminal {
         #[cfg(unix)]
         {
             let current_dir = std::env::current_dir()
+                .map(|path| std::fs::canonicalize(&path).unwrap_or(path))
                 .map(|path| path.display().to_string())
                 .unwrap_or_default();
             self.update_info(current_dir, "/bin/bash".to_string(), command.clone());
@@ -319,9 +321,11 @@ impl Terminal {
         let command = args.into();
         #[cfg(unix)]
         {
-            let dir_str = working_dir.as_ref().display().to_string();
+            let canonical_dir = std::fs::canonicalize(working_dir.as_ref())
+                .unwrap_or_else(|_| working_dir.as_ref().to_path_buf());
+            let dir_str = canonical_dir.display().to_string();
             self.update_info(dir_str, "/bin/bash".to_string(), command.clone());
-            run_command(get_command(&command, Some(working_dir)), self.text.clone())
+            run_command(get_command(&command, Some(&canonical_dir)), self.text.clone())
         }
         #[cfg(not(unix))]
         {
