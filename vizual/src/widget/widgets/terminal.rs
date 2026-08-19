@@ -8,8 +8,8 @@ use color_eyre::eyre::{Result, WrapErr, bail};
 use vizual_macros::display;
 
 use super::{
-    ansi::Ansi, layout::axis::Axis, linebreak::Linebreak, positioning::anchor::Anchor,
-    scroll::Scroll, text::Text,
+    ansi::Ansi, layout::axis::Axis, linebreak::Linebreak, paragraph::Paragraph,
+    positioning::anchor::Anchor, scroll::Scroll,
 };
 use crate::{
     component::Children,
@@ -46,11 +46,29 @@ impl Widget_trait for Terminal {
         let shell = self.shell.affect(render.clone()).await?.clone();
         let command = self.command.affect(render.clone()).await?.clone();
 
-        let mut directory_text = Text::new(format!("Directory: {directory}"));
-        directory_text.style.set(theme.specific.text.paragraph);
-        let directory = Anchor::left(directory_text);
-        let shell = Anchor::left(Text::new(format!("Shell: {shell}")));
-        let command = Anchor::left(Text::new(command));
+        let paragraph_width = theme.units.em * 10.0;
+
+        let mut directory_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
+        directory_paragraph.set_styled_content(
+            format!("Directory: {directory}"),
+            theme.specific.text.paragraph,
+        );
+
+        let mut shell_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
+        shell_paragraph.set_styled_content(
+            format!("Shell: {shell}"),
+            theme.specific.text.paragraph,
+        );
+
+        let mut command_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
+        command_paragraph.set_styled_content(
+            command,
+            theme.specific.text.paragraph,
+        );
+
+        let directory = Anchor::left(directory_paragraph);
+        let shell = Anchor::left(shell_paragraph);
+        let command = Anchor::left(command_paragraph);
 
         let axis = Axis::new(
             Direction::Vertical,
