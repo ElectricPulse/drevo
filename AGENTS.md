@@ -10,3 +10,25 @@
 - Calling layout of a widget manually is prohibited inside another widget as that will fail to create a child with its own events.
 - put tests in a separate tests.rs (where they must be in a directory named by the former `<file>.rs` ie. `<file>/tests.rs` where `<file>.rs` gets put in `<file>/mod.rs`)
 - proactively fix typos in code, comments, and documentation
+
+# Documentation
+
+Write documentation for developers who want to use or understand the code, not as marketing material.
+
+Prefer plain, concrete language. Describe what something does before explaining why the architecture is interesting.
+
+Keep paragraphs short. Remove sentences that do not add information.
+
+Prefer:
+
+Store<T> tracks which widgets read a value. When the value changes, those widgets are scheduled for another pass.
+
+over:
+
+Vizual provides fine-grained reactive state management through a sophisticated automatic dependency tracking system.
+
+Do not add adjectives such as "powerful", "flexible", "robust", "elegant", "seamless", "advanced", or "sophisticated" unless they communicate a specific technical fact.
+
+Do not invent names for concepts merely to make the documentation sound more formal. Use the terminology that exists in the code.
+
+Avoid headings for every minor idea. A short paragraph is often better than a hierarchy of headings and bullet points.

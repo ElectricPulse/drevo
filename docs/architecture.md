@@ -1,53 +1,42 @@
-# Vizual Architecture
+# Architecture
 
-Vizual is a component-based Rust UI framework built around fine-grained reactive state management, an asynchronous component lifecycle, and a constraint-based Mixed-Integer Linear Programming (MILP) layout solver.
+Vizual is a component-based UI framework with state tracking, an asynchronous widget lifecycle, and a constraint layouter.
 
----
+## State tracking
 
-## 1. Granular State Management
+`Store<T>` tracks which widgets read a value. When a widget reads a store during `layout` or `render` via `store.affect(render).await`, the framework records a dependency between that widget and the store. When the store value changes, the render manager schedules another layout and render pass for those widgets.
 
-Rather than adopting a global Elm-style reducer loop or diffing a virtual DOM across the entire application tree, Vizual uses fine-grained, localized reactivity powered by `Store<T>` and `State<T>`.
+Mutations within a frame are deduplicated into a single pass.
 
-- **Automatic Per-Component Subscriptions**: When a component reads state during layout or render passes via `store.affect(render).await`, the framework records a direct dependency between that specific component's slot and the store.
-- **Targeted Re-renders**: When a store is mutated with `store.write().await?`, `Render_manager` schedules layout and render passes *only* for components that explicitly subscribed to that piece of state.
-- **Deduplication**: Multiple state mutations within a frame are coalesced into a single, deduplicated pass.
+## Layouter
 
----
+The layouter represents geometry as linear equations and inequalities over edge variables (`start`, `end`, `origin`, `size`).
 
-## 2. MILP Constraint Layouter
+Constraints are solved using HiGHS with lexicographical priorities:
+- Priority 0 handles hard requirements, such as parent boundary containment and minimum sizes.
+- Priorities 1 and 2 resolve dynamic spacing, alignments, and maximize/minimize objectives.
 
-Vizual formulates UI layout as a mathematical optimization problem solved using Mixed-Integer Linear Programming (MILP) with lexicographical multi-objective priorities, inspired by Cassowary and iOS Auto Layout.
+Paragraph widgets use the solver's width to measure and wrap text height during layout.
 
-- **Mathematical Geometric Constraints**: Widgets express relationships (hitbox bounds, axis flows, grid alignments, anchors, and padding) as linear equations and inequalities over edge variables (`start`, `end`, `origin`, `size`).
-- **Lexicographical Priorities**: Constraints are solved hierarchically. Hard layout requirements (parent boundary containment, minimal element sizes) take highest priority, while soft objectives (dynamic spacing, stretch factors) resolve remaining degrees of freedom lexicographically without conflict.
-- **Content-Driven Dynamic Resolution**: Solves complex layout feedback loops naturally—such as text paragraphs measuring and wrapping height based on dynamically solved available width constraints.
+## Widgets and composition
 
----
+Widgets implement `Widget_trait` with asynchronous `layout` and `render` methods.
 
-## 3. Component Model & Tuple Composition
+Multi-child layout containers (`Axis`, `Grid`) accept tuples of different widget types through `Into_widgets` or dynamic `Vec<Widget>` collections.
 
-- **Heterogeneous Tuple Layout**: Multi-child layout containers (`Axis`, `Grid`) accept tuples of arbitrary concrete widget types directly (e.g. `Axis::new(Direction::Vertical, (header, body, footer))`) via the `Into_widgets` trait, avoiding manual `Box::new` calls or homogeneous `Vec` boilerplate.
-- **Dynamic Collections**: When child elements are dynamic at runtime (such as iterating over variable-length lists in menus or logs), containers also accept `Vec<Widget>`.
-- **Async Component Lifecycle**: Components implement `Widget_trait` with asynchronous `layout` and `render` methods, allowing widgets to fetch or coordinate async resources during layout resolution.
+## Focus and events
 
----
+Keyboard navigation (`Tab`, `Shift + Tab`, arrow keys) traverses the component tree.
 
-## 4. Event Routing & Focus System
+Pointer events follow the focus and hitbox hierarchy. A widget must be interactive (`focus.set_interactive(true)` or a focusable container) to receive pointer clicks.
 
-- **Focus Tree Hierarchy**: Keyboard navigation (`Tab`, `Shift + Tab`, arrow keys) traverses the active component hierarchy.
-- **Click & Interaction Requirement**: To receive click and pointer events, a component must currently be able to participate in focus (`focus.set_interactive(true)` or focusable blocks). Pointer interactions route directly through the resolved focus and hitbox tree.
+## Performance
 
----
+Current scrolling performance is around 5 FPS.
 
-## 5. Performance
+The layouter solves the full constraint system on layout updates. In addition, text rendering currently recreates Parley structures on each render pass.
 
-Currently the performance — mainly visible when scrolling — is inadequate, somewhere around 5 FPS.
-
-The bottleneck it would seem is the layouter, and it truly does add a pretty big delay to a rerender as there is currently no way to decouple or destructure the problem: it always requires a resolve of the entire system. This is unnecessary in things like a button changing color or a button changing size inside a scroll (constraints should take in `State` and only relayout if state changed).
-
-Even so, re-solving the entire system puts the app in the 20–30 FPS range (~40ms solve). The difference in FPS is made up of a very immature render system in reality. It is not parallel and it is slow — mainly because of Parley constructs being recreated on every render.
-
-Here is proof:
+Example timing from a layout and render pass:
 
 ```text
 app problem layout took 79.471867ms

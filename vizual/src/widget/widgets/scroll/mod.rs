@@ -98,6 +98,7 @@ pub struct Scroll {
     content_size: Size,
     viewport: Rect,
     pub style: Option<Block_style>,
+    pub block: bool,
 }
 
 impl Scroll {
@@ -109,6 +110,7 @@ impl Scroll {
             content_size: Size::default(),
             viewport: Rect::default(),
             style: None,
+            block: true,
         }
     }
 
@@ -185,12 +187,19 @@ impl Widget_trait for Scroll {
             false => content_column,
         };
 
-        let theme = theme.affect(render).await?;
-        let block_style = self.style.unwrap_or(theme.specific.paper.block);
-        let mut block = Block::new(root_widget, block_style);
-        block.focusable = true;
+        let component = match self.block {
+            true => {
+                let theme = theme.affect(render).await?;
+                let block_style = self.style.unwrap_or(theme.specific.paper.block);
+                let mut block = Block::new(root_widget, block_style);
+                block.focusable = true;
+                display!(block)
+            }
+            false => {
+                display!(root_widget)
+            }
+        };
 
-        let component = display!(block);
         self.root_component = Some(component.clone());
 
         Ok(vec![component])

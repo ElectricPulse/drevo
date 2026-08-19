@@ -2,33 +2,30 @@
 
 # Vizual
 
-Vizual (ˈvizuaːl) is a component-based Rust UI framework with built-in state management and MILP layouter
+Vizual is a component-based Rust UI framework with state tracking and a MILP constraint layouter.
 
 ## Features
-- A robust modular component system with prebuilts for alignment, vertical/horizontal layout and grid.
-This avoids the ad-hoc method for every alignment, layout written specifically for each component
-- State system heavily inspired by [React](https://react.dev/)
-This avoids the sometimes insanely verbose and repetitive ELM architecture of a message for everything
-- MILP powered layouting system inspired by [iOS Auto Layout](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/AutolayoutPG/index.html) which is built on [Cassowary](https://constraints.cs.washington.edu/solvers/cassowary-tochi.pdf)
-- Structural navigation via ```Tab``` and ```Shift + Tab``` for accessibility
+- Layout containers for alignment, linear axes, and grids.
+- State tracking via `Store<T>` and `State<T>`.
+- Constraint-based layout using a Mixed-Integer Linear Programming (MILP) solver.
+- Keyboard navigation via `Tab` and `Shift + Tab`.
 
-## [Architecture](docs/architecture.md)
+## Architecture
 
-See the full [Architecture guide](docs/architecture.md) for details on the layouter, granular state management, and component model.
+See [docs/architecture.md](docs/architecture.md) for details.
 
-- **Granular State Management**: Localized, fine-grained reactivity via `Store<T>` and `State<T>`. Components subscribe directly through `store.affect(render).await`, ensuring that state mutations only re-layout and re-render affected subtrees.
-- **MILP Constraint Layouter**: Multi-objective layout optimization powered by Mixed-Integer Linear Programming (MILP) with lexicographical priority levels, inspired by Cassowary and iOS Auto Layout.
-- **Heterogeneous Tuple Layout**: Multi-child layout containers (`Axis`, `Grid`) accept tuples of arbitrary concrete widget types directly via `Into_widgets`.
-- **Event Routing & Focus**: Pointer clicks and keyboard events are routed hierarchically through active focus chains (to get clicked, a component has to be able to get focused for now).
+- **State tracking**: `Store<T>` tracks which widgets read a value. When the value changes, those widgets are scheduled for another layout and render pass.
+- **MILP layouter**: Layout rules are expressed as linear constraints and solved with lexicographical priorities.
+- **Tuple layout**: Multi-child containers like `Axis` and `Grid` accept tuples of different widget types through `Into_widgets`.
+- **Event routing and focus**: Keyboard and click events route through the focus hierarchy. A widget must be interactive to receive clicks.
 
 ## Performance
 
-Currently the performance — mainly visible when scrolling — is inadequate, somewhere around 5 FPS.
+Current performance during scrolling is around 5 FPS.
 
-The bottleneck at a first glance is obviously the obscene MILP layouter, and it truly does add a pretty big delay to a rerender as there is currently no way to decouple or destructure the MILP problem: it always requires a resolve of the entire system.
-Even so, re-solving the entire system puts the app in the 25-50 FPS range (~20-30ms solve). The difference in FPS is made up of a very immature render system in reality. It is not parallel and it is slow — mainly because of Parley constructs being recreated on every render.
+The layout solver solves the full constraint system on each change. In addition, text rendering currently recreates Parley structures on each render pass.
 
-Here is proof:
+Example timing from a layout and render pass:
 
 ```text
 app problem layout took 79.471867ms
