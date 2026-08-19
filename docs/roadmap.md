@@ -69,3 +69,4 @@ which I haven't implemented because they are complex and make the code even less
  layout() calls
 - Distinguish between graphical parent (how to mask/clip, how to resolve render hierarchy and hit-testing) and logical parent (where to forward events and preserve logical widget relationships, e.g. floating menus / portals).
 - add a follow feature to terminal.rs (auto-scroll to bottom as new output arrives)
+- fix the problem where stderr gets appended to terminal like 3 times
