@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use color_eyre::Result;
 use lucide_icons::Icon as Lucide_icon;
+use parley::Layout;
 
 use super::{
     super::{Layout_input, Render_input, Widget_trait},
@@ -8,7 +9,8 @@ use super::{
 };
 use crate::{
     component::Children,
-    geometry::Direction,
+    geometry::{Direction, Point, Size},
+    graphics::text::{Styled_text, Text_brush, icon_ink_bounds},
     state::State,
     style::Style,
 };
@@ -17,6 +19,7 @@ use crate::{
 pub struct Icon {
     icon: State<Lucide_icon>,
     pub style: Style<Text_style>,
+    cached_layout: Option<(Point, Layout<Text_brush>)>,
 }
 
 impl Icon {
@@ -24,6 +27,7 @@ impl Icon {
         Self {
             icon: icon.into(),
             style: Style::default(),
+            cached_layout: None,
         }
     }
 }
@@ -43,7 +47,18 @@ impl Widget_trait for Icon {
     ) -> Result<Children> {
         let icon = *self.icon.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
-        let size = text_context.measure_icon(icon, self.style.get(&theme).size);
+        let style = self.style.get(&theme);
+        let layout = text_context.build_layout(&Styled_text::icon(icon, style));
+        let bounds = icon_ink_bounds(&layout, icon, style.size);
+        let size = bounds.map_or_else(
+            || Size::new(f64::from(layout.full_width()), f64::from(layout.height())),
+            |bounds| Size::new(bounds.width(), bounds.height()),
+        );
+        let offset = bounds.map_or(Point::default(), |bounds| {
+            Point::new(-bounds.x0, -bounds.y0)
+        });
+        self.cached_layout = Some((offset, layout));
+
         hitbox
             .set_static_dimension(&problem, Direction::Horizontal, size.width)
             .await?;
@@ -65,9 +80,14 @@ impl Widget_trait for Icon {
             ..
         }: Render_input<'_, '_>,
     ) -> Result<()> {
-        let icon = *self.icon.affect(render.clone()).await?;
-        let theme = theme.affect(render).await?;
-        let _ = text_context.draw_icon(scene, icon, hitbox.origin, self.style.get(&theme));
+        if let Some((offset, layout)) = &self.cached_layout {
+            let origin = Point::new(hitbox.origin.x + offset.x, hitbox.origin.y + offset.y);
+            scene.paint_layout(layout, origin, false);
+        } else {
+            let icon = *self.icon.affect(render.clone()).await?;
+            let theme = theme.affect(render).await?;
+            let _ = text_context.draw_icon(scene, icon, hitbox.origin, self.style.get(&theme));
+        }
         Ok(())
     }
 }

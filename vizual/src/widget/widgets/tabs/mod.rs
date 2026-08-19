@@ -16,6 +16,7 @@ use crate::{
     event::{Key_code, Key_event},
     geometry::Direction,
     state::Store,
+    widget::widgets::positioning::anchor::{Anchor_position, Anchors},
 };
 
 use self::tab::{Tab, Tab_specification};
@@ -113,11 +114,17 @@ impl Widget_trait for Tab_bar {
             }
             text.style.set(style);
             let button = page.tab.button(text, self.selected_page.clone());
-            let button = Anchor::left(button);
+            let button = Anchor::new(
+                button,
+                Anchors {
+                    vertical: Some(Anchor_position::Middle),
+                    horizontal: None,
+                },
+            );
             buttons.push(button.as_any());
         }
 
-        let axis = Axis::new(Direction::Horizontal, buttons);
+        let axis = Anchor::left(Axis::new(Direction::Horizontal, buttons));
         Ok(vec![display!(axis)])
     }
 
@@ -148,10 +155,7 @@ impl Widget_trait for Tab_bar {
         crate::Vizual_msg::none()
     }
 
-    async fn render(
-        &mut self,
-        Render_input { focus, .. }: Render_input<'_, '_>,
-    ) -> Result<()> {
+    async fn render(&mut self, Render_input { focus, .. }: Render_input<'_, '_>) -> Result<()> {
         focus.set_interactive(true);
         Ok(())
     }
@@ -159,10 +163,7 @@ impl Widget_trait for Tab_bar {
 
 #[async_trait]
 impl Widget_trait for Tabs {
-    async fn layout(
-        &mut self,
-        Layout_input { slots, .. }: Layout_input<'_>,
-    ) -> Result<Children> {
+    async fn layout(&mut self, Layout_input { slots, .. }: Layout_input<'_>) -> Result<Children> {
         let selected = self.header.lock().await?.get_selected().await?;
         let axis = match selected {
             Some(widget) => Axis::new(Direction::Vertical, (self.header.clone(), widget)),

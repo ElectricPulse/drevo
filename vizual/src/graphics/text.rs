@@ -244,7 +244,7 @@ pub(crate) fn icon_ink_bounds(
 #[derive(Clone)]
 pub(crate) struct Styled_text {
     pub content: String,
-    size: f32,
+    pub(crate) size: f32,
     font: Text_font,
     spans: Vec<Styled_span>,
 }

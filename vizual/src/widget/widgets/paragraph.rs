@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use parley::Layout;
 
 use super::super::{Layout_input, Render_input, Widget_trait};
 use crate::{
     geometry::{Direction, Size},
-    graphics::text::Styled_text,
+    graphics::text::{Styled_text, Text_brush},
     widget::widgets::text::Text_style,
 };
 
@@ -14,6 +15,7 @@ pub struct Paragraph {
     content: Styled_text,
     static_direction: Direction,
     static_size: f64,
+    cached_layout: Option<Layout<Text_brush>>,
 }
 
 impl Paragraph {
@@ -25,11 +27,13 @@ impl Paragraph {
             content: Styled_text::styled("", Text_style::default()),
             static_direction: direction,
             static_size: size,
+            cached_layout: None,
         }
     }
 
     pub fn set_styled_content(&mut self, content: impl Into<String>, style: Text_style) {
         self.content = Styled_text::styled(content, style);
+        self.cached_layout = None;
     }
 
     fn width_for_height(&self, text_context: &mut crate::graphics::text::Text_context) -> f64 {
@@ -61,14 +65,20 @@ impl Paragraph {
         maximum.max(f64::from(layout.full_width()))
     }
 
-    fn size(&self, text_context: &mut crate::graphics::text::Text_context) -> Size {
+    fn compute_layout(&self, text_context: &mut crate::graphics::text::Text_context) -> (Size, Layout<Text_brush>) {
         match self.static_direction {
             Direction::Horizontal => {
                 let layout =
                     text_context.build_wrapped_layout(&self.content, self.static_size as f32);
-                Size::new(self.static_size, f64::from(layout.height()))
+                let size = Size::new(self.static_size, f64::from(layout.height()));
+                (size, layout)
             }
-            Direction::Vertical => Size::new(self.width_for_height(text_context), self.static_size),
+            Direction::Vertical => {
+                let width = self.width_for_height(text_context);
+                let layout = text_context.build_wrapped_layout(&self.content, width as f32);
+                let size = Size::new(width, self.static_size);
+                (size, layout)
+            }
         }
     }
 }
@@ -84,7 +94,9 @@ impl Widget_trait for Paragraph {
             ..
         }: Layout_input<'_>,
     ) -> Result<crate::component::Children> {
-        let size = self.size(text_context);
+        let (size, layout) = self.compute_layout(text_context);
+        self.cached_layout = Some(layout);
+
         for (direction, size) in [
             (Direction::Horizontal, size.width),
             (Direction::Vertical, size.height),
@@ -107,8 +119,12 @@ impl Widget_trait for Paragraph {
         }: Render_input<'_, '_>,
     ) -> Result<()> {
         if hitbox.size.width > 0.0 && hitbox.size.height > 0.0 {
-            let layout = text_context.build_wrapped_layout(&self.content, hitbox.size.width as f32);
-            scene.paint_layout_clipped(&layout, hitbox.origin, hitbox, true);
+            if let Some(layout) = &self.cached_layout {
+                scene.paint_layout_clipped(layout, hitbox.origin, hitbox, true);
+            } else {
+                let layout = text_context.build_wrapped_layout(&self.content, hitbox.size.width as f32);
+                scene.paint_layout_clipped(&layout, hitbox.origin, hitbox, true);
+            }
         }
 
         Ok(())
