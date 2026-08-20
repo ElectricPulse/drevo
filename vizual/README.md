@@ -70,8 +70,6 @@ runtime remains active for asynchronous widget and background work.
 
 ## [Documentation](docs/index.md)
 
-## [Comparison with Iced](docs/comparison.md)
-
 ## Pre-release notes
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
