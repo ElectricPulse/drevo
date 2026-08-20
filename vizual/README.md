@@ -19,23 +19,6 @@ See [docs/architecture.md](docs/architecture.md) for details.
 - **Tuple layout**: Multi-child containers like `Axis` and `Grid` accept tuples of different widget types through `Into_widgets`.
 - **Event routing and focus**: Keyboard and click events route through the focus hierarchy. A widget must be interactive to receive clicks.
 
-## Performance
-
-Current performance during scrolling is around 5 FPS.
-
-The layout solver solves the full constraint system on each change. In addition, text rendering currently recreates Parley structures on each render pass.
-
-Example timing from a layout and render pass:
-
-```text
-app problem layout took 79.471867ms
-17:52:25 [INFO]   lexicographic model: 7805 variables, 3593 constraints, 3 priorities
-17:52:25 [INFO]     lexicographic model recreation took 6.354568ms
-17:52:25 [INFO]   lexicographic solve took 24.950131ms
-17:52:25 [INFO] layout full solve took 40.687032ms
-17:52:25 [INFO] app problem render took 45.587774ms
-```
-
 ## Demo
 ![demo](assets/demo.gif)
 
