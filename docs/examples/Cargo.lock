@@ -2970,7 +2970,6 @@ dependencies = [
  "tokio",
  "uniqify",
  "vizual",
- "vizual-macros",
 ]
 
 [[package]]

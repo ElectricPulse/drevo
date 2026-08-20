@@ -75,7 +75,6 @@ color-eyre = "0.6"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 uniqify = "0.1"
 vizual = { git = "https://github.com/ElectricPulse/vizual" }
-vizual-macros = { git = "https://github.com/ElectricPulse/vizual" }
 ```
 
 Then use this `src/main.rs`:
@@ -100,7 +99,7 @@ use vizual::{
         },
     },
 };
-use vizual_macros::display;
+use vizual::macros::display;
 
 struct Hello;
 

@@ -12,4 +12,3 @@ color-eyre = "0.6"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 uniqify = "0.1.0"
 vizual = { path = "../../vizual" }
-vizual-macros = { path = "../../vizual-macros" }

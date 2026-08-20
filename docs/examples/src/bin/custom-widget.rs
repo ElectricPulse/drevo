@@ -7,7 +7,7 @@ use vizual::{
     render_manager::Render_manager,
     widget::{Layout_input, Widget_trait, widgets::text::Text},
 };
-use vizual_macros::display;
+use vizual::macros::display;
 
 #[derive(Clone)]
 struct Counter {
