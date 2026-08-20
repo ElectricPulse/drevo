@@ -1,48 +1,21 @@
-# Architecture
+# Widget
 
-Vizual is a component-based UI framework with state tracking, an asynchronous widget lifecycle, and a constraint layouter.
+Each widget has it's own hitbox which by default is shared with the parent.
+The method `hitbox.variable.make_independent()` unlinks that variable from the parent.
+This is all made so that elements by default are the exact same width/height as their parents.
+It prevents the CSS hell of putting `width: 100%, height: 100%` on every container.
+Either the widget is the same size as the container or you explicitly position it with an Anchor/Alignment component, most likely `Anchor::top_left(widget)`.
 
-## State tracking
+As for the widget trait. It has two methods one that gets run on state/content change inside the widget called layout() -> Children. This is where you define the constraints of your own hitbox and choose what other widgets you want to render by returning them encased in a display!() macro.
 
-`Store<T>` tracks which widgets read a value. When a widget reads a store during `layout` or `render` via `store.affect(render).await`, the framework records a dependency between that widget and the store. When the store value changes, the render manager schedules another layout and render pass for those widgets.
+# Component
+The primary function that converts a widget into a component is display!(). Underneath what it does is assign a compile time generated id and then call `slots.set(id, child)`.
+In other words if you are generating widgets in a map &c please use `slots.set()` manually with an id that stays unique to an element. Just like key in `<Element key={}>` in React.
 
-Mutations within a frame are deduplicated into a single pass.
+A component tracks the lifetime of a widget instanciation. The primary thing it needs to track is focus.
+So you can change a widgets Anchor from `display!(Anchor::left(widget))` to `display!(Anchor::right(widget))` and it will still stay focus.
 
-## Layouter
+# Layouter
+The whole layouting is done via a MILP solver - basically you can constrain widgets in a web of 
 
-The layouter represents geometry as linear equations and inequalities over edge variables (`start`, `end`, `origin`, `size`).
 
-Constraints are solved using HiGHS with lexicographical priorities:
-- Priority 0 handles hard requirements, such as parent boundary containment and minimum sizes.
-- Priorities 1 and 2 resolve dynamic spacing, alignments, and maximize/minimize objectives.
-
-Paragraph widgets use the solver's width to measure and wrap text height during layout.
-
-## Widgets and composition
-
-Widgets implement `Widget_trait` with asynchronous `layout` and `render` methods.
-
-Multi-child layout containers (`Axis`, `Grid`) accept tuples of different widget types through `Into_widgets` or dynamic `Vec<Widget>` collections.
-
-## Focus and events
-
-Keyboard navigation (`Tab`, `Shift + Tab`, arrow keys) traverses the component tree.
-
-Pointer events follow the focus and hitbox hierarchy. A widget must be interactive (`focus.set_interactive(true)` or a focusable container) to receive pointer clicks.
-
-## Performance
-
-Current scrolling performance is around 5 FPS.
-
-The layouter solves the full constraint system on layout updates. In addition, text rendering currently recreates Parley structures on each render pass.
-
-Example timing from a layout and render pass:
-
-```text
-app problem layout took 79.471867ms
-17:52:25 [INFO]   lexicographic model: 7805 variables, 3593 constraints, 3 priorities
-17:52:25 [INFO]     lexicographic model recreation took 6.354568ms
-17:52:25 [INFO]   lexicographic solve took 24.950131ms
-17:52:25 [INFO] layout full solve took 40.687032ms
-17:52:25 [INFO] app problem render took 45.587774ms
-```

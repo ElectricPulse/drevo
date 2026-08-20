@@ -1163,15 +1163,15 @@ fn map_system_theme(theme: Window_theme) -> System_theme {
 /// Runs a Vizual application on the calling thread.
 ///
 /// A Tokio runtime must already be active. Winit owns the calling thread until
-/// the window closes; widget tasks continue on the runtime.
+/// the window closes; widget tasks continue on the runtime. Vizual creates the
+/// render manager used by the root widget.
 pub fn run<T: Widget_trait>(
     title: impl Into<String>,
-    root: Shared_widget<T>,
-    render_manager: Render_manager,
+    root: T,
 ) -> Result<()> {
-    let Render_manager { render, reciever } = render_manager;
+    let Render_manager { render, reciever } = Render_manager::new();
     let theme = Store::new(Theme::default());
-    let root = Root::new(root).into_shared();
+    let root = Root::new(root.into_shared()).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
         .wrap_err("vizual::run requires an active Tokio runtime")?;
     let event_loop = EventLoop::<User_event>::with_user_event()
