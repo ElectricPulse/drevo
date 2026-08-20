@@ -3,7 +3,7 @@ mod string;
 
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, eyre};
-use vizual_macros::display;
+use crate::macros::display;
 
 use super::{
     super::{

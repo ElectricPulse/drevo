@@ -14,6 +14,7 @@ pub mod graphics;
 pub mod handlers;
 pub mod layouter;
 pub mod log;
+pub mod macros;
 pub mod render_manager;
 pub mod slot;
 pub mod state;

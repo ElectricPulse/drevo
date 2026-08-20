@@ -2,7 +2,7 @@ pub mod header;
 mod settings;
 
 use color_eyre::eyre::Result;
-use vizual_macros::display;
+use crate::macros::display;
 
 use self::header::Header;
 use super::{layout::axis::Axis, paper::Paper};

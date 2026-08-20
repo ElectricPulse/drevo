@@ -2,7 +2,7 @@ pub mod bar;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::display;
+use crate::macros::display;
 
 use crate::{
     Vizual_command, Vizual_msg,

@@ -3,7 +3,7 @@ pub mod tab;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use uuid::Uuid;
-use vizual_macros::display;
+use crate::macros::display;
 
 use super::{
     super::{Layout_input, Render_input, Shared_widget, Widget, Widget_trait},

@@ -12,7 +12,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual_macros::display;
+use crate::macros::display;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Border_style {

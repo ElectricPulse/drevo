@@ -5,7 +5,7 @@ use std::io::{self, Read};
 
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, WrapErr, bail};
-use vizual_macros::display;
+use crate::macros::display;
 
 use super::{
     ansi::Ansi, layout::axis::Axis, linebreak::Linebreak, paragraph::Paragraph,

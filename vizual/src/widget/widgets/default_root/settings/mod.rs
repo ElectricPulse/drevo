@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use lucide_icons::Icon as Lucide_icon;
-use vizual_macros::display;
+use crate::macros::display;
 
 use super::{
     super::{

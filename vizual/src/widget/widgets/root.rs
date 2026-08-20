@@ -1,5 +1,5 @@
 use color_eyre::eyre::Result;
-use vizual_macros::display;
+use crate::macros::display;
 
 use super::super::{Layout_input, Widget, Widget_trait};
 use crate::{

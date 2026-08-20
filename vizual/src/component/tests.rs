@@ -8,7 +8,7 @@ use crate::{
 #[derive(Clone)]
 struct Empty_widget;
 
-#[derive(Clone, vizual_macros::Widget_trait)]
+#[derive(Clone, crate::macros::Widget_trait)]
 struct Derived_widget {
     widget: Empty_widget,
 }
