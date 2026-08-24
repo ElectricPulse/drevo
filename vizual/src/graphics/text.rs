@@ -195,6 +195,7 @@ impl Text_context {
         Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
     }
 
+    #[allow(dead_code)]
     pub(crate) fn measure_icon(&mut self, icon: Lucide_icon, font_size: f32) -> Size {
         let layout = self.build_layout(&Styled_text::icon(
             icon,
