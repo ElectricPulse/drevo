@@ -22,6 +22,8 @@ See [docs/architecture.md](docs/architecture.md) for details.
 ## Demo
 ![demo](assets/demo.gif)
 
+Build tool [PatMat](https://github.com/ElectricPulse/patmat) built on vizual.
+
 ## Quick start
 
 Vizual currently requires a nightly Rust toolchain because it uses
@@ -66,12 +68,13 @@ cargo +nightly run
 `vizual::run` is synchronous because Winit owns the calling thread. The Tokio
 runtime remains active for asynchronous widget and background work.
 
-## [Documentation](docs/index.md)
+## Documentation
+See [docs/index.md](docs/index.md) for documentation and examples.
 
 ## Pre-release notes
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
-## [Roadmap](docs/roadmap.md)
+## Roadmap
 
 See [docs/roadmap.md](docs/roadmap.md) for known bugs and planned work.
 

@@ -8,9 +8,10 @@ use color_eyre::eyre::{Result, WrapErr, bail};
 use crate::macros::display;
 
 use super::{
-    ansi::Ansi, layout::axis::Axis, linebreak::Linebreak, paragraph::Paragraph,
+    ansi::Ansi, icon::Icon, layout::axis::Axis, linebreak::Linebreak, paragraph::Paragraph,
     positioning::anchor::Anchor, scroll::Scroll,
 };
+use lucide_icons::Icon as Lucide_icon;
 use crate::{
     component::Children,
     config::COMMAND_WAIT_TIMEOUT,
@@ -49,33 +50,51 @@ impl Widget_trait for Terminal {
         let paragraph_width = theme.units.em * 35.0;
 
         let mut directory_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
-        directory_paragraph.set_styled_content(
-            format!("Directory: {directory}"),
-            theme.specific.text.paragraph,
+        directory_paragraph.set_ansi_content(
+            format!("\x1b[1mDirectory:\x1b[0m {directory}"),
+            theme.specific.text.paragraph.size,
         );
 
         let mut shell_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
-        shell_paragraph.set_styled_content(
-            format!("Shell: {shell}"),
-            theme.specific.text.paragraph,
+        shell_paragraph.set_ansi_content(
+            format!("\x1b[1mShell:\x1b[0m {shell}"),
+            theme.specific.text.paragraph.size,
         );
 
         let mut command_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
-        command_paragraph.set_styled_content(
-            command,
-            theme.specific.text.paragraph,
+        command_paragraph.set_ansi_content(
+            format!("\x1b[1mCommand:\x1b[0m {command}"),
+            theme.specific.text.paragraph.size,
         );
 
-        let directory = Anchor::left(directory_paragraph);
-        let shell = Anchor::left(shell_paragraph);
-        let command = Anchor::left(command_paragraph);
+        let directory_row = Anchor::left(Axis::new(
+            Direction::Horizontal,
+            (
+                Anchor::left(Icon::new(Lucide_icon::Folder)),
+                Anchor::left(directory_paragraph),
+            ),
+        ));
+        let shell_row = Anchor::left(Axis::new(
+            Direction::Horizontal,
+            (
+                Anchor::left(Icon::new(Lucide_icon::Terminal)),
+                Anchor::left(shell_paragraph),
+            ),
+        ));
+        let command_row = Anchor::left(Axis::new(
+            Direction::Horizontal,
+            (
+                Anchor::left(Icon::new(Lucide_icon::Play)),
+                Anchor::left(command_paragraph),
+            ),
+        ));
 
         let axis = Axis::new(
             Direction::Vertical,
             (
-                directory,
-                shell,
-                command,
+                directory_row,
+                shell_row,
+                command_row,
                 Linebreak::new(Direction::Horizontal),
                 self.scroll.clone(),
             ),

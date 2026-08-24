@@ -36,6 +36,13 @@ impl Paragraph {
         self.cached_layout = None;
     }
 
+    pub fn set_ansi_content(&mut self, content: impl AsRef<str>, font_size: f32) {
+        let mut text = Styled_text::ansi(content.as_ref());
+        text.size = font_size;
+        self.content = text;
+        self.cached_layout = None;
+    }
+
     fn width_for_height(&self, text_context: &mut crate::graphics::text::Text_context) -> f64 {
         let unwrapped = text_context.build_layout(&self.content);
         let natural_width = f64::from(unwrapped.full_width());
