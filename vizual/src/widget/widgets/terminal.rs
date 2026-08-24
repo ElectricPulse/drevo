@@ -68,25 +68,25 @@ impl Widget_trait for Terminal {
         let directory_row = Anchor::left(Axis::new(
             Direction::Horizontal,
             (
-                Anchor::middle(Icon::new(Lucide_icon::Folder)),
-                Anchor::middle(directory_label),
-                Anchor::middle(directory_paragraph),
+                Anchor::v_middle(Icon::new(Lucide_icon::Folder)),
+                Anchor::v_middle(directory_label),
+                Anchor::v_middle(directory_paragraph),
             ),
         ));
         let shell_row = Anchor::left(Axis::new(
             Direction::Horizontal,
             (
-                Anchor::middle(Icon::new(Lucide_icon::Terminal)),
-                Anchor::middle(shell_label),
-                Anchor::middle(shell_paragraph),
+                Anchor::v_middle(Icon::new(Lucide_icon::Terminal)),
+                Anchor::v_middle(shell_label),
+                Anchor::v_middle(shell_paragraph),
             ),
         ));
         let command_row = Anchor::left(Axis::new(
             Direction::Horizontal,
             (
-                Anchor::middle(Icon::new(Lucide_icon::Play)),
-                Anchor::middle(command_label),
-                Anchor::middle(command_paragraph),
+                Anchor::v_middle(Icon::new(Lucide_icon::Play)),
+                Anchor::v_middle(command_label),
+                Anchor::v_middle(command_paragraph),
             ),
         ));
 

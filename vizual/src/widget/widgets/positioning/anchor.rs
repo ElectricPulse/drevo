@@ -86,6 +86,16 @@ impl Anchor {
         )
     }
 
+    pub fn v_middle(child: impl Widget_trait) -> Self {
+        Self::new(
+            child,
+            Anchors {
+                horizontal: None,
+                vertical: Some(Anchor_position::Middle),
+            },
+        )
+    }
+
     /// Applies the selected anchor to this hitbox within its parent.
     async fn anchor(
         problem: &Component_context,
