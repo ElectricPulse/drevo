@@ -10,3 +10,6 @@ non_camel_case_types = "allow"
 non_upper_case_globals = "allow"
 unused_must_use = "warn"
 unused_results = "warn"
+
+[workspace.package]
+readme = "README.md"
