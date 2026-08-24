@@ -21,10 +21,10 @@ See [docs/architecture.md](vizual/docs/architecture.md) for details.
 
 ## Demo
 
-Build tool [PatMat](https://github.com/ElectricPulse/patmat):
+Build tool [PatMat](https://github.com/ElectricPulse/patmat)
 ![patmat](vizual/assets/demo/patmat.gif)
 
-Configurator tool showcasing the flexibility of the margins/paddings offered by the layouter:
+Configurator tool showcasing the flexibility of the margins/paddings
 ![configurator](vizual/assets/demo/configurator.gif)
 
 ## Quick start
