@@ -1,4 +1,4 @@
-# ![banner](assets/banner.png)
+# ![banner](vizual/assets/banner.png)
 
 # Vizual
 
@@ -12,7 +12,7 @@ Vizual is a component-based Rust UI framework with state tracking and a MILP con
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) for details.
+See [docs/architecture.md](vizual/docs/architecture.md) for details.
 
 - **State tracking**: `Store<T>` tracks which widgets read a value. When the value changes, those widgets are scheduled for another layout and render pass.
 - **MILP layouter**: Layout rules are expressed as linear constraints and solved with lexicographical priorities.
@@ -20,9 +20,12 @@ See [docs/architecture.md](docs/architecture.md) for details.
 - **Event routing and focus**: Keyboard and click events route through the focus hierarchy. A widget must be interactive to receive clicks.
 
 ## Demo
-![demo](assets/demo.gif)
 
-Build tool [PatMat](https://github.com/ElectricPulse/patmat) built on vizual.
+Configurator:
+![configurator](vizual/assets/demo/configurator.gif)
+
+Build tool [PatMat](https://github.com/ElectricPulse/patmat) built on vizual:
+![patmat](vizual/assets/demo/patmat.gif)
 
 ## Quick start
 
@@ -69,14 +72,14 @@ cargo +nightly run
 runtime remains active for asynchronous widget and background work.
 
 ## Documentation
-See [docs/index.md](docs/index.md) for documentation and examples.
+See [docs/index.md](vizual/docs/index.md) for documentation and examples.
 
 ## Pre-release notes
 - Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
 
 ## Roadmap
 
-See [docs/roadmap.md](docs/roadmap.md) for known bugs and planned work.
+See [docs/roadmap.md](vizual/docs/roadmap.md) for known bugs and planned work.
 
 ## Technologies used
 - [winit](https://github.com/rust-windowing/winit) for window management
