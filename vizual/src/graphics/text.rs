@@ -183,6 +183,7 @@ impl Text_context {
             Text_style {
                 size: font_size,
                 color: Color::White,
+                bold: false,
             },
         ));
         Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
@@ -202,6 +203,7 @@ impl Text_context {
             Text_style {
                 size: font_size,
                 color: Color::White,
+                bold: false,
             },
         ));
         icon_ink_bounds(&layout, icon, font_size).map_or_else(
@@ -263,6 +265,7 @@ impl Styled_text {
             Text_style {
                 size: DEFAULT_FONT_SIZE,
                 color,
+                bold: false,
             },
         )
     }
@@ -278,6 +281,7 @@ impl Styled_text {
                 range: 0..length,
                 style: Ansi_style {
                     foreground: style.color,
+                    bold: style.bold,
                     ..Ansi_style::default()
                 },
             }],

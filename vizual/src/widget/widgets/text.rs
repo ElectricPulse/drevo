@@ -16,6 +16,14 @@ use parley::Layout;
 pub struct Text_style {
     pub size: f32,
     pub color: Color,
+    pub bold: bool,
+}
+
+impl Text_style {
+    pub fn bold(mut self) -> Self {
+        self.bold = true;
+        self
+    }
 }
 
 impl Default for Text_style {
@@ -23,6 +31,7 @@ impl Default for Text_style {
         Self {
             size: DEFAULT_FONT_SIZE,
             color: Color::White,
+            bold: false,
         }
     }
 }

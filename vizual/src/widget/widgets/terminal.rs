@@ -9,7 +9,7 @@ use crate::macros::display;
 
 use super::{
     ansi::Ansi, icon::Icon, layout::axis::Axis, linebreak::Linebreak, paragraph::Paragraph,
-    positioning::anchor::Anchor, scroll::Scroll,
+    positioning::anchor::Anchor, scroll::Scroll, text::Text,
 };
 use lucide_icons::Icon as Lucide_icon;
 use crate::{
@@ -48,29 +48,28 @@ impl Widget_trait for Terminal {
         let command = self.command.affect(render.clone()).await?.clone();
 
         let paragraph_width = theme.units.em * 35.0;
+        let label_style = theme.specific.text.paragraph.bold();
 
+        let mut directory_label = Text::new("Directory:");
+        directory_label.style.set(label_style);
         let mut directory_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
-        directory_paragraph.set_ansi_content(
-            format!("\x1b[1mDirectory:\x1b[0m {directory}"),
-            theme.specific.text.paragraph.size,
-        );
+        directory_paragraph.set_styled_content(directory, theme.specific.text.paragraph);
 
+        let mut shell_label = Text::new("Shell:");
+        shell_label.style.set(label_style);
         let mut shell_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
-        shell_paragraph.set_ansi_content(
-            format!("\x1b[1mShell:\x1b[0m {shell}"),
-            theme.specific.text.paragraph.size,
-        );
+        shell_paragraph.set_styled_content(shell, theme.specific.text.paragraph);
 
+        let mut command_label = Text::new("Command:");
+        command_label.style.set(label_style);
         let mut command_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
-        command_paragraph.set_ansi_content(
-            format!("\x1b[1mCommand:\x1b[0m {command}"),
-            theme.specific.text.paragraph.size,
-        );
+        command_paragraph.set_styled_content(command, theme.specific.text.paragraph);
 
         let directory_row = Anchor::left(Axis::new(
             Direction::Horizontal,
             (
                 Anchor::left(Icon::new(Lucide_icon::Folder)),
+                Anchor::left(directory_label),
                 Anchor::left(directory_paragraph),
             ),
         ));
@@ -78,6 +77,7 @@ impl Widget_trait for Terminal {
             Direction::Horizontal,
             (
                 Anchor::left(Icon::new(Lucide_icon::Terminal)),
+                Anchor::left(shell_label),
                 Anchor::left(shell_paragraph),
             ),
         ));
@@ -85,6 +85,7 @@ impl Widget_trait for Terminal {
             Direction::Horizontal,
             (
                 Anchor::left(Icon::new(Lucide_icon::Play)),
+                Anchor::left(command_label),
                 Anchor::left(command_paragraph),
             ),
         ));

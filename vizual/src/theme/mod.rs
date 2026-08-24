@@ -173,18 +173,22 @@ fn theme(units: Units, semantic: Semantic_tokens, body_background: Color) -> The
         title: Text_style {
             size: units.em as f32 * 1.25,
             color: semantic.text.muted,
+            bold: false,
         },
         subtitle: Text_style {
             size: units.em as f32,
             color: semantic.text.normal,
+            bold: false,
         },
         paragraph: Text_style {
             size: units.em as f32 * 0.915,
             color: semantic.text.normal,
+            bold: false,
         },
         button: Text_style {
             size: units.em as f32 * 1.05,
             color: semantic.text.normal,
+            bold: false,
         },
     };
     let block = Block_style {
