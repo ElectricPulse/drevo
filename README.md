@@ -21,11 +21,11 @@ See [docs/architecture.md](vizual/docs/architecture.md) for details.
 
 ## Demo
 
-Configurator:
-![configurator](vizual/assets/demo/configurator.gif)
-
-Build tool [PatMat](https://github.com/ElectricPulse/patmat) built on vizual:
+Build tool [PatMat](https://github.com/ElectricPulse/patmat):
 ![patmat](vizual/assets/demo/patmat.gif)
+
+Configurator tool showcasing the flexibility of the margins/paddings offered by the layouter:
+![configurator](vizual/assets/demo/configurator.gif)
 
 ## Quick start
 
