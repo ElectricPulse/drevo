@@ -46,7 +46,7 @@ impl Widget_trait for Terminal {
         let shell = self.shell.affect(render.clone()).await?.clone();
         let command = self.command.affect(render.clone()).await?.clone();
 
-        let paragraph_width = theme.units.em * 10.0;
+        let paragraph_width = theme.units.em * 20.0;
 
         let mut directory_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
         directory_paragraph.set_styled_content(
