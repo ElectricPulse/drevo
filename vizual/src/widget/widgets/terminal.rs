@@ -47,7 +47,7 @@ impl Widget_trait for Terminal {
         let shell = self.shell.affect(render.clone()).await?.clone();
         let command = self.command.affect(render.clone()).await?.clone();
 
-        let paragraph_width = theme.units.em * 35.0;
+        let paragraph_width = theme.units.em * 30.0;
         let label_style = theme.specific.text.paragraph.bold();
 
         let mut directory_label = Text::new("Directory:");
