@@ -2,6 +2,12 @@
 resolver = "3"
 members = ["vizual", "vizual-macros"]
 
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/ElectricPulse/vizual"
+readme = "README.md"
+
 [workspace.dependencies]
 derive-where = "1.6.1"
 
@@ -10,6 +16,3 @@ non_camel_case_types = "allow"
 non_upper_case_globals = "allow"
 unused_must_use = "warn"
 unused_results = "warn"
-
-[workspace.package]
-readme = "README.md"

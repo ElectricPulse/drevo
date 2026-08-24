@@ -1,10 +1,10 @@
 [package]
 name = "vizual"
-version = "0.1.3"
-edition = "2024"
+version = "0.1.4"
+edition.workspace = true
 description = "An async, solver-driven desktop UI framework rendered with Vello"
-repository = "https://github.com/ElectricPulse/vizual"
-license = "Apache-2.0"
+repository.workspace = true
+license.workspace = true
 readme.workspace = true
 categories = ["gui", "rendering", "asynchronous"]
 keywords = ["gui", "ui", "layout", "vello", "solver"]
@@ -13,7 +13,7 @@ keywords = ["gui", "ui", "layout", "vello", "solver"]
 derive-where.workspace = true
 ambassador = "0.5.0"
 async-trait = "0.1.89"
-vizual-macros = { version = "0.1.1", path = "../vizual-macros" }
+vizual-macros = { version = "0.1.2", path = "../vizual-macros" }
 tokio = { version = "1.48.0", features = ["full"] }
 color-eyre = "0.6.5"
 derive-new = "0.7.0"
