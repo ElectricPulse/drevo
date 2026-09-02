@@ -9,6 +9,7 @@ which I haven't implemented because they are complex and make the code even less
 - constraints should take in `State` and only relayout if state changed (things like a button changing color or a button changing size inside a scroll should not cause a full global relayout)
 - make the render system parallel (render subtrees / components concurrently)
 - cache Parley text layout constructs across renders instead of recreating them on every frame
+- hot start the HiGHS model from its previous basis/solution when resolving an incrementally changed layout
 
 ## To-Do list
 - add a global popup - save & exit, exit, cancel that will work for configurator as of now
