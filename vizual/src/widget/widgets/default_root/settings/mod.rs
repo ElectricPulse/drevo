@@ -1,7 +1,7 @@
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use lucide_icons::Icon as Lucide_icon;
-use crate::macros::display;
 
 use super::{
     super::{
@@ -132,10 +132,7 @@ impl Custom_widget_trait for Theme_menu_item {
             },
         );
 
-        let row = Axis::new(
-            Direction::Horizontal,
-            (text, swatch),
-        );
+        let row = Axis::new(Direction::Horizontal, (text, swatch));
         Ok(vec![display!(row)])
     }
 }
@@ -293,10 +290,7 @@ impl Widget_trait for Settings {
         Ok(vec![button, menu])
     }
 
-    async fn render(
-        &mut self,
-        Render_input { focus, .. }: Render_input<'_, '_>,
-    ) -> Result<()> {
+    async fn render(&mut self, Render_input { focus, .. }: Render_input<'_, '_>) -> Result<()> {
         focus.set_interactive(true);
         Ok(())
     }
@@ -318,6 +312,6 @@ impl Widget_trait for Settings {
         };
         self.choice.set(Theme_choice::ALL[index]).await?;
 
-        Vizual_msg::new(Vizual_command::Layout)
+        Vizual_msg::new(Vizual_command::Resolve)
     }
 }

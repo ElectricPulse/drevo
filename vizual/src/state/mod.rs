@@ -6,10 +6,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use dyn_clone::DynClone;
 
-use crate::{
-    Render,
-    sync::Thread_safe,
-};
+use crate::{Render, sync::Thread_safe};
 
 pub use store::Store;
 

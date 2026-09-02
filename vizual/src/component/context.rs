@@ -4,7 +4,7 @@ use color_eyre::eyre::Result;
 
 use crate::{
     layouter::{
-        Problem, constraint::Constraint, expression::Expression, objective::Delta,
+        Formula, constraint::Constraint, expression::Expression, objective::Delta,
         variable::Variable,
     },
     sync::{Mutex, MutexGuard},
@@ -12,14 +12,14 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Component_context {
-    pub problem: Arc<Mutex<Problem>>,
+    pub formula: Arc<Mutex<Formula>>,
     pub component_path: Vec<String>,
 }
 
 impl Component_context {
-    pub fn new(problem: Arc<Mutex<Problem>>) -> Self {
+    pub fn new(formula: Arc<Mutex<Formula>>) -> Self {
         Self {
-            problem,
+            formula,
             component_path: Vec::new(),
         }
     }
@@ -32,8 +32,8 @@ impl Component_context {
         constraint.set_name(name.into())
     }
 
-    pub async fn lock(&self) -> Result<MutexGuard<'_, Problem>> {
-        self.problem.lock().await
+    pub async fn lock(&self) -> Result<MutexGuard<'_, Formula>> {
+        self.formula.lock().await
     }
 
     #[track_caller]
@@ -41,15 +41,13 @@ impl Component_context {
         let name = name.into();
         let path = Self::path(Location::caller());
         let component_path = self.component_path.join(".");
-        let problem = self.lock().await?;
-        Ok(problem.variables.make_independent_bounded(
-            0.0,
-            1.0,
-            true,
-            name,
-            path,
-            component_path,
-        ))
+        let mut formula = self.lock().await?;
+        let variable =
+            formula
+                .registry
+                .make_independent_bounded(0.0, 1.0, true, name, path, component_path);
+        formula.variables.push(variable);
+        Ok(variable)
     }
 
     #[track_caller]
@@ -60,15 +58,17 @@ impl Component_context {
         let name = name.into();
         let path = Self::path(Location::caller());
         let component_path = self.component_path.join(".");
-        let problem = self.lock().await?;
-        Ok(problem.variables.make_independent_bounded(
+        let mut formula = self.lock().await?;
+        let variable = formula.registry.make_independent_bounded(
             0.0,
             f64::INFINITY,
             false,
             name,
             path,
             component_path,
-        ))
+        );
+        formula.variables.push(variable);
+        Ok(variable)
     }
 
     #[track_caller]
@@ -105,20 +105,12 @@ impl Component_context {
     }
 
     #[track_caller]
-    pub async fn minimize(
-        &self,
-        expression: impl Into<Expression>,
-        priority: usize,
-    ) -> Result<()> {
+    pub async fn minimize(&self, expression: impl Into<Expression>, priority: usize) -> Result<()> {
         self.lock().await?.minimize(expression, priority)
     }
 
     #[track_caller]
-    pub async fn maximize(
-        &self,
-        expression: impl Into<Expression>,
-        priority: usize,
-    ) -> Result<()> {
+    pub async fn maximize(&self, expression: impl Into<Expression>, priority: usize) -> Result<()> {
         self.lock().await?.maximize(expression, priority)
     }
 }

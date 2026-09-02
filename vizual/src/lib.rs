@@ -28,12 +28,14 @@ pub mod widget;
 extern crate self as vizual;
 
 use std::{
+    collections::HashSet,
     fs::OpenOptions,
     path::Path,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
     },
+    time::{Duration, Instant},
 };
 
 use async_recursion::async_recursion;
@@ -68,7 +70,7 @@ use event::{
 use focus::{Focus, Focus_search_direction};
 use geometry::{Point, Size};
 use graphics::{scene::Scene as Graphics_scene, text::Text_context};
-use layouter::{Problem, Solution, hitbox::Hitbox, variables::Variables};
+use layouter::{Formula, Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
 use render_manager::{Render_manager, Render_reciever};
 use slot::Component_slot;
@@ -147,7 +149,6 @@ impl Vizual_msg {
 #[derive(Clone)]
 pub enum Vizual_command {
     None,
-    Layout,
     Resolve,
     Render,
     Focus(Child_reference),
@@ -159,7 +160,6 @@ impl Vizual_command {
         match (self, command) {
             (Self::Quit, _) | (_, Self::Quit) => Self::Quit,
             (Self::Focus(focus), _) | (_, Self::Focus(focus)) => Self::Focus(focus),
-            (Self::Layout, _) | (_, Self::Layout) => Self::Layout,
             (Self::Resolve, _) | (_, Self::Resolve) => Self::Resolve,
             (Self::Render, _) | (_, Self::Render) => Self::Render,
             (Self::None, Self::None) => Self::None,
@@ -172,19 +172,39 @@ static RENDER_ID: AtomicU64 = AtomicU64::new(0);
 #[derive(Clone)]
 pub struct Render {
     pub(crate) id: u64,
-    sender: mpsc::UnboundedSender<()>,
+    target: Option<component::Id>,
+    sender: mpsc::UnboundedSender<Render_request>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Render_request {
+    Render,
+    Layout(component::Id),
 }
 
 impl Render {
-    pub(crate) fn new(sender: mpsc::UnboundedSender<()>) -> Self {
+    pub(crate) fn new(sender: mpsc::UnboundedSender<Render_request>) -> Self {
         Self {
             id: RENDER_ID.fetch_add(1, Ordering::Relaxed),
+            target: None,
             sender,
         }
     }
 
+    pub(crate) fn for_component(&self, id: component::Id) -> Self {
+        Self {
+            id,
+            target: Some(id),
+            sender: self.sender.clone(),
+        }
+    }
+
     pub fn send(&self) {
-        let _ = self.sender.send(());
+        let request = match self.target {
+            Some(component) => Render_request::Layout(component),
+            None => Render_request::Render,
+        };
+        let _ = self.sender.send(request);
     }
 }
 
@@ -195,7 +215,7 @@ pub fn check_quit_event(event: &Key_event) -> bool {
 struct App_problem {
     root: Shared_component,
     root_hitbox: Hitbox,
-    component_context: Component_context,
+    variables: Arc<Variables>,
 }
 
 impl App_problem {
@@ -204,15 +224,15 @@ impl App_problem {
         root_slot: &mut Component_slot,
         variables: Arc<Variables>,
     ) -> Result<Self> {
-        let shared_problem = Arc::new(Mutex::new(Problem::new(variables)));
-        let component_context = Component_context::new(shared_problem);
+        let component_context =
+            Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
         let root = root_slot.set(root, component_context.clone()).await?;
         let root_hitbox = root.get_hitbox().await?;
 
         Ok(Self {
             root,
             root_hitbox,
-            component_context,
+            variables,
         })
     }
 
@@ -233,7 +253,9 @@ impl App_problem {
                 &focused_path,
                 None,
                 self.root_hitbox.clone(),
-                self.component_context.clone(),
+                Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
+                    &self.variables,
+                ))))),
                 text_context,
                 &root,
             )
@@ -244,7 +266,9 @@ impl App_problem {
                 theme,
                 &focused_path,
                 children,
-                self.component_context.clone(),
+                Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
+                    &self.variables,
+                ))))),
                 text_context,
                 &root,
             )
@@ -255,9 +279,9 @@ impl App_problem {
 
     async fn solve(&self, size: Size) -> Result<Solution> {
         let component_tree = self.root.component_tree().await?;
-        self.component_context
-            .lock()
-            .await?
+        let mut problem = Problem::new(Arc::clone(&self.variables));
+        self.root.add_cached_formulas(&mut problem).await?;
+        problem
             .solve(self.root_hitbox.clone(), size, &component_tree)
             .await
     }
@@ -321,10 +345,9 @@ impl App_problem {
         focus.set(&node);
         let cmd = self.drill_event(event, focus).await?;
 
-        // Focus should be turned into state that retriggers layout and thereby causes rerender if needed
-        // for now this will do :)
-        // it should be just like any other state just in this case it automatically gets created and stored on the Component and passed along into layout()
-        let cmd = cmd.join(Vizual_command::Layout);
+        if let Some(signal) = node.lock().await?.layout_signal.clone() {
+            signal.send();
+        }
 
         Ok(Some(cmd))
     }
@@ -356,7 +379,20 @@ impl App_problem {
 
         let mut message = Vizual_msg::none()?;
         for node in &nodes {
-            let new_message = node.lock().await?.widget.forward_event(event).await?;
+            let (mut new_message, signal) = {
+                let mut node = node.lock().await?;
+                let message = node.widget.forward_event(event).await?;
+                (message, node.layout_signal.clone())
+            };
+            // `Resolve` is retained for system-level resize handling.  Widget events use it as
+            // the compatibility spelling for their former Layout command; convert it into the
+            // owner component's signal instead of resolving a stale formula tree directly.
+            if matches!(new_message.command, Vizual_command::Resolve) {
+                if let Some(signal) = signal {
+                    signal.send();
+                }
+                new_message.command = Vizual_command::None;
+            }
             message.join(new_message);
             if !message.propagate {
                 break;
@@ -383,7 +419,7 @@ impl App_problem {
         let (found, _) = self
             .find_focus(None, self.root.clone(), skip_count, direction, true, focus)
             .await?;
-        
+
         Ok(found)
     }
 
@@ -485,11 +521,21 @@ impl App_problem {
                         _ => Focus_search_direction::Left,
                     };
                     let _ = self.move_focus(0, direction, focus).await?;
-                    Ok(Vizual_command::Layout)
+                    if let Some(node) = focus.upgrade()
+                        && let Some(signal) = node.lock().await?.layout_signal.clone()
+                    {
+                        signal.send();
+                    }
+                    Ok(Vizual_command::None)
                 }
                 Key_code::Escape => {
+                    if let Some(node) = focus.upgrade()
+                        && let Some(signal) = node.lock().await?.layout_signal.clone()
+                    {
+                        signal.send();
+                    }
                     focus.reset();
-                    Ok(Vizual_command::Layout)
+                    Ok(Vizual_command::None)
                 }
                 _ if check_quit_event(key) => Ok(Vizual_command::Quit),
                 _ => Ok(Vizual_command::None),
@@ -512,7 +558,10 @@ impl App_problem {
                             .await?
                     {
                         focus.reset();
-                        return Ok(Vizual_command::Layout);
+                        if let Some(signal) = focused.lock().await?.layout_signal.clone() {
+                            signal.send();
+                        }
+                        return Ok(Vizual_command::None);
                     }
                 }
 
@@ -553,6 +602,7 @@ enum Ui_input {
     Event(Event),
     Resize(Size),
     Render,
+    Layout(HashSet<component::Id>),
     System_theme(System_theme),
 }
 
@@ -607,9 +657,29 @@ async fn ui_loop<T: Widget_trait>(
                     input = input_receiver.recv() => input,
                     render_request = render_reciever.0.recv(), if render_open => {
                         match render_request {
-                            Some(()) => {
-                                while render_reciever.0.try_recv().is_ok() {}
-                                Some(Ui_input::Render)
+                            Some(first) => {
+                                let mut layouts = HashSet::new();
+                                let mut render_requested = false;
+                                let mut add = |request| match request {
+                                    Render_request::Render => render_requested = true,
+                                    Render_request::Layout(id) => { let _ = layouts.insert(id); }
+                                };
+                                add(first);
+                                let deadline = tokio::time::Instant::from_std(Instant::now() + Duration::from_millis(10));
+                                loop {
+                                    tokio::select! {
+                                        request = render_reciever.0.recv() => match request {
+                                            Some(request) => add(request),
+                                            None => { render_open = false; break; }
+                                        },
+                                        _ = tokio::time::sleep_until(deadline) => break,
+                                    }
+                                }
+                                match layouts.is_empty() {
+                                    true if render_requested => Some(Ui_input::Render),
+                                    true => continue,
+                                    false => Some(Ui_input::Layout(layouts)),
+                                }
                             }
                             None => {
                                 render_open = false;
@@ -644,6 +714,7 @@ async fn ui_loop<T: Widget_trait>(
             input => input,
         };
 
+        let mut relayout = false;
         let mut command = match input {
             Ui_input::System_theme(system) => {
                 let updated = theme.read().await?.set_system(system);
@@ -671,12 +742,19 @@ async fn ui_loop<T: Widget_trait>(
             }
             Ui_input::Resize(size) => {
                 window_size = Some(size);
-                match app_problem.is_some() {
-                    true => Vizual_command::Resolve,
-                    false => Vizual_command::Layout,
-                }
+                relayout = app_problem.is_none();
+                Vizual_command::Resolve
             }
-            Ui_input::Render => Vizual_command::Layout,
+            Ui_input::Render => Vizual_command::Render,
+            Ui_input::Layout(ids) => {
+                if let Some(problem) = &app_problem {
+                    for id in ids {
+                        let _ = problem.root.invalidate_formula(id).await?;
+                    }
+                }
+                relayout = true;
+                Vizual_command::Resolve
+            }
             Ui_input::Event(event) => match (&mut app_problem, &solution) {
                 (Some(problem), Some(solution)) => {
                     problem.handle_event(&event, solution, &mut focus).await?
@@ -697,10 +775,11 @@ async fn ui_loop<T: Widget_trait>(
 
         if let Vizual_command::Focus(reference) = &command {
             focus.set_with_reference(reference);
-            command = Vizual_command::Layout;
+            relayout = true;
+            command = Vizual_command::Resolve;
         }
 
-        if matches!(command, Vizual_command::Layout) {
+        if relayout {
             let problem = layout_problem(
                 root.clone(),
                 render.clone(),
@@ -1165,10 +1244,7 @@ fn map_system_theme(theme: Window_theme) -> System_theme {
 /// A Tokio runtime must already be active. Winit owns the calling thread until
 /// the window closes; widget tasks continue on the runtime. Vizual creates the
 /// render manager used by the root widget.
-pub fn run<T: Widget_trait>(
-    title: impl Into<String>,
-    root: T,
-) -> Result<()> {
+pub fn run<T: Widget_trait>(title: impl Into<String>, root: T) -> Result<()> {
     let Render_manager { render, reciever } = Render_manager::new();
     let theme = Store::new(Theme::default());
     let root = Root::new(root.into_shared()).into_shared();

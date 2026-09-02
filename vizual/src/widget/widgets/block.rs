@@ -2,17 +2,13 @@ use super::{
     super::{Layout_input, Render_input, Widget_trait},
     positioning::space::Space,
 };
+use crate::macros::display;
 use crate::{
-    component::Children,
-    geometry::Rect,
-    graphics::scene::Scene,
-    layouter::objective::Delta,
-    style::Color,
-    widget::Widget,
+    component::Children, geometry::Rect, graphics::scene::Scene, layouter::objective::Delta,
+    style::Color, widget::Widget,
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use crate::macros::display;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Border_style {
@@ -52,9 +48,7 @@ impl Block {
 impl Widget_trait for Block {
     async fn layout(
         &mut self,
-        Layout_input {
-            focus, slots, ..
-        }: Layout_input<'_>,
+        Layout_input { focus, slots, .. }: Layout_input<'_>,
     ) -> Result<Children> {
         focus.set_interactive(self.focusable);
         let style = self.style;

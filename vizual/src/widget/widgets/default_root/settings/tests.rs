@@ -93,7 +93,7 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
             &mut focus,
         )
         .await?;
-    assert!(matches!(command, Vizual_command::Layout));
+    assert!(matches!(command, Vizual_command::None));
     assert!(focus.compare(&button_block));
     assert!(focus.focused_path().await?.contains(&settings));
 

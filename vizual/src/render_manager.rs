@@ -1,8 +1,8 @@
 use tokio::sync::mpsc;
 
-use crate::Render;
+use crate::{Render, Render_request};
 
-pub struct Render_reciever(pub(crate) mpsc::UnboundedReceiver<()>);
+pub struct Render_reciever(pub(crate) mpsc::UnboundedReceiver<Render_request>);
 
 pub struct Render_manager {
     pub render: Render,

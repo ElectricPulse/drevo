@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     focus::Focus,
-    layouter::{Problem, variables::Variables},
+    layouter::{Formula, variables::Variables},
     widget::Widget_trait,
 };
 
@@ -26,12 +26,9 @@ fn widget_derive_forwards_the_current_trait_interface() {
     };
 }
 
-fn component(
-    name: &str,
-    variables: &Variables,
-    problem: Component_context,
-) -> Shared_component {
+fn component(name: &str, variables: &Variables, problem: Component_context) -> Shared_component {
     Shared_component::new(Arc::new(Mutex::new(Component {
+        id: 0,
         name: name.to_string(),
         debug: Component_debug::new("test".to_string()),
         hitbox: Hitbox::new(
@@ -40,10 +37,14 @@ fn component(
             name.to_string(),
             "test".to_string(),
         ),
+        formula: None,
+        variables: Arc::new(Variables::new()),
+        layout_signal: None,
         widget: Box::new(Empty_widget),
         focusable: false,
         parent: None,
         children: Vec::new(),
+        layout_children: Vec::new(),
         slot_manager: Slot_records::new(problem),
         logical: false,
         mask: false,
@@ -53,8 +54,8 @@ fn component(
 #[tokio::test]
 async fn focused_path_contains_the_target_and_its_parents() -> Result<()> {
     let variables = Arc::new(Variables::new());
-    let problem = Arc::new(Mutex::new(Problem::new(Arc::clone(&variables))));
-    let context = Component_context::new(problem);
+    let formula = Arc::new(Mutex::new(Formula::new(Arc::clone(&variables))));
+    let context = Component_context::new(formula);
     let parent = component("parent", &variables, context.clone());
     let child = component("child", &variables, context.clone());
     let unrelated = component("unrelated", &variables, context);

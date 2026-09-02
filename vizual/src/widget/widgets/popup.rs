@@ -1,6 +1,6 @@
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use crate::macros::display;
 
 use super::{
     super::{Layout_input, Widget_trait},
@@ -96,21 +96,20 @@ impl Popup {
     pub async fn new(submit_handler: impl Submit_handler<bool>) -> Result<Self> {
         let items: Vec<Menu_item<Popup_options>> = Popup_options::ALL
             .into_iter()
-            .map(|option| -> Menu_item<Popup_options> {
-                Box::new(Popup_menu_item { option })
-            })
+            .map(|option| -> Menu_item<Popup_options> { Box::new(Popup_menu_item { option }) })
             .collect();
         let menu = Menu::new(items, 0).await?;
         let subhandler: Box<dyn Submit_handler<bool>> = Box::new(submit_handler);
-        let submit_handler: Box<dyn Submit_handler<Popup_options>> = Box::new(move |option: Popup_options| {
-            let mut subhandler = subhandler.clone();
-            async move {
-                let Some(should_save) = option.should_save() else {
-                    return Vizual_msg::new(Vizual_command::Layout);
-                };
-                subhandler.on_submit(should_save).await
-            }
-        });
+        let submit_handler: Box<dyn Submit_handler<Popup_options>> =
+            Box::new(move |option: Popup_options| {
+                let mut subhandler = subhandler.clone();
+                async move {
+                    let Some(should_save) = option.should_save() else {
+                        return Vizual_msg::new(Vizual_command::Resolve);
+                    };
+                    subhandler.on_submit(should_save).await
+                }
+            });
 
         Ok(Self {
             menu,
@@ -135,18 +134,15 @@ impl Widget_trait for Popup {
         text.style.set(theme.specific.text.button);
         let menu_clone = self.menu.clone();
         let submit_handler = self.submit_handler.clone();
-        let button = Button::new(
-            text,
-            move |_focused: bool| {
-                let mut menu = menu_clone.clone();
-                let mut submit_handler = submit_handler.clone();
-                async move {
-                    let option_state = menu.on_retrieve().await?;
-                    let option = *option_state.read().await?;
-                    submit_handler.on_submit(option).await
-                }
-            },
-        );
+        let button = Button::new(text, move |_focused: bool| {
+            let mut menu = menu_clone.clone();
+            let mut submit_handler = submit_handler.clone();
+            async move {
+                let option_state = menu.on_retrieve().await?;
+                let option = *option_state.read().await?;
+                submit_handler.on_submit(option).await
+            }
+        });
         let button = Anchor::left(button);
         let menu = Anchor::left(self.menu.clone());
         let axis = Axis::new(Direction::Vertical, (menu, button));

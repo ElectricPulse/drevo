@@ -1,6 +1,6 @@
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::Result;
-use crate::macros::display;
 
 use super::{
     super::{Layout_input, Widget_trait},

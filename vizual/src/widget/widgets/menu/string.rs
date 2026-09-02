@@ -1,11 +1,8 @@
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use crate::macros::display;
 
-use super::{
-    super::text::Text,
-    Menu, Menu_item,
-};
+use super::{super::text::Text, Menu, Menu_item};
 use crate::{
     component::Children,
     handlers::Retrieve_handler,
@@ -55,9 +52,7 @@ impl Menu<String> {
     pub async fn text(items: Vec<String>, default_item: usize) -> Result<Self> {
         let items = items
             .into_iter()
-            .map(|value| -> Menu_item<String> {
-                Box::new(String_menu_item { value })
-            })
+            .map(|value| -> Menu_item<String> { Box::new(String_menu_item { value }) })
             .collect::<Vec<_>>();
 
         Self::new(items, default_item).await

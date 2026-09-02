@@ -102,6 +102,38 @@ pub struct Problem {
     pub(crate) variables: Arc<Variables>,
 }
 
+/// The declarations produced by one component's `layout` call.
+///
+/// A formula is intentionally independent from the transient `Problem` used by a solve.  The
+/// latter is rebuilt from the live component tree, while this value is retained by its owner.
+#[derive(Clone)]
+pub struct Formula {
+    /// Helper variables declared while this component's layout is evaluated.
+    pub(crate) variables: Vec<Variable>,
+    pub(crate) constraints: Vec<Constraint>,
+    pub(crate) objectives: [Priority_objective; PRIORITY_LEVELS],
+    pub(crate) registry: Arc<Variables>,
+}
+
+impl Formula {
+    pub fn new(variables: Arc<Variables>) -> Self {
+        Self {
+            variables: Vec::new(),
+            constraints: Vec::new(),
+            objectives: std::array::from_fn(|_| Vec::new()),
+            registry: variables,
+        }
+    }
+
+    pub(crate) fn registry(&self) -> Arc<Variables> {
+        Arc::clone(&self.registry)
+    }
+
+    pub(crate) fn constrain(&mut self, constraint: Constraint) {
+        self.constraints.push(constraint);
+    }
+}
+
 impl Problem {
     pub fn new(variables: Arc<Variables>) -> Self {
         Self {
@@ -111,12 +143,16 @@ impl Problem {
         }
     }
 
-    pub(crate) fn variables(&self) -> Arc<Variables> {
-        Arc::clone(&self.variables)
-    }
-
     pub(crate) fn constrain(&mut self, constraint: Constraint) {
         self.constraints.push(constraint);
+    }
+
+    /// Adds a cached component formula to this one-shot solve problem.
+    pub(crate) fn add_formula(&mut self, formula: &Formula) {
+        self.constraints.extend(formula.constraints.iter().cloned());
+        for (target, source) in self.objectives.iter_mut().zip(&formula.objectives) {
+            target.extend(source.iter().cloned());
+        }
     }
 
     fn constrain_root_to_screen(constraints: &mut Vec<Constraint>, root: &Hitbox, screen: Size) {
@@ -308,7 +344,9 @@ impl Problem {
         );
 
         log::error!("layout conflicting constraints:\n{conflict}");
-        Err(eyre!("Layout is overconstrained; conflicting constraints:\n{conflict}"))
+        Err(eyre!(
+            "Layout is overconstrained; conflicting constraints:\n{conflict}"
+        ))
     }
 
     fn compute_primal_ray(
@@ -370,7 +408,11 @@ impl Problem {
     ) -> bool {
         let mut expr = Expression::default();
         let _ = expr.coefficients.insert(variable, 1.0);
-        let sense = if maximize { Sense::Maximise } else { Sense::Minimise };
+        let sense = if maximize {
+            Sense::Maximise
+        } else {
+            Sense::Minimise
+        };
         let model = self.build_model(constraints, Some((&expr, sense)));
         match model.try_solve() {
             Ok(solved) => matches!(
@@ -432,13 +474,18 @@ impl Problem {
 
         let expr_str = self.display_expression(objective);
         let header = match priority {
-            Some(p) => format!("Layout is underconstrained; priority {p} objective ({expr_str}) is unbounded"),
+            Some(p) => format!(
+                "Layout is underconstrained; priority {p} objective ({expr_str}) is unbounded"
+            ),
             None => format!("Layout is underconstrained; objective ({expr_str}) is unbounded"),
         };
 
         let message = match details.is_empty() {
             true => header,
-            false => format!("{header}; unbounded variable ranges:\n{}", details.join("\n")),
+            false => format!(
+                "{header}; unbounded variable ranges:\n{}",
+                details.join("\n")
+            ),
         };
 
         let msg = self.with_component_tree(message, underconstrained, component_tree);
@@ -532,9 +579,9 @@ impl Problem {
         );
 
         let solve_started = Instant::now();
-        let solved = model.try_solve().map_err(|error| {
-            eyre!("HiGHS error while solving model: {error:?}")
-        })?;
+        let solved = model
+            .try_solve()
+            .map_err(|error| eyre!("HiGHS error while solving model: {error:?}"))?;
         log_info(
             2,
             format_args!("lexicographic solve took {:?}", solve_started.elapsed()),
@@ -554,7 +601,8 @@ impl Problem {
                     .into_iter()
                     .filter_map(|idx| constraints.get(idx))
                     .collect::<Vec<_>>();
-                let displayed = self.display_constraints(conflicting_constraints.iter().copied())?;
+                let displayed =
+                    self.display_constraints(conflicting_constraints.iter().copied())?;
                 let conflict = self.with_component_tree(
                     displayed,
                     conflicting_constraints
@@ -563,11 +611,11 @@ impl Problem {
                     &Vec::new(),
                 );
                 log::error!("layout conflicting constraints:\n{conflict}");
-                Err(eyre!("Layout is overconstrained; conflicting constraints:\n{conflict}"))
+                Err(eyre!(
+                    "Layout is overconstrained; conflicting constraints:\n{conflict}"
+                ))
             }
-            status => {
-                Err(eyre!("HiGHS returned status {status:?}"))
-            }
+            status => Err(eyre!("HiGHS returned status {status:?}")),
         }
     }
 
@@ -730,7 +778,9 @@ impl Problem {
                         .await;
                 }
                 Some(Ok(iis)) => {
-                    return self.describe_infeasible(iis, constraints, component_tree).await;
+                    return self
+                        .describe_infeasible(iis, constraints, component_tree)
+                        .await;
                 }
                 None => {}
             }

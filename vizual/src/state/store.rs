@@ -56,7 +56,10 @@ impl<Value: Thread_safe> Store<Value> {
     pub async fn affect(&self, signal: Render) -> Result<Read_guard<Value>> {
         let inner = {
             let mut content = self.0.lock().await?;
-            let _ = content.subscribers.entry(signal.id).or_insert(signal.clone());
+            let _ = content
+                .subscribers
+                .entry(signal.id)
+                .or_insert(signal.clone());
             content.value.clone()
         };
         inner.affect(signal).await

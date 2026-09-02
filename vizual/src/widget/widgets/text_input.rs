@@ -1,6 +1,6 @@
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use crate::macros::display;
 
 use super::super::{Layout_input, Widget_trait};
 use super::title_block::Title_block;
@@ -97,9 +97,7 @@ impl Text_input {
 impl Widget_trait for Text_input {
     async fn layout(
         &mut self,
-        Layout_input {
-            focus, slots, ..
-        }: Layout_input<'_>,
+        Layout_input { focus, slots, .. }: Layout_input<'_>,
     ) -> Result<Children> {
         focus.set_interactive(true);
 
@@ -130,14 +128,11 @@ impl Widget_trait for Text_input {
 
     async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
         if matches!(key.code, Key_code::Escape) {
-            return self
-                .submit_handler
-                .on_submit(self.input.clone())
-                .await;
+            return self.submit_handler.on_submit(self.input.clone()).await;
         }
 
         match self.edit_key(key) {
-            true => Vizual_msg::new(Vizual_command::Layout),
+            true => Vizual_msg::new(Vizual_command::Resolve),
             false => Vizual_msg::none(),
         }
     }
@@ -147,6 +142,6 @@ impl Widget_trait for Text_input {
             return Vizual_msg::none();
         };
         self.insert(text);
-        Vizual_msg::new(Vizual_command::Layout)
+        Vizual_msg::new(Vizual_command::Resolve)
     }
 }

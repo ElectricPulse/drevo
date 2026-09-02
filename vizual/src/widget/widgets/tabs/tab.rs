@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use super::super::button::Button;
 use crate::widget::{Widget, Widget_trait};
-use crate::{Vizual_command, Vizual_msg, state::Store};
+use crate::{Vizual_msg, state::Store};
 
 #[derive(Clone)]
 pub struct Tab_specification {
@@ -38,7 +38,7 @@ impl Tab {
             let selected_page = selected_page.clone();
             async move {
                 selected_page.set(id).await?;
-                Vizual_msg::new(Vizual_command::Layout)
+                Vizual_msg::none()
             }
         })
     }

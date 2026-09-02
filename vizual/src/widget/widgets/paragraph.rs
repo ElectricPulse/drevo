@@ -65,7 +65,10 @@ impl Paragraph {
         maximum.max(f64::from(layout.full_width()))
     }
 
-    fn compute_layout(&self, text_context: &mut crate::graphics::text::Text_context) -> (Size, Layout<Text_brush>) {
+    fn compute_layout(
+        &self,
+        text_context: &mut crate::graphics::text::Text_context,
+    ) -> (Size, Layout<Text_brush>) {
         match self.static_direction {
             Direction::Horizontal => {
                 let layout =
@@ -122,7 +125,8 @@ impl Widget_trait for Paragraph {
             if let Some(layout) = &self.cached_layout {
                 scene.paint_layout_clipped(layout, hitbox.origin, hitbox, true);
             } else {
-                let layout = text_context.build_wrapped_layout(&self.content, hitbox.size.width as f32);
+                let layout =
+                    text_context.build_wrapped_layout(&self.content, hitbox.size.width as f32);
                 scene.paint_layout_clipped(&layout, hitbox.origin, hitbox, true);
             }
         }

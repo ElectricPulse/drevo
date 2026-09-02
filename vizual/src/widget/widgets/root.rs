@@ -1,11 +1,8 @@
-use color_eyre::eyre::Result;
 use crate::macros::display;
+use color_eyre::eyre::Result;
 
 use super::super::{Layout_input, Widget, Widget_trait};
-use crate::{
-    component::Children,
-    event::Key_event,
-};
+use crate::{component::Children, event::Key_event};
 
 #[derive(Clone)]
 pub struct Root(Widget);
@@ -18,10 +15,7 @@ impl Root {
 
 #[async_trait::async_trait]
 impl Widget_trait for Root {
-    async fn layout(
-        &mut self,
-        Layout_input { slots, .. }: Layout_input<'_>,
-    ) -> Result<Children> {
+    async fn layout(&mut self, Layout_input { slots, .. }: Layout_input<'_>) -> Result<Children> {
         Ok(vec![display!(self.0.clone())])
     }
 

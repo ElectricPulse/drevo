@@ -84,11 +84,6 @@ impl Rect {
         let top = self.origin.y.max(other.origin.y);
         let right = self.right().min(other.right());
         let bottom = self.bottom().min(other.bottom());
-        Self::new(
-            left,
-            top,
-            (right - left).max(0.0),
-            (bottom - top).max(0.0),
-        )
+        Self::new(left, top, (right - left).max(0.0), (bottom - top).max(0.0))
     }
 }

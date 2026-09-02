@@ -1,17 +1,27 @@
-use std::{path::{Path, PathBuf}, process::ExitStatus, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    process::ExitStatus,
+    sync::Arc,
+};
 
 #[cfg(unix)]
 use std::io::{self, Read};
 
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, WrapErr, bail};
-use crate::macros::display;
 
 use super::{
-    ansi::{Ansi, Content}, button::Button, icon::Icon, layout::axis::Axis, linebreak::Linebreak,
-    paragraph::Paragraph, positioning::anchor::Anchor, scroll::Scroll, text::Text,
+    ansi::{Ansi, Content},
+    button::Button,
+    icon::Icon,
+    layout::axis::Axis,
+    linebreak::Linebreak,
+    paragraph::Paragraph,
+    positioning::anchor::Anchor,
+    scroll::Scroll,
+    text::Text,
 };
-use lucide_icons::Icon as Lucide_icon;
 use crate::{
     Vizual_command, Vizual_msg,
     component::Children,
@@ -22,6 +32,7 @@ use crate::{
     unicode,
     widget::{Layout_input, Shared_widget, Widget_trait},
 };
+use lucide_icons::Icon as Lucide_icon;
 
 #[derive(Clone)]
 pub struct Terminal {
@@ -95,7 +106,7 @@ impl Widget_trait for Terminal {
                     let terminal = terminal.clone();
                     async move {
                         let _ = terminal.restart().await;
-                        Vizual_msg::new(Vizual_command::Layout)
+                        Vizual_msg::new(Vizual_command::Resolve)
                     }
                 },
             ));
@@ -388,7 +399,10 @@ impl Terminal {
             self.command.set(command.clone()).await?;
             *self.working_dir.lock().await? = None;
             let envs = self.envs.lock().await?.clone();
-            let handle = run_command(get_command(&command, None::<&Path>, &envs), self.text.clone())?;
+            let handle = run_command(
+                get_command(&command, None::<&Path>, &envs),
+                self.text.clone(),
+            )?;
             *self.current_handle.lock().await? = Some(handle.clone());
             Ok(handle)
         }
@@ -415,7 +429,10 @@ impl Terminal {
             self.command.set(command.clone()).await?;
             *self.working_dir.lock().await? = Some(canonical_dir.clone());
             let envs = self.envs.lock().await?.clone();
-            let handle = run_command(get_command(&command, Some(&canonical_dir), &envs), self.text.clone())?;
+            let handle = run_command(
+                get_command(&command, Some(&canonical_dir), &envs),
+                self.text.clone(),
+            )?;
             *self.current_handle.lock().await? = Some(handle.clone());
             Ok(handle)
         }

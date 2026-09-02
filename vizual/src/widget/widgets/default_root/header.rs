@@ -1,11 +1,11 @@
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use crate::macros::display;
 
 use super::{
     super::{
         layout::grid::Grid,
-        positioning::anchor::{Anchor, Anchors, Anchor_position},
+        positioning::anchor::{Anchor, Anchor_position, Anchors},
         text::Text,
     },
     Theme_choice,

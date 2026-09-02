@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use crate::{
-    Vizual_command, Vizual_msg,
+    Vizual_msg,
     component::{Children, Shared_component},
     constraint,
     event::{Event, Key_code, Key_event, Wheel_delta},
@@ -228,7 +228,6 @@ impl Widget_trait for Scroll {
             }
         }
 
-        self.clamp_offset();
         Ok(())
     }
 
@@ -242,7 +241,7 @@ impl Widget_trait for Scroll {
         };
 
         match self.scroll_by(delta) {
-            true => Vizual_msg::new(Vizual_command::Layout),
+            true => Vizual_msg::new(crate::Vizual_command::Resolve),
             false => Vizual_msg::none(),
         }
     }
@@ -265,7 +264,7 @@ impl Widget_trait for Scroll {
         };
 
         match self.scroll_by(delta) {
-            true => Vizual_msg::new(Vizual_command::Layout),
+            true => Vizual_msg::new(crate::Vizual_command::Resolve),
             false => Vizual_msg::none(),
         }
     }

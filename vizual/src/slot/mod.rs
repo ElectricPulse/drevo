@@ -23,6 +23,7 @@ use crate::{
 use self::manager::Slot_records;
 
 static NEXT_COMPONENT_NAME: AtomicU64 = AtomicU64::new(1);
+static NEXT_COMPONENT_ID: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone)]
 pub struct Component_slot {
@@ -84,7 +85,7 @@ impl Component_slot {
 
         problem.component_path.push(self.name.clone());
         let component_path = problem.component_path.join(".");
-        let variables = problem.lock().await?.variables();
+        let variables = problem.lock().await?.registry();
 
         let lock = if let Some(lock) = self.reference.upgrade() {
             let mut reference = lock.lock().await?;
@@ -92,6 +93,7 @@ impl Component_slot {
             reference.debug.source_path = self.path.clone();
             reference.widget = widget;
             reference.slot_manager.set_problem(problem);
+            reference.formula = None;
             reference.hitbox.reset_shared();
             reference.logical = false;
             reference.mask = false;
@@ -112,12 +114,17 @@ impl Component_slot {
             }
 
             let lock = Shared_component::new(Arc::new(Mutex::new(Component {
+                id: NEXT_COMPONENT_ID.fetch_add(1, Ordering::Relaxed),
                 name: self.name.clone(),
                 debug: Component_debug::new(self.path.clone()),
                 hitbox,
+                formula: None,
+                variables,
+                layout_signal: None,
                 widget,
                 focusable: false,
                 children: Vec::new(),
+                layout_children: Vec::new(),
                 parent: None,
                 slot_manager: Slot_records::new(problem),
                 logical: false,

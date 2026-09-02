@@ -1,8 +1,8 @@
 pub mod header;
 mod settings;
 
-use color_eyre::eyre::Result;
 use crate::macros::display;
+use color_eyre::eyre::Result;
 
 use self::header::Header;
 use super::{layout::axis::Axis, paper::Paper};

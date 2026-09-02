@@ -1,16 +1,13 @@
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use crate::macros::display;
 
 use super::{
     super::{Layout_input, Widget_trait},
     block::Block,
 };
 use crate::{
-    component::Children,
-    theme::Theme,
-    widget::Widget,
-    widget::widgets::block::Block_style,
+    component::Children, theme::Theme, widget::Widget, widget::widgets::block::Block_style,
 };
 
 #[derive(Clone, Copy, PartialEq)]

@@ -1,16 +1,13 @@
+use crate::macros::display;
 use crate::{
     component::{Children, context::Component_context},
     constraint,
     geometry::Direction,
-    layouter::{
-        expression::Expression,
-        objective::Delta,
-    },
+    layouter::{expression::Expression, objective::Delta},
     widget::{Layout_input, Widget, Widget_trait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, ensure};
-use crate::macros::display;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Spaces {

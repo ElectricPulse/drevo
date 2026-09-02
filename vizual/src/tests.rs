@@ -77,7 +77,7 @@ impl Widget_trait for Offset_click {
 #[tokio::test]
 async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Result<()> {
     let render_manager = Render_manager::new();
-    let render = render_manager.render;
+    let render = render_manager.render.clone();
     let theme = Store::new(theme::dark_theme());
     let body = Anchor::top_left(Text::new("Body"));
     let application = Default_root::new("Test", Grid::new((body,), 0.0)).into_shared();
@@ -128,7 +128,7 @@ async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
             &mut focus,
         )
         .await?;
-    assert!(matches!(command, Vizual_command::Layout));
+    assert!(matches!(command, Vizual_command::None));
     assert!(focus.compare(&focusable));
 
     let command = problem
@@ -141,7 +141,7 @@ async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
             &mut focus,
         )
         .await?;
-    assert!(matches!(command, Vizual_command::Layout));
+    assert!(matches!(command, Vizual_command::None));
     assert!(focus.upgrade().is_none());
 
     Ok(())
@@ -150,7 +150,7 @@ async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
 #[tokio::test]
 async fn width_constrained_paragraph_derives_its_wrapped_height() -> Result<()> {
     let render_manager = Render_manager::new();
-    let render = render_manager.render;
+    let render = render_manager.render.clone();
     let theme = Store::new(theme::dark_theme());
     let content = "a paragraph which wraps over several lines";
     let width = 80.0;
@@ -187,7 +187,7 @@ async fn width_constrained_paragraph_derives_its_wrapped_height() -> Result<()> 
 #[tokio::test]
 async fn height_constrained_paragraph_derives_a_fitting_width() -> Result<()> {
     let render_manager = Render_manager::new();
-    let render = render_manager.render;
+    let render = render_manager.render.clone();
     let theme = Store::new(theme::dark_theme());
     let content = "one two three four five six seven eight nine ten eleven twelve";
     let height = 60.0;
@@ -232,8 +232,8 @@ async fn height_constrained_paragraph_derives_a_fitting_width() -> Result<()> {
 
 #[tokio::test]
 async fn scroll_lays_out_content_with_offset() -> Result<()> {
-    let render_manager = Render_manager::new();
-    let render = render_manager.render;
+    let mut render_manager = Render_manager::new();
+    let render = render_manager.render.clone();
     let theme = Store::new(theme::dark_theme());
     let root = Root::new(Scroll::new(Text::new("Scrollable content ".repeat(20)))).into_shared();
     let mut root_slot = Component_slot::new();
@@ -247,10 +247,9 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
         .await?;
     let solution = problem.solve(Size::new(100.0, 100.0)).await?;
     let scroll = problem.root.lock().await?.children[0].clone();
-    let (scroll_content, content) =
-        widget::widgets::scroll::find_scroll_content_and_child(&scroll)
-            .await?
-            .unwrap();
+    let (scroll_content, content) = widget::widgets::scroll::find_scroll_content_and_child(&scroll)
+        .await?
+        .unwrap();
     let scroll_rect = scroll.get_hitbox().await?.get_resolved(&solution);
     let scroll_content_rect = scroll_content.get_hitbox().await?.get_resolved(&solution);
     let content_rect = content.get_hitbox().await?.get_resolved(&solution);
@@ -282,15 +281,19 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
             &mut focus,
         )
         .await?;
-    assert!(matches!(command, Vizual_command::Layout));
+    assert!(matches!(command, Vizual_command::None));
+    let crate::Render_request::Layout(id) = render_manager.reciever.0.recv().await.unwrap() else {
+        panic!("scroll event must signal its component");
+    };
+    assert!(problem.root.invalidate_formula(id).await?);
 
     Ok(())
 }
 
 #[tokio::test]
 async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Result<()> {
-    let render_manager = Render_manager::new();
-    let render = render_manager.render;
+    let mut render_manager = Render_manager::new();
+    let render = render_manager.render.clone();
     let theme = Store::new(theme::dark_theme());
     let root = Root::new(Scroll::new(Offset_click)).into_shared();
     let mut root_slot = Component_slot::new();
@@ -316,28 +319,23 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
         )
         .await?;
 
-    let mut scrolled = false;
-    loop {
-        let command = problem
-            .handle_event(
-                &Event::Key(Key_event {
-                    code: Key_code::Arrow_right,
-                    modifiers: Modifiers::default(),
-                    text: None,
-                    repeat: false,
-                }),
-                &solution,
-                &mut focus,
-            )
-            .await?;
-        if matches!(command, Vizual_command::Layout) {
-            scrolled = true;
-            continue;
-        }
-        assert!(matches!(command, Vizual_command::None));
-        break;
-    }
-    assert!(scrolled);
+    let command = problem
+        .handle_event(
+            &Event::Key(Key_event {
+                code: Key_code::Arrow_right,
+                modifiers: Modifiers::default(),
+                text: None,
+                repeat: false,
+            }),
+            &solution,
+            &mut focus,
+        )
+        .await?;
+    assert!(matches!(command, Vizual_command::None));
+    let crate::Render_request::Layout(id) = render_manager.reciever.0.recv().await.unwrap() else {
+        panic!("scroll event must signal its component");
+    };
+    assert!(problem.root.invalidate_formula(id).await?);
 
     problem
         .layout(render.clone(), theme.clone(), &focus, &mut text_context)

@@ -1,11 +1,8 @@
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use crate::macros::display;
 
-use super::{
-    super::text::Text,
-    Menu, Menu_item,
-};
+use super::{super::text::Text, Menu, Menu_item};
 use crate::{
     component::Children,
     handlers::Retrieve_handler,
@@ -61,9 +58,7 @@ impl Menu<bool> {
     pub async fn boolean(default: bool) -> Result<Self> {
         let items = [false, true]
             .into_iter()
-            .map(|value| -> Menu_item<bool> {
-                Box::new(Boolean_menu_item { value })
-            })
+            .map(|value| -> Menu_item<bool> { Box::new(Boolean_menu_item { value }) })
             .collect::<Vec<_>>();
         let default_item = usize::from(default);
 

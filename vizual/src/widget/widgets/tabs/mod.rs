@@ -1,9 +1,9 @@
 pub mod tab;
 
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use uuid::Uuid;
-use crate::macros::display;
 
 use super::{
     super::{Layout_input, Render_input, Shared_widget, Widget, Widget_trait},
@@ -78,8 +78,9 @@ impl Tab_bar {
         Ok(())
     }
 
-    async fn get_selected(&self) -> Result<Option<Widget>> {
-        let selected_page = *self.selected_page.read().await?;
+    async fn get_selected(&self, render: crate::Render) -> Result<Option<Widget>> {
+        // The owner also depends on the selected page: switching tabs changes which child exists.
+        let selected_page = *self.selected_page.affect(render).await?;
         let Some(index) = self.find_id(selected_page) else {
             return Ok(None);
         };
@@ -142,14 +143,14 @@ impl Widget_trait for Tab_bar {
             }
 
             self.set_page_index(digit).await?;
-            return crate::Vizual_msg::new(crate::Vizual_command::Layout);
+            return crate::Vizual_msg::none();
         }
 
         if let Some(page_index) =
             utils::handle_keys_for_iterable(key, self.pages.len(), self.get_page_index().await?)
         {
             self.set_page_index(page_index).await?;
-            return crate::Vizual_msg::new(crate::Vizual_command::Layout);
+            return crate::Vizual_msg::none();
         }
 
         crate::Vizual_msg::none()
@@ -163,8 +164,11 @@ impl Widget_trait for Tab_bar {
 
 #[async_trait]
 impl Widget_trait for Tabs {
-    async fn layout(&mut self, Layout_input { slots, .. }: Layout_input<'_>) -> Result<Children> {
-        let selected = self.header.lock().await?.get_selected().await?;
+    async fn layout(
+        &mut self,
+        Layout_input { slots, render, .. }: Layout_input<'_>,
+    ) -> Result<Children> {
+        let selected = self.header.lock().await?.get_selected(render).await?;
         let axis = match selected {
             Some(widget) => Axis::new(Direction::Vertical, (self.header.clone(), widget)),
             None => Axis::new(Direction::Vertical, (self.header.clone(),)),

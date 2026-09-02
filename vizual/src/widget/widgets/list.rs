@@ -64,11 +64,7 @@ impl Widget_trait for List {
             };
             let line = format!("{marker}{item}");
             let styled = Styled_text::styled(&line, Text_style::default());
-            let size = text_context.draw_text(
-                scene,
-                &styled,
-                Point::new(hitbox.origin.x, y),
-            );
+            let size = text_context.draw_text(scene, &styled, Point::new(hitbox.origin.x, y));
             y += size.height;
         }
 
@@ -83,11 +79,11 @@ impl Widget_trait for List {
         match key.code {
             Key_code::Arrow_down => {
                 self.set_index(get_next_index(self.items.len(), self.get_index()));
-                crate::Vizual_msg::new(crate::Vizual_command::Layout)
+                crate::Vizual_msg::new(crate::Vizual_command::Render)
             }
             Key_code::Arrow_up => {
                 self.set_index(get_previous_index(self.items.len(), self.get_index()));
-                crate::Vizual_msg::new(crate::Vizual_command::Layout)
+                crate::Vizual_msg::new(crate::Vizual_command::Render)
             }
             _ => crate::Vizual_msg::none(),
         }

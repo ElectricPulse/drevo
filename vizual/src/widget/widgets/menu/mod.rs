@@ -1,9 +1,9 @@
 pub mod boolean;
 mod string;
 
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, eyre};
-use crate::macros::display;
 
 use super::{
     super::{
@@ -68,7 +68,7 @@ impl<Choice: Thread_safe> Menu_item_container<Choice> {
     async fn submit(&mut self) -> Result<Vizual_msg> {
         self.selected_store.set(self.index).await?;
         self.submitted.set(self.widget.on_retrieve().await?).await?;
-        Vizual_msg::new(Vizual_command::Layout)
+        Vizual_msg::new(Vizual_command::Resolve)
     }
 }
 
@@ -199,7 +199,7 @@ impl<Choice: Thread_safe> Widget_trait for Menu<Choice> {
                     _ => get_next_index(self.items.len(), index),
                 };
                 self.set_index(next_index).await?;
-                Vizual_msg::new(Vizual_command::Layout)
+                Vizual_msg::new(Vizual_command::Resolve)
             }
             _ => Vizual_msg::none(),
         }

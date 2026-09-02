@@ -4,10 +4,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::{Result, eyre};
 
 use super::Widget_trait;
-use crate::{
-    component::Children,
-    sync::Thread_safe,
-};
+use crate::{component::Children, sync::Thread_safe};
 
 // TODO: Merge Custom_widget_trait into Widget_trait once payload-based layout is supported there.
 #[async_trait]
@@ -41,10 +38,7 @@ where
     Payload: Clone + Thread_safe,
 {
     async fn layout(&mut self, input: super::Layout_input<'_>) -> Result<Children> {
-        let contents = self
-            .widget
-            .layout(input, self.payload.clone())
-            .await?;
+        let contents = self.widget.layout(input, self.payload.clone()).await?;
 
         // TODO: handle this some other way
         if contents.len() != 1 {

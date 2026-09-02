@@ -1,11 +1,7 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-use crate::{
-    Vizual_command, Vizual_msg,
-    state::State,
-    sync::Thread_safe,
-};
+use crate::{Vizual_command, Vizual_msg, state::State, sync::Thread_safe};
 
 #[async_trait]
 pub trait Submit_handler<T: Thread_safe + Clone>: Thread_safe + dyn_clone::DynClone {

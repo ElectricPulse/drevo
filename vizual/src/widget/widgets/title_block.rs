@@ -1,6 +1,6 @@
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use crate::macros::display;
 
 use super::{
     super::{Layout_input, Widget_trait},
@@ -9,11 +9,7 @@ use super::{
     positioning::anchor::Anchor,
     text::Text,
 };
-use crate::{
-    component::Children,
-    geometry::Direction,
-    widget::Widget,
-};
+use crate::{component::Children, geometry::Direction, widget::Widget};
 
 #[derive(Clone)]
 pub struct Title_block {
