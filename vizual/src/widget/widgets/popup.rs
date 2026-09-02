@@ -87,37 +87,6 @@ impl Custom_widget_trait for Popup_menu_item {
 }
 
 #[derive(Clone)]
-struct Popup_submit_handler {
-    subhandler: Box<dyn Submit_handler<bool>>,
-}
-
-#[async_trait]
-impl Submit_handler<Popup_options> for Popup_submit_handler {
-    async fn on_submit(&mut self, option: Popup_options) -> Result<Vizual_msg> {
-        let Some(should_save) = option.should_save() else {
-            return Vizual_msg::new(Vizual_command::Layout);
-        };
-
-        self.subhandler.on_submit(should_save).await
-    }
-}
-
-#[derive(Clone)]
-struct Popup_button_handler {
-    menu: Menu<Popup_options>,
-    submit_handler: Box<dyn Submit_handler<Popup_options>>,
-}
-
-#[async_trait]
-impl Submit_handler<bool> for Popup_button_handler {
-    async fn on_submit(&mut self, _focused: bool) -> Result<Vizual_msg> {
-        let option_state = self.menu.on_retrieve().await?;
-        let option = *option_state.read().await?;
-        self.submit_handler.on_submit(option).await
-    }
-}
-
-#[derive(Clone)]
 pub struct Popup {
     menu: Menu<Popup_options>,
     submit_handler: Box<dyn Submit_handler<Popup_options>>,
@@ -132,10 +101,16 @@ impl Popup {
             })
             .collect();
         let menu = Menu::new(items, 0).await?;
-        let submit_handler: Box<dyn Submit_handler<Popup_options>> =
-            Box::new(Popup_submit_handler {
-                subhandler: Box::new(submit_handler),
-            });
+        let subhandler: Box<dyn Submit_handler<bool>> = Box::new(submit_handler);
+        let submit_handler: Box<dyn Submit_handler<Popup_options>> = Box::new(move |option: Popup_options| {
+            let mut subhandler = subhandler.clone();
+            async move {
+                let Some(should_save) = option.should_save() else {
+                    return Vizual_msg::new(Vizual_command::Layout);
+                };
+                subhandler.on_submit(should_save).await
+            }
+        });
 
         Ok(Self {
             menu,
@@ -158,11 +133,18 @@ impl Widget_trait for Popup {
         let theme = theme.affect(render).await?;
         let mut text = Text::new("Submit");
         text.style.set(theme.specific.text.button);
+        let menu_clone = self.menu.clone();
+        let submit_handler = self.submit_handler.clone();
         let button = Button::new(
             text,
-            Popup_button_handler {
-                menu: self.menu.clone(),
-                submit_handler: self.submit_handler.clone(),
+            move |_focused: bool| {
+                let mut menu = menu_clone.clone();
+                let mut submit_handler = submit_handler.clone();
+                async move {
+                    let option_state = menu.on_retrieve().await?;
+                    let option = *option_state.read().await?;
+                    submit_handler.on_submit(option).await
+                }
             },
         );
         let button = Anchor::left(button);

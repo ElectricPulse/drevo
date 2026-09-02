@@ -85,3 +85,15 @@ pub trait Retrieve_handler<Value: Thread_safe>: Thread_safe + dyn_clone::DynClon
 }
 
 dyn_clone::clone_trait_object!(<Value> Retrieve_handler<Value> where Value: Thread_safe);
+
+#[async_trait]
+impl<F, Fut, Value> Retrieve_handler<Value> for F
+where
+    F: FnMut() -> Fut + Clone + Thread_safe,
+    Fut: std::future::Future<Output = Result<State<Value>>> + Send + 'static,
+    Value: Thread_safe,
+{
+    async fn on_retrieve(&mut self) -> Result<State<Value>> {
+        (self)().await
+    }
+}

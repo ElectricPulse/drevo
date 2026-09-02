@@ -1,4 +1,4 @@
-use std::{path::Path, process::ExitStatus, sync::Arc};
+use std::{path::{Path, PathBuf}, process::ExitStatus, sync::Arc};
 
 #[cfg(unix)]
 use std::io::{self, Read};
@@ -8,11 +8,12 @@ use color_eyre::eyre::{Result, WrapErr, bail};
 use crate::macros::display;
 
 use super::{
-    ansi::Ansi, icon::Icon, layout::axis::Axis, linebreak::Linebreak, paragraph::Paragraph,
-    positioning::anchor::Anchor, scroll::Scroll, text::Text,
+    ansi::Ansi, button::Button, icon::Icon, layout::axis::Axis, linebreak::Linebreak,
+    paragraph::Paragraph, positioning::anchor::Anchor, scroll::Scroll, text::Text,
 };
 use lucide_icons::Icon as Lucide_icon;
 use crate::{
+    Vizual_command, Vizual_msg,
     component::Children,
     config::COMMAND_WAIT_TIMEOUT,
     geometry::Direction,
@@ -29,6 +30,9 @@ pub struct Terminal {
     command: Store<String>,
     text: Store<String>,
     scroll: Shared_widget<Scroll>,
+    pub restart: bool,
+    current_handle: Arc<Mutex<Option<Command_handle>>>,
+    working_dir: Arc<Mutex<Option<PathBuf>>>,
 }
 
 #[async_trait]
@@ -81,14 +85,38 @@ impl Widget_trait for Terminal {
                 Anchor::v_middle(shell_paragraph),
             ),
         ));
-        let command_row = Anchor::left(Axis::new(
-            Direction::Horizontal,
-            (
-                Anchor::v_middle(Icon::new(Lucide_icon::Play)),
-                Anchor::v_middle(command_label),
-                Anchor::v_middle(command_paragraph),
-            ),
-        ));
+
+        let command_row = if self.restart {
+            let terminal = self.clone();
+            let restart_button = Anchor::v_middle(Button::new(
+                Icon::new(Lucide_icon::RotateCw),
+                move |_payload| {
+                    let terminal = terminal.clone();
+                    async move {
+                        let _ = terminal.restart().await;
+                        Vizual_msg::new(Vizual_command::Layout)
+                    }
+                },
+            ));
+            Anchor::left(Axis::new(
+                Direction::Horizontal,
+                (
+                    Anchor::v_middle(Icon::new(Lucide_icon::Play)),
+                    Anchor::v_middle(command_label),
+                    Anchor::v_middle(command_paragraph),
+                    restart_button,
+                ),
+            ))
+        } else {
+            Anchor::left(Axis::new(
+                Direction::Horizontal,
+                (
+                    Anchor::v_middle(Icon::new(Lucide_icon::Play)),
+                    Anchor::v_middle(command_label),
+                    Anchor::v_middle(command_paragraph),
+                ),
+            ))
+        };
 
         let axis = Axis::new(
             Direction::Vertical,
@@ -265,7 +293,7 @@ fn run_command(
 }
 
 impl Terminal {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         let directory = Store::new(
             std::env::current_dir()
                 .map(|path| std::fs::canonicalize(&path).unwrap_or(path))
@@ -285,37 +313,18 @@ impl Terminal {
             command,
             text,
             scroll,
+            restart: false,
+            current_handle: Arc::new(Mutex::new(None)),
+            working_dir: Arc::new(Mutex::new(None)),
         }
     }
 
-    fn update_info(&self, directory: String, shell: String, command: String) {
-        let dir_store = self.directory.clone();
-        let shell_store = self.shell.clone();
-        let cmd_store = self.command.clone();
-        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            drop(runtime.spawn(async move {
-                let _ = dir_store.set(directory).await;
-                let _ = shell_store.set(shell).await;
-                let _ = cmd_store.set(command).await;
-            }));
-        } else {
-            let _ = std::thread::spawn(move || {
-                let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                else {
-                    return;
-                };
-                let _ = runtime.block_on(async move {
-                    let _ = dir_store.set(directory).await;
-                    let _ = shell_store.set(shell).await;
-                    let _ = cmd_store.set(command).await;
-                });
-            });
-        }
+    pub fn with_restart(mut self, restart: bool) -> Self {
+        self.restart = restart;
+        self
     }
 
-    pub fn run(&self, args: impl Into<String>) -> Result<Command_handle> {
+    pub async fn run(&self, args: impl Into<String>) -> Result<Command_handle> {
         let command = args.into();
         #[cfg(unix)]
         {
@@ -323,8 +332,13 @@ impl Terminal {
                 .map(|path| std::fs::canonicalize(&path).unwrap_or(path))
                 .map(|path| path.display().to_string())
                 .unwrap_or_default();
-            self.update_info(current_dir, "/bin/bash".to_string(), command.clone());
-            run_command(get_command(&command, None::<&Path>), self.text.clone())
+            self.directory.set(current_dir).await?;
+            self.shell.set("/bin/bash".to_string()).await?;
+            self.command.set(command.clone()).await?;
+            *self.working_dir.lock().await? = None;
+            let handle = run_command(get_command(&command, None::<&Path>), self.text.clone())?;
+            *self.current_handle.lock().await? = Some(handle.clone());
+            Ok(handle)
         }
         #[cfg(not(unix))]
         {
@@ -333,7 +347,7 @@ impl Terminal {
         }
     }
 
-    pub fn run_in_dir(
+    pub async fn run_in_dir(
         &self,
         args: impl Into<String>,
         working_dir: impl AsRef<Path>,
@@ -344,8 +358,13 @@ impl Terminal {
             let canonical_dir = std::fs::canonicalize(working_dir.as_ref())
                 .unwrap_or_else(|_| working_dir.as_ref().to_path_buf());
             let dir_str = canonical_dir.display().to_string();
-            self.update_info(dir_str, "/bin/bash".to_string(), command.clone());
-            run_command(get_command(&command, Some(&canonical_dir)), self.text.clone())
+            self.directory.set(dir_str).await?;
+            self.shell.set("/bin/bash".to_string()).await?;
+            self.command.set(command.clone()).await?;
+            *self.working_dir.lock().await? = Some(canonical_dir.clone());
+            let handle = run_command(get_command(&command, Some(&canonical_dir)), self.text.clone())?;
+            *self.current_handle.lock().await? = Some(handle.clone());
+            Ok(handle)
         }
         #[cfg(not(unix))]
         {
@@ -353,10 +372,31 @@ impl Terminal {
             bail!("Terminal command execution is unsupported on this platform")
         }
     }
-}
 
-impl Default for Terminal {
-    fn default() -> Self {
-        Self::new()
+    pub async fn restart(&self) -> Result<Command_handle> {
+        let mut handle_lock = self.current_handle.lock().await?;
+        if let Some(handle) = handle_lock.take() {
+            let _ = handle.ensure_stopped().await;
+        }
+
+        self.text.set(String::new()).await?;
+
+        let command = self.command.read().await?.clone();
+        let working_dir = self.working_dir.lock().await?.clone();
+
+        #[cfg(unix)]
+        {
+            let handle = run_command(
+                get_command(&command, working_dir.as_deref()),
+                self.text.clone(),
+            )?;
+            *handle_lock = Some(handle.clone());
+            Ok(handle)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = (command, working_dir);
+            bail!("Terminal command execution is unsupported on this platform")
+        }
     }
 }
