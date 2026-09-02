@@ -72,7 +72,7 @@ use geometry::{Point, Size};
 use graphics::{scene::Scene as Graphics_scene, text::Text_context};
 use layouter::{Formula, Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
-use render_manager::{Render_manager, Render_reciever};
+use render_manager::{Render_manager, Render_receiver};
 use slot::Component_slot;
 use state::Store;
 use sync::Mutex;
@@ -635,7 +635,7 @@ async fn ui_loop<T: Widget_trait>(
     root: Shared_widget<T>,
     render: Render,
     theme: Store<Theme>,
-    mut render_reciever: Render_reciever,
+    mut render_receiver: Render_receiver,
     mut input_receiver: mpsc::UnboundedReceiver<Ui_input>,
     proxy: EventLoopProxy<User_event>,
 ) -> Result<()> {
@@ -655,7 +655,7 @@ async fn ui_loop<T: Widget_trait>(
             None => {
                 tokio::select! {
                     input = input_receiver.recv() => input,
-                    render_request = render_reciever.0.recv(), if render_open => {
+                    render_request = render_receiver.0.recv(), if render_open => {
                         match render_request {
                             Some(first) => {
                                 let mut layouts = HashSet::new();
@@ -668,7 +668,7 @@ async fn ui_loop<T: Widget_trait>(
                                 let deadline = tokio::time::Instant::from_std(Instant::now() + Duration::from_millis(10));
                                 loop {
                                     tokio::select! {
-                                        request = render_reciever.0.recv() => match request {
+                                        request = render_receiver.0.recv() => match request {
                                             Some(request) => add(request),
                                             None => { render_open = false; break; }
                                         },
@@ -1245,7 +1245,7 @@ fn map_system_theme(theme: Window_theme) -> System_theme {
 /// the window closes; widget tasks continue on the runtime. Vizual creates the
 /// render manager used by the root widget.
 pub fn run<T: Widget_trait>(title: impl Into<String>, root: T) -> Result<()> {
-    let Render_manager { render, reciever } = Render_manager::new();
+    let Render_manager { render, receiver } = Render_manager::new();
     let theme = Store::new(Theme::default());
     let root = Root::new(root.into_shared()).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
@@ -1258,7 +1258,7 @@ pub fn run<T: Widget_trait>(title: impl Into<String>, root: T) -> Result<()> {
     let (input_sender, input_receiver) = mpsc::unbounded_channel();
     let ui_theme = theme.clone();
     let ui_task = runtime.spawn(async move {
-        if let Err(error) = ui_loop(root, render, ui_theme, reciever, input_receiver, proxy).await {
+        if let Err(error) = ui_loop(root, render, ui_theme, receiver, input_receiver, proxy).await {
             let _ = error_proxy.send_event(User_event::Error(format!("{error:?}")));
         }
     });

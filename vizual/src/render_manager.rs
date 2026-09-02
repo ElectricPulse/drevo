@@ -2,20 +2,20 @@ use tokio::sync::mpsc;
 
 use crate::{Render, Render_request};
 
-pub struct Render_reciever(pub(crate) mpsc::UnboundedReceiver<Render_request>);
+pub struct Render_receiver(pub(crate) mpsc::UnboundedReceiver<Render_request>);
 
 pub struct Render_manager {
     pub render: Render,
-    pub(crate) reciever: Render_reciever,
+    pub(crate) receiver: Render_receiver,
 }
 
 impl Render_manager {
     pub fn new() -> Self {
-        let (sender, reciever) = mpsc::unbounded_channel();
+        let (sender, receiver) = mpsc::unbounded_channel();
 
         Self {
             render: Render::new(sender),
-            reciever: Render_reciever(reciever),
+            receiver: Render_receiver(receiver),
         }
     }
 }

@@ -282,7 +282,7 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
         )
         .await?;
     assert!(matches!(command, Vizual_command::None));
-    let crate::Render_request::Layout(id) = render_manager.reciever.0.recv().await.unwrap() else {
+    let crate::Render_request::Layout(id) = render_manager.receiver.0.recv().await.unwrap() else {
         panic!("scroll event must signal its component");
     };
     assert!(problem.root.invalidate_formula(id).await?);
@@ -332,7 +332,7 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
         )
         .await?;
     assert!(matches!(command, Vizual_command::None));
-    let crate::Render_request::Layout(id) = render_manager.reciever.0.recv().await.unwrap() else {
+    let crate::Render_request::Layout(id) = render_manager.receiver.0.recv().await.unwrap() else {
         panic!("scroll event must signal its component");
     };
     assert!(problem.root.invalidate_formula(id).await?);

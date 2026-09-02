@@ -21,7 +21,7 @@ async fn affect_deduplicates_render_ids_and_set_notifies() -> Result<()> {
 
     let store = Store::new(1_u8);
     drop(store.read().await?);
-    assert!(first_manager.reciever.0.try_recv().is_err());
+    assert!(first_manager.receiver.0.try_recv().is_err());
 
     drop(store.affect(first_manager.render.clone()).await?);
     drop(store.affect(first_manager.render.clone()).await?);
@@ -30,15 +30,15 @@ async fn affect_deduplicates_render_ids_and_set_notifies() -> Result<()> {
     store.set(2_u8).await?;
 
     assert_eq!(
-        first_manager.reciever.0.recv().await,
+        first_manager.receiver.0.recv().await,
         Some(crate::Render_request::Render)
     );
     assert_eq!(
-        second_manager.reciever.0.recv().await,
+        second_manager.receiver.0.recv().await,
         Some(crate::Render_request::Render)
     );
-    assert!(first_manager.reciever.0.try_recv().is_err());
-    assert!(second_manager.reciever.0.try_recv().is_err());
+    assert!(first_manager.receiver.0.try_recv().is_err());
+    assert!(second_manager.receiver.0.try_recv().is_err());
     assert_eq!(*store.get().await?, 2);
     Ok(())
 }
@@ -54,14 +54,14 @@ async fn store_set_another_store_forwards_notifications() -> Result<()> {
 
     // Parent notification on set
     assert_eq!(
-        manager.reciever.0.recv().await,
+        manager.receiver.0.recv().await,
         Some(crate::Render_request::Render)
     );
 
     // Changing child forwards to parent's subscriber
     child.set(20_u8).await?;
     assert_eq!(
-        manager.reciever.0.recv().await,
+        manager.receiver.0.recv().await,
         Some(crate::Render_request::Render)
     );
     assert_eq!(*parent.get().await?, 20);
@@ -69,7 +69,7 @@ async fn store_set_another_store_forwards_notifications() -> Result<()> {
     // Overwriting parent stops forwarding from old child
     parent.set(99_u8).await?;
     assert_eq!(
-        manager.reciever.0.recv().await,
+        manager.receiver.0.recv().await,
         Some(crate::Render_request::Render)
     );
     assert_eq!(*parent.get().await?, 99);
@@ -87,6 +87,6 @@ async fn constant_never_subscribes() -> Result<()> {
 
     assert_eq!(&*constant.read().await?, "constant");
     assert_eq!(&*constant.affect(manager.render.clone()).await?, "constant");
-    assert!(manager.reciever.0.try_recv().is_err());
+    assert!(manager.receiver.0.try_recv().is_err());
     Ok(())
 }
