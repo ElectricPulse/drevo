@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use color_eyre::Result;
@@ -9,24 +9,49 @@ use crate::{
     sync::{Mutex, Thread_safe},
 };
 
-type Callback<Dependency, Value> = dyn Fn(&[Read_guard<Dependency>]) -> Value + Send + Sync;
+type Callback_future<Value> = Pin<Box<dyn Future<Output = Result<Value>> + Send>>;
+type Callback<Value> = dyn Fn() -> Callback_future<Value> + Send + Sync;
+
+#[async_trait]
+pub trait Memoization_store: Thread_safe {
+    async fn version(&self) -> Result<u64>;
+    async fn affect(&self, signal: Signal) -> Result<()>;
+}
+
+#[async_trait]
+impl<Value: Thread_safe> Memoization_store for Store<Value> {
+    async fn version(&self) -> Result<u64> {
+        self.version().await
+    }
+
+    async fn affect(&self, signal: Signal) -> Result<()> {
+        let _ = self.affect(signal).await?;
+        Ok(())
+    }
+}
+
+pub type Dependency = Arc<dyn Memoization_store>;
+
+pub fn dependency<Value: Thread_safe>(store: Store<Value>) -> Dependency {
+    Arc::new(store)
+}
 
 struct Cached<Value> {
     versions: Vec<u64>,
     value: Arc<Value>,
 }
 
-/// A value derived from stores of one value type.
+/// A cached state derived from stores.
 ///
-/// It does not need to be a cached state today, but is one in case computing the value becomes
-/// expensive. Dependencies must share one type because Rust vectors are homogeneous.
-pub struct Memoization<Dependency: Thread_safe, Value: Thread_safe> {
-    callback: Arc<Callback<Dependency, Value>>,
-    stores: Vec<Store<Dependency>>,
+/// Calling `affect` subscribes the supplied signal to every dependency. A dependency update then
+/// signals the consumer; its next read reruns the callback only when a source version changed.
+pub struct Memoization<Value: Thread_safe> {
+    callback: Arc<Callback<Value>>,
+    stores: Vec<Dependency>,
     cached: Arc<Mutex<Option<Cached<Value>>>>,
 }
 
-impl<Dependency: Thread_safe, Value: Thread_safe> Clone for Memoization<Dependency, Value> {
+impl<Value: Thread_safe> Clone for Memoization<Value> {
     fn clone(&self) -> Self {
         Self {
             callback: Arc::clone(&self.callback),
@@ -36,37 +61,31 @@ impl<Dependency: Thread_safe, Value: Thread_safe> Clone for Memoization<Dependen
     }
 }
 
-/// Creates a memoized value from `stores`.
-///
-/// The callback is rerun only after one of those stores has changed. Calling `affect` also
-/// subscribes its signal to every dependency.
-pub fn memoization<Dependency, Value>(
-    callback: impl Fn(&[Read_guard<Dependency>]) -> Value + Send + Sync + 'static,
-    stores: Vec<Store<Dependency>>,
-) -> Memoization<Dependency, Value>
+/// Creates a memoized state from `stores`.
+pub fn memoization<Value, Callback, Callback_future>(
+    callback: Callback,
+    stores: Vec<Dependency>,
+) -> Memoization<Value>
 where
-    Dependency: Thread_safe,
     Value: Thread_safe,
+    Callback: Fn() -> Callback_future + Send + Sync + 'static,
+    Callback_future: Future<Output = Result<Value>> + Send + 'static,
 {
     Memoization {
-        callback: Arc::new(callback),
+        callback: Arc::new(move || Box::pin(callback())),
         stores,
         cached: Arc::new(Mutex::new(None)),
     }
 }
 
-impl<Dependency: Thread_safe, Value: Thread_safe> Memoization<Dependency, Value> {
+impl<Value: Thread_safe> Memoization<Value> {
     async fn value(&self, signal: Option<Signal>) -> Result<Read_guard<Value>> {
-        let mut values = Vec::with_capacity(self.stores.len());
         let mut versions = Vec::with_capacity(self.stores.len());
-
         for store in &self.stores {
             versions.push(store.version().await?);
-            let value = match &signal {
-                Some(signal) => store.affect(signal.clone()).await?,
-                None => store.read().await?,
-            };
-            values.push(value);
+            if let Some(signal) = &signal {
+                store.affect(signal.clone()).await?;
+            }
         }
 
         let mut cached = self.cached.lock().await?;
@@ -75,7 +94,7 @@ impl<Dependency: Thread_safe, Value: Thread_safe> Memoization<Dependency, Value>
                 Ok(Read_guard::new(Arc::clone(&cached.value)))
             }
             _ => {
-                let value = Arc::new((self.callback)(&values));
+                let value = Arc::new((self.callback)().await?);
                 *cached = Some(Cached {
                     versions,
                     value: Arc::clone(&value),
@@ -87,7 +106,7 @@ impl<Dependency: Thread_safe, Value: Thread_safe> Memoization<Dependency, Value>
 }
 
 #[async_trait]
-impl<Dependency: Thread_safe, Value: Thread_safe> State_trait for Memoization<Dependency, Value> {
+impl<Value: Thread_safe> State_trait for Memoization<Value> {
     type Output = Value;
 
     async fn read(&self) -> Result<Read_guard<Self::Output>> {

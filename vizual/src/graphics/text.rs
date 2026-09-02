@@ -15,7 +15,10 @@ use vello::{kurbo::Rect as Kurbo_rect, peniko::Brush};
 use crate::{
     config::DEFAULT_FONT_SIZE,
     geometry::{Point, Size},
-    state::Store,
+    state::{
+        Store,
+        memoization::{Dependency, Memoization, dependency, memoization},
+    },
     style::Color,
     sync::Mutex,
     widget::widgets::text::Text_style,
@@ -46,11 +49,18 @@ impl Default for Text_brush {
     }
 }
 
+#[derive(Clone)]
 pub struct Text_context {
     /// This does not need to be a store today, but is one in case its provider becomes dynamic.
     font_context: Store<Mutex<FontContext>>,
     /// This does not need to be a store today, but is one in case its provider becomes dynamic.
     layout_context: Store<Mutex<LayoutContext<Text_brush>>>,
+}
+
+#[derive(Clone)]
+pub(crate) struct Text_layout {
+    pub(crate) layout: Layout<Text_brush>,
+    pub(crate) size: Size,
 }
 
 impl Text_context {
@@ -68,6 +78,30 @@ impl Text_context {
 
     pub(crate) async fn build_layout(&self, text: &Styled_text) -> Result<Layout<Text_brush>> {
         self.build_layout_with_width(text, None).await
+    }
+
+    pub(crate) fn memoize_layout(&self, text: Styled_text) -> Memoization<Text_layout> {
+        let context = self.clone();
+        memoization(
+            move || {
+                let context = context.clone();
+                let text = text.clone();
+                async move {
+                    let layout = context.build_layout(&text).await?;
+                    let size =
+                        Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
+                    Ok(Text_layout { layout, size })
+                }
+            },
+            self.dependencies(),
+        )
+    }
+
+    fn dependencies(&self) -> Vec<Dependency> {
+        vec![
+            dependency(self.font_context.clone()),
+            dependency(self.layout_context.clone()),
+        ]
     }
 
     pub(crate) async fn build_wrapped_layout(

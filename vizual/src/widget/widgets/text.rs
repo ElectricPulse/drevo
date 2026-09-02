@@ -1,16 +1,18 @@
 use super::super::{Layout_input, Render_input, Widget_trait};
+use async_trait::async_trait;
+use color_eyre::Result;
+use std::sync::Arc;
+
 use crate::{
     component::Children,
     config::DEFAULT_FONT_SIZE,
-    geometry::{Direction, Size},
-    graphics::text::{Styled_text, Text_brush},
-    state::State,
+    geometry::Direction,
+    graphics::text::{Styled_text, Text_layout},
+    state::{State, State_trait, memoization::Memoization},
     style::{Color, Style},
+    sync::Mutex,
     theme::Theme,
 };
-use async_trait::async_trait;
-use color_eyre::Result;
-use parley::Layout;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Text_style {
@@ -46,7 +48,7 @@ impl From<Theme> for Text_style {
 pub struct Text {
     content: State<String>,
     pub style: Style<Text_style>,
-    cached_layout: Option<Layout<Text_brush>>,
+    cached_layout: Arc<Mutex<Option<(Styled_text, Memoization<Text_layout>)>>>,
 }
 
 impl Text {
@@ -54,7 +56,7 @@ impl Text {
         Self {
             content: content.into(),
             style: Style::default(),
-            cached_layout: None,
+            cached_layout: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -73,13 +75,22 @@ impl Widget_trait for Text {
         }: Layout_input<'_>,
     ) -> Result<Children> {
         let content = self.content.affect(relayout.clone()).await?;
-        let theme = theme.affect(relayout).await?;
+        let theme = theme.affect(relayout.clone()).await?;
         let style = self.style.get(&theme);
-        let layout = text_context
-            .build_layout(&Styled_text::styled(&*content, style))
-            .await?;
-        let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
-        self.cached_layout = Some(layout);
+        let text = Styled_text::styled(&*content, style);
+        let memoization = {
+            let mut cached_layout = self.cached_layout.lock().await?;
+            match &*cached_layout {
+                Some((cached_text, memoization)) if cached_text == &text => memoization.clone(),
+                _ => {
+                    let memoization = text_context.memoize_layout(text.clone());
+                    *cached_layout = Some((text, memoization.clone()));
+                    memoization
+                }
+            }
+        };
+        let layout = memoization.affect(relayout).await?;
+        let size = layout.size;
 
         hitbox
             .set_static_dimension(&problem, Direction::Horizontal, size.width)
@@ -95,11 +106,16 @@ impl Widget_trait for Text {
         &mut self,
         Render_input { hitbox, scene, .. }: Render_input<'_, '_>,
     ) -> Result<()> {
-        let layout = self
+        let memoization = self
             .cached_layout
+            .lock()
+            .await?
             .as_ref()
-            .expect("Text must be laid out before rendering");
-        scene.paint_layout(layout, hitbox.origin, true);
+            .expect("Text must be laid out before rendering")
+            .1
+            .clone();
+        let layout = memoization.read().await?;
+        scene.paint_layout(&layout.layout, hitbox.origin, true);
         Ok(())
     }
 }

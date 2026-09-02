@@ -1,15 +1,16 @@
 use async_trait::async_trait;
 use color_eyre::Result;
-use parley::Layout;
+use std::sync::Arc;
 
 use super::super::{Layout_input, Render_input, Widget_trait};
 use super::text::Text_style;
 use crate::{
     component::Children,
-    geometry::{Direction, Size},
-    graphics::text::{Ansi_parser, Styled_text, Text_brush},
-    state::State,
+    geometry::Direction,
+    graphics::text::{Ansi_parser, Styled_text, Text_layout},
+    state::{State, State_trait, memoization::Memoization},
     style::Style,
+    sync::Mutex,
 };
 
 #[cfg(test)]
@@ -69,7 +70,7 @@ impl From<&str> for Content {
 pub struct Ansi {
     pub content: State<Content>,
     pub style: Style<Text_style>,
-    cached_layout: Option<Layout<Text_brush>>,
+    cached_layout: Arc<Mutex<Option<(Styled_text, Memoization<Text_layout>)>>>,
 }
 
 impl Ansi {
@@ -81,7 +82,7 @@ impl Ansi {
         Self {
             content: content.into(),
             style: Style::default(),
-            cached_layout: None,
+            cached_layout: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -100,13 +101,23 @@ impl Widget_trait for Ansi {
         }: Layout_input<'_>,
     ) -> Result<Children> {
         let content = self.content.affect(relayout.clone()).await?;
-        let theme = theme.affect(relayout).await?;
+        let theme = theme.affect(relayout.clone()).await?;
         let font_size = self.style.get(&theme).size;
         let mut text = content.text().clone();
         text.size = font_size;
-        let layout = text_context.build_layout(&text).await?;
-        let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
-        self.cached_layout = Some(layout);
+        let memoization = {
+            let mut cached_layout = self.cached_layout.lock().await?;
+            match &*cached_layout {
+                Some((cached_text, memoization)) if cached_text == &text => memoization.clone(),
+                _ => {
+                    let memoization = text_context.memoize_layout(text.clone());
+                    *cached_layout = Some((text, memoization.clone()));
+                    memoization
+                }
+            }
+        };
+        let layout = memoization.affect(relayout).await?;
+        let size = layout.size;
 
         hitbox
             .set_static_dimension(&problem, Direction::Horizontal, size.width)
@@ -122,11 +133,16 @@ impl Widget_trait for Ansi {
         &mut self,
         Render_input { hitbox, scene, .. }: Render_input<'_, '_>,
     ) -> Result<()> {
-        let layout = self
+        let memoization = self
             .cached_layout
+            .lock()
+            .await?
             .as_ref()
-            .expect("Ansi must be laid out before rendering");
-        scene.paint_layout(layout, hitbox.origin, true);
+            .expect("Ansi must be laid out before rendering")
+            .1
+            .clone();
+        let layout = memoization.read().await?;
+        scene.paint_layout(&layout.layout, hitbox.origin, true);
         Ok(())
     }
 }
