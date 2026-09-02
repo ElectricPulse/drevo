@@ -36,51 +36,61 @@ impl Paragraph {
         self.cached_layout = None;
     }
 
-    fn width_for_height(&self, text_context: &mut crate::graphics::text::Text_context) -> f64 {
-        let unwrapped = text_context.build_layout(&self.content);
+    async fn width_for_height(
+        &self,
+        text_context: &crate::graphics::text::Text_context,
+    ) -> Result<f64> {
+        let unwrapped = text_context.build_layout(&self.content).await?;
         let natural_width = f64::from(unwrapped.full_width());
         if natural_width <= 0.0 || f64::from(unwrapped.height()) > self.static_size {
-            return natural_width;
-        }
+            Ok(natural_width)
+        } else {
+            let mut minimum = 0.0;
+            let mut maximum = natural_width;
+            for _ in 0..16 {
+                if maximum - minimum <= 0.25 {
+                    break;
+                }
 
-        let mut minimum = 0.0;
-        let mut maximum = natural_width;
-        for _ in 0..16 {
-            if maximum - minimum <= 0.25 {
-                break;
+                let candidate = (minimum + maximum) / 2.0;
+                let layout = text_context
+                    .build_wrapped_layout(&self.content, candidate as f32)
+                    .await?;
+                let fits = f64::from(layout.height()) <= self.static_size
+                    && f64::from(layout.full_width()) <= candidate;
+                if fits {
+                    maximum = candidate;
+                } else {
+                    minimum = candidate;
+                }
             }
 
-            let candidate = (minimum + maximum) / 2.0;
-            let layout = text_context.build_wrapped_layout(&self.content, candidate as f32);
-            let fits = f64::from(layout.height()) <= self.static_size
-                && f64::from(layout.full_width()) <= candidate;
-            if fits {
-                maximum = candidate;
-            } else {
-                minimum = candidate;
-            }
+            let layout = text_context
+                .build_wrapped_layout(&self.content, maximum as f32)
+                .await?;
+            Ok(maximum.max(f64::from(layout.full_width())))
         }
-
-        let layout = text_context.build_wrapped_layout(&self.content, maximum as f32);
-        maximum.max(f64::from(layout.full_width()))
     }
 
-    fn compute_layout(
+    async fn compute_layout(
         &self,
-        text_context: &mut crate::graphics::text::Text_context,
-    ) -> (Size, Layout<Text_brush>) {
+        text_context: &crate::graphics::text::Text_context,
+    ) -> Result<(Size, Layout<Text_brush>)> {
         match self.static_direction {
             Direction::Horizontal => {
-                let layout =
-                    text_context.build_wrapped_layout(&self.content, self.static_size as f32);
+                let layout = text_context
+                    .build_wrapped_layout(&self.content, self.static_size as f32)
+                    .await?;
                 let size = Size::new(self.static_size, f64::from(layout.height()));
-                (size, layout)
+                Ok((size, layout))
             }
             Direction::Vertical => {
-                let width = self.width_for_height(text_context);
-                let layout = text_context.build_wrapped_layout(&self.content, width as f32);
+                let width = self.width_for_height(text_context).await?;
+                let layout = text_context
+                    .build_wrapped_layout(&self.content, width as f32)
+                    .await?;
                 let size = Size::new(width, self.static_size);
-                (size, layout)
+                Ok((size, layout))
             }
         }
     }
@@ -97,7 +107,7 @@ impl Widget_trait for Paragraph {
             ..
         }: Layout_input<'_>,
     ) -> Result<crate::component::Children> {
-        let (size, layout) = self.compute_layout(text_context);
+        let (size, layout) = self.compute_layout(text_context).await?;
         self.cached_layout = Some(layout);
 
         for (direction, size) in [
@@ -125,8 +135,9 @@ impl Widget_trait for Paragraph {
             if let Some(layout) = &self.cached_layout {
                 scene.paint_layout_clipped(layout, hitbox.origin, hitbox, true);
             } else {
-                let layout =
-                    text_context.build_wrapped_layout(&self.content, hitbox.size.width as f32);
+                let layout = text_context
+                    .build_wrapped_layout(&self.content, hitbox.size.width as f32)
+                    .await?;
                 scene.paint_layout_clipped(&layout, hitbox.origin, hitbox, true);
             }
         }

@@ -64,7 +64,9 @@ impl Widget_trait for List {
             };
             let line = format!("{marker}{item}");
             let styled = Styled_text::styled(&line, Text_style::default());
-            let size = text_context.draw_text(scene, &styled, Point::new(hitbox.origin.x, y));
+            let size = text_context
+                .draw_text(scene, &styled, Point::new(hitbox.origin.x, y))
+                .await?;
             y += size.height;
         }
 

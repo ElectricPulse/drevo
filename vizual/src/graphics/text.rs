@@ -1,5 +1,6 @@
 use std::{ops::Range, sync::Arc};
 
+use color_eyre::Result;
 use lucide_icons::{Icon as Lucide_icon, LUCIDE_FONT_BYTES};
 use parley::{
     Alignment, AlignmentOptions, FontContext, FontFamily, FontStyle, FontWeight, GenericFamily,
@@ -14,7 +15,9 @@ use vello::{kurbo::Rect as Kurbo_rect, peniko::Brush};
 use crate::{
     config::DEFAULT_FONT_SIZE,
     geometry::{Point, Size},
+    state::Store,
     style::Color,
+    sync::Mutex,
     widget::widgets::text::Text_style,
 };
 
@@ -44,8 +47,10 @@ impl Default for Text_brush {
 }
 
 pub struct Text_context {
-    font_context: FontContext,
-    layout_context: LayoutContext<Text_brush>,
+    /// This does not need to be a store today, but is one in case its provider becomes dynamic.
+    font_context: Store<Mutex<FontContext>>,
+    /// This does not need to be a store today, but is one in case its provider becomes dynamic.
+    layout_context: Store<Mutex<LayoutContext<Text_brush>>>,
 }
 
 impl Text_context {
@@ -56,31 +61,34 @@ impl Text_context {
             .register_fonts(Blob::new(Arc::new(LUCIDE_FONT_BYTES)), None);
 
         Self {
-            font_context,
-            layout_context: LayoutContext::new(),
+            font_context: Store::new(Mutex::new(font_context)),
+            layout_context: Store::new(Mutex::new(LayoutContext::new())),
         }
     }
 
-    pub(crate) fn build_layout(&mut self, text: &Styled_text) -> Layout<Text_brush> {
-        self.build_layout_with_width(text, None)
+    pub(crate) async fn build_layout(&self, text: &Styled_text) -> Result<Layout<Text_brush>> {
+        self.build_layout_with_width(text, None).await
     }
 
-    pub(crate) fn build_wrapped_layout(
-        &mut self,
+    pub(crate) async fn build_wrapped_layout(
+        &self,
         text: &Styled_text,
         width: f32,
-    ) -> Layout<Text_brush> {
-        self.build_layout_with_width(text, Some(width))
+    ) -> Result<Layout<Text_brush>> {
+        self.build_layout_with_width(text, Some(width)).await
     }
 
-    fn build_layout_with_width(
-        &mut self,
+    async fn build_layout_with_width(
+        &self,
         text: &Styled_text,
         width: Option<f32>,
-    ) -> Layout<Text_brush> {
+    ) -> Result<Layout<Text_brush>> {
+        let font_context = self.font_context.read().await?;
+        let mut font_context = font_context.lock().await?;
+        let layout_context = self.layout_context.read().await?;
+        let mut layout_context = layout_context.lock().await?;
         let mut builder =
-            self.layout_context
-                .ranged_builder(&mut self.font_context, &text.content, 1.0, false);
+            layout_context.ranged_builder(&mut font_context, &text.content, 1.0, false);
         match text.font {
             Text_font::Sans_serif => builder.push_default(GenericFamily::SansSerif),
             Text_font::Lucide => builder.push_default(FontFamily::named("lucide")),
@@ -124,29 +132,29 @@ impl Text_context {
         let mut layout = builder.build(&text.content);
         layout.break_all_lines(width);
         layout.align(Alignment::Start, AlignmentOptions::default());
-        layout
+        Ok(layout)
     }
 
-    pub fn draw_text(
-        &mut self,
+    pub async fn draw_text(
+        &self,
         scene: &mut Graphics_scene<'_>,
         text: &Styled_text,
         origin: Point,
-    ) -> Size {
-        let layout = self.build_layout(text);
+    ) -> Result<Size> {
+        let layout = self.build_layout(text).await?;
         let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
         scene.paint_layout(&layout, origin, true);
-        size
+        Ok(size)
     }
 
-    pub(crate) fn draw_icon(
-        &mut self,
+    pub(crate) async fn draw_icon(
+        &self,
         scene: &mut Graphics_scene<'_>,
         icon: Lucide_icon,
         origin: Point,
         style: Text_style,
-    ) -> Size {
-        let layout = self.build_layout(&Styled_text::icon(icon, style));
+    ) -> Result<Size> {
+        let layout = self.build_layout(&Styled_text::icon(icon, style)).await?;
         let bounds = icon_ink_bounds(&layout, icon, style.size);
         let size = bounds.map_or_else(
             || Size::new(f64::from(layout.full_width()), f64::from(layout.height())),
@@ -156,47 +164,62 @@ impl Text_context {
             Point::new(origin.x - bounds.x0, origin.y - bounds.y0)
         });
         scene.paint_layout(&layout, origin, false);
-        size
+        Ok(size)
     }
 
-    pub fn measure_text(&mut self, content: &str) -> Size {
-        let layout = self.build_layout(&Styled_text::plain(content, Color::White));
-        Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
+    pub async fn measure_text(&self, content: &str) -> Result<Size> {
+        let layout = self
+            .build_layout(&Styled_text::plain(content, Color::White))
+            .await?;
+        Ok(Size::new(
+            f64::from(layout.full_width()),
+            f64::from(layout.height()),
+        ))
     }
 
-    pub fn measure(&mut self, content: &str, font_size: f32) -> Size {
-        let layout = self.build_layout(&Styled_text::styled(
-            content,
-            Text_style {
-                size: font_size,
-                color: Color::White,
-                bold: false,
-            },
-        ));
-        Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
+    pub async fn measure(&self, content: &str, font_size: f32) -> Result<Size> {
+        let layout = self
+            .build_layout(&Styled_text::styled(
+                content,
+                Text_style {
+                    size: font_size,
+                    color: Color::White,
+                    bold: false,
+                },
+            ))
+            .await?;
+        Ok(Size::new(
+            f64::from(layout.full_width()),
+            f64::from(layout.height()),
+        ))
     }
 
-    pub fn measure_ansi(&mut self, content: &str, font_size: f32) -> Size {
+    pub async fn measure_ansi(&self, content: &str, font_size: f32) -> Result<Size> {
         let mut text = Styled_text::ansi(content);
         text.size = font_size;
-        let layout = self.build_layout(&text);
-        Size::new(f64::from(layout.full_width()), f64::from(layout.height()))
+        let layout = self.build_layout(&text).await?;
+        Ok(Size::new(
+            f64::from(layout.full_width()),
+            f64::from(layout.height()),
+        ))
     }
 
     #[allow(dead_code)]
-    pub(crate) fn measure_icon(&mut self, icon: Lucide_icon, font_size: f32) -> Size {
-        let layout = self.build_layout(&Styled_text::icon(
-            icon,
-            Text_style {
-                size: font_size,
-                color: Color::White,
-                bold: false,
-            },
-        ));
-        icon_ink_bounds(&layout, icon, font_size).map_or_else(
+    pub(crate) async fn measure_icon(&self, icon: Lucide_icon, font_size: f32) -> Result<Size> {
+        let layout = self
+            .build_layout(&Styled_text::icon(
+                icon,
+                Text_style {
+                    size: font_size,
+                    color: Color::White,
+                    bold: false,
+                },
+            ))
+            .await?;
+        Ok(icon_ink_bounds(&layout, icon, font_size).map_or_else(
             || Size::new(f64::from(layout.full_width()), f64::from(layout.height())),
             |bounds| Size::new(bounds.width(), bounds.height()),
-        )
+        ))
     }
 }
 

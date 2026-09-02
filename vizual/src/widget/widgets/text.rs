@@ -75,7 +75,9 @@ impl Widget_trait for Text {
         let content = self.content.affect(relayout.clone()).await?;
         let theme = theme.affect(relayout).await?;
         let style = self.style.get(&theme);
-        let layout = text_context.build_layout(&Styled_text::styled(&*content, style));
+        let layout = text_context
+            .build_layout(&Styled_text::styled(&*content, style))
+            .await?;
         let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
         self.cached_layout = Some(layout);
 

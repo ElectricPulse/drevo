@@ -169,6 +169,7 @@ async fn width_constrained_paragraph_derives_its_wrapped_height() -> Result<()> 
                 &Styled_text::styled(content, theme::dark_theme().specific.text.paragraph),
                 width as f32,
             )
+            .await?
             .height(),
     );
     let focus = Focus::new();
@@ -206,6 +207,7 @@ async fn height_constrained_paragraph_derives_a_fitting_width() -> Result<()> {
                 content,
                 theme::dark_theme().specific.text.paragraph,
             ))
+            .await?
             .full_width(),
     );
     let focus = Focus::new();
@@ -224,6 +226,7 @@ async fn height_constrained_paragraph_derives_a_fitting_width() -> Result<()> {
                 &Styled_text::styled(content, theme::dark_theme().specific.text.paragraph),
                 paragraph.size.width as f32,
             )
+            .await?
             .height(),
     );
 

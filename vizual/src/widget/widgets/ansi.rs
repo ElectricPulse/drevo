@@ -99,13 +99,12 @@ impl Widget_trait for Ansi {
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        println!("Let me take a wild fucking guess");
         let content = self.content.affect(relayout.clone()).await?;
         let theme = theme.affect(relayout).await?;
         let font_size = self.style.get(&theme).size;
         let mut text = content.text().clone();
         text.size = font_size;
-        let layout = text_context.build_layout(&text);
+        let layout = text_context.build_layout(&text).await?;
         let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
         self.cached_layout = Some(layout);
 

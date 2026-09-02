@@ -12,6 +12,7 @@ use crate::{
 pub(super) struct Store_content<Value: Thread_safe> {
     pub(super) subscribers: HashMap<u64, Signal>,
     pub(super) value: State<Value>,
+    pub(super) version: u64,
 }
 
 pub struct Store<Value: Thread_safe>(Arc<Mutex<Store_content<Value>>>);
@@ -21,6 +22,7 @@ impl<Value: Thread_safe> Store<Value> {
         Self(Arc::new(Mutex::new(Store_content {
             subscribers: HashMap::new(),
             value: value.into(),
+            version: 0,
         })))
     }
 
@@ -33,6 +35,7 @@ impl<Value: Thread_safe> Store<Value> {
         }
 
         content.value = new_state;
+        content.version = content.version.wrapping_add(1);
 
         let subscribers = content.subscribers.values().cloned().collect::<Vec<_>>();
         drop(content);
@@ -46,6 +49,10 @@ impl<Value: Thread_safe> Store<Value> {
 
     pub async fn get(&self) -> Result<Read_guard<Value>> {
         self.read().await
+    }
+
+    pub(crate) async fn version(&self) -> Result<u64> {
+        Ok(self.0.lock().await?.version)
     }
 
     pub async fn read(&self) -> Result<Read_guard<Value>> {

@@ -192,6 +192,8 @@ impl Signal {
     }
 
     pub(crate) fn for_component(&self, id: component::Id) -> Self {
+        // This is probably only a micro-optimization, and incremental component relayouting is
+        // currently broken because refreshing a slot invalidates its preserved component formula.
         Self {
             id,
             target: Some(id),

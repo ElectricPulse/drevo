@@ -48,7 +48,9 @@ impl Widget_trait for Icon {
         let icon = *self.icon.affect(relayout.clone()).await?;
         let theme = theme.affect(relayout).await?;
         let style = self.style.get(&theme);
-        let layout = text_context.build_layout(&Styled_text::icon(icon, style));
+        let layout = text_context
+            .build_layout(&Styled_text::icon(icon, style))
+            .await?;
         let bounds = icon_ink_bounds(&layout, icon, style.size);
         let size = bounds.map_or_else(
             || Size::new(f64::from(layout.full_width()), f64::from(layout.height())),
@@ -86,7 +88,9 @@ impl Widget_trait for Icon {
         } else {
             let icon = *self.icon.affect(rerender.clone()).await?;
             let theme = theme.affect(rerender).await?;
-            let _ = text_context.draw_icon(scene, icon, hitbox.origin, self.style.get(&theme));
+            let _ = text_context
+                .draw_icon(scene, icon, hitbox.origin, self.style.get(&theme))
+                .await?;
         }
         Ok(())
     }

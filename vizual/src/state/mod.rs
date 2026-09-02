@@ -1,3 +1,4 @@
+pub mod memoization;
 mod store;
 
 use std::{ops::Deref, sync::Arc};
