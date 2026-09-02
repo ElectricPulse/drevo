@@ -100,6 +100,7 @@ pub struct Problem {
     constraints: Vec<Constraint>,
     objectives: [Priority_objective; PRIORITY_LEVELS],
     pub(crate) variables: Arc<Variables>,
+    declared_variables: HashSet<Solver_variable>,
 }
 
 /// The declarations produced by one component's `layout` call.
@@ -140,6 +141,7 @@ impl Problem {
             constraints: Vec::new(),
             objectives: std::array::from_fn(|_| Vec::new()),
             variables,
+            declared_variables: HashSet::new(),
         }
     }
 
@@ -149,10 +151,33 @@ impl Problem {
 
     /// Adds a cached component formula to this one-shot solve problem.
     pub(crate) fn add_formula(&mut self, formula: &Formula) {
+        self.declared_variables
+            .extend(formula.variables.iter().map(|variable| variable.variable));
         self.constraints.extend(formula.constraints.iter().cloned());
         for (target, source) in self.objectives.iter_mut().zip(&formula.objectives) {
             target.extend(source.iter().cloned());
         }
+    }
+
+    fn live_variables<'a>(
+        &self,
+        constraints: &[Constraint],
+        objectives: impl IntoIterator<Item = &'a Expression>,
+    ) -> Vec<Solver_variable> {
+        let mut variables = self.declared_variables.clone();
+        variables.extend(
+            constraints
+                .iter()
+                .flat_map(|constraint| constraint.expression.referenced_variables()),
+        );
+        variables.extend(
+            objectives
+                .into_iter()
+                .flat_map(Expression::referenced_variables),
+        );
+        let mut variables = variables.into_iter().collect::<Vec<_>>();
+        variables.sort_unstable();
+        variables
     }
 
     fn constrain_root_to_screen(constraints: &mut Vec<Constraint>, root: &Hitbox, screen: Size) {
@@ -178,24 +203,25 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objective: Option<(&Expression, Sense)>,
-    ) -> (RowProblem, Vec<Col>) {
+    ) -> (RowProblem, Vec<Solver_variable>, HashMap<Solver_variable, Col>) {
         let mut problem = RowProblem::default();
-        let metadata = self.variables.all_metadata();
-        let mut cols = Vec::with_capacity(metadata.len());
+        let variables = self.live_variables(constraints, objective.iter().map(|(expr, _)| *expr));
+        let mut cols = HashMap::with_capacity(variables.len());
 
-        for info in &metadata {
+        for variable in &variables {
+            let info = self.variables.metadata(*variable);
             let col = if info.is_integer {
                 problem.add_integer_column(0.0, info.lower..=info.upper)
             } else {
                 problem.add_column(0.0, info.lower..=info.upper)
             };
-            cols.push(col);
+            let _ = cols.insert(*variable, col);
         }
 
         if let Some((expr, _)) = objective {
             for (var, coeff) in &expr.coefficients {
-                if var.0 < cols.len() {
-                    problem.change_column_cost(cols[var.0], *coeff);
+                if let Some(col) = cols.get(var) {
+                    problem.change_column_cost(*col, *coeff);
                 }
             }
         }
@@ -206,11 +232,7 @@ impl Problem {
                 .coefficients
                 .iter()
                 .filter_map(|(var, coeff)| {
-                    if var.0 < cols.len() {
-                        Some((cols[var.0], *coeff))
-                    } else {
-                        None
-                    }
+                    cols.get(var).map(|col| (*col, *coeff))
                 })
                 .collect::<Vec<_>>();
             let rhs = -constraint.expression.constant;
@@ -221,7 +243,7 @@ impl Problem {
             }
         }
 
-        (problem, cols)
+        (problem, variables, cols)
     }
 
     fn build_model(
@@ -230,7 +252,7 @@ impl Problem {
         objective: Option<(&Expression, Sense)>,
     ) -> Model {
         let sense = objective.map(|(_, s)| s).unwrap_or(Sense::Maximise);
-        let (problem, _) = self.build_row_problem(constraints, objective);
+        let (problem, _, _) = self.build_row_problem(constraints, objective);
         let mut model = problem.optimise(sense);
         model.make_quiet();
         model.set_option("presolve", "on");
@@ -240,14 +262,17 @@ impl Problem {
         model
     }
 
-    fn solution_from_highs(&self, solved: highs::SolvedModel) -> Result<Solution> {
+    fn solution_from_highs(
+        &self,
+        solved: highs::SolvedModel,
+        variables: &[Solver_variable],
+    ) -> Result<Solution> {
         let solver_solution = solved.get_solution();
-        let variables = self.variables.all();
         let cols = solver_solution.columns();
         let mut values = HashMap::with_capacity(variables.len());
-        for var in variables {
-            if var.0 < cols.len() {
-                let _ = values.insert(var, cols[var.0]);
+        for (index, variable) in variables.iter().enumerate() {
+            if index < cols.len() {
+                let _ = values.insert(*variable, cols[index]);
             }
         }
         Ok(Solution { values })
@@ -497,13 +522,13 @@ impl Problem {
         constraints: &[Constraint],
         objectives: &[(usize, Expression)],
     ) -> Result<Solution> {
-        let variable_count = self.variables.len();
+        let variables = self.live_variables(constraints, objectives.iter().map(|(_, objective)| objective));
+        let variable_count = variables.len();
         let weights = vec![-1.0; objectives.len()];
         let offsets = objectives
             .iter()
             .map(|(_, objective)| objective.constant)
             .collect::<Vec<_>>();
-        let variables = self.variables.all();
         let coefficients = objectives
             .iter()
             .flat_map(|(_, objective)| {
@@ -590,11 +615,11 @@ impl Problem {
         match solved.status() {
             HighsModelStatus::Optimal
             | HighsModelStatus::ObjectiveBound
-            | HighsModelStatus::ObjectiveTarget => self.solution_from_highs(solved),
+            | HighsModelStatus::ObjectiveTarget => self.solution_from_highs(solved, &variables),
             HighsModelStatus::Infeasible => {
                 let conflict_indices = Self::compute_iis(
                     solved.as_ptr() as *mut std::ffi::c_void,
-                    self.variables.len(),
+                    variable_count,
                     constraints.len(),
                 );
                 let conflicting_constraints = conflict_indices
@@ -748,14 +773,14 @@ impl Problem {
                     HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
                         let primal_ray = Self::compute_primal_ray(
                             solved.as_ptr() as *const std::ffi::c_void,
-                            self.variables.len(),
+                            self.live_variables(constraints, std::iter::once(objective)).len(),
                         );
                         Some(Err(primal_ray))
                     }
                     HighsModelStatus::Infeasible => {
                         let iis = Self::compute_iis(
                             solved.as_ptr() as *mut std::ffi::c_void,
-                            self.variables.len(),
+                            self.live_variables(constraints, std::iter::once(objective)).len(),
                             constraints.len(),
                         );
                         Some(Ok(iis))
@@ -797,7 +822,7 @@ impl Problem {
             if let Ok(solved) = model.try_solve() {
                 Self::compute_primal_ray(
                     solved.as_ptr() as *const std::ffi::c_void,
-                    self.variables.len(),
+                    self.live_variables(constraints, std::iter::once(&combined_objective)).len(),
                 )
             } else {
                 Vec::new()

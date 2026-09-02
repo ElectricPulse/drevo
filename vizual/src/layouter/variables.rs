@@ -98,25 +98,21 @@ impl Variables {
         variable
     }
 
-    pub(crate) fn all_metadata(&self) -> Vec<Variable_metadata> {
+    pub(crate) fn metadata(&self, variable: Solver_variable) -> Variable_metadata {
         self.registry
             .lock()
             .expect("layout variable registry poisoned")
             .variables
-            .clone()
-    }
-
-    pub(crate) fn all(&self) -> Vec<Solver_variable> {
-        let len = self.len();
-        (0..len).map(Solver_variable).collect()
-    }
-
-    pub(crate) fn len(&self) -> usize {
-        self.registry
-            .lock()
-            .expect("layout variable registry poisoned")
-            .variables
-            .len()
+            .get(variable.0)
+            .cloned()
+            .unwrap_or_else(|| Variable_metadata {
+                name: format!("{variable:?}"),
+                path: String::new(),
+                component_path: String::new(),
+                lower: -f64::INFINITY,
+                upper: f64::INFINITY,
+                is_integer: false,
+            })
     }
 
     pub(crate) fn name(&self, variable: Solver_variable) -> String {
