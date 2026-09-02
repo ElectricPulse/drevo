@@ -710,6 +710,7 @@ async fn ui_loop<T: Widget_trait>(
             input => input,
         };
 
+        let layout_request_started = matches!(&input, Ui_input::Layout(_)).then(Instant::now);
         let mut relayout = false;
         let mut command = match input {
             Ui_input::System_theme(system) => {
@@ -794,6 +795,13 @@ async fn ui_loop<T: Widget_trait>(
                 solution = Some(problem.solve(size).await?);
                 command = Vizual_command::Render;
             }
+        }
+
+        if let Some(started) = layout_request_started {
+            log_info(
+                0,
+                format_args!("Render_request::Layout took {:?}", started.elapsed()),
+            );
         }
 
         if matches!(command, Vizual_command::Render)
