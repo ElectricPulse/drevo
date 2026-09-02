@@ -148,7 +148,6 @@ impl Widget_trait for Scroll {
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        println!("Let me have a wild fucking guess");
         focus.set_interactive(true);
 
         let content_widget = Scroll_content::new(self.child.clone(), self.offset);
