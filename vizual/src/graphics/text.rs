@@ -20,6 +20,9 @@ use crate::{
 
 use super::scene::Scene as Graphics_scene;
 
+#[cfg(test)]
+mod tests;
+
 // TODO:
 // DISCLAIMER:
 // Originally this was a tui library, but later I let codex convert it to wgpu
@@ -127,26 +130,10 @@ impl Text_context {
     pub fn draw_text(
         &mut self,
         scene: &mut Graphics_scene<'_>,
-        content: &str,
+        text: &Styled_text,
         origin: Point,
-        style: Text_style,
     ) -> Size {
-        let layout = self.build_layout(&Styled_text::styled(content, style));
-        let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
-        scene.paint_layout(&layout, origin, true);
-        size
-    }
-
-    pub fn draw_ansi_text(
-        &mut self,
-        scene: &mut Graphics_scene<'_>,
-        content: &str,
-        origin: Point,
-        font_size: f32,
-    ) -> Size {
-        let mut text = Styled_text::ansi(content);
-        text.size = font_size;
-        let layout = self.build_layout(&text);
+        let layout = self.build_layout(text);
         let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
         scene.paint_layout(&layout, origin, true);
         size
@@ -244,22 +231,22 @@ pub(crate) fn icon_ink_bounds(
     ))
 }
 
-#[derive(Clone)]
-pub(crate) struct Styled_text {
+#[derive(Clone, Debug, PartialEq)]
+pub struct Styled_text {
     pub content: String,
-    pub(crate) size: f32,
-    font: Text_font,
-    spans: Vec<Styled_span>,
+    pub size: f32,
+    pub(crate) font: Text_font,
+    pub(crate) spans: Vec<Styled_span>,
 }
 
-#[derive(Clone, Copy)]
-enum Text_font {
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Text_font {
     Sans_serif,
     Lucide,
 }
 
 impl Styled_text {
-    pub(crate) fn plain(content: impl Into<String>, color: Color) -> Self {
+    pub fn plain(content: impl Into<String>, color: Color) -> Self {
         Self::styled(
             content,
             Text_style {
@@ -270,7 +257,7 @@ impl Styled_text {
         )
     }
 
-    pub(crate) fn styled(content: impl Into<String>, style: Text_style) -> Self {
+    pub fn styled(content: impl Into<String>, style: Text_style) -> Self {
         let content = content.into();
         let length = content.len();
         Self {
@@ -284,29 +271,123 @@ impl Styled_text {
                     bold: style.bold,
                     ..Ansi_style::default()
                 },
+                hyperlink: None,
             }],
         }
     }
 
-    pub(crate) fn icon(icon: Lucide_icon, style: Text_style) -> Self {
+    pub fn icon(icon: Lucide_icon, style: Text_style) -> Self {
         let mut text = Self::styled(icon.unicode().to_string(), style);
         text.font = Text_font::Lucide;
         text
     }
 
-    pub(crate) fn ansi(content: &str) -> Self {
-        parse_ansi(content)
+    pub fn ansi(content: &str) -> Self {
+        let mut text = Self::empty();
+        text.append_ansi(content, &mut Ansi_parser::default());
+        text
+    }
+
+    /// Returns the OSC 8 hyperlinks contained in this text.
+    pub fn hyperlinks(&self) -> impl Iterator<Item = Hyperlink> + '_ {
+        self.spans.iter().filter_map(|span| {
+            span.hyperlink.as_ref().map(|url| Hyperlink {
+                range: span.range.clone(),
+                url: url.clone(),
+            })
+        })
+    }
+
+    fn empty() -> Self {
+        Self {
+            content: String::new(),
+            size: DEFAULT_FONT_SIZE,
+            font: Text_font::Sans_serif,
+            spans: Vec::new(),
+        }
+    }
+
+    pub(crate) fn append_ansi(&mut self, input: &str, parser: &mut Ansi_parser) {
+        let mut segment_start = self.content.len();
+        let mut index = 0;
+
+        while index < input.len() {
+            let remaining = &input[index..];
+            if let Some(sequence_end) = remaining.strip_prefix("\u{1b}[").and_then(csi_end) {
+                let sequence_end = 2 + sequence_end;
+                let terminator = remaining.as_bytes()[sequence_end - 1];
+                if terminator == b'm' {
+                    push_span(
+                        &mut self.spans,
+                        segment_start,
+                        self.content.len(),
+                        parser.style,
+                        &parser.hyperlink,
+                    );
+                    apply_sgr(&mut parser.style, &remaining[2..sequence_end - 1]);
+                    segment_start = self.content.len();
+                }
+                index += sequence_end;
+                continue;
+            }
+
+            let osc = remaining
+                .strip_prefix("\u{1b}]")
+                .map(|sequence| (sequence, 2))
+                .or_else(|| {
+                    remaining
+                        .strip_prefix('\u{9d}')
+                        .map(|sequence| (sequence, '\u{9d}'.len_utf8()))
+                });
+            if let Some((osc, prefix_length)) = osc.and_then(|(sequence, prefix_length)| {
+                osc_end(sequence).map(|osc| (osc, prefix_length))
+            }) {
+                if let Some(url) = osc8_url(osc.payload) {
+                    push_span(
+                        &mut self.spans,
+                        segment_start,
+                        self.content.len(),
+                        parser.style,
+                        &parser.hyperlink,
+                    );
+                    parser.hyperlink = url.map(str::to_owned);
+                    segment_start = self.content.len();
+                }
+                index += prefix_length + osc.length;
+                continue;
+            }
+
+            let character = remaining.chars().next().unwrap();
+            self.content.push(character);
+            index += character.len_utf8();
+        }
+
+        push_span(
+            &mut self.spans,
+            segment_start,
+            self.content.len(),
+            parser.style,
+            &parser.hyperlink,
+        );
     }
 }
 
-#[derive(Clone)]
-struct Styled_span {
-    range: Range<usize>,
-    style: Ansi_style,
+/// A hyperlink extracted from an OSC 8 escape sequence.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Hyperlink {
+    pub range: Range<usize>,
+    pub url: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Styled_span {
+    pub(crate) range: Range<usize>,
+    pub(crate) style: Ansi_style,
+    hyperlink: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-struct Ansi_style {
+pub(crate) struct Ansi_style {
     foreground: Color,
     background: Option<Color>,
     bold: bool,
@@ -316,6 +397,12 @@ struct Ansi_style {
     strikethrough: bool,
     reverse: bool,
     hidden: bool,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct Ansi_parser {
+    style: Ansi_style,
+    hyperlink: Option<String>,
 }
 
 fn resolved_colors(style: Ansi_style) -> (Color, Option<Color>) {
@@ -338,58 +425,60 @@ fn resolved_colors(style: Ansi_style) -> (Color, Option<Color>) {
     (foreground, background)
 }
 
-fn parse_ansi(input: &str) -> Styled_text {
-    let mut content = String::new();
-    let mut spans = Vec::new();
-    let mut style = Ansi_style::default();
-    let mut segment_start = 0;
-    let mut characters = input.chars().peekable();
-
-    while let Some(character) = characters.next() {
-        if character != '\u{1b}' || characters.peek() != Some(&'[') {
-            content.push(character);
-            continue;
-        }
-
-        let _ = characters.next();
-        let mut sequence = String::new();
-        let mut terminator = None;
-        for character in characters.by_ref() {
-            if character.is_ascii_alphabetic() {
-                terminator = Some(character);
-                break;
-            }
-            sequence.push(character);
-        }
-
-        if terminator != Some('m') {
-            continue;
-        }
-
-        let end = content.len();
-        if end > segment_start {
-            spans.push(Styled_span {
-                range: segment_start..end,
-                style,
-            });
-        }
-        apply_sgr(&mut style, &sequence);
-        segment_start = end;
-    }
-
-    if content.len() > segment_start {
+fn push_span(
+    spans: &mut Vec<Styled_span>,
+    start: usize,
+    end: usize,
+    style: Ansi_style,
+    hyperlink: &Option<String>,
+) {
+    if start < end {
         spans.push(Styled_span {
-            range: segment_start..content.len(),
+            range: start..end,
             style,
+            hyperlink: hyperlink.clone(),
         });
     }
+}
 
-    Styled_text {
-        content,
-        size: DEFAULT_FONT_SIZE,
-        font: Text_font::Sans_serif,
-        spans,
+fn csi_end(sequence: &str) -> Option<usize> {
+    sequence
+        .bytes()
+        .position(|byte| (0x40..=0x7e).contains(&byte))
+        .map(|index| index + 1)
+}
+
+struct Osc<'a> {
+    payload: &'a str,
+    length: usize,
+}
+
+fn osc_end(sequence: &str) -> Option<Osc<'_>> {
+    let mut characters = sequence.char_indices().peekable();
+    while let Some((index, character)) = characters.next() {
+        match character {
+            '\u{7}' | '\u{9c}' => {
+                return Some(Osc {
+                    payload: &sequence[..index],
+                    length: index + character.len_utf8(),
+                });
+            }
+            '\u{1b}' if matches!(characters.peek(), Some((_, '\\'))) => {
+                let (_, terminator) = characters.next().unwrap();
+                return Some(Osc {
+                    payload: &sequence[..index],
+                    length: index + character.len_utf8() + terminator.len_utf8(),
+                });
+            }
+            _ => {}
+        }
     }
+    None
+}
+
+fn osc8_url(payload: &str) -> Option<Option<&str>> {
+    let mut fields = payload.splitn(3, ';');
+    (fields.next() == Some("8")).then(|| fields.nth(1).filter(|url| !url.is_empty()))
 }
 
 fn apply_sgr(style: &mut Ansi_style, sequence: &str) {

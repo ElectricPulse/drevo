@@ -1,8 +1,8 @@
 pub mod bar;
 
+use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use crate::macros::display;
 
 use crate::{
     Vizual_command, Vizual_msg,
@@ -19,7 +19,7 @@ use crate::{
     },
 };
 
-const SCROLL_STEP: f64 = 130.0;
+const SCROLL_STEP: f64 = 115.0;
 
 #[derive(Clone)]
 pub struct Scroll_content {

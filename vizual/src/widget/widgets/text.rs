@@ -91,22 +91,13 @@ impl Widget_trait for Text {
 
     async fn render(
         &mut self,
-        Render_input {
-            render,
-            theme,
-            hitbox,
-            scene,
-            text_context,
-            ..
-        }: Render_input<'_, '_>,
+        Render_input { hitbox, scene, .. }: Render_input<'_, '_>,
     ) -> Result<()> {
-        if let Some(layout) = &self.cached_layout {
-            scene.paint_layout(layout, hitbox.origin, true);
-        } else {
-            let content = self.content.affect(render.clone()).await?;
-            let theme = theme.affect(render).await?;
-            let _ = text_context.draw_text(scene, &content, hitbox.origin, self.style.get(&theme));
-        }
+        let layout = self
+            .cached_layout
+            .as_ref()
+            .expect("Text must be laid out before rendering");
+        scene.paint_layout(layout, hitbox.origin, true);
         Ok(())
     }
 }

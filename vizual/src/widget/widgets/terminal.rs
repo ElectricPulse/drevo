@@ -8,7 +8,7 @@ use color_eyre::eyre::{Result, WrapErr, bail};
 use crate::macros::display;
 
 use super::{
-    ansi::Ansi, button::Button, icon::Icon, layout::axis::Axis, linebreak::Linebreak,
+    ansi::{Ansi, Content}, button::Button, icon::Icon, layout::axis::Axis, linebreak::Linebreak,
     paragraph::Paragraph, positioning::anchor::Anchor, scroll::Scroll, text::Text,
 };
 use lucide_icons::Icon as Lucide_icon;
@@ -28,7 +28,7 @@ pub struct Terminal {
     directory: Store<String>,
     shell: Store<String>,
     command: Store<String>,
-    text: Store<String>,
+    text: Store<Content>,
     scroll: Shared_widget<Scroll>,
     pub restart: bool,
     current_handle: Arc<Mutex<Option<Command_handle>>>,
@@ -135,7 +135,7 @@ impl Widget_trait for Terminal {
 }
 
 #[cfg(unix)]
-async fn read(mut output: io::PipeReader, text: Store<String>) -> Result<()> {
+async fn read(mut output: io::PipeReader, text: Store<Content>) -> Result<()> {
     let mut buffer = [0_u8; 1024];
     let mut queue = Vec::new();
 
@@ -159,8 +159,9 @@ async fn read(mut output: io::PipeReader, text: Store<String>) -> Result<()> {
         }
 
         if !new_text.is_empty() {
-            let current = text.read().await?.clone();
-            text.set(format!("{current}{new_text}")).await?;
+            let mut current = text.read().await?.clone();
+            current.append(&new_text);
+            text.set(current).await?;
         }
     }
 
@@ -189,7 +190,7 @@ fn get_command(
     if let Some(directory) = working_dir {
         let _ = process.current_dir(directory);
     }
-    
+
     process
 }
 
@@ -265,7 +266,7 @@ impl Command_handle {
                         inner.command_handle.wait().await
                     }
                 };
-                
+
                 let command_handle = get_program_exit_status(command_handle);
 
                 match command_handle {
@@ -280,7 +281,7 @@ impl Command_handle {
 #[cfg(unix)]
 fn run_command(
     mut command: tokio::process::Command,
-    text: Store<String>,
+    text: Store<Content>,
 ) -> Result<Command_handle> {
     let (output_reader, stdout) = io::pipe().wrap_err("")?;
     let stderr = stdout.try_clone().wrap_err("")?;
@@ -311,9 +312,9 @@ impl Terminal {
         );
         let shell = Store::new("/bin/bash".to_string());
         let command = Store::new(String::new());
-        let text = Store::new(String::new());
+        let text = Store::new(Content::default());
         let dark_style = crate::theme::dark_theme().specific.paper.block;
-        let mut scroll = Scroll::new(Ansi::new(text.clone()));
+        let mut scroll = Scroll::new(Ansi::from_state(text.clone()));
         scroll.style = Some(dark_style);
         let scroll = scroll.into_shared();
         Self {
@@ -445,7 +446,7 @@ impl Terminal {
             let _ = handle.ensure_stopped().await;
         }
 
-        self.text.set(String::new()).await?;
+        self.text.set(Content::default()).await?;
 
         let command = self.command.read().await?.clone();
         let working_dir = self.working_dir.lock().await?.clone();

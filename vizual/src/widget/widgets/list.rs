@@ -8,6 +8,7 @@ use super::{
 use crate::{
     event::{Key_code, Key_event},
     geometry::Point,
+    graphics::text::Styled_text,
     utils::{bind_index, get_next_index, get_previous_index},
 };
 
@@ -62,11 +63,11 @@ impl Widget_trait for List {
                 false => "   ",
             };
             let line = format!("{marker}{item}");
+            let styled = Styled_text::styled(&line, Text_style::default());
             let size = text_context.draw_text(
                 scene,
-                &line,
+                &styled,
                 Point::new(hitbox.origin.x, y),
-                Text_style::default(),
             );
             y += size.height;
         }

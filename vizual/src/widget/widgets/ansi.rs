@@ -7,20 +7,77 @@ use super::text::Text_style;
 use crate::{
     component::Children,
     geometry::{Direction, Size},
-    graphics::text::{Styled_text, Text_brush},
+    graphics::text::{Ansi_parser, Styled_text, Text_brush},
     state::State,
     style::Style,
 };
 
+#[cfg(test)]
+mod tests;
+
+/// Parsed ANSI text that can be extended without retaining earlier escape sequences.
+#[derive(Clone)]
+pub struct Content(Parsed_content);
+
+#[derive(Clone)]
+struct Parsed_content {
+    text: Styled_text,
+    parser: Ansi_parser,
+}
+
+impl Content {
+    pub fn new(sequence: impl AsRef<str>) -> Self {
+        let mut content = Self::default();
+        content.append(sequence);
+        content
+    }
+
+    /// Parses and appends only `sequence`; previously appended ANSI escapes are not retained.
+    pub fn append(&mut self, sequence: impl AsRef<str>) {
+        self.0
+            .text
+            .append_ansi(sequence.as_ref(), &mut self.0.parser);
+    }
+
+    pub fn text(&self) -> &Styled_text {
+        &self.0.text
+    }
+}
+
+impl Default for Content {
+    fn default() -> Self {
+        Self(Parsed_content {
+            text: Styled_text::ansi(""),
+            parser: Ansi_parser::default(),
+        })
+    }
+}
+
+impl From<String> for Content {
+    fn from(value: String) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<&str> for Content {
+    fn from(value: &str) -> Self {
+        Self::new(value)
+    }
+}
+
 #[derive(Clone)]
 pub struct Ansi {
-    content: State<String>,
+    pub content: State<Content>,
     pub style: Style<Text_style>,
     cached_layout: Option<Layout<Text_brush>>,
 }
 
 impl Ansi {
-    pub fn new(content: impl Into<State<String>>) -> Self {
+    pub fn new(content: impl Into<Content>) -> Self {
+        Self::from_state(content.into())
+    }
+
+    pub fn from_state(content: impl Into<State<Content>>) -> Self {
         Self {
             content: content.into(),
             style: Style::default(),
@@ -45,7 +102,7 @@ impl Widget_trait for Ansi {
         let content = self.content.affect(render.clone()).await?;
         let theme = theme.affect(render).await?;
         let font_size = self.style.get(&theme).size;
-        let mut text = Styled_text::ansi(&content);
+        let mut text = content.text().clone();
         text.size = font_size;
         let layout = text_context.build_layout(&text);
         let size = Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
@@ -63,23 +120,13 @@ impl Widget_trait for Ansi {
 
     async fn render(
         &mut self,
-        Render_input {
-            render,
-            theme,
-            hitbox,
-            scene,
-            text_context,
-            ..
-        }: Render_input<'_, '_>,
+        Render_input { hitbox, scene, .. }: Render_input<'_, '_>,
     ) -> Result<()> {
-        if let Some(layout) = &self.cached_layout {
-            scene.paint_layout(layout, hitbox.origin, true);
-        } else {
-            let content = self.content.affect(render.clone()).await?;
-            let theme = theme.affect(render).await?;
-            let style = self.style.get(&theme);
-            let _ = text_context.draw_ansi_text(scene, &content, hitbox.origin, style.size);
-        }
+        let layout = self
+            .cached_layout
+            .as_ref()
+            .expect("Ansi must be laid out before rendering");
+        scene.paint_layout(layout, hitbox.origin, true);
         Ok(())
     }
 }
