@@ -13,9 +13,23 @@ An `Axis(Direction::Vertical, children)` layout component for example shares the
 
 # Widget_trait
 
-As for the widget trait, it has two methods. One of them, layout() -> Children, runs whenever the state or content inside the widget changes. This is where you define the constraints of your own hitbox and choose which other widgets you want to render by returning them encased in a display!() macro.
+`Widget_trait::layout()` returns `Children`. It defines constraints for the component hitbox and chooses child widgets with `display!()` or `slots.set()`.
 
-render() is the method that gets the resolved hitbox and can draw onto a `vello::Scene`
+`layout()` receives `Layout_input`, including `relayout: Signal`. Stores read with `.affect(relayout)` signal this component when their value changes.
+
+`render()` receives a resolved hitbox and draws onto a `vello::Scene`. Its `Render_input` carries the global `rerender` signal for render-only updates.
+
+Event handlers receive borrowed typed inputs: `Mouse_event`, `Key_press`, `All_events`, and `Other_event`. Each includes the owning component's `relayout` signal. `forward_event()` selects the appropriate handler from an `Event`.
+
+## Signals and state
+
+`Render_manager::new()` creates one global `rerender` signal and its receiver. `Signal::for_component(id)` derives a component-targeted `relayout` signal from that same channel.
+
+The UI loop batches signal requests for 10 ms. A global signal redraws. A component signal invalidates its cached formula, rebuilds layout, solves, then redraws.
+
+`Store<T>` holds a value and records signals passed to `.affect()`. `Store::set()` signals those subscribers. `State<T>` is the read/affect abstraction; constants do not subscribe.
+
+`memoization()` creates a cached derived `State`. It records source-store versions and reruns its async callback only after a dependency changes. Calling `.affect(signal)` subscribes that signal to every source store.
 
 # Component
 
@@ -23,9 +37,19 @@ The primary function that converts a widget into a component is display!(). Unde
 
 In other words, if you are generating widgets in a map, etc., please use slots.set() manually with an ID that remains unique to an element, just like the key in <Element key={}> in React.
 
-A component tracks the lifetime of a widget instance. The primary thing it needs to track is focus.
+A component tracks the lifetime of a widget instance, its hitbox, cached formula, child slots, and focusability.
 
-So you can click a textform and begin typing while the ui changes it's Anchor from `display!(Anchor::left(form))` to `display!(Anchor::right(form))` and it will still retain focus.
+So you can click a text form and begin typing while the UI changes its anchor from `display!(Anchor::left(form))` to `display!(Anchor::right(form))` and it will retain focus.
+
+Slot reuse preserves the component ID and lifetime. Refreshing a slot currently replaces its widget and invalidates that component formula, so descendant layout caches can still be rebuilt. This makes the current per-component relayout path less granular than intended.
+
+## Text
+
+`Text_context` owns the Parley font and layout contexts as stores. They do not need to be dynamic today, but are stores so they can be replaced later.
+
+`Text` and `Ansi` memoize both their shaped Parley layout and its measured size. The memo survives widget cloning and recomputes when either text-context store changes or when the styled text changes.
+
+`Ansi::Content` incrementally parses ANSI input. `Content::append()` parses only the new sequence and preserves parser state, including open SGR styles and OSC-8 hyperlinks.
 
 # Layouter
 

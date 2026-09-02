@@ -4,7 +4,7 @@
 If you encounter performance issues, it's probably gonna get solved with one of these features,
 which I haven't implemented because they are complex and make the code even less flexible for architectural changes
 
-- render signal only relayouts current component
+- finish per-component relayout: refreshing a child slot currently invalidates its preserved formula and can rebuild descendant layout caches
 - scroll should render only visible components
 - constraints should take in `State` and only relayout if state changed (things like a button changing color or a button changing size inside a scroll should not cause a full global relayout)
 - make the render system parallel (render subtrees / components concurrently)
