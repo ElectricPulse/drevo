@@ -39,14 +39,14 @@ impl Widget_trait for Linebreak {
     async fn render(
         &mut self,
         Render_input {
-            render,
+            rerender,
             theme,
             hitbox,
             scene,
             ..
         }: Render_input<'_, '_>,
     ) -> Result<()> {
-        scene.fill_rect(hitbox, theme.affect(render).await?.semantic.border);
+        scene.fill_rect(hitbox, theme.affect(rerender).await?.semantic.border);
         Ok(())
     }
 }

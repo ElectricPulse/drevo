@@ -91,7 +91,7 @@ impl Widget_trait for Ansi {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             hitbox,
             problem,
@@ -99,8 +99,8 @@ impl Widget_trait for Ansi {
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let content = self.content.affect(render.clone()).await?;
-        let theme = theme.affect(render).await?;
+        let content = self.content.affect(relayout.clone()).await?;
+        let theme = theme.affect(relayout).await?;
         let font_size = self.style.get(&theme).size;
         let mut text = content.text().clone();
         text.size = font_size;

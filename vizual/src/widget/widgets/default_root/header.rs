@@ -37,13 +37,13 @@ impl Widget_trait for Header {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             slots,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let theme = theme.affect(render).await?;
+        let theme = theme.affect(relayout).await?;
         let mut name = Text::new(self.name.clone());
         name.style.set(theme.specific.text.title);
         let name = Anchor::new(

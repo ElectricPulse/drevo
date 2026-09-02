@@ -5,7 +5,7 @@ use color_eyre::eyre::Result;
 use super::super::{Layout_input, Widget_trait};
 use super::title_block::Title_block;
 use crate::{
-    Vizual_command, Vizual_msg,
+    Vizual_msg,
     component::Children,
     event::{Event, Key_code, Key_event},
     handlers::Submit_handler,
@@ -126,22 +126,33 @@ impl Widget_trait for Text_input {
         Ok(vec![display!(block)])
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+        let key = input.key;
+        let relayout = input.relayout;
         if matches!(key.code, Key_code::Escape) {
             return self.submit_handler.on_submit(self.input.clone()).await;
         }
 
         match self.edit_key(key) {
-            true => Vizual_msg::new(Vizual_command::Resolve),
+            true => {
+                relayout.send();
+                Vizual_msg::none()
+            }
             false => Vizual_msg::none(),
         }
     }
 
-    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+    async fn on_other_event(
+        &mut self,
+        input: crate::widget::Other_event<'_>,
+    ) -> Result<Vizual_msg> {
+        let event = input.event;
+        let relayout = input.relayout;
         let Event::Text(text) = event else {
             return Vizual_msg::none();
         };
         self.insert(text);
-        Vizual_msg::new(Vizual_command::Resolve)
+        relayout.send();
+        Vizual_msg::none()
     }
 }

@@ -7,14 +7,8 @@ use super::{
     block::{Block, Block_style},
 };
 use crate::{
-    Vizual_msg,
-    component::Children,
-    event::{Key_code, Key_event, Pointer_event},
-    handlers::Submit_handler,
-    layouter::objective::Delta,
-    style::Color,
-    theme::Theme,
-    widget::Widget,
+    Vizual_msg, component::Children, event::Key_code, handlers::Submit_handler,
+    layouter::objective::Delta, style::Color, theme::Theme, widget::Widget,
 };
 
 #[cfg(test)]
@@ -67,18 +61,32 @@ impl Button {
     }
 }
 
+impl Button {
+    async fn submit(&mut self, value: bool, relayout: crate::Signal) -> Result<Vizual_msg> {
+        let Some(handler) = &mut self.click_handler else {
+            return Vizual_msg::none();
+        };
+        let message = handler.on_submit(value).await?;
+        if matches!(message.command, crate::Vizual_command::Resolve) {
+            relayout.send();
+            return Vizual_msg::none();
+        }
+        Ok(message)
+    }
+}
+
 #[async_trait]
 impl Widget_trait for Button {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             slots,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let theme = theme.affect(render).await?;
+        let theme = theme.affect(relayout).await?;
         let style = resolve_block_style(&theme, self.highlighted);
 
         let mut block = Block::new(self.content.clone(), style);
@@ -88,19 +96,17 @@ impl Widget_trait for Button {
         Ok(vec![display!(block)])
     }
 
-    async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
-        if let Some(handler) = &mut self.click_handler {
-            return handler.on_submit(false).await;
-        }
-
-        Vizual_msg::none()
+    async fn on_mouse_click(
+        &mut self,
+        input: crate::widget::Mouse_event<'_>,
+    ) -> Result<Vizual_msg> {
+        self.submit(false, input.relayout).await
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
-        if let Some(handler) = &mut self.click_handler
-            && matches!(key.code, Key_code::Enter)
-        {
-            return handler.on_submit(true).await;
+    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+        let key = input.key;
+        if matches!(key.code, Key_code::Enter) {
+            return self.submit(true, input.relayout).await;
         }
 
         Vizual_msg::none()

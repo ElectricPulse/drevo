@@ -7,7 +7,7 @@ use std::sync::{Arc, Weak};
 use vello::{Scene as Vello_scene, kurbo::Affine};
 
 use crate::{
-    Render,
+    Signal,
     focus::Focused_path,
     geometry::Direction,
     graphics::text::Text_context,
@@ -37,8 +37,6 @@ pub struct Component {
     pub(crate) hitbox: Hitbox,
     pub(crate) formula: Option<Formula>,
     pub(crate) variables: Arc<Variables>,
-    /// The component-targeted signal installed during layout and reused by event handlers.
-    pub(crate) layout_signal: Option<Render>,
     pub widget: Widget,
     // TODO: Convert focusability/focus tracking into reactive state when per-component
     // relayouting is implemented, so a focus change only notifies components that subscribe to
@@ -162,7 +160,7 @@ impl Shared_component {
 
     pub(crate) async fn layout(
         &mut self,
-        render: Render,
+        rerender: Signal,
         theme: Store<Theme>,
         focused_path: &Focused_path,
         parent_reference: Parent,
@@ -186,8 +184,7 @@ impl Shared_component {
 
         this.parent = parent_reference;
         problem.component_path.push(this.name.clone());
-        let render = render.for_component(this.id);
-        this.layout_signal = Some(render.clone());
+        let relayout = rerender.for_component(this.id);
         let children = {
             let Component {
                 widget,
@@ -205,7 +202,7 @@ impl Shared_component {
             let children = {
                 let mut slots = slot_manager.slots(hitbox);
                 let input = Layout_input {
-                    render,
+                    relayout,
                     theme,
                     focus: &mut focus,
                     hitbox,
@@ -245,7 +242,7 @@ impl Shared_component {
     #[async_recursion]
     pub(crate) async fn layout_children(
         &mut self,
-        render: Render,
+        rerender: Signal,
         theme: Store<Theme>,
         focused_path: &Focused_path,
         children: Children,
@@ -265,7 +262,7 @@ impl Shared_component {
             let grandchildren = child
                 .clone()
                 .layout(
-                    render.clone(),
+                    rerender.clone(),
                     theme.clone(),
                     focused_path,
                     self.clone().into(),
@@ -277,7 +274,7 @@ impl Shared_component {
                 .await?;
             child
                 .layout_children(
-                    render.clone(),
+                    rerender.clone(),
                     theme.clone(),
                     focused_path,
                     grandchildren,
@@ -294,7 +291,7 @@ impl Shared_component {
     #[async_recursion]
     pub async fn render(
         &mut self,
-        render: crate::Render,
+        rerender: crate::Signal,
         theme: Store<Theme>,
         scene: &mut crate::graphics::scene::Scene<'_>,
         text_context: &mut Text_context,
@@ -316,7 +313,7 @@ impl Shared_component {
                     crate::graphics::scene::Scene::new(&mut logical_scene);
 
                 self.render_component(
-                    render.clone(),
+                    rerender.clone(),
                     theme.clone(),
                     &mut logical_scene_wrapper,
                     text_context,
@@ -327,7 +324,7 @@ impl Shared_component {
                 for mut child in children {
                     child
                         .render(
-                            render.clone(),
+                            rerender.clone(),
                             theme.clone(),
                             &mut logical_scene_wrapper,
                             text_context,
@@ -338,12 +335,24 @@ impl Shared_component {
             }
             scene.append_clipped(&logical_scene, hitbox, Affine::IDENTITY);
         } else {
-            self.render_component(render.clone(), theme.clone(), scene, text_context, context)
-                .await?;
+            self.render_component(
+                rerender.clone(),
+                theme.clone(),
+                scene,
+                text_context,
+                context,
+            )
+            .await?;
 
             for mut child in children {
                 child
-                    .render(render.clone(), theme.clone(), scene, text_context, context)
+                    .render(
+                        rerender.clone(),
+                        theme.clone(),
+                        scene,
+                        text_context,
+                        context,
+                    )
                     .await?;
             }
         }
@@ -353,7 +362,7 @@ impl Shared_component {
 
     async fn render_component(
         &mut self,
-        render: Render,
+        rerender: Signal,
         theme: Store<Theme>,
         scene: &mut crate::graphics::scene::Scene<'_>,
         text_context: &mut Text_context,
@@ -368,7 +377,7 @@ impl Shared_component {
         let focused = context.focused_path.contains(self);
         let mut focus = Focus_provider::new(focused);
         let input = Render_input {
-            render,
+            rerender,
             theme,
             focus: &mut focus,
             hitbox,

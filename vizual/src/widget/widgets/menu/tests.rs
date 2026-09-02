@@ -1,4 +1,5 @@
 use super::*;
+use crate::event::Key_event;
 
 #[derive(Clone, Copy)]
 struct Ordinary_menu_item(usize);
@@ -45,16 +46,20 @@ async fn menu_item_container_submits_on_enter() -> Result<()> {
         item_block: true,
     };
 
+    let manager = crate::render_manager::Render_manager::new();
     let message = container
-        .on_key_press(&Key_event {
-            code: Key_code::Enter,
-            modifiers: crate::event::Modifiers::default(),
-            text: None,
-            repeat: false,
+        .on_key_press(crate::widget::Key_press {
+            key: &Key_event {
+                code: Key_code::Enter,
+                modifiers: crate::event::Modifiers::default(),
+                text: None,
+                repeat: false,
+            },
+            relayout: manager.rerender.for_component(0),
         })
         .await?;
 
-    assert!(message.has_command());
+    assert!(!message.has_command());
     assert_eq!(*selected_store.read().await?, 1);
     assert_eq!(*submitted.read().await?, 42);
     Ok(())

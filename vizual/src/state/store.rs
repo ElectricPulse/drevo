@@ -5,12 +5,12 @@ use color_eyre::eyre::Result;
 
 use super::{Read_guard, State, State_trait};
 use crate::{
-    Render,
+    Signal,
     sync::{Mutex, Thread_safe},
 };
 
 pub(super) struct Store_content<Value: Thread_safe> {
-    pub(super) subscribers: HashMap<u64, Render>,
+    pub(super) subscribers: HashMap<u64, Signal>,
     pub(super) value: State<Value>,
 }
 
@@ -53,7 +53,7 @@ impl<Value: Thread_safe> Store<Value> {
         inner.read().await
     }
 
-    pub async fn affect(&self, signal: Render) -> Result<Read_guard<Value>> {
+    pub async fn affect(&self, signal: Signal) -> Result<Read_guard<Value>> {
         let inner = {
             let mut content = self.0.lock().await?;
             let _ = content
@@ -80,7 +80,7 @@ impl<Value: Thread_safe> State_trait for Store<Value> {
         self.read().await
     }
 
-    async fn affect(&self, signal: Render) -> Result<Read_guard<Self::Output>> {
+    async fn affect(&self, signal: Signal) -> Result<Read_guard<Self::Output>> {
         self.affect(signal).await
     }
 }

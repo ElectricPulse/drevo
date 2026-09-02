@@ -120,7 +120,6 @@ impl Component_slot {
                 hitbox,
                 formula: None,
                 variables,
-                layout_signal: None,
                 widget,
                 focusable: false,
                 children: Vec::new(),

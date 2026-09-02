@@ -14,7 +14,7 @@ use super::{
 use crate::{
     Vizual_command, Vizual_msg,
     component::Children,
-    event::{Event, Key_event, Pointer_event},
+    event::Event,
     geometry::Direction,
     handlers::{Retrieve_handler, Submit_handler},
     state::State,
@@ -67,14 +67,14 @@ impl Custom_widget_trait for Popup_menu_item {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             slots,
             ..
         }: Layout_input<'_>,
         selected: bool,
     ) -> Result<Children> {
-        let theme = theme.affect(render).await?;
+        let theme = theme.affect(relayout).await?;
         let mut text = Text::new(self.option.label());
         let mut style = theme.specific.text.button;
         if !selected {
@@ -123,13 +123,13 @@ impl Widget_trait for Popup {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             slots,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let theme = theme.affect(render).await?;
+        let theme = theme.affect(relayout).await?;
         let mut text = Text::new("Submit");
         text.style.set(theme.specific.text.button);
         let menu_clone = self.menu.clone();
@@ -151,23 +151,33 @@ impl Widget_trait for Popup {
         Ok(vec![display!(anchor)])
     }
 
-    async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
-        self.menu.on_all_events(event).await
+    async fn on_all_events(&mut self, input: crate::widget::All_events<'_>) -> Result<Vizual_msg> {
+        self.menu.on_all_events(input).await
     }
 
-    async fn on_mouse_click(&mut self, mouse: &Pointer_event) -> Result<Vizual_msg> {
-        self.menu.on_mouse_click(mouse).await
+    async fn on_mouse_click(
+        &mut self,
+        input: crate::widget::Mouse_event<'_>,
+    ) -> Result<Vizual_msg> {
+        self.menu.on_mouse_click(input).await
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
-        self.menu.on_key_press(key).await
+    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+        self.menu.on_key_press(input).await
     }
 
-    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
-        self.menu.on_other_event(event).await
+    async fn on_other_event(
+        &mut self,
+        input: crate::widget::Other_event<'_>,
+    ) -> Result<Vizual_msg> {
+        self.menu.on_other_event(input).await
     }
 
-    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
-        self.menu.forward_event(event).await
+    async fn forward_event(
+        &mut self,
+        event: &Event,
+        relayout: crate::Signal,
+    ) -> Result<Vizual_msg> {
+        self.menu.forward_event(event, relayout).await
     }
 }

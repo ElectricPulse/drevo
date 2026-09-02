@@ -48,7 +48,7 @@ impl Widget_trait for Axis {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             hitbox,
             problem,
@@ -73,7 +73,7 @@ impl Widget_trait for Axis {
         }
 
         if elements.len() >= 2 {
-            let theme = theme.affect(render).await?;
+            let theme = theme.affect(relayout).await?;
             let Axis_style::Gap(gap) = self.style.get(&theme);
             // One delta controls every gap belonging to this axis.
             let gap_delta = problem.add_delta("axis-gap-delta", self.priority).await?;

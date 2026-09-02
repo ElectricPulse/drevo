@@ -42,13 +42,13 @@ impl Widget_trait for Default_root {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             slots,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let theme_value = theme.affect(render).await?;
+        let theme_value = theme.affect(relayout).await?;
         let mut body = Paper::new(self.widget.clone());
         body.style.set(theme_value.specific.body);
 

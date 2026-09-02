@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use dyn_clone::DynClone;
 
-use crate::{Render, sync::Thread_safe};
+use crate::{Signal, sync::Thread_safe};
 
 pub use store::Store;
 
@@ -37,7 +37,7 @@ pub trait State_trait: Thread_safe + DynClone {
     async fn read(&self) -> Result<Read_guard<Self::Output>>;
 
     /// Reads the current value and subscribes the supplied renderer to later writes.
-    async fn affect(&self, signal: Render) -> Result<Read_guard<Self::Output>>;
+    async fn affect(&self, signal: Signal) -> Result<Read_guard<Self::Output>>;
 }
 
 dyn_clone::clone_trait_object!(<Output> State_trait<Output = Output> where Output: Thread_safe);
@@ -72,7 +72,7 @@ impl<Value: Thread_safe> State_trait for Constant<Value> {
         Ok(Read_guard::new(self.0.clone()))
     }
 
-    async fn affect(&self, _signal: Render) -> Result<Read_guard<Self::Output>> {
+    async fn affect(&self, _signal: Signal) -> Result<Read_guard<Self::Output>> {
         self.read().await
     }
 }

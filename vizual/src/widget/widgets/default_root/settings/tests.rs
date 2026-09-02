@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::*;
 use crate::{
-    App_problem,
+    App_problem, Key_event, Vizual_command,
     event::{Modifiers, Pointer_button, Pointer_event},
     focus::Focus,
     geometry::{Point, Size},
@@ -28,19 +28,23 @@ fn system_label_includes_the_resolved_system_theme() {
 
 #[tokio::test]
 async fn settings_button_focus_can_navigate_the_menu_with_arrow_keys() -> Result<()> {
+    let manager = Render_manager::new();
     let choice = Store::new(Theme_choice::System);
     let mut settings = Settings::new(choice.clone());
 
     let message = settings
-        .on_key_press(&Key_event {
-            code: Key_code::Arrow_down,
-            modifiers: Modifiers::default(),
-            text: None,
-            repeat: false,
+        .on_key_press(crate::widget::Key_press {
+            key: &Key_event {
+                code: Key_code::Arrow_down,
+                modifiers: Modifiers::default(),
+                text: None,
+                repeat: false,
+            },
+            relayout: manager.rerender.for_component(0),
         })
         .await?;
 
-    assert!(message.has_command());
+    assert!(!message.has_command());
     assert_eq!(*choice.read().await?, Theme_choice::Dark);
     Ok(())
 }
@@ -48,7 +52,7 @@ async fn settings_button_focus_can_navigate_the_menu_with_arrow_keys() -> Result
 #[tokio::test]
 async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> {
     let render_manager = Render_manager::new();
-    let render = render_manager.render;
+    let rerender = render_manager.rerender;
     let theme = Store::new(dark_theme());
     let settings = Settings::new(Store::new(Theme_choice::Dark));
     let root = Widget_trait::into_shared(Root::new(settings));
@@ -57,10 +61,15 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
     let mut focus = Focus::new();
     let variables = Arc::new(Variables::new());
 
-    let mut problem =
-        App_problem::new(root.clone(), &mut root_slot, Arc::clone(&variables)).await?;
+    let mut problem = App_problem::new(
+        root.clone(),
+        &mut root_slot,
+        Arc::clone(&variables),
+        rerender.clone(),
+    )
+    .await?;
     problem
-        .layout(render.clone(), theme.clone(), &focus, &mut text_context)
+        .layout(rerender.clone(), theme.clone(), &focus, &mut text_context)
         .await?;
     let settings = problem.root.lock().await?.children[0].clone();
     assert!(settings.lock().await?.focusable);
@@ -69,7 +78,7 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
     let solution = problem.solve(Size::new(800.0, 600.0)).await?;
     let _ = problem
         .render(
-            render.clone(),
+            rerender.clone(),
             theme.clone(),
             &focus,
             &solution,
@@ -98,18 +107,23 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
     assert!(focus.focused_path().await?.contains(&settings));
 
     let previous_problem = problem;
-    let mut problem =
-        App_problem::new(root.clone(), &mut root_slot, Arc::clone(&variables)).await?;
+    let mut problem = App_problem::new(
+        root.clone(),
+        &mut root_slot,
+        Arc::clone(&variables),
+        rerender.clone(),
+    )
+    .await?;
     drop(previous_problem);
     problem
-        .layout(render.clone(), theme.clone(), &focus, &mut text_context)
+        .layout(rerender.clone(), theme.clone(), &focus, &mut text_context)
         .await?;
     assert_eq!(settings.lock().await?.children.len(), 1);
     assert_eq!(problem.root.lock().await?.children.len(), 2);
     let solution = problem.solve(Size::new(800.0, 600.0)).await?;
     let _ = problem
         .render(
-            render.clone(),
+            rerender.clone(),
             theme.clone(),
             &focus,
             &solution,
@@ -120,10 +134,10 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
 
     focus.reset();
     let previous_problem = problem;
-    let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+    let mut problem = App_problem::new(root, &mut root_slot, variables, rerender.clone()).await?;
     drop(previous_problem);
     problem
-        .layout(render, theme, &focus, &mut text_context)
+        .layout(rerender, theme, &focus, &mut text_context)
         .await?;
     assert_eq!(settings.lock().await?.children.len(), 1);
 

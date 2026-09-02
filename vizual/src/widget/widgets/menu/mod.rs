@@ -15,9 +15,9 @@ use super::{
     positioning::anchor::Anchor,
 };
 use crate::{
-    Vizual_command, Vizual_msg,
+    Vizual_msg,
     component::Children,
-    event::{Key_code, Key_event, Pointer_event},
+    event::Key_code,
     geometry::Direction,
     handlers::Retrieve_handler,
     layouter::variable::Variable,
@@ -65,10 +65,11 @@ impl<Choice: Thread_safe> Clone for Menu_item_container<Choice> {
 }
 
 impl<Choice: Thread_safe> Menu_item_container<Choice> {
-    async fn submit(&mut self) -> Result<Vizual_msg> {
+    async fn submit(&mut self, relayout: crate::Signal) -> Result<Vizual_msg> {
         self.selected_store.set(self.index).await?;
         self.submitted.set(self.widget.on_retrieve().await?).await?;
-        Vizual_msg::new(Vizual_command::Resolve)
+        relayout.send();
+        Vizual_msg::none()
     }
 }
 
@@ -89,13 +90,17 @@ impl<Choice: Thread_safe> Widget_trait for Menu_item_container<Choice> {
         Ok(vec![display!(widget)])
     }
 
-    async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
-        self.submit().await
+    async fn on_mouse_click(
+        &mut self,
+        input: crate::widget::Mouse_event<'_>,
+    ) -> Result<Vizual_msg> {
+        self.submit(input.relayout).await
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+        let key = input.key;
         if matches!(key.code, Key_code::Enter) {
-            return self.submit().await;
+            return self.submit(input.relayout).await;
         }
 
         Vizual_msg::none()
@@ -164,13 +169,13 @@ impl<Choice: Thread_safe> Widget_trait for Menu<Choice> {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             problem,
             slots,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let selected = *self.selected.affect(render).await?;
+        let selected = *self.selected.affect(relayout).await?;
         let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());
         let button_delta = problem.add_delta("menu-item-button-delta", 1).await?;
 
@@ -190,7 +195,9 @@ impl<Choice: Thread_safe> Widget_trait for Menu<Choice> {
         Ok(vec![display!(Axis::new(Direction::Vertical, rows))])
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+        let key = input.key;
+        let relayout = input.relayout;
         match key.code {
             Key_code::Arrow_up | Key_code::Arrow_down => {
                 let index = *self.selected.read().await?;
@@ -199,7 +206,8 @@ impl<Choice: Thread_safe> Widget_trait for Menu<Choice> {
                     _ => get_next_index(self.items.len(), index),
                 };
                 self.set_index(next_index).await?;
-                Vizual_msg::new(Vizual_command::Resolve)
+                relayout.send();
+                Vizual_msg::none()
             }
             _ => Vizual_msg::none(),
         }

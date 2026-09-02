@@ -17,10 +17,10 @@ use super::{
     Theme_choice,
 };
 use crate::{
-    Vizual_command, Vizual_msg,
+    Vizual_msg,
     component::Children,
     constraint,
-    event::{Key_code, Key_event},
+    event::Key_code,
     geometry::{Direction, Size},
     handlers::Retrieve_handler,
     layouter::hitbox::Hitbox,
@@ -96,14 +96,14 @@ impl Custom_widget_trait for Theme_menu_item {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             slots,
             ..
         }: Layout_input<'_>,
         selected: bool,
     ) -> Result<Children> {
-        let current_theme = theme.affect(render).await?;
+        let current_theme = theme.affect(relayout).await?;
         let preview_theme = self.choice.resolve(&current_theme);
         let mut text = Text::new(label(self.choice, current_theme.system()));
         let mut style = current_theme.specific.text.button;
@@ -168,7 +168,7 @@ impl Widget_trait for Positioned_menu {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             hitbox,
             problem,
@@ -182,7 +182,7 @@ impl Widget_trait for Positioned_menu {
             - self.button.get_end_position(Direction::Horizontal);
         // Keep the picker half an ordinary axis gap below the settings button while aligning
         // their right edges.
-        let gap = theme.affect(render).await?.semantic.axis.gap;
+        let gap = theme.affect(relayout).await?.semantic.axis.gap;
         let vertical_difference = hitbox.get_start_position(Direction::Vertical)
             - self.button.get_end_position(Direction::Vertical)
             - gap * 0.5;
@@ -229,7 +229,7 @@ impl Widget_trait for Settings {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             focus,
             slots,
@@ -238,8 +238,8 @@ impl Widget_trait for Settings {
         }: Layout_input<'_>,
     ) -> Result<Children> {
         let focused = focus.get();
-        let choice = *self.choice.affect(render.clone()).await?;
-        let current_theme = theme.affect(render.clone()).await?;
+        let choice = *self.choice.affect(relayout.clone()).await?;
+        let current_theme = theme.affect(relayout.clone()).await?;
 
         if !choice.is_selected(&current_theme) {
             let resolved_theme = choice.resolve(&current_theme);
@@ -295,7 +295,9 @@ impl Widget_trait for Settings {
         Ok(())
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+        let key = input.key;
+        let relayout = input.relayout;
         let index = match key.code {
             Key_code::Arrow_up | Key_code::Arrow_down => {
                 let choice = *self.choice.read().await?;
@@ -312,6 +314,7 @@ impl Widget_trait for Settings {
         };
         self.choice.set(Theme_choice::ALL[index]).await?;
 
-        Vizual_msg::new(Vizual_command::Resolve)
+        relayout.send();
+        Vizual_msg::none()
     }
 }

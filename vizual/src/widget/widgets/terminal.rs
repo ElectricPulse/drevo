@@ -52,16 +52,16 @@ impl Widget_trait for Terminal {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             slots,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let theme = theme.affect(render.clone()).await?;
-        let directory = self.directory.affect(render.clone()).await?.clone();
-        let shell = self.shell.affect(render.clone()).await?.clone();
-        let command = self.command.affect(render.clone()).await?.clone();
+        let theme = theme.affect(relayout.clone()).await?;
+        let directory = self.directory.affect(relayout.clone()).await?.clone();
+        let shell = self.shell.affect(relayout.clone()).await?.clone();
+        let command = self.command.affect(relayout.clone()).await?.clone();
 
         let paragraph_width = theme.units.em * 30.0;
         let label_style = theme.specific.text.paragraph.bold();

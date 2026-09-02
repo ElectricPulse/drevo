@@ -13,7 +13,7 @@ use super::{
 };
 use crate::{
     component::Children,
-    event::{Key_code, Key_event},
+    event::Key_code,
     geometry::Direction,
     state::Store,
     widget::widgets::positioning::anchor::{Anchor_position, Anchors},
@@ -78,9 +78,9 @@ impl Tab_bar {
         Ok(())
     }
 
-    async fn get_selected(&self, render: crate::Render) -> Result<Option<Widget>> {
+    async fn get_selected(&self, relayout: crate::Signal) -> Result<Option<Widget>> {
         // The owner also depends on the selected page: switching tabs changes which child exists.
-        let selected_page = *self.selected_page.affect(render).await?;
+        let selected_page = *self.selected_page.affect(relayout).await?;
         let Some(index) = self.find_id(selected_page) else {
             return Ok(None);
         };
@@ -94,7 +94,7 @@ impl Widget_trait for Tab_bar {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             focus,
             slots,
@@ -104,8 +104,8 @@ impl Widget_trait for Tab_bar {
         focus.set_interactive(true);
         let mut buttons: Vec<Widget> = Vec::with_capacity(self.pages.len());
 
-        let selected_page = *self.selected_page.affect(render.clone()).await?;
-        let theme = theme.affect(render).await?;
+        let selected_page = *self.selected_page.affect(relayout.clone()).await?;
+        let theme = theme.affect(relayout).await?;
         for page in self.pages.iter_mut() {
             let active = selected_page == page.tab.id;
             let mut text = Text::new(&page.tab.specification.name);
@@ -129,7 +129,11 @@ impl Widget_trait for Tab_bar {
         Ok(vec![display!(axis)])
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
+    async fn on_key_press(
+        &mut self,
+        input: crate::widget::Key_press<'_>,
+    ) -> Result<crate::Vizual_msg> {
+        let key = input.key;
         if let Key_code::Character(char) = key.code
             && let Some(digit) = char.to_digit(10)
         {
@@ -166,9 +170,11 @@ impl Widget_trait for Tab_bar {
 impl Widget_trait for Tabs {
     async fn layout(
         &mut self,
-        Layout_input { slots, render, .. }: Layout_input<'_>,
+        Layout_input {
+            slots, relayout, ..
+        }: Layout_input<'_>,
     ) -> Result<Children> {
-        let selected = self.header.lock().await?.get_selected(render).await?;
+        let selected = self.header.lock().await?.get_selected(relayout).await?;
         let axis = match selected {
             Some(widget) => Axis::new(Direction::Vertical, (self.header.clone(), widget)),
             None => Axis::new(Direction::Vertical, (self.header.clone(),)),

@@ -23,7 +23,7 @@ use crate::{
     theme::Theme,
 };
 
-use super::{Render, Vizual_msg};
+use super::{Signal, Vizual_msg};
 
 pub type Widget = Box<dyn Widget_trait>;
 
@@ -63,7 +63,7 @@ impl Focus_provider {
 // I think its obscenely huge and should be made smaller - functional programming explicitly tries to avoid functions that seemingly take in everything
 // it's a sign of failure to separate concerns and a failure to implement abstractions
 pub struct Layout_input<'a> {
-    pub render: Render,
+    pub relayout: Signal,
     pub theme: Store<Theme>,
     pub focus: &'a mut Focus_provider,
     pub hitbox: &'a mut Hitbox,
@@ -76,13 +76,33 @@ pub struct Layout_input<'a> {
 }
 
 pub struct Render_input<'a, 'scene> {
-    pub render: crate::Render,
+    pub rerender: crate::Signal,
     pub theme: Store<Theme>,
     pub focus: &'a mut Focus_provider,
     pub hitbox: Rect,
     pub scene: &'a mut Scene<'scene>,
     pub text_context: &'a mut Text_context,
     pub context: &'a Render_context<'a>,
+}
+
+pub struct All_events<'a> {
+    pub event: &'a Event,
+    pub relayout: Signal,
+}
+
+pub struct Mouse_event<'a> {
+    pub mouse: &'a Pointer_event,
+    pub relayout: Signal,
+}
+
+pub struct Key_press<'a> {
+    pub key: &'a Key_event,
+    pub relayout: Signal,
+}
+
+pub struct Other_event<'a> {
+    pub event: &'a Event,
+    pub relayout: Signal,
 }
 
 #[async_trait]
@@ -118,38 +138,43 @@ pub trait Widget_trait: Thread_safe + dyn_clone::DynClone {
 
     // Event handling defaults to no action for non-interactive widgets.
 
-    async fn on_all_events(&mut self, _event: &Event) -> Result<Vizual_msg> {
+    async fn on_all_events(&mut self, _input: All_events<'_>) -> Result<Vizual_msg> {
         Vizual_msg::none()
     }
 
-    async fn on_mouse_click(&mut self, _mouse: &Pointer_event) -> Result<Vizual_msg> {
+    async fn on_mouse_click(&mut self, _input: Mouse_event<'_>) -> Result<Vizual_msg> {
         Vizual_msg::none()
     }
 
-    async fn on_key_press(&mut self, _key: &Key_event) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, _input: Key_press<'_>) -> Result<Vizual_msg> {
         Vizual_msg::none()
     }
 
-    async fn on_other_event(&mut self, _event: &Event) -> Result<Vizual_msg> {
+    async fn on_other_event(&mut self, _input: Other_event<'_>) -> Result<Vizual_msg> {
         Vizual_msg::none()
     }
 
-    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
-        let msg = self.on_all_events(event).await?;
+    async fn forward_event(&mut self, event: &Event, relayout: Signal) -> Result<Vizual_msg> {
+        let msg = self
+            .on_all_events(All_events {
+                event,
+                relayout: relayout.clone(),
+            })
+            .await?;
 
         if msg.has_command() || !msg.propagate {
             return Ok(msg);
         }
 
         if let Event::Key(key) = event {
-            return self.on_key_press(key).await;
+            return self.on_key_press(Key_press { key, relayout }).await;
         }
 
         if let Event::Pointer(mouse) = event {
-            return self.on_mouse_click(mouse).await;
+            return self.on_mouse_click(Mouse_event { mouse, relayout }).await;
         }
 
-        self.on_other_event(event).await
+        self.on_other_event(Other_event { event, relayout }).await
     }
 
     fn as_any(self) -> Widget
@@ -193,24 +218,24 @@ impl Widget_trait for Widget {
         (**self).render(input).await
     }
 
-    async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
-        (**self).on_all_events(event).await
+    async fn on_all_events(&mut self, input: All_events<'_>) -> Result<Vizual_msg> {
+        (**self).on_all_events(input).await
     }
 
-    async fn on_mouse_click(&mut self, mouse: &Pointer_event) -> Result<Vizual_msg> {
-        (**self).on_mouse_click(mouse).await
+    async fn on_mouse_click(&mut self, input: Mouse_event<'_>) -> Result<Vizual_msg> {
+        (**self).on_mouse_click(input).await
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
-        (**self).on_key_press(key).await
+    async fn on_key_press(&mut self, input: Key_press<'_>) -> Result<Vizual_msg> {
+        (**self).on_key_press(input).await
     }
 
-    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
-        (**self).on_other_event(event).await
+    async fn on_other_event(&mut self, input: Other_event<'_>) -> Result<Vizual_msg> {
+        (**self).on_other_event(input).await
     }
 
-    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
-        (**self).forward_event(event).await
+    async fn forward_event(&mut self, event: &Event, relayout: Signal) -> Result<Vizual_msg> {
+        (**self).forward_event(event, relayout).await
     }
 }
 
@@ -259,29 +284,29 @@ impl<T: Widget_trait + ?Sized> Widget_trait for Shared_widget<T> {
         self.0.lock().await?.render(input).await
     }
 
-    async fn on_all_events(&mut self, event: &Event) -> Result<Vizual_msg> {
+    async fn on_all_events(&mut self, input: All_events<'_>) -> Result<Vizual_msg> {
         let mut inner = self.0.lock().await?;
-        inner.on_all_events(event).await
+        inner.on_all_events(input).await
     }
 
-    async fn on_mouse_click(&mut self, mouse: &Pointer_event) -> Result<Vizual_msg> {
+    async fn on_mouse_click(&mut self, input: Mouse_event<'_>) -> Result<Vizual_msg> {
         let mut inner = self.0.lock().await?;
-        inner.on_mouse_click(mouse).await
+        inner.on_mouse_click(input).await
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: Key_press<'_>) -> Result<Vizual_msg> {
         let mut inner = self.0.lock().await?;
-        inner.on_key_press(key).await
+        inner.on_key_press(input).await
     }
 
-    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+    async fn on_other_event(&mut self, input: Other_event<'_>) -> Result<Vizual_msg> {
         let mut inner = self.0.lock().await?;
-        inner.on_other_event(event).await
+        inner.on_other_event(input).await
     }
 
-    async fn forward_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+    async fn forward_event(&mut self, event: &Event, relayout: Signal) -> Result<Vizual_msg> {
         let mut inner = self.0.lock().await?;
-        inner.forward_event(event).await
+        inner.forward_event(event, relayout).await
     }
 }
 

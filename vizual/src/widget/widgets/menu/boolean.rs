@@ -35,14 +35,14 @@ impl Custom_widget_trait for Boolean_menu_item {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             slots,
             ..
         }: Layout_input<'_>,
         selected: bool,
     ) -> Result<Children> {
-        let theme = theme.affect(render).await?;
+        let theme = theme.affect(relayout).await?;
         let mut text = Text::new(self.label());
         let mut style = theme.specific.text.button;
         if !selected {

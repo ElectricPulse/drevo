@@ -2,7 +2,7 @@ use crate::macros::display;
 use color_eyre::eyre::Result;
 
 use super::super::{Layout_input, Widget, Widget_trait};
-use crate::{component::Children, event::Key_event};
+use crate::component::Children;
 
 #[derive(Clone)]
 pub struct Root(Widget);
@@ -19,7 +19,11 @@ impl Widget_trait for Root {
         Ok(vec![display!(self.0.clone())])
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
+    async fn on_key_press(
+        &mut self,
+        input: crate::widget::Key_press<'_>,
+    ) -> Result<crate::Vizual_msg> {
+        let key = input.key;
         if crate::check_quit_event(key) {
             return crate::Vizual_msg::new(crate::Vizual_command::Quit);
         }

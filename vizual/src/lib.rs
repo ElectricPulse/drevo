@@ -167,10 +167,10 @@ impl Vizual_command {
     }
 }
 
-static RENDER_ID: AtomicU64 = AtomicU64::new(0);
+static SIGNAL_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone)]
-pub struct Render {
+pub struct Signal {
     pub(crate) id: u64,
     target: Option<component::Id>,
     sender: mpsc::UnboundedSender<Render_request>,
@@ -178,14 +178,14 @@ pub struct Render {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Render_request {
-    Render,
+    Rerender,
     Layout(component::Id),
 }
 
-impl Render {
+impl Signal {
     pub(crate) fn new(sender: mpsc::UnboundedSender<Render_request>) -> Self {
         Self {
-            id: RENDER_ID.fetch_add(1, Ordering::Relaxed),
+            id: SIGNAL_ID.fetch_add(1, Ordering::Relaxed),
             target: None,
             sender,
         }
@@ -202,7 +202,7 @@ impl Render {
     pub fn send(&self) {
         let request = match self.target {
             Some(component) => Render_request::Layout(component),
-            None => Render_request::Render,
+            None => Render_request::Rerender,
         };
         let _ = self.sender.send(request);
     }
@@ -216,6 +216,7 @@ struct App_problem {
     root: Shared_component,
     root_hitbox: Hitbox,
     variables: Arc<Variables>,
+    rerender: Signal,
 }
 
 impl App_problem {
@@ -223,6 +224,7 @@ impl App_problem {
         root: Shared_widget<T>,
         root_slot: &mut Component_slot,
         variables: Arc<Variables>,
+        rerender: Signal,
     ) -> Result<Self> {
         let component_context =
             Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
@@ -233,12 +235,13 @@ impl App_problem {
             root,
             root_hitbox,
             variables,
+            rerender,
         })
     }
 
     async fn layout(
         &mut self,
-        render: Render,
+        rerender: Signal,
         theme: Store<Theme>,
         focus: &Focus,
         text_context: &mut Text_context,
@@ -248,7 +251,7 @@ impl App_problem {
         let children = self
             .root
             .layout(
-                render.clone(),
+                rerender.clone(),
                 theme.clone(),
                 &focused_path,
                 None,
@@ -262,7 +265,7 @@ impl App_problem {
             .await?;
         self.root
             .layout_children(
-                render,
+                rerender,
                 theme,
                 &focused_path,
                 children,
@@ -288,7 +291,7 @@ impl App_problem {
 
     async fn render(
         &mut self,
-        render: crate::Render,
+        rerender: crate::Signal,
         theme: Store<Theme>,
         focus: &Focus,
         solution: &Solution,
@@ -302,9 +305,15 @@ impl App_problem {
         let mut scene = Scene::new();
         let mut graphics_scene = Graphics_scene::new(&mut scene);
         self.root
-            .render(render, theme, &mut graphics_scene, text_context, &context)
+            .render(rerender, theme, &mut graphics_scene, text_context, &context)
             .await?;
         Ok(scene)
+    }
+
+    async fn signal_component(&self, component: &Shared_component) -> Result<()> {
+        let id = component.lock().await?.id;
+        self.rerender.for_component(id).send();
+        Ok(())
     }
 
     #[async_recursion]
@@ -345,9 +354,7 @@ impl App_problem {
         focus.set(&node);
         let cmd = self.drill_event(event, focus).await?;
 
-        if let Some(signal) = node.lock().await?.layout_signal.clone() {
-            signal.send();
-        }
+        self.signal_component(&node).await?;
 
         Ok(Some(cmd))
     }
@@ -379,20 +386,15 @@ impl App_problem {
 
         let mut message = Vizual_msg::none()?;
         for node in &nodes {
-            let (mut new_message, signal) = {
+            let new_message = {
                 let mut node = node.lock().await?;
-                let message = node.widget.forward_event(event).await?;
-                (message, node.layout_signal.clone())
+                let id = node.id;
+                let message = node
+                    .widget
+                    .forward_event(event, self.rerender.for_component(id))
+                    .await?;
+                message
             };
-            // `Resolve` is retained for system-level resize handling.  Widget events use it as
-            // the compatibility spelling for their former Layout command; convert it into the
-            // owner component's signal instead of resolving a stale formula tree directly.
-            if matches!(new_message.command, Vizual_command::Resolve) {
-                if let Some(signal) = signal {
-                    signal.send();
-                }
-                new_message.command = Vizual_command::None;
-            }
             message.join(new_message);
             if !message.propagate {
                 break;
@@ -521,18 +523,14 @@ impl App_problem {
                         _ => Focus_search_direction::Left,
                     };
                     let _ = self.move_focus(0, direction, focus).await?;
-                    if let Some(node) = focus.upgrade()
-                        && let Some(signal) = node.lock().await?.layout_signal.clone()
-                    {
-                        signal.send();
+                    if let Some(node) = focus.upgrade() {
+                        self.signal_component(&node).await?;
                     }
                     Ok(Vizual_command::None)
                 }
                 Key_code::Escape => {
-                    if let Some(node) = focus.upgrade()
-                        && let Some(signal) = node.lock().await?.layout_signal.clone()
-                    {
-                        signal.send();
+                    if let Some(node) = focus.upgrade() {
+                        self.signal_component(&node).await?;
                     }
                     focus.reset();
                     Ok(Vizual_command::None)
@@ -558,9 +556,7 @@ impl App_problem {
                             .await?
                     {
                         focus.reset();
-                        if let Some(signal) = focused.lock().await?.layout_signal.clone() {
-                            signal.send();
-                        }
+                        self.signal_component(&focused).await?;
                         return Ok(Vizual_command::None);
                     }
                 }
@@ -601,7 +597,7 @@ enum Ui_input {
     Initialize(Size),
     Event(Event),
     Resize(Size),
-    Render,
+    Rerender,
     Layout(HashSet<component::Id>),
     System_theme(System_theme),
 }
@@ -616,16 +612,16 @@ enum User_event {
 
 async fn layout_problem<T: Widget_trait>(
     root: Shared_widget<T>,
-    render: Render,
+    rerender: Signal,
     theme: Store<Theme>,
     focus: &Focus,
     root_slot: &mut Component_slot,
     text_context: &mut Text_context,
     variables: Arc<Variables>,
 ) -> Result<App_problem> {
-    let mut problem = App_problem::new(root, root_slot, variables).await?;
+    let mut problem = App_problem::new(root, root_slot, variables, rerender.clone()).await?;
     log_duration(0, "app problem layout", || {
-        problem.layout(render, theme, focus, text_context)
+        problem.layout(rerender, theme, focus, text_context)
     })
     .await?;
     Ok(problem)
@@ -633,7 +629,7 @@ async fn layout_problem<T: Widget_trait>(
 
 async fn ui_loop<T: Widget_trait>(
     root: Shared_widget<T>,
-    render: Render,
+    rerender: Signal,
     theme: Store<Theme>,
     mut render_receiver: Render_receiver,
     mut input_receiver: mpsc::UnboundedReceiver<Ui_input>,
@@ -659,9 +655,9 @@ async fn ui_loop<T: Widget_trait>(
                         match render_request {
                             Some(first) => {
                                 let mut layouts = HashSet::new();
-                                let mut render_requested = false;
+                                let mut rerender_requested = false;
                                 let mut add = |request| match request {
-                                    Render_request::Render => render_requested = true,
+                                    Render_request::Rerender => rerender_requested = true,
                                     Render_request::Layout(id) => { let _ = layouts.insert(id); }
                                 };
                                 add(first);
@@ -676,7 +672,7 @@ async fn ui_loop<T: Widget_trait>(
                                     }
                                 }
                                 match layouts.is_empty() {
-                                    true if render_requested => Some(Ui_input::Render),
+                                    true if rerender_requested => Some(Ui_input::Rerender),
                                     true => continue,
                                     false => Some(Ui_input::Layout(layouts)),
                                 }
@@ -745,7 +741,7 @@ async fn ui_loop<T: Widget_trait>(
                 relayout = app_problem.is_none();
                 Vizual_command::Resolve
             }
-            Ui_input::Render => Vizual_command::Render,
+            Ui_input::Rerender => Vizual_command::Render,
             Ui_input::Layout(ids) => {
                 if let Some(problem) = &app_problem {
                     for id in ids {
@@ -782,7 +778,7 @@ async fn ui_loop<T: Widget_trait>(
         if relayout {
             let problem = layout_problem(
                 root.clone(),
-                render.clone(),
+                rerender.clone(),
                 theme.clone(),
                 &focus,
                 &mut root_slot,
@@ -805,7 +801,7 @@ async fn ui_loop<T: Widget_trait>(
         {
             let scene = log_duration(0, "app problem render", || {
                 problem.render(
-                    render.clone(),
+                    rerender.clone(),
                     theme.clone(),
                     &focus,
                     solution,
@@ -1245,7 +1241,7 @@ fn map_system_theme(theme: Window_theme) -> System_theme {
 /// the window closes; widget tasks continue on the runtime. Vizual creates the
 /// render manager used by the root widget.
 pub fn run<T: Widget_trait>(title: impl Into<String>, root: T) -> Result<()> {
-    let Render_manager { render, receiver } = Render_manager::new();
+    let Render_manager { rerender, receiver } = Render_manager::new();
     let theme = Store::new(Theme::default());
     let root = Root::new(root.into_shared()).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
@@ -1258,7 +1254,8 @@ pub fn run<T: Widget_trait>(title: impl Into<String>, root: T) -> Result<()> {
     let (input_sender, input_receiver) = mpsc::unbounded_channel();
     let ui_theme = theme.clone();
     let ui_task = runtime.spawn(async move {
-        if let Err(error) = ui_loop(root, render, ui_theme, receiver, input_receiver, proxy).await {
+        if let Err(error) = ui_loop(root, rerender, ui_theme, receiver, input_receiver, proxy).await
+        {
             let _ = error_proxy.send_event(User_event::Error(format!("{error:?}")));
         }
     });

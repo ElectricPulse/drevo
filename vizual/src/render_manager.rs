@@ -1,11 +1,11 @@
 use tokio::sync::mpsc;
 
-use crate::{Render, Render_request};
+use crate::{Render_request, Signal};
 
 pub struct Render_receiver(pub(crate) mpsc::UnboundedReceiver<Render_request>);
 
 pub struct Render_manager {
-    pub render: Render,
+    pub rerender: Signal,
     pub(crate) receiver: Render_receiver,
 }
 
@@ -14,7 +14,7 @@ impl Render_manager {
         let (sender, receiver) = mpsc::unbounded_channel();
 
         Self {
-            render: Render::new(sender),
+            rerender: Signal::new(sender),
             receiver: Render_receiver(receiver),
         }
     }

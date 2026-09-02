@@ -72,37 +72,38 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
 
             async fn on_all_events(
                 &mut self,
-                event: &::vizual::event::Event,
+                input: ::vizual::widget::All_events<'_>,
             ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
-                ::vizual::widget::Widget_trait::on_all_events(&mut self.#field, event).await
+                ::vizual::widget::Widget_trait::on_all_events(&mut self.#field, input).await
             }
 
             async fn on_mouse_click(
                 &mut self,
-                mouse: &::vizual::event::Pointer_event,
+                input: ::vizual::widget::Mouse_event<'_>,
             ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
-                ::vizual::widget::Widget_trait::on_mouse_click(&mut self.#field, mouse).await
+                ::vizual::widget::Widget_trait::on_mouse_click(&mut self.#field, input).await
             }
 
             async fn on_key_press(
                 &mut self,
-                key: &::vizual::event::Key_event,
+                input: ::vizual::widget::Key_press<'_>,
             ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
-                ::vizual::widget::Widget_trait::on_key_press(&mut self.#field, key).await
+                ::vizual::widget::Widget_trait::on_key_press(&mut self.#field, input).await
             }
 
             async fn on_other_event(
                 &mut self,
-                event: &::vizual::event::Event,
+                input: ::vizual::widget::Other_event<'_>,
             ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
-                ::vizual::widget::Widget_trait::on_other_event(&mut self.#field, event).await
+                ::vizual::widget::Widget_trait::on_other_event(&mut self.#field, input).await
             }
 
             async fn forward_event(
                 &mut self,
                 event: &::vizual::event::Event,
+                relayout: ::vizual::Signal,
             ) -> ::color_eyre::eyre::Result<::vizual::Vizual_msg> {
-                ::vizual::widget::Widget_trait::forward_event(&mut self.#field, event).await
+                ::vizual::widget::Widget_trait::forward_event(&mut self.#field, event, relayout).await
             }
         }
     })

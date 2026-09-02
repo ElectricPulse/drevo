@@ -69,7 +69,10 @@ impl Widget_trait for Offset_click {
         Ok(())
     }
 
-    async fn on_mouse_click(&mut self, _pointer: &Pointer_event) -> Result<Vizual_msg> {
+    async fn on_mouse_click(
+        &mut self,
+        _input: crate::widget::Mouse_event<'_>,
+    ) -> Result<Vizual_msg> {
         Vizual_msg::new(Vizual_command::Quit)
     }
 }
@@ -77,7 +80,7 @@ impl Widget_trait for Offset_click {
 #[tokio::test]
 async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Result<()> {
     let render_manager = Render_manager::new();
-    let render = render_manager.render.clone();
+    let rerender = render_manager.rerender.clone();
     let theme = Store::new(theme::dark_theme());
     let body = Anchor::top_left(Text::new("Body"));
     let application = Default_root::new("Test", Grid::new((body,), 0.0)).into_shared();
@@ -86,10 +89,10 @@ async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Res
     let variables = Arc::new(Variables::new());
     let mut text_context = Text_context::new();
     let focus = Focus::new();
-    let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+    let mut problem = App_problem::new(root, &mut root_slot, variables, rerender.clone()).await?;
 
     problem
-        .layout(render, theme, &focus, &mut text_context)
+        .layout(rerender, theme, &focus, &mut text_context)
         .await?;
     let _ = problem.solve(Size::new(800.0, 600.0)).await?;
 
@@ -99,23 +102,23 @@ async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Res
 #[tokio::test]
 async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
     let render_manager = Render_manager::new();
-    let render = render_manager.render;
+    let rerender = render_manager.rerender;
     let theme = Store::new(theme::dark_theme());
     let root = Root::new(Anchor::top_left(Focusable_box)).into_shared();
     let mut root_slot = Component_slot::new();
     let variables = Arc::new(Variables::new());
     let mut text_context = Text_context::new();
     let mut focus = Focus::new();
-    let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+    let mut problem = App_problem::new(root, &mut root_slot, variables, rerender.clone()).await?;
 
     problem
-        .layout(render.clone(), theme.clone(), &focus, &mut text_context)
+        .layout(rerender.clone(), theme.clone(), &focus, &mut text_context)
         .await?;
     let solution = problem.solve(Size::new(100.0, 100.0)).await?;
     let anchor = problem.root.lock().await?.children[0].clone();
     let focusable = anchor.lock().await?.children[0].clone();
     let _ = problem
-        .render(render, theme, &focus, &solution, &mut text_context)
+        .render(rerender, theme, &focus, &solution, &mut text_context)
         .await?;
 
     let command = problem
@@ -150,7 +153,7 @@ async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
 #[tokio::test]
 async fn width_constrained_paragraph_derives_its_wrapped_height() -> Result<()> {
     let render_manager = Render_manager::new();
-    let render = render_manager.render.clone();
+    let rerender = render_manager.rerender.clone();
     let theme = Store::new(theme::dark_theme());
     let content = "a paragraph which wraps over several lines";
     let width = 80.0;
@@ -169,10 +172,10 @@ async fn width_constrained_paragraph_derives_its_wrapped_height() -> Result<()> 
             .height(),
     );
     let focus = Focus::new();
-    let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+    let mut problem = App_problem::new(root, &mut root_slot, variables, rerender.clone()).await?;
 
     problem
-        .layout(render, theme, &focus, &mut text_context)
+        .layout(rerender, theme, &focus, &mut text_context)
         .await?;
     let solution = problem.solve(Size::new(300.0, 200.0)).await?;
     let anchor = problem.root.lock().await?.children[0].clone();
@@ -187,7 +190,7 @@ async fn width_constrained_paragraph_derives_its_wrapped_height() -> Result<()> 
 #[tokio::test]
 async fn height_constrained_paragraph_derives_a_fitting_width() -> Result<()> {
     let render_manager = Render_manager::new();
-    let render = render_manager.render.clone();
+    let rerender = render_manager.rerender.clone();
     let theme = Store::new(theme::dark_theme());
     let content = "one two three four five six seven eight nine ten eleven twelve";
     let height = 60.0;
@@ -206,10 +209,10 @@ async fn height_constrained_paragraph_derives_a_fitting_width() -> Result<()> {
             .full_width(),
     );
     let focus = Focus::new();
-    let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+    let mut problem = App_problem::new(root, &mut root_slot, variables, rerender.clone()).await?;
 
     problem
-        .layout(render, theme, &focus, &mut text_context)
+        .layout(rerender, theme, &focus, &mut text_context)
         .await?;
     let solution = problem.solve(Size::new(600.0, 200.0)).await?;
     let anchor = problem.root.lock().await?.children[0].clone();
@@ -233,17 +236,17 @@ async fn height_constrained_paragraph_derives_a_fitting_width() -> Result<()> {
 #[tokio::test]
 async fn scroll_lays_out_content_with_offset() -> Result<()> {
     let mut render_manager = Render_manager::new();
-    let render = render_manager.render.clone();
+    let rerender = render_manager.rerender.clone();
     let theme = Store::new(theme::dark_theme());
     let root = Root::new(Scroll::new(Text::new("Scrollable content ".repeat(20)))).into_shared();
     let mut root_slot = Component_slot::new();
     let variables = Arc::new(Variables::new());
     let mut text_context = Text_context::new();
     let mut focus = Focus::new();
-    let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+    let mut problem = App_problem::new(root, &mut root_slot, variables, rerender.clone()).await?;
 
     problem
-        .layout(render.clone(), theme.clone(), &focus, &mut text_context)
+        .layout(rerender.clone(), theme.clone(), &focus, &mut text_context)
         .await?;
     let solution = problem.solve(Size::new(100.0, 100.0)).await?;
     let scroll = problem.root.lock().await?.children[0].clone();
@@ -260,7 +263,7 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
 
     let _scene = problem
         .render(
-            render.clone(),
+            rerender.clone(),
             theme.clone(),
             &focus,
             &solution,
@@ -293,17 +296,17 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
 #[tokio::test]
 async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Result<()> {
     let mut render_manager = Render_manager::new();
-    let render = render_manager.render.clone();
+    let rerender = render_manager.rerender.clone();
     let theme = Store::new(theme::dark_theme());
     let root = Root::new(Scroll::new(Offset_click)).into_shared();
     let mut root_slot = Component_slot::new();
     let variables = Arc::new(Variables::new());
     let mut text_context = Text_context::new();
     let mut focus = Focus::new();
-    let mut problem = App_problem::new(root, &mut root_slot, variables).await?;
+    let mut problem = App_problem::new(root, &mut root_slot, variables, rerender.clone()).await?;
 
     problem
-        .layout(render.clone(), theme.clone(), &focus, &mut text_context)
+        .layout(rerender.clone(), theme.clone(), &focus, &mut text_context)
         .await?;
     let solution = problem.solve(Size::new(80.0, 80.0)).await?;
     let scroll = problem.root.lock().await?.children[0].clone();
@@ -311,7 +314,7 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
 
     let _scene = problem
         .render(
-            render.clone(),
+            rerender.clone(),
             theme.clone(),
             &focus,
             &solution,
@@ -338,12 +341,12 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
     assert!(problem.root.invalidate_formula(id).await?);
 
     problem
-        .layout(render.clone(), theme.clone(), &focus, &mut text_context)
+        .layout(rerender.clone(), theme.clone(), &focus, &mut text_context)
         .await?;
     let solution = problem.solve(Size::new(80.0, 80.0)).await?;
 
     let _scene = problem
-        .render(render, theme, &focus, &solution, &mut text_context)
+        .render(rerender, theme, &focus, &solution, &mut text_context)
         .await?;
     let command = problem
         .handle_event(

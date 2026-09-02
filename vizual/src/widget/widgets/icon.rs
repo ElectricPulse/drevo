@@ -37,7 +37,7 @@ impl Widget_trait for Icon {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             hitbox,
             problem,
@@ -45,8 +45,8 @@ impl Widget_trait for Icon {
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let icon = *self.icon.affect(render.clone()).await?;
-        let theme = theme.affect(render).await?;
+        let icon = *self.icon.affect(relayout.clone()).await?;
+        let theme = theme.affect(relayout).await?;
         let style = self.style.get(&theme);
         let layout = text_context.build_layout(&Styled_text::icon(icon, style));
         let bounds = icon_ink_bounds(&layout, icon, style.size);
@@ -72,7 +72,7 @@ impl Widget_trait for Icon {
     async fn render(
         &mut self,
         Render_input {
-            render,
+            rerender,
             theme,
             hitbox,
             scene,
@@ -84,8 +84,8 @@ impl Widget_trait for Icon {
             let origin = Point::new(hitbox.origin.x + offset.x, hitbox.origin.y + offset.y);
             scene.paint_layout(layout, origin, false);
         } else {
-            let icon = *self.icon.affect(render.clone()).await?;
-            let theme = theme.affect(render).await?;
+            let icon = *self.icon.affect(rerender.clone()).await?;
+            let theme = theme.affect(rerender).await?;
             let _ = text_context.draw_icon(scene, icon, hitbox.origin, self.style.get(&theme));
         }
         Ok(())

@@ -31,13 +31,13 @@ impl Widget_trait for Title_block {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             slots,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let theme = theme.affect(render).await?;
+        let theme = theme.affect(relayout).await?;
         let mut title = Text::new(self.title.clone());
         title.style.set(theme.specific.text.title);
         let title = Anchor::left(title);

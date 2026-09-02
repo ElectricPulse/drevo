@@ -8,7 +8,7 @@ use crate::{
     Vizual_msg,
     component::{Children, Shared_component},
     constraint,
-    event::{Event, Key_code, Key_event, Wheel_delta},
+    event::{Event, Key_code, Wheel_delta},
     geometry::{Direction, Point, Rect, Size},
     widget::{
         Layout_input, Render_input, Widget, Widget_trait,
@@ -45,14 +45,14 @@ impl Widget_trait for Scroll_content {
             problem,
             mask,
             slots,
-            render,
+            relayout,
             theme,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
         *mask = true;
 
-        let theme = theme.affect(render).await?;
+        let theme = theme.affect(relayout).await?;
 
         problem
             .constrain(constraint!(
@@ -141,13 +141,14 @@ impl Widget_trait for Scroll {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             focus,
             slots,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
+        println!("Let me have a wild fucking guess");
         focus.set_interactive(true);
 
         let content_widget = Scroll_content::new(self.child.clone(), self.offset);
@@ -189,7 +190,7 @@ impl Widget_trait for Scroll {
 
         let component = match self.block {
             true => {
-                let theme = theme.affect(render).await?;
+                let theme = theme.affect(relayout).await?;
                 let block_style = self.style.unwrap_or(theme.specific.paper.block);
                 let mut block = Block::new(root_widget, block_style);
                 block.focusable = true;
@@ -231,7 +232,9 @@ impl Widget_trait for Scroll {
         Ok(())
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+        let key = input.key;
+        let relayout = input.relayout;
         let delta = match key.code {
             Key_code::Arrow_left => Point::new(-SCROLL_STEP, 0.0),
             Key_code::Arrow_right => Point::new(SCROLL_STEP, 0.0),
@@ -241,12 +244,20 @@ impl Widget_trait for Scroll {
         };
 
         match self.scroll_by(delta) {
-            true => Vizual_msg::new(crate::Vizual_command::Resolve),
+            true => {
+                relayout.send();
+                Vizual_msg::none()
+            }
             false => Vizual_msg::none(),
         }
     }
 
-    async fn on_other_event(&mut self, event: &Event) -> Result<Vizual_msg> {
+    async fn on_other_event(
+        &mut self,
+        input: crate::widget::Other_event<'_>,
+    ) -> Result<Vizual_msg> {
+        let event = input.event;
+        let relayout = input.relayout;
         let Event::Wheel(wheel) = event else {
             return Vizual_msg::none();
         };
@@ -264,7 +275,10 @@ impl Widget_trait for Scroll {
         };
 
         match self.scroll_by(delta) {
-            true => Vizual_msg::new(crate::Vizual_command::Resolve),
+            true => {
+                relayout.send();
+                Vizual_msg::none()
+            }
             false => Vizual_msg::none(),
         }
     }

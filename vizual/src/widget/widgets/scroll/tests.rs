@@ -1,5 +1,5 @@
 use super::*;
-use crate::event::{Modifiers, Wheel_event};
+use crate::event::{Key_event, Modifiers, Wheel_event};
 
 #[derive(Clone)]
 struct Empty;
@@ -21,6 +21,7 @@ fn offset_is_clamped_to_content_edge() {
 
 #[tokio::test]
 async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
+    let manager = crate::render_manager::Render_manager::new();
     let mut scroll = Scroll::new(Empty);
     scroll.content_size = Size::new(100.0, 70.0);
     scroll.viewport = Rect::new(0.0, 0.0, 40.0, 30.0);
@@ -32,7 +33,12 @@ async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
     };
 
     for _ in 0..10 {
-        let _ = scroll.on_key_press(&right).await?;
+        let _ = scroll
+            .on_key_press(crate::widget::Key_press {
+                key: &right,
+                relayout: manager.rerender.for_component(0),
+            })
+            .await?;
     }
 
     assert_eq!(scroll.offset, Point::new(60.0, 0.0));
@@ -41,6 +47,7 @@ async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
 
 #[tokio::test]
 async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Result<()> {
+    let manager = crate::render_manager::Render_manager::new();
     let mut scroll = Scroll::new(Empty);
     scroll.content_size = Size::new(400.0, 400.0);
     scroll.viewport = Rect::new(0.0, 0.0, 100.0, 100.0);
@@ -50,13 +57,25 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
         modifiers: Modifiers::default(),
     };
 
-    let message = scroll.on_other_event(&Event::Wheel(wheel)).await?;
-    assert!(message.has_command());
+    let event = Event::Wheel(wheel);
+    let message = scroll
+        .on_other_event(crate::widget::Other_event {
+            event: &event,
+            relayout: manager.rerender.for_component(0),
+        })
+        .await?;
+    assert!(!message.has_command());
     assert_eq!(scroll.offset, Point::new(0.0, SCROLL_STEP));
 
     wheel.modifiers.shift = true;
-    let message = scroll.on_other_event(&Event::Wheel(wheel)).await?;
-    assert!(message.has_command());
+    let event = Event::Wheel(wheel);
+    let message = scroll
+        .on_other_event(crate::widget::Other_event {
+            event: &event,
+            relayout: manager.rerender.for_component(0),
+        })
+        .await?;
+    assert!(!message.has_command());
     assert_eq!(scroll.offset, Point::new(SCROLL_STEP, SCROLL_STEP));
 
     Ok(())

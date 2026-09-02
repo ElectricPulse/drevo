@@ -39,7 +39,6 @@ fn component(name: &str, variables: &Variables, problem: Component_context) -> S
         ),
         formula: None,
         variables: Arc::new(Variables::new()),
-        layout_signal: None,
         widget: Box::new(Empty_widget),
         focusable: false,
         parent: None,

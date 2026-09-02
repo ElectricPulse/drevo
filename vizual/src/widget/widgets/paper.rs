@@ -41,13 +41,13 @@ impl Widget_trait for Paper {
     async fn layout(
         &mut self,
         Layout_input {
-            render,
+            relayout,
             theme,
             slots,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let theme = theme.affect(render).await?;
+        let theme = theme.affect(relayout).await?;
         let style = self.style.get(&theme);
         let block = Block::new(self.child.clone(), style.block);
         Ok(vec![display!(block)])

@@ -126,12 +126,12 @@ impl Widget_trait for Scrollbar {
         Layout_input {
             hitbox,
             problem,
-            render,
+            relayout,
             theme,
             ..
         }: Layout_input<'_>,
     ) -> Result<Children> {
-        let theme = theme.affect(render).await?;
+        let theme = theme.affect(relayout).await?;
         let style = Scrollbar_style::new(&theme);
         match self.direction {
             Direction::Horizontal => {
@@ -151,14 +151,14 @@ impl Widget_trait for Scrollbar {
     async fn render(
         &mut self,
         Render_input {
-            render,
+            rerender,
             theme,
             hitbox,
             scene,
             ..
         }: Render_input<'_, '_>,
     ) -> Result<()> {
-        let loaded_theme = (*theme.affect(render).await?).clone();
+        let loaded_theme = (*theme.affect(rerender).await?).clone();
         let style = Scrollbar_style::new(&loaded_theme);
         self.paint(scene, hitbox, &loaded_theme, style);
         Ok(())

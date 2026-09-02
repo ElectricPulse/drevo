@@ -6,7 +6,7 @@ use super::{
     text::Text_style,
 };
 use crate::{
-    event::{Key_code, Key_event},
+    event::Key_code,
     geometry::Point,
     graphics::text::Styled_text,
     utils::{bind_index, get_next_index, get_previous_index},
@@ -71,7 +71,11 @@ impl Widget_trait for List {
         Ok(())
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<crate::Vizual_msg> {
+    async fn on_key_press(
+        &mut self,
+        input: crate::widget::Key_press<'_>,
+    ) -> Result<crate::Vizual_msg> {
+        let key = input.key;
         if self.items.is_empty() {
             return crate::Vizual_msg::none();
         }
