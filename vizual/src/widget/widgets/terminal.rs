@@ -33,6 +33,7 @@ pub struct Terminal {
     pub restart: bool,
     current_handle: Arc<Mutex<Option<Command_handle>>>,
     working_dir: Arc<Mutex<Option<PathBuf>>>,
+    envs: Arc<Mutex<Vec<(String, String)>>>,
 }
 
 #[async_trait]
@@ -167,7 +168,11 @@ async fn read(mut output: io::PipeReader, text: Store<String>) -> Result<()> {
 }
 
 #[cfg(unix)]
-fn get_command(command: &str, working_dir: Option<impl AsRef<Path>>) -> tokio::process::Command {
+fn get_command(
+    command: &str,
+    working_dir: Option<impl AsRef<Path>>,
+    envs: &[(String, String)],
+) -> tokio::process::Command {
     let mut process = tokio::process::Command::new("/bin/bash");
     let _ = process
         .arg("-c")
@@ -176,6 +181,10 @@ fn get_command(command: &str, working_dir: Option<impl AsRef<Path>>) -> tokio::p
         .env("FORCE_COLOR", "1")
         .env("TERM", "xterm-256color")
         .env("COLORTERM", "truecolor");
+
+    for (key, val) in envs {
+        let _ = process.env(key, val);
+    }
 
     if let Some(directory) = working_dir {
         let _ = process.current_dir(directory);
@@ -316,12 +325,53 @@ impl Terminal {
             restart: false,
             current_handle: Arc::new(Mutex::new(None)),
             working_dir: Arc::new(Mutex::new(None)),
+            envs: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
     pub fn with_restart(mut self, restart: bool) -> Self {
         self.restart = restart;
         self
+    }
+
+    pub fn with_env(self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        if let Ok(mut envs) = self.envs.try_lock() {
+            envs.push((key.into(), value.into()));
+        }
+        self
+    }
+
+    pub fn env(self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.with_env(key, value)
+    }
+
+    pub fn with_envs<I, K, V>(self, iter: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<String>,
+    {
+        if let Ok(mut envs) = self.envs.try_lock() {
+            for (k, v) in iter {
+                envs.push((k.into(), v.into()));
+            }
+        }
+        self
+    }
+
+    pub fn envs<I, K, V>(self, iter: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<String>,
+    {
+        self.with_envs(iter)
+    }
+
+    pub async fn set_env(&self, key: impl Into<String>, value: impl Into<String>) -> Result<()> {
+        let mut envs = self.envs.lock().await?;
+        envs.push((key.into(), value.into()));
+        Ok(())
     }
 
     pub async fn run(&self, args: impl Into<String>) -> Result<Command_handle> {
@@ -336,7 +386,8 @@ impl Terminal {
             self.shell.set("/bin/bash".to_string()).await?;
             self.command.set(command.clone()).await?;
             *self.working_dir.lock().await? = None;
-            let handle = run_command(get_command(&command, None::<&Path>), self.text.clone())?;
+            let envs = self.envs.lock().await?.clone();
+            let handle = run_command(get_command(&command, None::<&Path>, &envs), self.text.clone())?;
             *self.current_handle.lock().await? = Some(handle.clone());
             Ok(handle)
         }
@@ -362,13 +413,28 @@ impl Terminal {
             self.shell.set("/bin/bash".to_string()).await?;
             self.command.set(command.clone()).await?;
             *self.working_dir.lock().await? = Some(canonical_dir.clone());
-            let handle = run_command(get_command(&command, Some(&canonical_dir)), self.text.clone())?;
+            let envs = self.envs.lock().await?.clone();
+            let handle = run_command(get_command(&command, Some(&canonical_dir), &envs), self.text.clone())?;
             *self.current_handle.lock().await? = Some(handle.clone());
             Ok(handle)
         }
         #[cfg(not(unix))]
         {
             let _ = (command, working_dir);
+            bail!("Terminal command execution is unsupported on this platform")
+        }
+    }
+
+    pub async fn run_command(&self, command: tokio::process::Command) -> Result<Command_handle> {
+        #[cfg(unix)]
+        {
+            let handle = run_command(command, self.text.clone())?;
+            *self.current_handle.lock().await? = Some(handle.clone());
+            Ok(handle)
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = command;
             bail!("Terminal command execution is unsupported on this platform")
         }
     }
@@ -383,11 +449,12 @@ impl Terminal {
 
         let command = self.command.read().await?.clone();
         let working_dir = self.working_dir.lock().await?.clone();
+        let envs = self.envs.lock().await?.clone();
 
         #[cfg(unix)]
         {
             let handle = run_command(
-                get_command(&command, working_dir.as_deref()),
+                get_command(&command, working_dir.as_deref(), &envs),
                 self.text.clone(),
             )?;
             *handle_lock = Some(handle.clone());
