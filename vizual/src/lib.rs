@@ -746,6 +746,7 @@ async fn ui_loop<T: Widget_trait>(
             }
             Ui_input::Rerender => Vizual_command::Render,
             Ui_input::Layout(ids) => {
+                log_info(0, format_args!("Render_request::Layout components: {ids:?}"));
                 if let Some(problem) = &app_problem {
                     for id in ids {
                         let _ = problem.root.invalidate_formula(id).await?;
