@@ -7,50 +7,50 @@ use color_eyre::eyre::{Result, eyre};
 
 use super::{
     super::{
-        Layout_input, Widget, Widget_trait,
-        custom_widget::{Custom_widget, Custom_widget_trait},
+        LayoutInput, Widget, WidgetTrait,
+        custom_widget::{CustomWidget, CustomWidgetTrait},
     },
     button::Button,
     layout::axis::Axis,
     positioning::anchor::Anchor,
 };
 use crate::{
-    Vizual_msg,
+    VizualMsg,
     component::Children,
-    event::Key_code,
+    event::KeyCode,
     geometry::Direction,
-    handlers::Retrieve_handler,
+    handlers::RetrieveHandler,
     layouter::variable::Variable,
     state::{State, Store},
-    sync::Thread_safe,
+    sync::ThreadSafe,
     utils::{get_next_index, get_previous_index},
 };
 
 // This trait is used as a trait object, which trait aliases do not currently support.
-pub trait Menu_item_trait<Choice: Thread_safe>:
-    Custom_widget_trait<Payload = bool> + Retrieve_handler<Choice> + dyn_clone::DynClone
+pub trait MenuItemTrait<Choice: ThreadSafe>:
+    CustomWidgetTrait<Payload = bool> + RetrieveHandler<Choice> + dyn_clone::DynClone
 {
 }
-impl<Choice: Thread_safe, Widget> Menu_item_trait<Choice> for Widget where
-    Widget: Custom_widget_trait<Payload = bool> + Retrieve_handler<Choice> + Clone
+impl<Choice: ThreadSafe, Widget> MenuItemTrait<Choice> for Widget where
+    Widget: CustomWidgetTrait<Payload = bool> + RetrieveHandler<Choice> + Clone
 {
 }
 
-dyn_clone::clone_trait_object!(<Choice> Menu_item_trait<Choice> where Choice: Thread_safe);
+dyn_clone::clone_trait_object!(<Choice> MenuItemTrait<Choice> where Choice: ThreadSafe);
 
-pub type Menu_item<Choice> = Box<dyn Menu_item_trait<Choice>>;
+pub type MenuItem<Choice> = Box<dyn MenuItemTrait<Choice>>;
 
-struct Menu_item_container<Choice: Thread_safe> {
+struct MenuItemContainer<Choice: ThreadSafe> {
     index: usize,
     selected: bool,
-    widget: Menu_item<Choice>,
+    widget: MenuItem<Choice>,
     selected_store: Store<usize>,
     submitted: Store<Choice>,
     button_delta: Variable,
     item_block: bool,
 }
 
-impl<Choice: Thread_safe> Clone for Menu_item_container<Choice> {
+impl<Choice: ThreadSafe> Clone for MenuItemContainer<Choice> {
     fn clone(&self) -> Self {
         Self {
             index: self.index,
@@ -64,19 +64,19 @@ impl<Choice: Thread_safe> Clone for Menu_item_container<Choice> {
     }
 }
 
-impl<Choice: Thread_safe> Menu_item_container<Choice> {
-    async fn submit(&mut self, relayout: crate::Signal) -> Result<Vizual_msg> {
+impl<Choice: ThreadSafe> MenuItemContainer<Choice> {
+    async fn submit(&mut self, relayout: crate::Signal) -> Result<VizualMsg> {
         self.selected_store.set(self.index).await?;
         self.submitted.set(self.widget.on_retrieve().await?).await?;
         relayout.send();
-        Vizual_msg::none()
+        VizualMsg::none()
     }
 }
 
 #[async_trait]
-impl<Choice: Thread_safe> Widget_trait for Menu_item_container<Choice> {
-    async fn layout(&mut self, Layout_input { slots, .. }: Layout_input<'_>) -> Result<Children> {
-        let content = Custom_widget::new(self.widget.clone(), self.selected);
+impl<Choice: ThreadSafe> WidgetTrait for MenuItemContainer<Choice> {
+    async fn layout(&mut self, LayoutInput { slots, .. }: LayoutInput<'_>) -> Result<Children> {
+        let content = CustomWidget::new(self.widget.clone(), self.selected);
         let widget: Widget = match self.item_block {
             true => {
                 let mut button = Button::around(content);
@@ -92,29 +92,29 @@ impl<Choice: Thread_safe> Widget_trait for Menu_item_container<Choice> {
 
     async fn on_mouse_click(
         &mut self,
-        input: crate::widget::Mouse_event<'_>,
-    ) -> Result<Vizual_msg> {
+        input: crate::widget::MouseEvent<'_>,
+    ) -> Result<VizualMsg> {
         self.submit(input.relayout).await
     }
 
-    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
         let key = input.key;
-        if matches!(key.code, Key_code::Enter) {
+        if matches!(key.code, KeyCode::Enter) {
             return self.submit(input.relayout).await;
         }
 
-        Vizual_msg::none()
+        VizualMsg::none()
     }
 }
 
-pub struct Menu<Choice: Thread_safe> {
-    items: Vec<Menu_item<Choice>>,
+pub struct Menu<Choice: ThreadSafe> {
+    items: Vec<MenuItem<Choice>>,
     pub selected: Store<usize>,
     submitted: Store<Choice>,
     pub item_block: bool,
 }
 
-impl<Choice: Thread_safe> Clone for Menu<Choice> {
+impl<Choice: ThreadSafe> Clone for Menu<Choice> {
     fn clone(&self) -> Self {
         Self {
             items: self.items.clone(),
@@ -125,8 +125,8 @@ impl<Choice: Thread_safe> Clone for Menu<Choice> {
     }
 }
 
-impl<Choice: Thread_safe> Menu<Choice> {
-    pub async fn new(mut items: Vec<Menu_item<Choice>>, default_item: usize) -> Result<Self> {
+impl<Choice: ThreadSafe> Menu<Choice> {
+    pub async fn new(mut items: Vec<MenuItem<Choice>>, default_item: usize) -> Result<Self> {
         let item = items
             .get_mut(default_item)
             .ok_or_else(|| eyre!("Default menu item index {default_item} is out of range"))?;
@@ -158,29 +158,29 @@ impl<Choice: Thread_safe> Menu<Choice> {
 }
 
 #[async_trait]
-impl<Choice: Thread_safe> Retrieve_handler<Choice> for Menu<Choice> {
+impl<Choice: ThreadSafe> RetrieveHandler<Choice> for Menu<Choice> {
     async fn on_retrieve(&mut self) -> Result<State<Choice>> {
         Ok(self.submitted.clone().into())
     }
 }
 
 #[async_trait]
-impl<Choice: Thread_safe> Widget_trait for Menu<Choice> {
+impl<Choice: ThreadSafe> WidgetTrait for Menu<Choice> {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             problem,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let selected = *self.selected.affect(relayout).await?;
         let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());
         let button_delta = problem.add_delta("menu-item-button-delta", 1).await?;
 
         for (index, item) in self.items.iter().enumerate() {
-            let row = Menu_item_container {
+            let row = MenuItemContainer {
                 index,
                 selected: index == selected,
                 widget: item.clone(),
@@ -195,21 +195,21 @@ impl<Choice: Thread_safe> Widget_trait for Menu<Choice> {
         Ok(vec![display!(Axis::new(Direction::Vertical, rows))])
     }
 
-    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
         let key = input.key;
         let relayout = input.relayout;
         match key.code {
-            Key_code::Arrow_up | Key_code::Arrow_down => {
+            KeyCode::ArrowUp | KeyCode::ArrowDown => {
                 let index = *self.selected.read().await?;
                 let next_index = match key.code {
-                    Key_code::Arrow_up => get_previous_index(self.items.len(), index),
+                    KeyCode::ArrowUp => get_previous_index(self.items.len(), index),
                     _ => get_next_index(self.items.len(), index),
                 };
                 self.set_index(next_index).await?;
                 relayout.send();
-                Vizual_msg::none()
+                VizualMsg::none()
             }
-            _ => Vizual_msg::none(),
+            _ => VizualMsg::none(),
         }
     }
 }

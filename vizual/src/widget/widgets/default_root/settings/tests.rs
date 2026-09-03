@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use super::*;
 use crate::{
-    App_problem, Key_event, Vizual_command,
-    event::{Modifiers, Pointer_button, Pointer_event},
+    AppProblem, KeyEvent, VizualCommand,
+    event::{Modifiers, PointerButton, PointerEvent},
     focus::Focus,
     geometry::{Point, Size},
-    graphics::text::Text_context,
+    graphics::text::TextContext,
     layouter::variables::Variables,
-    render_manager::Render_manager,
-    slot::Component_slot,
+    render_manager::RenderManager,
+    slot::ComponentSlot,
     theme::dark_theme,
     widget::widgets::root::Root,
 };
@@ -17,25 +17,25 @@ use crate::{
 #[test]
 fn system_label_includes_the_resolved_system_theme() {
     assert_eq!(
-        label(Theme_choice::System, System_theme::Dark),
+        label(ThemeChoice::System, SystemTheme::Dark),
         "System (Dark)"
     );
     assert_eq!(
-        label(Theme_choice::System, System_theme::Light),
+        label(ThemeChoice::System, SystemTheme::Light),
         "System (Light)"
     );
 }
 
 #[tokio::test]
 async fn settings_button_focus_can_navigate_the_menu_with_arrow_keys() -> Result<()> {
-    let manager = Render_manager::new();
-    let choice = Store::new(Theme_choice::System);
+    let manager = RenderManager::new();
+    let choice = Store::new(ThemeChoice::System);
     let mut settings = Settings::new(choice.clone());
 
     let message = settings
-        .on_key_press(crate::widget::Key_press {
-            key: &Key_event {
-                code: Key_code::Arrow_down,
+        .on_key_press(crate::widget::KeyPress {
+            key: &KeyEvent {
+                code: KeyCode::ArrowDown,
                 modifiers: Modifiers::default(),
                 text: None,
                 repeat: false,
@@ -45,23 +45,23 @@ async fn settings_button_focus_can_navigate_the_menu_with_arrow_keys() -> Result
         .await?;
 
     assert!(!message.has_command());
-    assert_eq!(*choice.read().await?, Theme_choice::Dark);
+    assert_eq!(*choice.read().await?, ThemeChoice::Dark);
     Ok(())
 }
 
 #[tokio::test]
 async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> {
-    let render_manager = Render_manager::new();
+    let render_manager = RenderManager::new();
     let rerender = render_manager.rerender;
     let theme = Store::new(dark_theme());
-    let settings = Settings::new(Store::new(Theme_choice::Dark));
-    let root = Widget_trait::into_shared(Root::new(settings));
-    let mut root_slot = Component_slot::new();
-    let mut text_context = Text_context::new();
+    let settings = Settings::new(Store::new(ThemeChoice::Dark));
+    let root = WidgetTrait::into_shared(Root::new(settings));
+    let mut root_slot = ComponentSlot::new();
+    let mut text_context = TextContext::new();
     let mut focus = Focus::new();
     let variables = Arc::new(Variables::new());
 
-    let mut problem = App_problem::new(
+    let mut problem = AppProblem::new(
         root.clone(),
         &mut root_slot,
         Arc::clone(&variables),
@@ -91,23 +91,23 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
     let button_rect = button_block.get_hitbox().await?.get_resolved(&solution);
     let command = problem
         .handle_event(
-            &crate::event::Event::Pointer(Pointer_event {
+            &crate::event::Event::Pointer(PointerEvent {
                 position: Point::new(
                     button_rect.origin.x + button_rect.size.width / 2.0,
                     button_rect.origin.y + button_rect.size.height / 2.0,
                 ),
-                button: Pointer_button::Primary,
+                button: PointerButton::Primary,
             }),
             &solution,
             &mut focus,
         )
         .await?;
-    assert!(matches!(command, Vizual_command::None));
+    assert!(matches!(command, VizualCommand::None));
     assert!(focus.compare(&button_block));
     assert!(focus.focused_path().await?.contains(&settings));
 
     let previous_problem = problem;
-    let mut problem = App_problem::new(
+    let mut problem = AppProblem::new(
         root.clone(),
         &mut root_slot,
         Arc::clone(&variables),
@@ -134,7 +134,7 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
 
     focus.reset();
     let previous_problem = problem;
-    let mut problem = App_problem::new(root, &mut root_slot, variables, rerender.clone()).await?;
+    let mut problem = AppProblem::new(root, &mut root_slot, variables, rerender.clone()).await?;
     drop(previous_problem);
     problem
         .layout(rerender, theme, &focus, &mut text_context)

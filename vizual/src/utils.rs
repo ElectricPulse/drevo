@@ -28,13 +28,13 @@ pub fn bind_index(length: usize, index: usize) -> usize {
 }
 
 pub fn handle_keys_for_iterable(
-    key: &crate::event::Key_event,
+    key: &crate::event::KeyEvent,
     length: usize,
     index: usize,
 ) -> Option<usize> {
     match key.code {
-        crate::event::Key_code::Arrow_left => Some(get_previous_index(length, index)),
-        crate::event::Key_code::Arrow_right => Some(get_next_index(length, index)),
+        crate::event::KeyCode::ArrowLeft => Some(get_previous_index(length, index)),
+        crate::event::KeyCode::ArrowRight => Some(get_next_index(length, index)),
         _ => None,
     }
 }

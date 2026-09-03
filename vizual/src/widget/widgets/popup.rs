@@ -3,32 +3,32 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use super::{
-    super::{Layout_input, Widget_trait},
+    super::{LayoutInput, WidgetTrait},
     button::Button,
     layout::axis::Axis,
-    menu::{Menu, Menu_item},
+    menu::{Menu, MenuItem},
     positioning::anchor::Anchor,
     text::Text,
-    title_block::Title_block,
+    title_block::TitleBlock,
 };
 use crate::{
-    Vizual_command, Vizual_msg,
+    VizualCommand, VizualMsg,
     component::Children,
     event::Event,
     geometry::Direction,
-    handlers::{Retrieve_handler, Submit_handler},
+    handlers::{RetrieveHandler, SubmitHandler},
     state::State,
-    widget::custom_widget::Custom_widget_trait,
+    widget::custom_widget::CustomWidgetTrait,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Popup_options {
+enum PopupOptions {
     Quit,
     Save,
     Cancel,
 }
 
-impl Popup_options {
+impl PopupOptions {
     const ALL: [Self; 3] = [Self::Quit, Self::Save, Self::Cancel];
 
     fn label(self) -> &'static str {
@@ -49,29 +49,29 @@ impl Popup_options {
 }
 
 #[derive(Clone)]
-struct Popup_menu_item {
-    option: Popup_options,
+struct PopupMenuItem {
+    option: PopupOptions,
 }
 
 #[async_trait]
-impl Retrieve_handler<Popup_options> for Popup_menu_item {
-    async fn on_retrieve(&mut self) -> Result<State<Popup_options>> {
+impl RetrieveHandler<PopupOptions> for PopupMenuItem {
+    async fn on_retrieve(&mut self) -> Result<State<PopupOptions>> {
         Ok(self.option.into())
     }
 }
 
 #[async_trait]
-impl Custom_widget_trait for Popup_menu_item {
+impl CustomWidgetTrait for PopupMenuItem {
     type Payload = bool;
 
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
         selected: bool,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
@@ -88,24 +88,24 @@ impl Custom_widget_trait for Popup_menu_item {
 
 #[derive(Clone)]
 pub struct Popup {
-    menu: Menu<Popup_options>,
-    submit_handler: Box<dyn Submit_handler<Popup_options>>,
+    menu: Menu<PopupOptions>,
+    submit_handler: Box<dyn SubmitHandler<PopupOptions>>,
 }
 
 impl Popup {
-    pub async fn new(submit_handler: impl Submit_handler<bool>) -> Result<Self> {
-        let items: Vec<Menu_item<Popup_options>> = Popup_options::ALL
+    pub async fn new(submit_handler: impl SubmitHandler<bool>) -> Result<Self> {
+        let items: Vec<MenuItem<PopupOptions>> = PopupOptions::ALL
             .into_iter()
-            .map(|option| -> Menu_item<Popup_options> { Box::new(Popup_menu_item { option }) })
+            .map(|option| -> MenuItem<PopupOptions> { Box::new(PopupMenuItem { option }) })
             .collect();
         let menu = Menu::new(items, 0).await?;
-        let subhandler: Box<dyn Submit_handler<bool>> = Box::new(submit_handler);
-        let submit_handler: Box<dyn Submit_handler<Popup_options>> =
-            Box::new(move |option: Popup_options| {
+        let subhandler: Box<dyn SubmitHandler<bool>> = Box::new(submit_handler);
+        let submit_handler: Box<dyn SubmitHandler<PopupOptions>> =
+            Box::new(move |option: PopupOptions| {
                 let mut subhandler = subhandler.clone();
                 async move {
                     let Some(should_save) = option.should_save() else {
-                        return Vizual_msg::new(Vizual_command::Resolve);
+                        return VizualMsg::new(VizualCommand::Resolve);
                     };
                     subhandler.on_submit(should_save).await
                 }
@@ -119,15 +119,15 @@ impl Popup {
 }
 
 #[async_trait]
-impl Widget_trait for Popup {
+impl WidgetTrait for Popup {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
         let mut text = Text::new("Submit");
@@ -146,30 +146,30 @@ impl Widget_trait for Popup {
         let button = Anchor::left(button);
         let menu = Anchor::left(self.menu.clone());
         let axis = Axis::new(Direction::Vertical, (menu, button));
-        let block = Title_block::new(axis, "Are you sure you want to quit?");
+        let block = TitleBlock::new(axis, "Are you sure you want to quit?");
         let anchor = Anchor::middle(block);
         Ok(vec![display!(anchor)])
     }
 
-    async fn on_all_events(&mut self, input: crate::widget::All_events<'_>) -> Result<Vizual_msg> {
+    async fn on_all_events(&mut self, input: crate::widget::AllEvents<'_>) -> Result<VizualMsg> {
         self.menu.on_all_events(input).await
     }
 
     async fn on_mouse_click(
         &mut self,
-        input: crate::widget::Mouse_event<'_>,
-    ) -> Result<Vizual_msg> {
+        input: crate::widget::MouseEvent<'_>,
+    ) -> Result<VizualMsg> {
         self.menu.on_mouse_click(input).await
     }
 
-    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
         self.menu.on_key_press(input).await
     }
 
     async fn on_other_event(
         &mut self,
-        input: crate::widget::Other_event<'_>,
-    ) -> Result<Vizual_msg> {
+        input: crate::widget::OtherEvent<'_>,
+    ) -> Result<VizualMsg> {
         self.menu.on_other_event(input).await
     }
 
@@ -177,7 +177,7 @@ impl Widget_trait for Popup {
         &mut self,
         event: &Event,
         relayout: crate::Signal,
-    ) -> Result<Vizual_msg> {
+    ) -> Result<VizualMsg> {
         self.menu.forward_event(event, relayout).await
     }
 }

@@ -2,22 +2,22 @@ use std::{collections::HashSet, sync::Weak};
 
 use color_eyre::eyre::Result;
 
-use crate::component::{Child_reference, Shared_component};
+use crate::component::{ChildReference, SharedComponent};
 
 #[derive(Default)]
-pub(crate) struct Focused_path(HashSet<usize>);
+pub(crate) struct FocusedPath(HashSet<usize>);
 
-impl Focused_path {
-    pub(crate) fn contains(&self, component: &Shared_component) -> bool {
+impl FocusedPath {
+    pub(crate) fn contains(&self, component: &SharedComponent) -> bool {
         self.0.contains(&component.identity())
     }
 }
 
 #[derive(Clone, Default)]
-pub struct Focus(pub Child_reference);
+pub struct Focus(pub ChildReference);
 
 #[derive(Clone, Copy)]
-pub enum Focus_search_direction {
+pub enum FocusSearchDirection {
     Left,
     Right,
 }
@@ -27,11 +27,11 @@ impl Focus {
         Self(Weak::new())
     }
 
-    pub fn upgrade(&self) -> Option<Shared_component> {
-        self.0.upgrade().map(Shared_component::new)
+    pub fn upgrade(&self) -> Option<SharedComponent> {
+        self.0.upgrade().map(SharedComponent::new)
     }
 
-    pub fn compare(&self, node: &Shared_component) -> bool {
+    pub fn compare(&self, node: &SharedComponent) -> bool {
         if let Some(this) = self.upgrade() {
             return this.compare(node);
         }
@@ -45,9 +45,9 @@ impl Focus {
     /// component that receives an event as part of the focused subtree also receives focused
     /// state. The path is collected once per layout or render pass so components only need an
     /// O(1) membership check.
-    pub(crate) async fn focused_path(&self) -> Result<Focused_path> {
+    pub(crate) async fn focused_path(&self) -> Result<FocusedPath> {
         let Some(mut focused) = self.upgrade() else {
-            return Ok(Focused_path::default());
+            return Ok(FocusedPath::default());
         };
         let mut path = HashSet::new();
 
@@ -56,9 +56,9 @@ impl Focus {
 
             let parent = focused.lock().await?.parent.clone();
             let Some(parent) = parent.and_then(|parent| parent.upgrade()) else {
-                return Ok(Focused_path(path));
+                return Ok(FocusedPath(path));
             };
-            focused = Shared_component::new(parent);
+            focused = SharedComponent::new(parent);
         }
     }
 
@@ -66,11 +66,11 @@ impl Focus {
         self.0 = Weak::new();
     }
 
-    pub fn set_with_reference(&mut self, focus: &Child_reference) {
+    pub fn set_with_reference(&mut self, focus: &ChildReference) {
         self.0 = focus.clone()
     }
 
-    pub fn set(&mut self, focus: &Shared_component) {
+    pub fn set(&mut self, focus: &SharedComponent) {
         self.set_with_reference(&focus.as_reference());
     }
 }

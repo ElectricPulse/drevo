@@ -1,7 +1,7 @@
 use parley::{Layout, PositionedLayoutItem};
 use vello::{
-    Glyph, Scene as Vello_scene,
-    kurbo::{Affine, Line, Rect as Kurbo_rect, RoundedRect, Stroke},
+    Glyph, Scene as VelloScene,
+    kurbo::{Affine, Line, Rect as KurboRect, RoundedRect, Stroke},
     peniko::Fill,
 };
 
@@ -10,7 +10,7 @@ use crate::{
     style::Color,
 };
 
-use super::text::Text_brush;
+use super::text::TextBrush;
 
 enum Decoration {
     Underline,
@@ -18,11 +18,11 @@ enum Decoration {
 }
 
 pub struct Scene<'a> {
-    pub scene: &'a mut Vello_scene,
+    pub scene: &'a mut VelloScene,
 }
 
 impl<'a> Scene<'a> {
-    pub(crate) fn new(scene: &'a mut Vello_scene) -> Self {
+    pub(crate) fn new(scene: &'a mut VelloScene) -> Self {
         Self { scene }
     }
 
@@ -70,7 +70,7 @@ impl<'a> Scene<'a> {
 
     pub(crate) fn append_clipped(
         &mut self,
-        scene: &Vello_scene,
+        scene: &VelloScene,
         viewport: Rect,
         transform: Affine,
     ) {
@@ -81,7 +81,7 @@ impl<'a> Scene<'a> {
         self.scene.pop_layer();
     }
 
-    pub(crate) fn paint_layout(&mut self, layout: &Layout<Text_brush>, origin: Point, hint: bool) {
+    pub(crate) fn paint_layout(&mut self, layout: &Layout<TextBrush>, origin: Point, hint: bool) {
         let transform = Affine::translate((origin.x, origin.y));
 
         for line in layout.lines() {
@@ -103,7 +103,7 @@ impl<'a> Scene<'a> {
                             transform,
                             background,
                             None,
-                            &Kurbo_rect::new(
+                            &KurboRect::new(
                                 start,
                                 f64::from(metrics.block_min_coord),
                                 end,
@@ -143,7 +143,7 @@ impl<'a> Scene<'a> {
 
     pub(crate) fn paint_layout_clipped(
         &mut self,
-        layout: &Layout<Text_brush>,
+        layout: &Layout<TextBrush>,
         origin: Point,
         viewport: Rect,
         hint: bool,
@@ -162,7 +162,7 @@ impl<'a> Scene<'a> {
     fn paint_decoration(
         &mut self,
         transform: Affine,
-        glyph_run: &parley::layout::GlyphRun<'_, Text_brush>,
+        glyph_run: &parley::layout::GlyphRun<'_, TextBrush>,
         visible_x: Option<(f64, f64)>,
         decoration: Decoration,
     ) {
@@ -205,6 +205,6 @@ impl<'a> Scene<'a> {
     }
 }
 
-fn to_kurbo_rect(rect: Rect) -> Kurbo_rect {
-    Kurbo_rect::new(rect.origin.x, rect.origin.y, rect.right(), rect.bottom())
+fn to_kurbo_rect(rect: Rect) -> KurboRect {
+    KurboRect::new(rect.origin.x, rect.origin.y, rect.right(), rect.bottom())
 }

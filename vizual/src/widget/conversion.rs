@@ -1,4 +1,4 @@
-use crate::widget::{Widget, Widget_trait};
+use crate::widget::{Widget, WidgetTrait};
 
 /// A trait for converting collections of widgets into a [`Vec<Widget>`].
 ///
@@ -11,7 +11,7 @@ use crate::widget::{Widget, Widget_trait};
 /// This allows callers to pass tuples of diverse widget types—such as
 /// `(Anchor::new(), Alignment::new(), Configurator::new())`—without having to manually
 /// convert or box every element into `Widget`.
-pub trait Into_widgets {
+pub trait IntoWidgets {
     fn into_widgets(self) -> Vec<Widget>;
 
     fn into(self) -> Vec<Widget>
@@ -22,13 +22,13 @@ pub trait Into_widgets {
     }
 }
 
-impl Into_widgets for () {
+impl IntoWidgets for () {
     fn into_widgets(self) -> Vec<Widget> {
         Vec::new()
     }
 }
 
-impl Into_widgets for Vec<Widget> {
+impl IntoWidgets for Vec<Widget> {
     fn into_widgets(self) -> Vec<Widget> {
         self
     }
@@ -38,7 +38,7 @@ macro_rules! impl_into_widgets_for_tuples {
     ($(($($T:ident),+ $(,)?))+) => {
         $(
             #[allow(non_snake_case)]
-            impl<$($T: Widget_trait + 'static),+> Into_widgets for ($($T,)+) {
+            impl<$($T: WidgetTrait + 'static),+> IntoWidgets for ($($T,)+) {
                 fn into_widgets(self) -> Vec<Widget> {
                     let ($($T,)+) = self;
                     vec![$($T.as_any()),+]

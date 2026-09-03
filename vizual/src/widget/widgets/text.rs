@@ -1,4 +1,4 @@
-use super::super::{Layout_input, Render_input, Widget_trait};
+use super::super::{LayoutInput, RenderInput, WidgetTrait};
 use async_trait::async_trait;
 use color_eyre::Result;
 use std::sync::Arc;
@@ -7,28 +7,28 @@ use crate::{
     component::Children,
     config::DEFAULT_FONT_SIZE,
     geometry::Direction,
-    graphics::text::{Styled_text, Text_layout},
-    state::{State, State_trait, memoization::Memoization},
+    graphics::text::{StyledText, TextLayout},
+    state::{State, StateTrait, memoization::Memoization},
     style::{Color, Style},
     sync::Mutex,
     theme::Theme,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Text_style {
+pub struct TextStyle {
     pub size: f32,
     pub color: Color,
     pub bold: bool,
 }
 
-impl Text_style {
+impl TextStyle {
     pub fn bold(mut self) -> Self {
         self.bold = true;
         self
     }
 }
 
-impl Default for Text_style {
+impl Default for TextStyle {
     fn default() -> Self {
         Self {
             size: DEFAULT_FONT_SIZE,
@@ -38,7 +38,7 @@ impl Default for Text_style {
     }
 }
 
-impl From<Theme> for Text_style {
+impl From<Theme> for TextStyle {
     fn from(theme: Theme) -> Self {
         theme.specific.text.paragraph
     }
@@ -47,8 +47,8 @@ impl From<Theme> for Text_style {
 #[derive(Clone)]
 pub struct Text {
     content: State<String>,
-    pub style: Style<Text_style>,
-    cached_layout: Arc<Mutex<Option<(Styled_text, Memoization<Text_layout>)>>>,
+    pub style: Style<TextStyle>,
+    cached_layout: Arc<Mutex<Option<(StyledText, Memoization<TextLayout>)>>>,
 }
 
 impl Text {
@@ -62,22 +62,22 @@ impl Text {
 }
 
 #[async_trait]
-impl Widget_trait for Text {
+impl WidgetTrait for Text {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             hitbox,
             problem,
             text_context,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let content = self.content.affect(relayout.clone()).await?;
         let theme = theme.affect(relayout.clone()).await?;
         let style = self.style.get(&theme);
-        let text = Styled_text::styled(&*content, style);
+        let text = StyledText::styled(&*content, style);
         let memoization = {
             let mut cached_layout = self.cached_layout.lock().await?;
             match &*cached_layout {
@@ -104,7 +104,7 @@ impl Widget_trait for Text {
 
     async fn render(
         &mut self,
-        Render_input { hitbox, scene, .. }: Render_input<'_, '_>,
+        RenderInput { hitbox, scene, .. }: RenderInput<'_, '_>,
     ) -> Result<()> {
         let memoization = self
             .cached_layout

@@ -2,11 +2,11 @@ use crate::geometry::Point;
 
 #[derive(Clone, Debug)]
 pub enum Event {
-    Key(Key_event),
-    Pointer(Pointer_event),
-    Wheel(Wheel_event),
+    Key(KeyEvent),
+    Pointer(PointerEvent),
+    Wheel(WheelEvent),
     Text(String),
-    Close_requested,
+    CloseRequested,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -18,28 +18,28 @@ pub struct Modifiers {
 }
 
 #[derive(Clone, Debug)]
-pub struct Key_event {
-    pub code: Key_code,
+pub struct KeyEvent {
+    pub code: KeyCode,
     pub modifiers: Modifiers,
     pub text: Option<String>,
     pub repeat: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Key_code {
+pub enum KeyCode {
     Character(char),
     Enter,
     Escape,
     Tab,
-    Back_tab,
+    BackTab,
     Backspace,
     Delete,
-    Arrow_left,
-    Arrow_right,
-    Arrow_up,
-    Arrow_down,
-    Page_up,
-    Page_down,
+    ArrowLeft,
+    ArrowRight,
+    ArrowUp,
+    ArrowDown,
+    PageUp,
+    PageDown,
     Home,
     End,
     Space,
@@ -47,7 +47,7 @@ pub enum Key_code {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Pointer_button {
+pub enum PointerButton {
     Primary,
     Secondary,
     Middle,
@@ -55,20 +55,20 @@ pub enum Pointer_button {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Pointer_event {
+pub struct PointerEvent {
     pub position: Point,
-    pub button: Pointer_button,
+    pub button: PointerButton,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum Wheel_delta {
+pub enum WheelDelta {
     Lines(Point),
-    Logical_pixels(Point),
+    LogicalPixels(Point),
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Wheel_event {
+pub struct WheelEvent {
     pub position: Point,
-    pub delta: Wheel_delta,
+    pub delta: WheelDelta,
     pub modifiers: Modifiers,
 }

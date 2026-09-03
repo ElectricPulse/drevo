@@ -2,7 +2,7 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 //! An async, solver-driven desktop UI framework.
 //!
-//! Interfaces are [`widget::Widget_trait`] trees laid out through solver
+//! Interfaces are [`widget::WidgetTrait`] trees laid out through solver
 //! constraints and painted with Vello. Vizual currently requires nightly Rust.
 
 pub mod component;
@@ -41,7 +41,7 @@ use std::{
 use async_recursion::async_recursion;
 use color_eyre::eyre::{ContextCompat, Result, WrapErr, eyre};
 use simplelog::{
-    ColorChoice, CombinedLogger, Config as Log_config, LevelFilter, SharedLogger, TermLogger,
+    ColorChoice, CombinedLogger, Config as LogConfig, LevelFilter, SharedLogger, TermLogger,
     TerminalMode, WriteLogger,
 };
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
@@ -59,25 +59,25 @@ use winit::{
     event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     keyboard::{Key, ModifiersState, NamedKey},
-    window::{Theme as Window_theme, Window, WindowId},
+    window::{Theme as WindowTheme, Window, WindowId},
 };
 
-use component::{Child_reference, Shared_component, context::Component_context};
+use component::{ChildReference, SharedComponent, context::ComponentContext};
 use config::{DEFAULT_SCREEN_SIZE, MINIMUM_WINDOW_SIZE};
 use event::{
-    Event, Key_code, Key_event, Modifiers, Pointer_button, Pointer_event, Wheel_delta, Wheel_event,
+    Event, KeyCode, KeyEvent, Modifiers, PointerButton, PointerEvent, WheelDelta, WheelEvent,
 };
-use focus::{Focus, Focus_search_direction};
+use focus::{Focus, FocusSearchDirection};
 use geometry::{Point, Size};
-use graphics::{scene::Scene as Graphics_scene, text::Text_context};
+use graphics::{scene::Scene as GraphicsScene, text::TextContext};
 use layouter::{Formula, Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
-use render_manager::{Render_manager, Render_receiver};
-use slot::Component_slot;
+use render_manager::{RenderManager, RenderReceiver};
+use slot::ComponentSlot;
 use state::Store;
 use sync::Mutex;
-use theme::{System_theme, Theme};
-use widget::{Shared_widget, Widget_trait, widgets::root::Root};
+use theme::{SystemTheme, Theme};
+use widget::{SharedWidget, WidgetTrait, widgets::root::Root};
 
 pub fn init_logging(path: Option<impl AsRef<Path>>) -> Result<()> {
     let logger: Box<dyn SharedLogger> = match path {
@@ -88,11 +88,11 @@ pub fn init_logging(path: Option<impl AsRef<Path>>) -> Result<()> {
                 .open(path.as_ref())
                 .wrap_err_with(|| format!("Failed to open log file {}", path.as_ref().display()))?;
 
-            WriteLogger::new(LevelFilter::Info, Log_config::default(), file)
+            WriteLogger::new(LevelFilter::Info, LogConfig::default(), file)
         }
         None => TermLogger::new(
             LevelFilter::Info,
-            Log_config::default(),
+            LogConfig::default(),
             TerminalMode::Mixed,
             ColorChoice::Auto,
         ),
@@ -105,20 +105,20 @@ pub fn init_logging(path: Option<impl AsRef<Path>>) -> Result<()> {
 }
 
 #[derive(Clone)]
-pub struct Vizual_msg {
+pub struct VizualMsg {
     pub(crate) propagate: bool,
-    pub(crate) command: Vizual_command,
+    pub(crate) command: VizualCommand,
 }
 
-impl Vizual_msg {
-    pub fn new(command: Vizual_command) -> Result<Self> {
+impl VizualMsg {
+    pub fn new(command: VizualCommand) -> Result<Self> {
         Ok(Self {
             propagate: false,
             command,
         })
     }
 
-    pub fn new_propagated(command: Vizual_command) -> Result<Self> {
+    pub fn new_propagated(command: VizualCommand) -> Result<Self> {
         Ok(Self {
             propagate: true,
             command,
@@ -132,30 +132,30 @@ impl Vizual_msg {
     pub fn bare() -> Self {
         Self {
             propagate: true,
-            command: Vizual_command::None,
+            command: VizualCommand::None,
         }
     }
 
     pub(crate) fn has_command(&self) -> bool {
-        !matches!(self.command, Vizual_command::None)
+        !matches!(self.command, VizualCommand::None)
     }
 
-    pub(crate) fn join(&mut self, message: Vizual_msg) {
+    pub(crate) fn join(&mut self, message: VizualMsg) {
         self.command = self.command.clone().join(message.command);
         self.propagate = self.propagate && message.propagate;
     }
 }
 
 #[derive(Clone)]
-pub enum Vizual_command {
+pub enum VizualCommand {
     None,
     Resolve,
     Render,
-    Focus(Child_reference),
+    Focus(ChildReference),
     Quit,
 }
 
-impl Vizual_command {
+impl VizualCommand {
     fn join(self, command: Self) -> Self {
         match (self, command) {
             (Self::Quit, _) | (_, Self::Quit) => Self::Quit,
@@ -173,17 +173,17 @@ static SIGNAL_ID: AtomicU64 = AtomicU64::new(0);
 pub struct Signal {
     pub(crate) id: u64,
     target: Option<component::Id>,
-    sender: mpsc::UnboundedSender<Render_request>,
+    sender: mpsc::UnboundedSender<RenderRequest>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Render_request {
+pub(crate) enum RenderRequest {
     Rerender,
     Layout(component::Id),
 }
 
 impl Signal {
-    pub(crate) fn new(sender: mpsc::UnboundedSender<Render_request>) -> Self {
+    pub(crate) fn new(sender: mpsc::UnboundedSender<RenderRequest>) -> Self {
         Self {
             id: SIGNAL_ID.fetch_add(1, Ordering::Relaxed),
             target: None,
@@ -203,33 +203,33 @@ impl Signal {
 
     pub fn send(&self) {
         let request = match self.target {
-            Some(component) => Render_request::Layout(component),
-            None => Render_request::Rerender,
+            Some(component) => RenderRequest::Layout(component),
+            None => RenderRequest::Rerender,
         };
         let _ = self.sender.send(request);
     }
 }
 
-pub fn check_quit_event(event: &Key_event) -> bool {
-    matches!(event.code, Key_code::Character('c' | 'C')) && event.modifiers.control
+pub fn check_quit_event(event: &KeyEvent) -> bool {
+    matches!(event.code, KeyCode::Character('c' | 'C')) && event.modifiers.control
 }
 
-struct App_problem {
-    root: Shared_component,
+struct AppProblem {
+    root: SharedComponent,
     root_hitbox: Hitbox,
     variables: Arc<Variables>,
     rerender: Signal,
 }
 
-impl App_problem {
-    async fn new<T: Widget_trait>(
-        root: Shared_widget<T>,
-        root_slot: &mut Component_slot,
+impl AppProblem {
+    async fn new<T: WidgetTrait>(
+        root: SharedWidget<T>,
+        root_slot: &mut ComponentSlot,
         variables: Arc<Variables>,
         rerender: Signal,
     ) -> Result<Self> {
         let component_context =
-            Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
+            ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
         let root = root_slot.set(root, component_context.clone()).await?;
         let root_hitbox = root.get_hitbox().await?;
 
@@ -246,7 +246,7 @@ impl App_problem {
         rerender: Signal,
         theme: Store<Theme>,
         focus: &Focus,
-        text_context: &mut Text_context,
+        text_context: &mut TextContext,
     ) -> Result<()> {
         let focused_path = focus.focused_path().await?;
         let root = self.root.clone();
@@ -258,7 +258,7 @@ impl App_problem {
                 &focused_path,
                 None,
                 self.root_hitbox.clone(),
-                Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
+                ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
                     &self.variables,
                 ))))),
                 text_context,
@@ -271,7 +271,7 @@ impl App_problem {
                 theme,
                 &focused_path,
                 children,
-                Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
+                ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
                     &self.variables,
                 ))))),
                 text_context,
@@ -297,22 +297,22 @@ impl App_problem {
         theme: Store<Theme>,
         focus: &Focus,
         solution: &Solution,
-        text_context: &mut Text_context,
+        text_context: &mut TextContext,
     ) -> Result<Scene> {
         let focused_path = focus.focused_path().await?;
-        let context = component::Render_context {
+        let context = component::RenderContext {
             focused_path: &focused_path,
             solution,
         };
         let mut scene = Scene::new();
-        let mut graphics_scene = Graphics_scene::new(&mut scene);
+        let mut graphics_scene = GraphicsScene::new(&mut scene);
         self.root
             .render(rerender, theme, &mut graphics_scene, text_context, &context)
             .await?;
         Ok(scene)
     }
 
-    async fn signal_component(&self, component: &Shared_component) -> Result<()> {
+    async fn signal_component(&self, component: &SharedComponent) -> Result<()> {
         let id = component.lock().await?.id;
         self.rerender.for_component(id).send();
         Ok(())
@@ -321,12 +321,12 @@ impl App_problem {
     #[async_recursion]
     async fn handle_pointer_press(
         &mut self,
-        node: Shared_component,
+        node: SharedComponent,
         position: Point,
         event: &Event,
         solution: &Solution,
         focus: &mut Focus,
-    ) -> Result<Option<Vizual_command>> {
+    ) -> Result<Option<VizualCommand>> {
         let (hits, children) = {
             let node_lock = node.lock().await?;
             (
@@ -361,9 +361,9 @@ impl App_problem {
         Ok(Some(cmd))
     }
 
-    async fn drill_event(&mut self, event: &Event, focus: &mut Focus) -> Result<Vizual_command> {
+    async fn drill_event(&mut self, event: &Event, focus: &mut Focus) -> Result<VizualCommand> {
         let Some(mut current_node) = focus.upgrade() else {
-            return Ok(Vizual_command::None);
+            return Ok(VizualCommand::None);
         };
         let mut nodes = Vec::new();
 
@@ -379,14 +379,14 @@ impl App_problem {
             };
             let parent = parent?;
             drop(node);
-            current_node = Shared_component::new(parent);
+            current_node = SharedComponent::new(parent);
         }
 
         if !self.root.compare(&current_node) {
             return Err(eyre!("The last found parent should be the root"));
         }
 
-        let mut message = Vizual_msg::none()?;
+        let mut message = VizualMsg::none()?;
         for node in &nodes {
             let new_message = {
                 let mut node = node.lock().await?;
@@ -409,7 +409,7 @@ impl App_problem {
     async fn move_focus(
         &mut self,
         skip_count: usize,
-        direction: Focus_search_direction,
+        direction: FocusSearchDirection,
         focus: &mut Focus,
     ) -> Result<bool> {
         let start = focus.upgrade().unwrap_or_else(|| self.root.clone());
@@ -431,9 +431,9 @@ impl App_problem {
     async fn find_focus(
         &mut self,
         origin: Option<usize>,
-        node: Shared_component,
+        node: SharedComponent,
         mut skip_count: usize,
-        direction: Focus_search_direction,
+        direction: FocusSearchDirection,
         up: bool,
         focus: &mut Focus,
     ) -> Result<(bool, usize)> {
@@ -449,10 +449,10 @@ impl App_problem {
 
         let children_count = lock.children.len();
         let child_iterator: Box<dyn Iterator<Item = usize> + Send> = match (origin, direction) {
-            (Some(origin), Focus_search_direction::Right) => Box::new(origin + 1..children_count),
-            (Some(origin), Focus_search_direction::Left) => Box::new((0..origin).rev()),
-            (None, Focus_search_direction::Right) => Box::new(0..children_count),
-            (None, Focus_search_direction::Left) => Box::new((0..children_count).rev()),
+            (Some(origin), FocusSearchDirection::Right) => Box::new(origin + 1..children_count),
+            (Some(origin), FocusSearchDirection::Left) => Box::new((0..origin).rev()),
+            (None, FocusSearchDirection::Right) => Box::new(0..children_count),
+            (None, FocusSearchDirection::Left) => Box::new((0..children_count).rev()),
         };
 
         for child in child_iterator.map(|index| &lock.children[index]) {
@@ -495,7 +495,7 @@ impl App_problem {
 
         self.find_focus(
             Some(new_origin),
-            Shared_component::new(parent),
+            SharedComponent::new(parent),
             skip_count,
             direction,
             true,
@@ -509,36 +509,36 @@ impl App_problem {
         event: &Event,
         solution: &Solution,
         focus: &mut Focus,
-    ) -> Result<Vizual_command> {
+    ) -> Result<VizualCommand> {
         if !matches!(event, Event::Pointer(_)) {
             let command = self.drill_event(event, focus).await?;
-            if !matches!(command, Vizual_command::None) {
+            if !matches!(command, VizualCommand::None) {
                 return Ok(command);
             }
         }
 
         match event {
             Event::Key(key) => match key.code {
-                Key_code::Tab | Key_code::Back_tab => {
+                KeyCode::Tab | KeyCode::BackTab => {
                     let direction = match key.code {
-                        Key_code::Tab => Focus_search_direction::Right,
-                        _ => Focus_search_direction::Left,
+                        KeyCode::Tab => FocusSearchDirection::Right,
+                        _ => FocusSearchDirection::Left,
                     };
                     let _ = self.move_focus(0, direction, focus).await?;
                     if let Some(node) = focus.upgrade() {
                         self.signal_component(&node).await?;
                     }
-                    Ok(Vizual_command::None)
+                    Ok(VizualCommand::None)
                 }
-                Key_code::Escape => {
+                KeyCode::Escape => {
                     if let Some(node) = focus.upgrade() {
                         self.signal_component(&node).await?;
                     }
                     focus.reset();
-                    Ok(Vizual_command::None)
+                    Ok(VizualCommand::None)
                 }
-                _ if check_quit_event(key) => Ok(Vizual_command::Quit),
-                _ => Ok(Vizual_command::None),
+                _ if check_quit_event(key) => Ok(VizualCommand::Quit),
+                _ => Ok(VizualCommand::None),
             },
             Event::Pointer(pointer) => {
                 let initial_focus = focus.clone();
@@ -559,20 +559,20 @@ impl App_problem {
                     {
                         focus.reset();
                         self.signal_component(&focused).await?;
-                        return Ok(Vizual_command::None);
+                        return Ok(VizualCommand::None);
                     }
                 }
 
-                Ok(command.unwrap_or(Vizual_command::None))
+                Ok(command.unwrap_or(VizualCommand::None))
             }
-            Event::Close_requested => Ok(Vizual_command::Quit),
-            Event::Wheel(_) | Event::Text(_) => Ok(Vizual_command::None),
+            Event::CloseRequested => Ok(VizualCommand::Quit),
+            Event::Wheel(_) | Event::Text(_) => Ok(VizualCommand::None),
         }
     }
 
     async fn component_hit(
         &self,
-        node: &Shared_component,
+        node: &SharedComponent,
         position: Point,
         solution: &Solution,
     ) -> Result<bool> {
@@ -595,33 +595,33 @@ impl App_problem {
     }
 }
 
-enum Ui_input {
+enum UiInput {
     Initialize(Size),
     Event(Event),
     Resize(Size),
     Rerender,
     Layout(HashSet<component::Id>),
-    System_theme(System_theme),
+    SystemTheme(SystemTheme),
 }
 
 // TODO: This message-passing layer is probably unnecessary.
-enum User_event {
+enum UserEvent {
     Initialize(Size),
     Scene(Scene),
     Exit,
     Error(String),
 }
 
-async fn layout_problem<T: Widget_trait>(
-    root: Shared_widget<T>,
+async fn layout_problem<T: WidgetTrait>(
+    root: SharedWidget<T>,
     rerender: Signal,
     theme: Store<Theme>,
     focus: &Focus,
-    root_slot: &mut Component_slot,
-    text_context: &mut Text_context,
+    root_slot: &mut ComponentSlot,
+    text_context: &mut TextContext,
     variables: Arc<Variables>,
-) -> Result<App_problem> {
-    let mut problem = App_problem::new(root, root_slot, variables, rerender.clone()).await?;
+) -> Result<AppProblem> {
+    let mut problem = AppProblem::new(root, root_slot, variables, rerender.clone()).await?;
     log_duration(0, "app problem layout", || {
         problem.layout(rerender, theme, focus, text_context)
     })
@@ -629,19 +629,19 @@ async fn layout_problem<T: Widget_trait>(
     Ok(problem)
 }
 
-async fn ui_loop<T: Widget_trait>(
-    root: Shared_widget<T>,
+async fn ui_loop<T: WidgetTrait>(
+    root: SharedWidget<T>,
     rerender: Signal,
     theme: Store<Theme>,
-    mut render_receiver: Render_receiver,
-    mut input_receiver: mpsc::UnboundedReceiver<Ui_input>,
-    proxy: EventLoopProxy<User_event>,
+    mut render_receiver: RenderReceiver,
+    mut input_receiver: mpsc::UnboundedReceiver<UiInput>,
+    proxy: EventLoopProxy<UserEvent>,
 ) -> Result<()> {
     let mut focus = Focus::new();
-    let mut root_slot = Component_slot::new();
-    let mut text_context = Text_context::new();
+    let mut root_slot = ComponentSlot::new();
+    let mut text_context = TextContext::new();
     let variables = Arc::new(Variables::new());
-    let mut app_problem: Option<App_problem> = None;
+    let mut app_problem: Option<AppProblem> = None;
     let mut solution = None;
     let mut window_size = None;
     let mut render_open = true;
@@ -659,8 +659,8 @@ async fn ui_loop<T: Widget_trait>(
                                 let mut layouts = HashSet::new();
                                 let mut rerender_requested = false;
                                 let mut add = |request| match request {
-                                    Render_request::Rerender => rerender_requested = true,
-                                    Render_request::Layout(id) => { let _ = layouts.insert(id); }
+                                    RenderRequest::Rerender => rerender_requested = true,
+                                    RenderRequest::Layout(id) => { let _ = layouts.insert(id); }
                                 };
                                 add(first);
                                 let deadline = tokio::time::Instant::from_std(Instant::now() + Duration::from_millis(10));
@@ -674,9 +674,9 @@ async fn ui_loop<T: Widget_trait>(
                                     }
                                 }
                                 match layouts.is_empty() {
-                                    true if rerender_requested => Some(Ui_input::Rerender),
+                                    true if rerender_requested => Some(UiInput::Rerender),
                                     true => continue,
-                                    false => Some(Ui_input::Layout(layouts)),
+                                    false => Some(UiInput::Layout(layouts)),
                                 }
                             }
                             None => {
@@ -695,10 +695,10 @@ async fn ui_loop<T: Widget_trait>(
 
         // TODO: This resize buffering code is slop.
         let input = match input {
-            Ui_input::Resize(mut latest_size) => {
+            UiInput::Resize(mut latest_size) => {
                 loop {
                     match input_receiver.try_recv() {
-                        Ok(Ui_input::Resize(size)) => latest_size = size,
+                        Ok(UiInput::Resize(size)) => latest_size = size,
                         Ok(input) => {
                             buffered_input = Some(input);
                             break;
@@ -707,20 +707,20 @@ async fn ui_loop<T: Widget_trait>(
                     }
                 }
 
-                Ui_input::Resize(latest_size)
+                UiInput::Resize(latest_size)
             }
             input => input,
         };
 
-        let layout_request_started = matches!(&input, Ui_input::Layout(_)).then(Instant::now);
+        let layout_request_started = matches!(&input, UiInput::Layout(_)).then(Instant::now);
         let mut relayout = false;
         let mut command = match input {
-            Ui_input::System_theme(system) => {
+            UiInput::SystemTheme(system) => {
                 let updated = theme.read().await?.set_system(system);
                 theme.set(updated).await?;
                 continue;
             }
-            Ui_input::Initialize(maximum_size) => {
+            UiInput::Initialize(maximum_size) => {
                 let initial_size = Size::new(
                     DEFAULT_SCREEN_SIZE.width.min(maximum_size.width),
                     DEFAULT_SCREEN_SIZE.height.min(maximum_size.height),
@@ -732,40 +732,43 @@ async fn ui_loop<T: Widget_trait>(
                     ),
                 );
                 if proxy
-                    .send_event(User_event::Initialize(initial_size))
+                    .send_event(UserEvent::Initialize(initial_size))
                     .is_err()
                 {
                     break;
                 }
                 continue;
             }
-            Ui_input::Resize(size) => {
+            UiInput::Resize(size) => {
                 window_size = Some(size);
                 relayout = app_problem.is_none();
-                Vizual_command::Resolve
+                VizualCommand::Resolve
             }
-            Ui_input::Rerender => Vizual_command::Render,
-            Ui_input::Layout(ids) => {
-                log_info(0, format_args!("Render_request::Layout components: {ids:?}"));
+            UiInput::Rerender => VizualCommand::Render,
+            UiInput::Layout(ids) => {
+                log_info(
+                    0,
+                    format_args!("RenderRequest::Layout components: {ids:?}"),
+                );
                 if let Some(problem) = &app_problem {
                     for id in ids {
                         let _ = problem.root.invalidate_formula(id).await?;
                     }
                 }
                 relayout = true;
-                Vizual_command::Resolve
+                VizualCommand::Resolve
             }
-            Ui_input::Event(event) => match (&mut app_problem, &solution) {
+            UiInput::Event(event) => match (&mut app_problem, &solution) {
                 (Some(problem), Some(solution)) => {
                     problem.handle_event(&event, solution, &mut focus).await?
                 }
-                _ if matches!(event, Event::Close_requested) => Vizual_command::Quit,
-                _ => Vizual_command::None,
+                _ if matches!(event, Event::CloseRequested) => VizualCommand::Quit,
+                _ => VizualCommand::None,
             },
         };
 
-        if matches!(command, Vizual_command::Quit) {
-            let _ = proxy.send_event(User_event::Exit);
+        if matches!(command, VizualCommand::Quit) {
+            let _ = proxy.send_event(UserEvent::Exit);
             break;
         }
 
@@ -773,10 +776,10 @@ async fn ui_loop<T: Widget_trait>(
             continue;
         };
 
-        if let Vizual_command::Focus(reference) = &command {
+        if let VizualCommand::Focus(reference) = &command {
             focus.set_with_reference(reference);
             relayout = true;
-            command = Vizual_command::Resolve;
+            command = VizualCommand::Resolve;
         }
 
         if relayout {
@@ -792,22 +795,22 @@ async fn ui_loop<T: Widget_trait>(
             .await?;
             solution = Some(problem.solve(size).await?);
             app_problem = Some(problem);
-            command = Vizual_command::Render;
-        } else if matches!(command, Vizual_command::Resolve) {
+            command = VizualCommand::Render;
+        } else if matches!(command, VizualCommand::Resolve) {
             if let Some(problem) = &app_problem {
                 solution = Some(problem.solve(size).await?);
-                command = Vizual_command::Render;
+                command = VizualCommand::Render;
             }
         }
 
         if let Some(started) = layout_request_started {
             log_info(
                 0,
-                format_args!("Render_request::Layout took {:?}", started.elapsed()),
+                format_args!("RenderRequest::Layout took {:?}", started.elapsed()),
             );
         }
 
-        if matches!(command, Vizual_command::Render)
+        if matches!(command, VizualCommand::Render)
             && let (Some(problem), Some(solution)) = (&mut app_problem, &solution)
         {
             let scene = log_duration(0, "app problem render", || {
@@ -820,7 +823,7 @@ async fn ui_loop<T: Widget_trait>(
                 )
             })
             .await?;
-            if proxy.send_event(User_event::Scene(scene)).is_err() {
+            if proxy.send_event(UserEvent::Scene(scene)).is_err() {
                 break;
             }
         }
@@ -829,26 +832,21 @@ async fn ui_loop<T: Widget_trait>(
     Ok(())
 }
 
-// TODO:
-// DISCLAIMER:
-// Originally this was a tui library, but later I let codex convert it to wgpu
-// almost all of the resulting slop is here and in text
-
-struct Render_state {
+struct RenderState {
     surface: RenderSurface<'static>,
     window: Arc<Window>,
     valid: bool,
 }
 
-struct Window_app {
+struct WindowApp {
     title: String,
     context: RenderContext,
     renderer: Option<Renderer>,
-    state: Option<Render_state>,
+    state: Option<RenderState>,
     cached_window: Option<Arc<Window>>,
     initializing: bool,
     scene: Option<Scene>,
-    input: mpsc::UnboundedSender<Ui_input>,
+    input: mpsc::UnboundedSender<UiInput>,
     cursor: Point,
     modifiers: ModifiersState,
     scale_factor: f64,
@@ -856,7 +854,7 @@ struct Window_app {
     error: Option<String>,
 }
 
-impl Window_app {
+impl WindowApp {
     fn fail(&mut self, event_loop: &ActiveEventLoop, message: impl Into<String>) {
         self.error = Some(message.into());
         event_loop.exit();
@@ -872,7 +870,7 @@ impl Window_app {
             .to_logical::<f64>(self.scale_factor);
         let _ = self
             .input
-            .send(Ui_input::Resize(Size::new(logical.width, logical.height)));
+            .send(UiInput::Resize(Size::new(logical.width, logical.height)));
     }
 
     fn resize(&mut self, size: PhysicalSize<u32>) {
@@ -892,7 +890,7 @@ impl Window_app {
 
     fn initialize_window(&mut self, event_loop: &ActiveEventLoop, window: Arc<Window>) {
         if let Some(system) = window.theme().map(map_system_theme) {
-            let _ = self.input.send(Ui_input::System_theme(system));
+            let _ = self.input.send(UiInput::SystemTheme(system));
         }
         self.scale_factor = window.scale_factor();
         let size = window.inner_size();
@@ -930,7 +928,7 @@ impl Window_app {
             }
         };
         self.renderer = Some(renderer);
-        self.state = Some(Render_state {
+        self.state = Some(RenderState {
             surface,
             window,
             valid,
@@ -1055,13 +1053,13 @@ impl Window_app {
     }
 }
 
-impl ApplicationHandler<User_event> for Window_app {
+impl ApplicationHandler<UserEvent> for WindowApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let system = event_loop
             .system_theme()
             .map(map_system_theme)
-            .unwrap_or(System_theme::Dark);
-        let _ = self.input.send(Ui_input::System_theme(system));
+            .unwrap_or(SystemTheme::Dark);
+        let _ = self.input.send(UiInput::SystemTheme(system));
 
         if self.state.is_some() {
             return;
@@ -1079,7 +1077,7 @@ impl ApplicationHandler<User_event> for Window_app {
                     Size::new(size.width, size.height)
                 })
                 .unwrap_or(DEFAULT_SCREEN_SIZE);
-            self.initializing = self.input.send(Ui_input::Initialize(maximum_size)).is_ok();
+            self.initializing = self.input.send(UiInput::Initialize(maximum_size)).is_ok();
         }
     }
 
@@ -1098,7 +1096,7 @@ impl ApplicationHandler<User_event> for Window_app {
 
         match event {
             WindowEvent::CloseRequested => {
-                let _ = self.input.send(Ui_input::Event(Event::Close_requested));
+                let _ = self.input.send(UiInput::Event(Event::CloseRequested));
             }
             WindowEvent::Resized(size) => self.resize(size),
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
@@ -1114,7 +1112,7 @@ impl ApplicationHandler<User_event> for Window_app {
             }
             WindowEvent::ThemeChanged(theme) => {
                 let system = map_system_theme(theme);
-                let _ = self.input.send(Ui_input::System_theme(system));
+                let _ = self.input.send(UiInput::SystemTheme(system));
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let position = position.to_logical::<f64>(self.scale_factor);
@@ -1126,23 +1124,23 @@ impl ApplicationHandler<User_event> for Window_app {
                 button,
                 ..
             } => {
-                let pointer = Pointer_event {
+                let pointer = PointerEvent {
                     position: self.cursor,
                     button: map_pointer_button(button),
                 };
-                let _ = self.input.send(Ui_input::Event(Event::Pointer(pointer)));
+                let _ = self.input.send(UiInput::Event(Event::Pointer(pointer)));
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 let delta = match delta {
                     MouseScrollDelta::LineDelta(x, y) => {
-                        Wheel_delta::Lines(Point::new(f64::from(x), f64::from(y)))
+                        WheelDelta::Lines(Point::new(f64::from(x), f64::from(y)))
                     }
                     MouseScrollDelta::PixelDelta(delta) => {
                         let delta = delta.to_logical::<f64>(self.scale_factor);
-                        Wheel_delta::Logical_pixels(Point::new(delta.x, delta.y))
+                        WheelDelta::LogicalPixels(Point::new(delta.x, delta.y))
                     }
                 };
-                let _ = self.input.send(Ui_input::Event(Event::Wheel(Wheel_event {
+                let _ = self.input.send(UiInput::Event(Event::Wheel(WheelEvent {
                     position: self.cursor,
                     delta,
                     modifiers: map_modifiers(self.modifiers),
@@ -1150,36 +1148,36 @@ impl ApplicationHandler<User_event> for Window_app {
             }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
                 let modifiers = map_modifiers(self.modifiers);
-                let key = Key_event {
+                let key = KeyEvent {
                     code: map_key(&event.logical_key, modifiers),
                     modifiers,
                     text: event.text.as_ref().map(ToString::to_string),
                     repeat: event.repeat,
                 };
-                let _ = self.input.send(Ui_input::Event(Event::Key(key)));
+                let _ = self.input.send(UiInput::Event(Event::Key(key)));
             }
             WindowEvent::Ime(Ime::Commit(text)) => {
-                let _ = self.input.send(Ui_input::Event(Event::Text(text)));
+                let _ = self.input.send(UiInput::Event(Event::Text(text)));
             }
             WindowEvent::RedrawRequested => self.render(event_loop),
             _ => {}
         }
     }
 
-    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: User_event) {
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
         match event {
-            User_event::Initialize(initial_size) => {
+            UserEvent::Initialize(initial_size) => {
                 self.initializing = false;
                 self.create_window(event_loop, initial_size);
             }
-            User_event::Scene(scene) => {
+            UserEvent::Scene(scene) => {
                 self.scene = Some(scene);
                 if let Some(state) = &self.state {
                     state.window.request_redraw();
                 }
             }
-            User_event::Exit => event_loop.exit(),
-            User_event::Error(error) => self.fail(event_loop, error),
+            UserEvent::Exit => event_loop.exit(),
+            UserEvent::Error(error) => self.fail(event_loop, error),
         }
     }
 
@@ -1200,49 +1198,49 @@ fn map_modifiers(modifiers: ModifiersState) -> Modifiers {
     }
 }
 
-fn map_key(key: &Key, modifiers: Modifiers) -> Key_code {
+fn map_key(key: &Key, modifiers: Modifiers) -> KeyCode {
     match key.as_ref() {
-        Key::Character(" ") => Key_code::Space,
+        Key::Character(" ") => KeyCode::Space,
         Key::Character(text) => text
             .chars()
             .next()
-            .map(Key_code::Character)
-            .unwrap_or(Key_code::Unidentified),
-        Key::Named(NamedKey::Enter) => Key_code::Enter,
-        Key::Named(NamedKey::Escape) => Key_code::Escape,
-        Key::Named(NamedKey::Tab) if modifiers.shift => Key_code::Back_tab,
-        Key::Named(NamedKey::Tab) => Key_code::Tab,
-        Key::Named(NamedKey::Backspace) => Key_code::Backspace,
-        Key::Named(NamedKey::Delete) => Key_code::Delete,
-        Key::Named(NamedKey::ArrowLeft) => Key_code::Arrow_left,
-        Key::Named(NamedKey::ArrowRight) => Key_code::Arrow_right,
-        Key::Named(NamedKey::ArrowUp) => Key_code::Arrow_up,
-        Key::Named(NamedKey::ArrowDown) => Key_code::Arrow_down,
-        Key::Named(NamedKey::PageUp) => Key_code::Page_up,
-        Key::Named(NamedKey::PageDown) => Key_code::Page_down,
-        Key::Named(NamedKey::Home) => Key_code::Home,
-        Key::Named(NamedKey::End) => Key_code::End,
-        Key::Named(NamedKey::Space) => Key_code::Space,
-        _ => Key_code::Unidentified,
+            .map(KeyCode::Character)
+            .unwrap_or(KeyCode::Unidentified),
+        Key::Named(NamedKey::Enter) => KeyCode::Enter,
+        Key::Named(NamedKey::Escape) => KeyCode::Escape,
+        Key::Named(NamedKey::Tab) if modifiers.shift => KeyCode::BackTab,
+        Key::Named(NamedKey::Tab) => KeyCode::Tab,
+        Key::Named(NamedKey::Backspace) => KeyCode::Backspace,
+        Key::Named(NamedKey::Delete) => KeyCode::Delete,
+        Key::Named(NamedKey::ArrowLeft) => KeyCode::ArrowLeft,
+        Key::Named(NamedKey::ArrowRight) => KeyCode::ArrowRight,
+        Key::Named(NamedKey::ArrowUp) => KeyCode::ArrowUp,
+        Key::Named(NamedKey::ArrowDown) => KeyCode::ArrowDown,
+        Key::Named(NamedKey::PageUp) => KeyCode::PageUp,
+        Key::Named(NamedKey::PageDown) => KeyCode::PageDown,
+        Key::Named(NamedKey::Home) => KeyCode::Home,
+        Key::Named(NamedKey::End) => KeyCode::End,
+        Key::Named(NamedKey::Space) => KeyCode::Space,
+        _ => KeyCode::Unidentified,
     }
 }
 
-fn map_pointer_button(button: MouseButton) -> Pointer_button {
+fn map_pointer_button(button: MouseButton) -> PointerButton {
     match button {
-        MouseButton::Left => Pointer_button::Primary,
-        MouseButton::Right => Pointer_button::Secondary,
-        MouseButton::Middle => Pointer_button::Middle,
-        MouseButton::Back => Pointer_button::Other(4),
-        MouseButton::Forward => Pointer_button::Other(5),
-        MouseButton::Other(value) => Pointer_button::Other(value),
+        MouseButton::Left => PointerButton::Primary,
+        MouseButton::Right => PointerButton::Secondary,
+        MouseButton::Middle => PointerButton::Middle,
+        MouseButton::Back => PointerButton::Other(4),
+        MouseButton::Forward => PointerButton::Other(5),
+        MouseButton::Other(value) => PointerButton::Other(value),
     }
 }
 
-fn map_system_theme(theme: Window_theme) -> System_theme {
-    if matches!(theme, Window_theme::Dark) {
-        System_theme::Dark
+fn map_system_theme(theme: WindowTheme) -> SystemTheme {
+    if matches!(theme, WindowTheme::Dark) {
+        SystemTheme::Dark
     } else {
-        System_theme::Light
+        SystemTheme::Light
     }
 }
 
@@ -1251,13 +1249,13 @@ fn map_system_theme(theme: Window_theme) -> System_theme {
 /// A Tokio runtime must already be active. Winit owns the calling thread until
 /// the window closes; widget tasks continue on the runtime. Vizual creates the
 /// render manager used by the root widget.
-pub fn run<T: Widget_trait>(title: impl Into<String>, root: T) -> Result<()> {
-    let Render_manager { rerender, receiver } = Render_manager::new();
+pub fn run<T: WidgetTrait>(title: impl Into<String>, root: T) -> Result<()> {
+    let RenderManager { rerender, receiver } = RenderManager::new();
     let theme = Store::new(Theme::default());
     let root = Root::new(root.into_shared()).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
         .wrap_err("vizual::run requires an active Tokio runtime")?;
-    let event_loop = EventLoop::<User_event>::with_user_event()
+    let event_loop = EventLoop::<UserEvent>::with_user_event()
         .build()
         .wrap_err("Failed to initialize the Winit event loop")?;
     let proxy = event_loop.create_proxy();
@@ -1267,10 +1265,10 @@ pub fn run<T: Widget_trait>(title: impl Into<String>, root: T) -> Result<()> {
     let ui_task = runtime.spawn(async move {
         if let Err(error) = ui_loop(root, rerender, ui_theme, receiver, input_receiver, proxy).await
         {
-            let _ = error_proxy.send_event(User_event::Error(format!("{error:?}")));
+            let _ = error_proxy.send_event(UserEvent::Error(format!("{error:?}")));
         }
     });
-    let mut app = Window_app {
+    let mut app = WindowApp {
         title: title.into(),
         context: RenderContext::new(),
         renderer: None,

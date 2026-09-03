@@ -5,26 +5,26 @@ use color_eyre::eyre::Result;
 use super::{
     super::{
         layout::grid::Grid,
-        positioning::anchor::{Anchor, Anchor_position, Anchors},
+        positioning::anchor::{Anchor, AnchorPosition, Anchors},
         text::Text,
     },
-    Theme_choice,
+    ThemeChoice,
     settings::Settings,
 };
 use crate::{
     component::Children,
     state::Store,
-    widget::{Layout_input, Widget_trait},
+    widget::{LayoutInput, WidgetTrait},
 };
 
 #[derive(Clone)]
 pub struct Header {
     name: String,
-    choice: Store<Theme_choice>,
+    choice: Store<ThemeChoice>,
 }
 
 impl Header {
-    pub fn new(name: impl Into<String>, choice: Store<Theme_choice>) -> Self {
+    pub fn new(name: impl Into<String>, choice: Store<ThemeChoice>) -> Self {
         Self {
             name: name.into(),
             choice,
@@ -33,15 +33,15 @@ impl Header {
 }
 
 #[async_trait]
-impl Widget_trait for Header {
+impl WidgetTrait for Header {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
         let mut name = Text::new(self.name.clone());
@@ -49,8 +49,8 @@ impl Widget_trait for Header {
         let name = Anchor::new(
             name,
             Anchors {
-                horizontal: Some(Anchor_position::Start),
-                vertical: Some(Anchor_position::Middle),
+                horizontal: Some(AnchorPosition::Start),
+                vertical: Some(AnchorPosition::Middle),
             },
         );
 
@@ -59,8 +59,8 @@ impl Widget_trait for Header {
         let settings = Anchor::new(
             settings,
             Anchors {
-                horizontal: Some(Anchor_position::End),
-                vertical: Some(Anchor_position::Start),
+                horizontal: Some(AnchorPosition::End),
+                vertical: Some(AnchorPosition::Start),
             },
         );
 

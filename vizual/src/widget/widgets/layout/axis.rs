@@ -4,18 +4,18 @@ use crate::{
     geometry::Direction,
     style::Style,
     theme::Theme,
-    widget::{Into_widgets, Layout_input, Widget, Widget_trait, widgets::container::Container},
+    widget::{IntoWidgets, LayoutInput, Widget, WidgetTrait, widgets::container::Container},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Axis_style {
+pub enum AxisStyle {
     Gap(f64),
-    // TODO: Implement Start, Center, End, Space_between, Space_around, and Space_evenly.
+    // TODO: Implement Start, Center, End, SpaceBetween, SpaceAround, and SpaceEvenly.
 }
 
-impl From<Theme> for Axis_style {
+impl From<Theme> for AxisStyle {
     fn from(theme: Theme) -> Self {
         Self::Gap(theme.semantic.axis.gap)
     }
@@ -25,14 +25,14 @@ impl From<Theme> for Axis_style {
 pub struct Axis {
     direction: Direction,
     elements: Vec<Widget>,
-    pub style: Style<Axis_style>,
+    pub style: Style<AxisStyle>,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
     pub limit_cross: bool,
 }
 
 impl Axis {
-    pub fn new(direction: Direction, elements: impl Into_widgets) -> Self {
+    pub fn new(direction: Direction, elements: impl IntoWidgets) -> Self {
         Self {
             direction,
             elements: elements.into(),
@@ -44,17 +44,17 @@ impl Axis {
 }
 
 #[async_trait]
-impl Widget_trait for Axis {
+impl WidgetTrait for Axis {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             hitbox,
             problem,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let direction = self.direction;
         let mut elements = Vec::with_capacity(self.elements.len());
@@ -74,7 +74,7 @@ impl Widget_trait for Axis {
 
         if elements.len() >= 2 {
             let theme = theme.affect(relayout).await?;
-            let Axis_style::Gap(gap) = self.style.get(&theme);
+            let AxisStyle::Gap(gap) = self.style.get(&theme);
             // One delta controls every gap belonging to this axis.
             let gap_delta = problem.add_delta("axis-gap-delta", self.priority).await?;
             let gap = gap * (1 - gap_delta);

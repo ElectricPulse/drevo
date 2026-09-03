@@ -1,16 +1,16 @@
 use crate::macros::display;
 use crate::{
-    component::{Children, context::Component_context},
+    component::{Children, context::ComponentContext},
     constraint,
     geometry::Direction,
     layouter::hitbox::Hitbox,
-    widget::{Layout_input, Widget, Widget_trait},
+    widget::{LayoutInput, Widget, WidgetTrait},
 };
 use async_trait::async_trait;
 use color_eyre::Result;
 
 #[derive(Clone, Copy)]
-pub enum Anchor_position {
+pub enum AnchorPosition {
     Start,
     Middle,
     End,
@@ -18,8 +18,8 @@ pub enum Anchor_position {
 
 #[derive(Clone)]
 pub struct Anchors {
-    pub horizontal: Option<Anchor_position>,
-    pub vertical: Option<Anchor_position>,
+    pub horizontal: Option<AnchorPosition>,
+    pub vertical: Option<AnchorPosition>,
 }
 
 #[derive(Clone)]
@@ -29,83 +29,83 @@ pub struct Anchor {
 }
 
 impl Anchor {
-    pub fn new(child: impl Widget_trait, anchors: Anchors) -> Self {
+    pub fn new(child: impl WidgetTrait, anchors: Anchors) -> Self {
         Self {
             child: child.as_any(),
             anchors,
         }
     }
 
-    pub fn left(child: impl Widget_trait) -> Self {
+    pub fn left(child: impl WidgetTrait) -> Self {
         Self::new(
             child,
             Anchors {
-                horizontal: Some(Anchor_position::Start),
+                horizontal: Some(AnchorPosition::Start),
                 vertical: None,
             },
         )
     }
 
-    pub fn right(child: impl Widget_trait) -> Self {
+    pub fn right(child: impl WidgetTrait) -> Self {
         Self::new(
             child,
             Anchors {
-                horizontal: Some(Anchor_position::End),
+                horizontal: Some(AnchorPosition::End),
                 vertical: None,
             },
         )
     }
 
-    pub fn top(child: impl Widget_trait) -> Self {
+    pub fn top(child: impl WidgetTrait) -> Self {
         Self::new(
             child,
             Anchors {
                 horizontal: None,
-                vertical: Some(Anchor_position::Start),
+                vertical: Some(AnchorPosition::Start),
             },
         )
     }
 
-    pub fn top_left(child: impl Widget_trait) -> Self {
+    pub fn top_left(child: impl WidgetTrait) -> Self {
         Self::new(
             child,
             Anchors {
-                horizontal: Some(Anchor_position::Start),
-                vertical: Some(Anchor_position::Start),
+                horizontal: Some(AnchorPosition::Start),
+                vertical: Some(AnchorPosition::Start),
             },
         )
     }
 
-    pub fn middle(child: impl Widget_trait) -> Self {
+    pub fn middle(child: impl WidgetTrait) -> Self {
         Self::new(
             child,
             Anchors {
-                horizontal: Some(Anchor_position::Middle),
-                vertical: Some(Anchor_position::Middle),
+                horizontal: Some(AnchorPosition::Middle),
+                vertical: Some(AnchorPosition::Middle),
             },
         )
     }
 
-    pub fn v_middle(child: impl Widget_trait) -> Self {
+    pub fn v_middle(child: impl WidgetTrait) -> Self {
         Self::new(
             child,
             Anchors {
                 horizontal: None,
-                vertical: Some(Anchor_position::Middle),
+                vertical: Some(AnchorPosition::Middle),
             },
         )
     }
 
     /// Applies the selected anchor to this hitbox within its parent.
     async fn anchor(
-        problem: &Component_context,
+        problem: &ComponentContext,
         parent: &Hitbox,
         hitbox: &mut Hitbox,
-        position: Option<Anchor_position>,
+        position: Option<AnchorPosition>,
         direction: Direction,
     ) -> Result<()> {
         match position {
-            Some(Anchor_position::Start) => {
+            Some(AnchorPosition::Start) => {
                 hitbox.make_end_independent(direction);
                 problem
                     .constrain(constraint!(
@@ -113,7 +113,7 @@ impl Anchor {
                     ))
                     .await?;
             }
-            Some(Anchor_position::Middle) => {
+            Some(AnchorPosition::Middle) => {
                 hitbox.make_start_independent(direction);
                 hitbox.make_end_independent(direction);
 
@@ -138,7 +138,7 @@ impl Anchor {
                     .await?;
                 problem.minimize(start_margin, 0).await?;
             }
-            Some(Anchor_position::End) => {
+            Some(AnchorPosition::End) => {
                 hitbox.make_start_independent(direction);
                 problem
                     .constrain(constraint!(
@@ -155,16 +155,16 @@ impl Anchor {
 }
 
 #[async_trait]
-impl Widget_trait for Anchor {
+impl WidgetTrait for Anchor {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             hitbox,
             parent,
             problem,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         Self::anchor(
             &problem,

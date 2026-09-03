@@ -38,7 +38,7 @@ async fn shared_edges_are_constrained_to_the_parent_after_layout() -> Result<()>
         "test".to_string(),
     );
     let context =
-        Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
+        ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
 
     child.constrain_shared(&parent, &context).await?;
 
@@ -73,7 +73,7 @@ async fn independent_edges_do_not_receive_parent_equalities() -> Result<()> {
     );
     child.make_start_independent(Direction::Horizontal);
     let context =
-        Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
+        ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
 
     child.constrain_shared(&parent, &context).await?;
 
@@ -91,7 +91,7 @@ async fn static_dimensions_add_a_constraint_over_the_existing_edges() -> Result<
         "test".to_string(),
     );
     let context =
-        Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
+        ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
 
     hitbox
         .set_static_dimension(&context, Direction::Horizontal, 42.0)

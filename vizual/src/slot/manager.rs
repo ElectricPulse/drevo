@@ -4,44 +4,44 @@ use std::panic::Location;
 use color_eyre::eyre::{Result, eyre};
 
 use crate::{
-    component::{Shared_component, context::Component_context},
+    component::{SharedComponent, context::ComponentContext},
     layouter::hitbox::Hitbox,
-    widget::Widget_trait,
+    widget::WidgetTrait,
 };
 
-use super::Component_slot;
+use super::ComponentSlot;
 
 pub struct Record {
-    pub id: Component_slot,
+    pub id: ComponentSlot,
     pub mounted: bool,
 }
 
 // In the future this could also be passed into widget event methods to allow things like Focus to work.
-pub struct Slot_records {
-    // We store a reference to Component_context so that one doesn't have to pass it in set()
-    pub(crate) problem: Component_context,
+pub struct SlotRecords {
+    // We store a reference to ComponentContext so that one doesn't have to pass it in set()
+    pub(crate) problem: ComponentContext,
     records: HashMap<u64, Record>,
 }
 
 pub struct Slots<'a> {
-    slot_manager: &'a mut Slot_records,
+    slot_manager: &'a mut SlotRecords,
     parent: Hitbox,
     used: HashMap<u64, bool>,
     used_at: HashMap<u64, &'static Location<'static>>,
 }
 
-// Compatibility for Widget_trait derive output.
-pub type Slot_manager<'a> = Slots<'a>;
+// Compatibility for WidgetTrait derive output.
+pub type SlotManager<'a> = Slots<'a>;
 
-impl Slot_records {
-    pub fn new(problem: Component_context) -> Self {
+impl SlotRecords {
+    pub fn new(problem: ComponentContext) -> Self {
         Self {
             records: HashMap::<u64, Record>::default(),
             problem,
         }
     }
 
-    pub(crate) fn set_problem(&mut self, problem: Component_context) {
+    pub(crate) fn set_problem(&mut self, problem: ComponentContext) {
         self.problem = problem;
     }
 
@@ -54,11 +54,11 @@ impl Slot_records {
         }
     }
 
-    fn get_at(&mut self, id: u64, location: &'static Location<'static>) -> &mut Component_slot {
+    fn get_at(&mut self, id: u64, location: &'static Location<'static>) -> &mut ComponentSlot {
         let record = self.records.entry(id).or_insert_with(|| {
             // This is where on_mount could be implemented for a widget.
             Record {
-                id: Component_slot::new_at(location),
+                id: ComponentSlot::new_at(location),
                 mounted: true,
             }
         });
@@ -113,7 +113,7 @@ impl Slots<'_> {
     }
 
     #[track_caller]
-    pub async fn set(&mut self, id: u64, widget: impl Widget_trait) -> Result<Shared_component> {
+    pub async fn set(&mut self, id: u64, widget: impl WidgetTrait) -> Result<SharedComponent> {
         let location = Location::caller();
         self.mark_used(id, location)?;
         let problem = self.slot_manager.problem.clone();

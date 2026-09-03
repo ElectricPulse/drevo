@@ -2,7 +2,7 @@ use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::Result;
 
-use super::super::{Layout_input, Widget, Widget_trait};
+use super::super::{LayoutInput, Widget, WidgetTrait};
 use crate::{
     component::Children,
     geometry::{Direction, Size},
@@ -16,7 +16,7 @@ pub struct Container {
 }
 
 impl Container {
-    pub fn new(child: impl Widget_trait) -> Self {
+    pub fn new(child: impl WidgetTrait) -> Self {
         Self {
             child: child.as_any(),
             fixed_size: None,
@@ -30,15 +30,15 @@ impl Container {
 }
 
 #[async_trait]
-impl Widget_trait for Container {
+impl WidgetTrait for Container {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             hitbox,
             problem,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         if let Some(size) = self.fixed_size {
             hitbox

@@ -7,22 +7,22 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use dyn_clone::DynClone;
 
-use crate::{Signal, sync::Thread_safe};
+use crate::{Signal, sync::ThreadSafe};
 
 pub use store::Store;
 
-/// A value read from a [`State_trait`].
-pub struct Read_guard<Value> {
+/// A value read from a [`StateTrait`].
+pub struct ReadGuard<Value> {
     inner: Arc<Value>,
 }
 
-impl<Value> Read_guard<Value> {
+impl<Value> ReadGuard<Value> {
     pub fn new(value: Arc<Value>) -> Self {
         Self { inner: value }
     }
 }
 
-impl<Value> Deref for Read_guard<Value> {
+impl<Value> Deref for ReadGuard<Value> {
     type Target = Value;
 
     fn deref(&self) -> &Self::Target {
@@ -31,19 +31,19 @@ impl<Value> Deref for Read_guard<Value> {
 }
 
 #[async_trait]
-pub trait State_trait: Thread_safe + DynClone {
-    type Output: Thread_safe;
+pub trait StateTrait: ThreadSafe + DynClone {
+    type Output: ThreadSafe;
 
     /// Reads the current value without subscribing a renderer.
-    async fn read(&self) -> Result<Read_guard<Self::Output>>;
+    async fn read(&self) -> Result<ReadGuard<Self::Output>>;
 
     /// Reads the current value and subscribes the supplied renderer to later writes.
-    async fn affect(&self, signal: Signal) -> Result<Read_guard<Self::Output>>;
+    async fn affect(&self, signal: Signal) -> Result<ReadGuard<Self::Output>>;
 }
 
-dyn_clone::clone_trait_object!(<Output> State_trait<Output = Output> where Output: Thread_safe);
+dyn_clone::clone_trait_object!(<Output> StateTrait<Output = Output> where Output: ThreadSafe);
 
-pub type State<Output> = Box<dyn State_trait<Output = Output>>;
+pub type State<Output> = Box<dyn StateTrait<Output = Output>>;
 
 pub struct Constant<Value>(Arc<Value>);
 
@@ -66,31 +66,31 @@ impl<Value> From<Value> for Constant<Value> {
 }
 
 #[async_trait]
-impl<Value: Thread_safe> State_trait for Constant<Value> {
+impl<Value: ThreadSafe> StateTrait for Constant<Value> {
     type Output = Value;
 
-    async fn read(&self) -> Result<Read_guard<Self::Output>> {
-        Ok(Read_guard::new(self.0.clone()))
+    async fn read(&self) -> Result<ReadGuard<Self::Output>> {
+        Ok(ReadGuard::new(self.0.clone()))
     }
 
-    async fn affect(&self, _signal: Signal) -> Result<Read_guard<Self::Output>> {
+    async fn affect(&self, _signal: Signal) -> Result<ReadGuard<Self::Output>> {
         self.read().await
     }
 }
 
-impl<Value: Thread_safe> From<Value> for State<Value> {
+impl<Value: ThreadSafe> From<Value> for State<Value> {
     fn from(value: Value) -> Self {
         Box::new(Constant::from(value))
     }
 }
 
-impl<Value: Thread_safe> From<Constant<Value>> for State<Value> {
+impl<Value: ThreadSafe> From<Constant<Value>> for State<Value> {
     fn from(value: Constant<Value>) -> Self {
         Box::new(value)
     }
 }
 
-impl<Value: Thread_safe> From<Store<Value>> for State<Value> {
+impl<Value: ThreadSafe> From<Store<Value>> for State<Value> {
     fn from(value: Store<Value>) -> Self {
         Box::new(value)
     }

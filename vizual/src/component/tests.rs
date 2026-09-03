@@ -2,35 +2,35 @@ use super::*;
 use crate::{
     focus::Focus,
     layouter::{Formula, variables::Variables},
-    widget::Widget_trait,
+    widget::WidgetTrait,
 };
 
 #[derive(Clone)]
-struct Empty_widget;
+struct EmptyWidget;
 
-#[derive(Clone, crate::macros::Widget_trait)]
-struct Derived_widget {
-    widget: Empty_widget,
+#[derive(Clone, crate::macros::WidgetTrait)]
+struct DerivedWidget {
+    widget: EmptyWidget,
 }
 
 #[async_trait::async_trait]
-impl Widget_trait for Empty_widget {}
+impl WidgetTrait for EmptyWidget {}
 
 #[test]
 fn widget_derive_forwards_the_current_trait_interface() {
-    fn assert_widget<Widget: Widget_trait>() {}
+    fn assert_widget<Widget: WidgetTrait>() {}
 
-    assert_widget::<Derived_widget>();
-    let _ = Derived_widget {
-        widget: Empty_widget,
+    assert_widget::<DerivedWidget>();
+    let _ = DerivedWidget {
+        widget: EmptyWidget,
     };
 }
 
-fn component(name: &str, variables: &Variables, problem: Component_context) -> Shared_component {
-    Shared_component::new(Arc::new(Mutex::new(Component {
+fn component(name: &str, variables: &Variables, problem: ComponentContext) -> SharedComponent {
+    SharedComponent::new(Arc::new(Mutex::new(Component {
         id: 0,
         name: name.to_string(),
-        debug: Component_debug::new("test".to_string()),
+        debug: ComponentDebug::new("test".to_string()),
         hitbox: Hitbox::new(
             variables,
             name.to_string(),
@@ -39,12 +39,12 @@ fn component(name: &str, variables: &Variables, problem: Component_context) -> S
         ),
         formula: None,
         variables: Arc::new(Variables::new()),
-        widget: Box::new(Empty_widget),
+        widget: Box::new(EmptyWidget),
         focusable: false,
         parent: None,
         children: Vec::new(),
         layout_children: Vec::new(),
-        slot_manager: Slot_records::new(problem),
+        slot_manager: SlotRecords::new(problem),
         logical: false,
         mask: false,
     })))
@@ -54,7 +54,7 @@ fn component(name: &str, variables: &Variables, problem: Component_context) -> S
 async fn focused_path_contains_the_target_and_its_parents() -> Result<()> {
     let variables = Arc::new(Variables::new());
     let formula = Arc::new(Mutex::new(Formula::new(Arc::clone(&variables))));
-    let context = Component_context::new(formula);
+    let context = ComponentContext::new(formula);
     let parent = component("parent", &variables, context.clone());
     let child = component("child", &variables, context.clone());
     let unrelated = component("unrelated", &variables, context);

@@ -1,31 +1,31 @@
 use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
 
-use super::Shared_component;
+use super::SharedComponent;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct Component_debug {
+pub(crate) struct ComponentDebug {
     pub source_path: String,
 }
 
-impl Component_debug {
+impl ComponentDebug {
     pub fn new(source_path: String) -> Self {
         Self { source_path }
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct Component_source {
+pub(crate) struct ComponentSource {
     pub component_path: String,
     pub name: String,
     pub source_path: String,
     pub depth: usize,
 }
 
-pub(crate) type Component_tree = Vec<Component_source>;
+pub(crate) type ComponentTree = Vec<ComponentSource>;
 
-impl Shared_component {
-    pub(crate) async fn component_tree(&self) -> Result<Component_tree> {
+impl SharedComponent {
+    pub(crate) async fn component_tree(&self) -> Result<ComponentTree> {
         self.component_tree_from(String::new(), 0).await
     }
 
@@ -34,7 +34,7 @@ impl Shared_component {
         &self,
         parent_path: String,
         depth: usize,
-    ) -> Result<Component_tree> {
+    ) -> Result<ComponentTree> {
         let (name, source_path, children) = {
             let component = self.lock().await?;
             (
@@ -47,7 +47,7 @@ impl Shared_component {
             true => name.clone(),
             false => format!("{parent_path}.{name}"),
         };
-        let mut tree = vec![Component_source {
+        let mut tree = vec![ComponentSource {
             component_path: component_path.clone(),
             name,
             source_path,

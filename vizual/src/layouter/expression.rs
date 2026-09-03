@@ -3,17 +3,17 @@ use std::{
     ops::{Add, AddAssign, Div, Mul, Neg, Sub},
 };
 
-use super::variable::{Solver_variable, Variable};
+use super::variable::{SolverVariable, Variable};
 
 /// A small affine-expression wrapper over layout variables.
 #[derive(Clone, Debug, Default)]
 pub struct Expression {
-    pub(crate) coefficients: HashMap<Solver_variable, f64>,
+    pub(crate) coefficients: HashMap<SolverVariable, f64>,
     pub(crate) constant: f64,
 }
 
 impl Expression {
-    fn add_variable(&mut self, variable: Solver_variable, coefficient: f64) {
+    fn add_variable(&mut self, variable: SolverVariable, coefficient: f64) {
         let remove = {
             let stored = self.coefficients.entry(variable).or_default();
             *stored += coefficient;
@@ -24,12 +24,12 @@ impl Expression {
         }
     }
 
-    pub(crate) fn referenced_variables(&self) -> impl Iterator<Item = Solver_variable> + '_ {
+    pub(crate) fn referenced_variables(&self) -> impl Iterator<Item = SolverVariable> + '_ {
         self.coefficients.keys().copied()
     }
 
     #[cfg(test)]
-    pub(crate) fn eval_with(&self, values: &HashMap<Solver_variable, f64>) -> f64 {
+    pub(crate) fn eval_with(&self, values: &HashMap<SolverVariable, f64>) -> f64 {
         self.constant
             + self
                 .coefficients
@@ -53,8 +53,8 @@ impl From<Variable> for Expression {
     }
 }
 
-impl From<Solver_variable> for Expression {
-    fn from(variable: Solver_variable) -> Self {
+impl From<SolverVariable> for Expression {
+    fn from(variable: SolverVariable) -> Self {
         Self {
             coefficients: HashMap::from([(variable, 1.0)]),
             constant: 0.0,

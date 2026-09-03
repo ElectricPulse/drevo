@@ -2,7 +2,7 @@ use color_eyre::eyre::Result;
 
 use super::{Solution, expression::Expression, variable::Variable, variables::Variables};
 use crate::{
-    component::context::Component_context,
+    component::context::ComponentContext,
     geometry::{Direction, Point, Rect},
 };
 
@@ -10,12 +10,12 @@ use crate::{
 mod tests;
 
 #[derive(Clone)]
-pub struct Variable_position {
+pub struct VariablePosition {
     pub x: Variable,
     pub y: Variable,
 }
 
-impl Variable_position {
+impl VariablePosition {
     fn new(variables: &Variables, name: &str, component_path: &str, path: &str) -> Self {
         Self {
             x: add_variable(
@@ -68,20 +68,20 @@ impl Variable_position {
 pub struct Hitbox {
     // TODO: add a shape to the hitbox
     //pub shape: Vec<bool>,
-    pub start: Variable_position,
-    pub end: Variable_position,
+    pub start: VariablePosition,
+    pub end: VariablePosition,
 }
 
 impl Hitbox {
     pub fn new(variables: &Variables, name: String, component_path: String, path: String) -> Self {
         Self {
-            start: Variable_position::new(
+            start: VariablePosition::new(
                 variables,
                 &format!("{name}.start"),
                 &component_path,
                 &path,
             ),
-            end: Variable_position::new(variables, &format!("{name}.end"), &component_path, &path),
+            end: VariablePosition::new(variables, &format!("{name}.end"), &component_path, &path),
         }
     }
 
@@ -109,7 +109,7 @@ impl Hitbox {
     pub(crate) async fn constrain_shared(
         &self,
         parent: &Self,
-        problem: &Component_context,
+        problem: &ComponentContext,
     ) -> Result<()> {
         for direction in [Direction::Horizontal, Direction::Vertical] {
             constrain_shared_variable(
@@ -128,7 +128,7 @@ impl Hitbox {
     pub async fn share_dimension(
         &self,
         parent: &Hitbox,
-        problem: &Component_context,
+        problem: &ComponentContext,
         direction: Direction,
     ) -> Result<()> {
         problem
@@ -141,7 +141,7 @@ impl Hitbox {
     /// Constrains one derived dimension to a fixed value.
     pub async fn set_static_dimension(
         &self,
-        problem: &Component_context,
+        problem: &ComponentContext,
         direction: Direction,
         value: f64,
     ) -> Result<()> {
@@ -183,7 +183,7 @@ impl Hitbox {
 async fn constrain_shared_variable(
     variable: Variable,
     parent: Variable,
-    problem: &Component_context,
+    problem: &ComponentContext,
 ) -> Result<()> {
     if variable.is_shared() && variable != parent {
         problem

@@ -2,13 +2,13 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use super::{
-    super::{Render_input, Widget_trait},
-    text::Text_style,
+    super::{RenderInput, WidgetTrait},
+    text::TextStyle,
 };
 use crate::{
-    event::Key_code,
+    event::KeyCode,
     geometry::Point,
-    graphics::text::Styled_text,
+    graphics::text::StyledText,
     utils::{bind_index, get_next_index, get_previous_index},
 };
 
@@ -43,16 +43,16 @@ impl List {
 }
 
 #[async_trait]
-impl Widget_trait for List {
+impl WidgetTrait for List {
     async fn render(
         &mut self,
-        Render_input {
+        RenderInput {
             focus,
             hitbox,
             scene,
             text_context,
             ..
-        }: Render_input<'_, '_>,
+        }: RenderInput<'_, '_>,
     ) -> Result<()> {
         focus.set_interactive(true);
         let mut y = hitbox.origin.y;
@@ -63,7 +63,7 @@ impl Widget_trait for List {
                 false => "   ",
             };
             let line = format!("{marker}{item}");
-            let styled = Styled_text::styled(&line, Text_style::default());
+            let styled = StyledText::styled(&line, TextStyle::default());
             let size = text_context
                 .draw_text(scene, &styled, Point::new(hitbox.origin.x, y))
                 .await?;
@@ -75,23 +75,23 @@ impl Widget_trait for List {
 
     async fn on_key_press(
         &mut self,
-        input: crate::widget::Key_press<'_>,
-    ) -> Result<crate::Vizual_msg> {
+        input: crate::widget::KeyPress<'_>,
+    ) -> Result<crate::VizualMsg> {
         let key = input.key;
         if self.items.is_empty() {
-            return crate::Vizual_msg::none();
+            return crate::VizualMsg::none();
         }
 
         match key.code {
-            Key_code::Arrow_down => {
+            KeyCode::ArrowDown => {
                 self.set_index(get_next_index(self.items.len(), self.get_index()));
-                crate::Vizual_msg::new(crate::Vizual_command::Render)
+                crate::VizualMsg::new(crate::VizualCommand::Render)
             }
-            Key_code::Arrow_up => {
+            KeyCode::ArrowUp => {
                 self.set_index(get_previous_index(self.items.len(), self.get_index()));
-                crate::Vizual_msg::new(crate::Vizual_command::Render)
+                crate::VizualMsg::new(crate::VizualCommand::Render)
             }
-            _ => crate::Vizual_msg::none(),
+            _ => crate::VizualMsg::none(),
         }
     }
 }

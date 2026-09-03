@@ -1,16 +1,16 @@
 use std::{ops::Range, sync::Arc};
 
 use color_eyre::Result;
-use lucide_icons::{Icon as Lucide_icon, LUCIDE_FONT_BYTES};
+use lucide_icons::{Icon as LucideIcon, LUCIDE_FONT_BYTES};
 use parley::{
     Alignment, AlignmentOptions, FontContext, FontFamily, FontStyle, FontWeight, GenericFamily,
     Layout, LayoutContext, PositionedLayoutItem, StyleProperty, fontique::Blob,
 };
 use skrifa::{
     FontRef, MetadataProvider,
-    instance::{LocationRef, Size as Font_size},
+    instance::{LocationRef, Size as FontSize},
 };
-use vello::{kurbo::Rect as Kurbo_rect, peniko::Brush};
+use vello::{kurbo::Rect as KurboRect, peniko::Brush};
 
 use crate::{
     config::DEFAULT_FONT_SIZE,
@@ -21,10 +21,10 @@ use crate::{
     },
     style::Color,
     sync::Mutex,
-    widget::widgets::text::Text_style,
+    widget::widgets::text::TextStyle,
 };
 
-use super::scene::Scene as Graphics_scene;
+use super::scene::Scene as GraphicsScene;
 
 #[cfg(test)]
 mod tests;
@@ -35,12 +35,12 @@ mod tests;
 // almost all of the resulting slop is here
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Text_brush {
+pub struct TextBrush {
     pub foreground: Brush,
     pub background: Option<Brush>,
 }
 
-impl Default for Text_brush {
+impl Default for TextBrush {
     fn default() -> Self {
         Self {
             foreground: Brush::Solid(Color::White.to_peniko()),
@@ -50,20 +50,20 @@ impl Default for Text_brush {
 }
 
 #[derive(Clone)]
-pub struct Text_context {
+pub struct TextContext {
     /// This does not need to be a store today, but is one in case its provider becomes dynamic.
     font_context: Store<Mutex<FontContext>>,
     /// This does not need to be a store today, but is one in case its provider becomes dynamic.
-    layout_context: Store<Mutex<LayoutContext<Text_brush>>>,
+    layout_context: Store<Mutex<LayoutContext<TextBrush>>>,
 }
 
 #[derive(Clone)]
-pub(crate) struct Text_layout {
-    pub(crate) layout: Layout<Text_brush>,
+pub(crate) struct TextLayout {
+    pub(crate) layout: Layout<TextBrush>,
     pub(crate) size: Size,
 }
 
-impl Text_context {
+impl TextContext {
     pub fn new() -> Self {
         let mut font_context = FontContext::new();
         let _ = font_context
@@ -76,11 +76,11 @@ impl Text_context {
         }
     }
 
-    pub(crate) async fn build_layout(&self, text: &Styled_text) -> Result<Layout<Text_brush>> {
+    pub(crate) async fn build_layout(&self, text: &StyledText) -> Result<Layout<TextBrush>> {
         self.build_layout_with_width(text, None).await
     }
 
-    pub(crate) fn memoize_layout(&self, text: Styled_text) -> Memoization<Text_layout> {
+    pub(crate) fn memoize_layout(&self, text: StyledText) -> Memoization<TextLayout> {
         let context = self.clone();
         memoization(
             move || {
@@ -90,7 +90,7 @@ impl Text_context {
                     let layout = context.build_layout(&text).await?;
                     let size =
                         Size::new(f64::from(layout.full_width()), f64::from(layout.height()));
-                    Ok(Text_layout { layout, size })
+                    Ok(TextLayout { layout, size })
                 }
             },
             self.dependencies(),
@@ -106,17 +106,17 @@ impl Text_context {
 
     pub(crate) async fn build_wrapped_layout(
         &self,
-        text: &Styled_text,
+        text: &StyledText,
         width: f32,
-    ) -> Result<Layout<Text_brush>> {
+    ) -> Result<Layout<TextBrush>> {
         self.build_layout_with_width(text, Some(width)).await
     }
 
     async fn build_layout_with_width(
         &self,
-        text: &Styled_text,
+        text: &StyledText,
         width: Option<f32>,
-    ) -> Result<Layout<Text_brush>> {
+    ) -> Result<Layout<TextBrush>> {
         let font_context = self.font_context.read().await?;
         let mut font_context = font_context.lock().await?;
         let layout_context = self.layout_context.read().await?;
@@ -124,11 +124,11 @@ impl Text_context {
         let mut builder =
             layout_context.ranged_builder(&mut font_context, &text.content, 1.0, false);
         match text.font {
-            Text_font::Sans_serif => builder.push_default(GenericFamily::SansSerif),
-            Text_font::Lucide => builder.push_default(FontFamily::named("lucide")),
+            TextFont::SansSerif => builder.push_default(GenericFamily::SansSerif),
+            TextFont::Lucide => builder.push_default(FontFamily::named("lucide")),
         }
         builder.push_default(StyleProperty::FontSize(text.size));
-        builder.push_default(StyleProperty::Brush(Text_brush::default()));
+        builder.push_default(StyleProperty::Brush(TextBrush::default()));
 
         for span in &text.spans {
             if span.range.is_empty() {
@@ -137,7 +137,7 @@ impl Text_context {
 
             let (foreground, background) = resolved_colors(span.style);
             builder.push(
-                StyleProperty::Brush(Text_brush {
+                StyleProperty::Brush(TextBrush {
                     foreground: Brush::Solid(foreground.to_peniko()),
                     background: background.map(|color| Brush::Solid(color.to_peniko())),
                 }),
@@ -171,8 +171,8 @@ impl Text_context {
 
     pub async fn draw_text(
         &self,
-        scene: &mut Graphics_scene<'_>,
-        text: &Styled_text,
+        scene: &mut GraphicsScene<'_>,
+        text: &StyledText,
         origin: Point,
     ) -> Result<Size> {
         let layout = self.build_layout(text).await?;
@@ -183,12 +183,12 @@ impl Text_context {
 
     pub(crate) async fn draw_icon(
         &self,
-        scene: &mut Graphics_scene<'_>,
-        icon: Lucide_icon,
+        scene: &mut GraphicsScene<'_>,
+        icon: LucideIcon,
         origin: Point,
-        style: Text_style,
+        style: TextStyle,
     ) -> Result<Size> {
-        let layout = self.build_layout(&Styled_text::icon(icon, style)).await?;
+        let layout = self.build_layout(&StyledText::icon(icon, style)).await?;
         let bounds = icon_ink_bounds(&layout, icon, style.size);
         let size = bounds.map_or_else(
             || Size::new(f64::from(layout.full_width()), f64::from(layout.height())),
@@ -203,7 +203,7 @@ impl Text_context {
 
     pub async fn measure_text(&self, content: &str) -> Result<Size> {
         let layout = self
-            .build_layout(&Styled_text::plain(content, Color::White))
+            .build_layout(&StyledText::plain(content, Color::White))
             .await?;
         Ok(Size::new(
             f64::from(layout.full_width()),
@@ -213,9 +213,9 @@ impl Text_context {
 
     pub async fn measure(&self, content: &str, font_size: f32) -> Result<Size> {
         let layout = self
-            .build_layout(&Styled_text::styled(
+            .build_layout(&StyledText::styled(
                 content,
-                Text_style {
+                TextStyle {
                     size: font_size,
                     color: Color::White,
                     bold: false,
@@ -229,7 +229,7 @@ impl Text_context {
     }
 
     pub async fn measure_ansi(&self, content: &str, font_size: f32) -> Result<Size> {
-        let mut text = Styled_text::ansi(content);
+        let mut text = StyledText::ansi(content);
         text.size = font_size;
         let layout = self.build_layout(&text).await?;
         Ok(Size::new(
@@ -239,11 +239,11 @@ impl Text_context {
     }
 
     #[allow(dead_code)]
-    pub(crate) async fn measure_icon(&self, icon: Lucide_icon, font_size: f32) -> Result<Size> {
+    pub(crate) async fn measure_icon(&self, icon: LucideIcon, font_size: f32) -> Result<Size> {
         let layout = self
-            .build_layout(&Styled_text::icon(
+            .build_layout(&StyledText::icon(
                 icon,
-                Text_style {
+                TextStyle {
                     size: font_size,
                     color: Color::White,
                     bold: false,
@@ -257,21 +257,21 @@ impl Text_context {
     }
 }
 
-impl Default for Text_context {
+impl Default for TextContext {
     fn default() -> Self {
         Self::new()
     }
 }
 
 pub(crate) fn icon_ink_bounds(
-    layout: &Layout<Text_brush>,
-    icon: Lucide_icon,
+    layout: &Layout<TextBrush>,
+    icon: LucideIcon,
     font_size: f32,
-) -> Option<Kurbo_rect> {
+) -> Option<KurboRect> {
     let font = FontRef::new(LUCIDE_FONT_BYTES).ok()?;
     let glyph_id = font.charmap().map(icon.unicode())?;
     let bounds = font
-        .glyph_metrics(Font_size::new(font_size), LocationRef::default())
+        .glyph_metrics(FontSize::new(font_size), LocationRef::default())
         .bounds(glyph_id)?;
     let glyph = layout.lines().find_map(|line| {
         line.items().find_map(|item| match item {
@@ -280,7 +280,7 @@ pub(crate) fn icon_ink_bounds(
         })
     })?;
 
-    Some(Kurbo_rect::new(
+    Some(KurboRect::new(
         f64::from(glyph.x + bounds.x_min),
         f64::from(glyph.y - bounds.y_max),
         f64::from(glyph.x + bounds.x_max),
@@ -289,24 +289,24 @@ pub(crate) fn icon_ink_bounds(
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Styled_text {
+pub struct StyledText {
     pub content: String,
     pub size: f32,
-    pub(crate) font: Text_font,
-    pub(crate) spans: Vec<Styled_span>,
+    pub(crate) font: TextFont,
+    pub(crate) spans: Vec<StyledSpan>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum Text_font {
-    Sans_serif,
+pub(crate) enum TextFont {
+    SansSerif,
     Lucide,
 }
 
-impl Styled_text {
+impl StyledText {
     pub fn plain(content: impl Into<String>, color: Color) -> Self {
         Self::styled(
             content,
-            Text_style {
+            TextStyle {
                 size: DEFAULT_FONT_SIZE,
                 color,
                 bold: false,
@@ -314,34 +314,34 @@ impl Styled_text {
         )
     }
 
-    pub fn styled(content: impl Into<String>, style: Text_style) -> Self {
+    pub fn styled(content: impl Into<String>, style: TextStyle) -> Self {
         let content = content.into();
         let length = content.len();
         Self {
             content,
             size: style.size,
-            font: Text_font::Sans_serif,
-            spans: vec![Styled_span {
+            font: TextFont::SansSerif,
+            spans: vec![StyledSpan {
                 range: 0..length,
-                style: Ansi_style {
+                style: AnsiStyle {
                     foreground: style.color,
                     bold: style.bold,
-                    ..Ansi_style::default()
+                    ..AnsiStyle::default()
                 },
                 hyperlink: None,
             }],
         }
     }
 
-    pub fn icon(icon: Lucide_icon, style: Text_style) -> Self {
+    pub fn icon(icon: LucideIcon, style: TextStyle) -> Self {
         let mut text = Self::styled(icon.unicode().to_string(), style);
-        text.font = Text_font::Lucide;
+        text.font = TextFont::Lucide;
         text
     }
 
     pub fn ansi(content: &str) -> Self {
         let mut text = Self::empty();
-        text.append_ansi(content, &mut Ansi_parser::default());
+        text.append_ansi(content, &mut AnsiParser::default());
         text
     }
 
@@ -359,12 +359,12 @@ impl Styled_text {
         Self {
             content: String::new(),
             size: DEFAULT_FONT_SIZE,
-            font: Text_font::Sans_serif,
+            font: TextFont::SansSerif,
             spans: Vec::new(),
         }
     }
 
-    pub(crate) fn append_ansi(&mut self, input: &str, parser: &mut Ansi_parser) {
+    pub(crate) fn append_ansi(&mut self, input: &str, parser: &mut AnsiParser) {
         let mut segment_start = self.content.len();
         let mut index = 0;
 
@@ -437,14 +437,14 @@ pub struct Hyperlink {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Styled_span {
+pub(crate) struct StyledSpan {
     pub(crate) range: Range<usize>,
-    pub(crate) style: Ansi_style,
+    pub(crate) style: AnsiStyle,
     hyperlink: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub(crate) struct Ansi_style {
+pub(crate) struct AnsiStyle {
     foreground: Color,
     background: Option<Color>,
     bold: bool,
@@ -457,12 +457,12 @@ pub(crate) struct Ansi_style {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct Ansi_parser {
-    style: Ansi_style,
+pub(crate) struct AnsiParser {
+    style: AnsiStyle,
     hyperlink: Option<String>,
 }
 
-fn resolved_colors(style: Ansi_style) -> (Color, Option<Color>) {
+fn resolved_colors(style: AnsiStyle) -> (Color, Option<Color>) {
     let mut foreground = match style.hidden {
         true => style.background.unwrap_or(Color::Black),
         false => style.foreground,
@@ -483,14 +483,14 @@ fn resolved_colors(style: Ansi_style) -> (Color, Option<Color>) {
 }
 
 fn push_span(
-    spans: &mut Vec<Styled_span>,
+    spans: &mut Vec<StyledSpan>,
     start: usize,
     end: usize,
-    style: Ansi_style,
+    style: AnsiStyle,
     hyperlink: &Option<String>,
 ) {
     if start < end {
-        spans.push(Styled_span {
+        spans.push(StyledSpan {
             range: start..end,
             style,
             hyperlink: hyperlink.clone(),
@@ -538,7 +538,7 @@ fn osc8_url(payload: &str) -> Option<Option<&str>> {
     (fields.next() == Some("8")).then(|| fields.nth(1).filter(|url| !url.is_empty()))
 }
 
-fn apply_sgr(style: &mut Ansi_style, sequence: &str) {
+fn apply_sgr(style: &mut AnsiStyle, sequence: &str) {
     let values = match sequence.is_empty() {
         true => vec![0],
         false => sequence
@@ -550,7 +550,7 @@ fn apply_sgr(style: &mut Ansi_style, sequence: &str) {
 
     while let Some(value) = values.get(index).copied() {
         match value {
-            0 => *style = Ansi_style::default(),
+            0 => *style = AnsiStyle::default(),
             1 => style.bold = true,
             2 => style.dim = true,
             3 => style.italic = true,

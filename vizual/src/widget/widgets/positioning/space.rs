@@ -1,10 +1,10 @@
 use crate::macros::display;
 use crate::{
-    component::{Children, context::Component_context},
+    component::{Children, context::ComponentContext},
     constraint,
     geometry::Direction,
     layouter::{expression::Expression, objective::Delta},
-    widget::{Layout_input, Widget, Widget_trait},
+    widget::{LayoutInput, Widget, WidgetTrait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::{Result, ensure};
@@ -49,7 +49,7 @@ pub struct Space {
 
 impl Space {
     pub fn new(
-        child: impl Widget_trait,
+        child: impl WidgetTrait,
         left: Option<f64>,
         right: Option<f64>,
         top: Option<f64>,
@@ -70,27 +70,27 @@ impl Space {
         }
     }
 
-    pub fn inline(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+    pub fn inline(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
         Self::new(child, Some(value), Some(value), None, None, priority)
     }
 
-    pub fn left(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+    pub fn left(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
         Self::new(child, Some(value), None, None, None, priority)
     }
 
-    pub fn right(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+    pub fn right(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
         Self::new(child, None, Some(value), None, None, priority)
     }
 
-    pub fn top(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+    pub fn top(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
         Self::new(child, None, None, Some(value), None, priority)
     }
 
-    pub fn bottom(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+    pub fn bottom(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
         Self::new(child, None, None, None, Some(value), priority)
     }
 
-    pub fn uniform(child: impl Widget_trait, value: f64, priority: usize) -> Self {
+    pub fn uniform(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
         Self::new(
             child,
             Some(value),
@@ -101,13 +101,13 @@ impl Space {
         )
     }
 
-    pub fn full(child: impl Widget_trait, priority: usize) -> Self {
+    pub fn full(child: impl WidgetTrait, priority: usize) -> Self {
         Self::new(child, None, None, None, None, priority)
     }
 
     async fn expression(
         &self,
-        problem: &Component_context,
+        problem: &ComponentContext,
         target: f64,
         delta: &mut Option<Delta>,
     ) -> Result<Expression> {
@@ -134,16 +134,16 @@ impl Space {
 }
 
 #[async_trait]
-impl Widget_trait for Space {
+impl WidgetTrait for Space {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             hitbox,
             parent,
             problem,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let spaces = self.spaces;
         let mut delta = self.delta.clone();

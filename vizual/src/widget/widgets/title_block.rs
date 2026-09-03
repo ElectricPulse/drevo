@@ -3,8 +3,8 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use super::{
-    super::{Layout_input, Widget_trait},
-    layout::axis::{Axis, Axis_style},
+    super::{LayoutInput, WidgetTrait},
+    layout::axis::{Axis, AxisStyle},
     paper::Paper,
     positioning::anchor::Anchor,
     text::Text,
@@ -12,13 +12,13 @@ use super::{
 use crate::{component::Children, geometry::Direction, widget::Widget};
 
 #[derive(Clone)]
-pub struct Title_block {
+pub struct TitleBlock {
     child: Widget,
     pub title: String,
 }
 
-impl Title_block {
-    pub fn new(child: impl Widget_trait, title: impl Into<String>) -> Self {
+impl TitleBlock {
+    pub fn new(child: impl WidgetTrait, title: impl Into<String>) -> Self {
         Self {
             child: child.as_any(),
             title: title.into(),
@@ -27,15 +27,15 @@ impl Title_block {
 }
 
 #[async_trait]
-impl Widget_trait for Title_block {
+impl WidgetTrait for TitleBlock {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
         let mut title = Text::new(self.title.clone());
@@ -45,7 +45,7 @@ impl Widget_trait for Title_block {
 
         let mut axis = Axis::new(Direction::Vertical, (title, child));
 
-        axis.style.set(Axis_style::Gap(theme.units.em * 0.45));
+        axis.style.set(AxisStyle::Gap(theme.units.em * 0.45));
 
         let paper = Paper::new(axis);
         Ok(vec![display!(paper)])

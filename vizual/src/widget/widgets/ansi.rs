@@ -2,13 +2,13 @@ use async_trait::async_trait;
 use color_eyre::Result;
 use std::sync::Arc;
 
-use super::super::{Layout_input, Render_input, Widget_trait};
-use super::text::Text_style;
+use super::super::{LayoutInput, RenderInput, WidgetTrait};
+use super::text::TextStyle;
 use crate::{
     component::Children,
     geometry::Direction,
-    graphics::text::{Ansi_parser, Styled_text, Text_layout},
-    state::{State, State_trait, memoization::Memoization},
+    graphics::text::{AnsiParser, StyledText, TextLayout},
+    state::{State, StateTrait, memoization::Memoization},
     style::Style,
     sync::Mutex,
 };
@@ -18,12 +18,12 @@ mod tests;
 
 /// Parsed ANSI text that can be extended without retaining earlier escape sequences.
 #[derive(Clone)]
-pub struct Content(Parsed_content);
+pub struct Content(ParsedContent);
 
 #[derive(Clone)]
-struct Parsed_content {
-    text: Styled_text,
-    parser: Ansi_parser,
+struct ParsedContent {
+    text: StyledText,
+    parser: AnsiParser,
 }
 
 impl Content {
@@ -40,16 +40,16 @@ impl Content {
             .append_ansi(sequence.as_ref(), &mut self.0.parser);
     }
 
-    pub fn text(&self) -> &Styled_text {
+    pub fn text(&self) -> &StyledText {
         &self.0.text
     }
 }
 
 impl Default for Content {
     fn default() -> Self {
-        Self(Parsed_content {
-            text: Styled_text::ansi(""),
-            parser: Ansi_parser::default(),
+        Self(ParsedContent {
+            text: StyledText::ansi(""),
+            parser: AnsiParser::default(),
         })
     }
 }
@@ -69,8 +69,8 @@ impl From<&str> for Content {
 #[derive(Clone)]
 pub struct Ansi {
     pub content: State<Content>,
-    pub style: Style<Text_style>,
-    cached_layout: Arc<Mutex<Option<(Styled_text, Memoization<Text_layout>)>>>,
+    pub style: Style<TextStyle>,
+    cached_layout: Arc<Mutex<Option<(StyledText, Memoization<TextLayout>)>>>,
 }
 
 impl Ansi {
@@ -88,17 +88,17 @@ impl Ansi {
 }
 
 #[async_trait]
-impl Widget_trait for Ansi {
+impl WidgetTrait for Ansi {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             hitbox,
             problem,
             text_context,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let content = self.content.affect(relayout.clone()).await?;
         let theme = theme.affect(relayout.clone()).await?;
@@ -131,7 +131,7 @@ impl Widget_trait for Ansi {
 
     async fn render(
         &mut self,
-        Render_input { hitbox, scene, .. }: Render_input<'_, '_>,
+        RenderInput { hitbox, scene, .. }: RenderInput<'_, '_>,
     ) -> Result<()> {
         let memoization = self
             .cached_layout

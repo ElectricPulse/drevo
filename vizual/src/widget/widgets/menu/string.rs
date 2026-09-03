@@ -2,38 +2,38 @@ use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-use super::{super::text::Text, Menu, Menu_item};
+use super::{super::text::Text, Menu, MenuItem};
 use crate::{
     component::Children,
-    handlers::Retrieve_handler,
+    handlers::RetrieveHandler,
     state::State,
-    widget::{Layout_input, custom_widget::Custom_widget_trait},
+    widget::{LayoutInput, custom_widget::CustomWidgetTrait},
 };
 
 #[derive(Clone)]
-struct String_menu_item {
+struct StringMenuItem {
     value: String,
 }
 
 #[async_trait]
-impl Retrieve_handler<String> for String_menu_item {
+impl RetrieveHandler<String> for StringMenuItem {
     async fn on_retrieve(&mut self) -> Result<State<String>> {
         Ok(self.value.clone().into())
     }
 }
 
 #[async_trait]
-impl Custom_widget_trait for String_menu_item {
+impl CustomWidgetTrait for StringMenuItem {
     type Payload = bool;
 
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
         selected: bool,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
@@ -52,7 +52,7 @@ impl Menu<String> {
     pub async fn text(items: Vec<String>, default_item: usize) -> Result<Self> {
         let items = items
             .into_iter()
-            .map(|value| -> Menu_item<String> { Box::new(String_menu_item { value }) })
+            .map(|value| -> MenuItem<String> { Box::new(StringMenuItem { value }) })
             .collect::<Vec<_>>();
 
         Self::new(items, default_item).await

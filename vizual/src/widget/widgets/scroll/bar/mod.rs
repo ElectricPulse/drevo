@@ -2,7 +2,7 @@ use crate::{
     geometry::{Direction, Point, Rect, Size},
     graphics::scene::Scene,
     theme::Theme,
-    widget::{Children, Layout_input, Render_input, Widget_trait},
+    widget::{Children, LayoutInput, RenderInput, WidgetTrait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -19,14 +19,14 @@ pub struct Scrollbar {
 }
 
 #[derive(Clone, Copy)]
-pub struct Scrollbar_style {
+pub struct ScrollbarStyle {
     pub gutter: f64,
     pub rail: f64,
     pub thumb: f64,
     pub minimum_thumb_length: f64,
 }
 
-impl Scrollbar_style {
+impl ScrollbarStyle {
     pub fn new(theme: &Theme) -> Self {
         Self {
             gutter: theme.units.em * 0.75,
@@ -52,7 +52,7 @@ impl Scrollbar {
         }
     }
 
-    fn paint(&self, scene: &mut Scene<'_>, hitbox: Rect, theme: &Theme, style: Scrollbar_style) {
+    fn paint(&self, scene: &mut Scene<'_>, hitbox: Rect, theme: &Theme, style: ScrollbarStyle) {
         let track_length = match self.direction {
             Direction::Horizontal => hitbox.size.width,
             Direction::Vertical => hitbox.size.height,
@@ -120,19 +120,19 @@ impl Scrollbar {
 }
 
 #[async_trait]
-impl Widget_trait for Scrollbar {
+impl WidgetTrait for Scrollbar {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             hitbox,
             problem,
             relayout,
             theme,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
-        let style = Scrollbar_style::new(&theme);
+        let style = ScrollbarStyle::new(&theme);
         match self.direction {
             Direction::Horizontal => {
                 hitbox
@@ -150,16 +150,16 @@ impl Widget_trait for Scrollbar {
 
     async fn render(
         &mut self,
-        Render_input {
+        RenderInput {
             rerender,
             theme,
             hitbox,
             scene,
             ..
-        }: Render_input<'_, '_>,
+        }: RenderInput<'_, '_>,
     ) -> Result<()> {
         let loaded_theme = (*theme.affect(rerender).await?).clone();
-        let style = Scrollbar_style::new(&loaded_theme);
+        let style = ScrollbarStyle::new(&loaded_theme);
         self.paint(scene, hitbox, &loaded_theme, style);
         Ok(())
     }

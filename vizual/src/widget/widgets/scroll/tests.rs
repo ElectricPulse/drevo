@@ -1,11 +1,11 @@
 use super::*;
-use crate::event::{Key_event, Modifiers, Wheel_event};
+use crate::event::{KeyEvent, Modifiers, WheelEvent};
 
 #[derive(Clone)]
 struct Empty;
 
 #[async_trait]
-impl Widget_trait for Empty {}
+impl WidgetTrait for Empty {}
 
 #[test]
 fn offset_is_clamped_to_content_edge() {
@@ -21,12 +21,12 @@ fn offset_is_clamped_to_content_edge() {
 
 #[tokio::test]
 async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
-    let manager = crate::render_manager::Render_manager::new();
+    let manager = crate::render_manager::RenderManager::new();
     let mut scroll = Scroll::new(Empty);
     scroll.content_size = Size::new(100.0, 70.0);
     scroll.viewport = Rect::new(0.0, 0.0, 40.0, 30.0);
-    let right = Key_event {
-        code: Key_code::Arrow_right,
+    let right = KeyEvent {
+        code: KeyCode::ArrowRight,
         modifiers: Modifiers::default(),
         text: None,
         repeat: false,
@@ -34,7 +34,7 @@ async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
 
     for _ in 0..10 {
         let _ = scroll
-            .on_key_press(crate::widget::Key_press {
+            .on_key_press(crate::widget::KeyPress {
                 key: &right,
                 relayout: manager.rerender.for_component(0),
             })
@@ -47,19 +47,19 @@ async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
 
 #[tokio::test]
 async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Result<()> {
-    let manager = crate::render_manager::Render_manager::new();
+    let manager = crate::render_manager::RenderManager::new();
     let mut scroll = Scroll::new(Empty);
     scroll.content_size = Size::new(400.0, 400.0);
     scroll.viewport = Rect::new(0.0, 0.0, 100.0, 100.0);
-    let mut wheel = Wheel_event {
+    let mut wheel = WheelEvent {
         position: Point::new(50.0, 50.0),
-        delta: Wheel_delta::Lines(Point::new(0.0, -1.0)),
+        delta: WheelDelta::Lines(Point::new(0.0, -1.0)),
         modifiers: Modifiers::default(),
     };
 
     let event = Event::Wheel(wheel);
     let message = scroll
-        .on_other_event(crate::widget::Other_event {
+        .on_other_event(crate::widget::OtherEvent {
             event: &event,
             relayout: manager.rerender.for_component(0),
         })
@@ -70,7 +70,7 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
     wheel.modifiers.shift = true;
     let event = Event::Wheel(wheel);
     let message = scroll
-        .on_other_event(crate::widget::Other_event {
+        .on_other_event(crate::widget::OtherEvent {
             event: &event,
             relayout: manager.rerender.for_component(0),
         })

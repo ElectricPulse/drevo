@@ -5,8 +5,8 @@ use tokio::sync::Mutex as TokioMutex;
 
 pub type MutexGuard<'a, T> = tokio::sync::MutexGuard<'a, T>;
 
-pub trait Thread_safe: Send + Sync + 'static {}
-impl<T: Send + Sync + 'static> Thread_safe for T {}
+pub trait ThreadSafe: Send + Sync + 'static {}
+impl<T: Send + Sync + 'static> ThreadSafe for T {}
 
 pub struct Mutex<T: ?Sized> {
     inner: TokioMutex<T>,

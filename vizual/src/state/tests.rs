@@ -1,5 +1,5 @@
 use super::*;
-use crate::render_manager::Render_manager;
+use crate::render_manager::RenderManager;
 
 #[tokio::test]
 async fn store_clone_only_clones_the_arc() -> Result<()> {
@@ -14,8 +14,8 @@ async fn store_clone_only_clones_the_arc() -> Result<()> {
 
 #[tokio::test]
 async fn affect_deduplicates_render_ids_and_set_notifies() -> Result<()> {
-    let mut first_manager = Render_manager::new();
-    let mut second_manager = Render_manager::new();
+    let mut first_manager = RenderManager::new();
+    let mut second_manager = RenderManager::new();
     assert_ne!(first_manager.rerender.id, second_manager.rerender.id);
     assert_eq!(first_manager.rerender.id, first_manager.rerender.clone().id);
 
@@ -31,11 +31,11 @@ async fn affect_deduplicates_render_ids_and_set_notifies() -> Result<()> {
 
     assert_eq!(
         first_manager.receiver.0.recv().await,
-        Some(crate::Render_request::Rerender)
+        Some(crate::RenderRequest::Rerender)
     );
     assert_eq!(
         second_manager.receiver.0.recv().await,
-        Some(crate::Render_request::Rerender)
+        Some(crate::RenderRequest::Rerender)
     );
     assert!(first_manager.receiver.0.try_recv().is_err());
     assert!(second_manager.receiver.0.try_recv().is_err());
@@ -45,7 +45,7 @@ async fn affect_deduplicates_render_ids_and_set_notifies() -> Result<()> {
 
 #[tokio::test]
 async fn store_set_another_store_forwards_notifications() -> Result<()> {
-    let mut manager = Render_manager::new();
+    let mut manager = RenderManager::new();
     let parent = Store::new(1_u8);
     drop(parent.affect(manager.rerender.clone()).await?);
 
@@ -55,14 +55,14 @@ async fn store_set_another_store_forwards_notifications() -> Result<()> {
     // Parent notification on set
     assert_eq!(
         manager.receiver.0.recv().await,
-        Some(crate::Render_request::Rerender)
+        Some(crate::RenderRequest::Rerender)
     );
 
     // Changing child forwards to parent's subscriber
     child.set(20_u8).await?;
     assert_eq!(
         manager.receiver.0.recv().await,
-        Some(crate::Render_request::Rerender)
+        Some(crate::RenderRequest::Rerender)
     );
     assert_eq!(*parent.get().await?, 20);
 
@@ -70,7 +70,7 @@ async fn store_set_another_store_forwards_notifications() -> Result<()> {
     parent.set(99_u8).await?;
     assert_eq!(
         manager.receiver.0.recv().await,
-        Some(crate::Render_request::Rerender)
+        Some(crate::RenderRequest::Rerender)
     );
     assert_eq!(*parent.get().await?, 99);
 
@@ -82,7 +82,7 @@ async fn store_set_another_store_forwards_notifications() -> Result<()> {
 
 #[tokio::test]
 async fn constant_never_subscribes() -> Result<()> {
-    let mut manager = Render_manager::new();
+    let mut manager = RenderManager::new();
     let constant = Constant::from(String::from("constant"));
 
     assert_eq!(&*constant.read().await?, "constant");

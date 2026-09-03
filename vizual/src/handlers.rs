@@ -1,93 +1,93 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-use crate::{Vizual_command, Vizual_msg, state::State, sync::Thread_safe};
+use crate::{VizualCommand, VizualMsg, state::State, sync::ThreadSafe};
 
 #[async_trait]
-pub trait Submit_handler<T: Thread_safe + Clone>: Thread_safe + dyn_clone::DynClone {
-    async fn on_submit(&mut self, payload: T) -> Result<Vizual_msg>;
+pub trait SubmitHandler<T: ThreadSafe + Clone>: ThreadSafe + dyn_clone::DynClone {
+    async fn on_submit(&mut self, payload: T) -> Result<VizualMsg>;
 }
 
-dyn_clone::clone_trait_object!(<T> Submit_handler<T> where T: Thread_safe);
+dyn_clone::clone_trait_object!(<T> SubmitHandler<T> where T: ThreadSafe);
 
-pub trait Into_submit_result: Thread_safe {
-    fn into_submit_result(self) -> Result<Vizual_msg>;
+pub trait IntoSubmitResult: ThreadSafe {
+    fn into_submit_result(self) -> Result<VizualMsg>;
 }
 
-impl Into_submit_result for Result<Vizual_msg> {
-    fn into_submit_result(self) -> Result<Vizual_msg> {
+impl IntoSubmitResult for Result<VizualMsg> {
+    fn into_submit_result(self) -> Result<VizualMsg> {
         self
     }
 }
 
-impl Into_submit_result for Vizual_msg {
-    fn into_submit_result(self) -> Result<Vizual_msg> {
+impl IntoSubmitResult for VizualMsg {
+    fn into_submit_result(self) -> Result<VizualMsg> {
         Ok(self)
     }
 }
 
-impl Into_submit_result for Result<()> {
-    fn into_submit_result(self) -> Result<Vizual_msg> {
-        self.and_then(|()| Vizual_msg::none())
+impl IntoSubmitResult for Result<()> {
+    fn into_submit_result(self) -> Result<VizualMsg> {
+        self.and_then(|()| VizualMsg::none())
     }
 }
 
-impl Into_submit_result for () {
-    fn into_submit_result(self) -> Result<Vizual_msg> {
-        Vizual_msg::none()
+impl IntoSubmitResult for () {
+    fn into_submit_result(self) -> Result<VizualMsg> {
+        VizualMsg::none()
     }
 }
 
-impl Into_submit_result for Vizual_command {
-    fn into_submit_result(self) -> Result<Vizual_msg> {
-        Vizual_msg::new(self)
+impl IntoSubmitResult for VizualCommand {
+    fn into_submit_result(self) -> Result<VizualMsg> {
+        VizualMsg::new(self)
     }
 }
 
 #[async_trait]
-impl<F, Fut, T: Clone, Output> Submit_handler<T> for F
+impl<F, Fut, T: Clone, Output> SubmitHandler<T> for F
 where
-    F: FnMut(T) -> Fut + Clone + Thread_safe,
+    F: FnMut(T) -> Fut + Clone + ThreadSafe,
     Fut: std::future::Future<Output = Output> + Send + 'static,
-    Output: Into_submit_result,
-    T: Thread_safe,
+    Output: IntoSubmitResult,
+    T: ThreadSafe,
 {
-    async fn on_submit(&mut self, payload: T) -> Result<Vizual_msg> {
+    async fn on_submit(&mut self, payload: T) -> Result<VizualMsg> {
         (self)(payload).await.into_submit_result()
     }
 }
 
 #[derive(Clone)]
-pub struct Command_submit_handler {
-    command: Vizual_command,
+pub struct CommandSubmitHandler {
+    command: VizualCommand,
 }
 
-impl Command_submit_handler {
-    pub fn new(command: Vizual_command) -> Self {
+impl CommandSubmitHandler {
+    pub fn new(command: VizualCommand) -> Self {
         Self { command }
     }
 }
 
 #[async_trait]
-impl<T: Thread_safe + Clone> Submit_handler<T> for Command_submit_handler {
-    async fn on_submit(&mut self, _payload: T) -> Result<Vizual_msg> {
-        Vizual_msg::new(self.command.clone())
+impl<T: ThreadSafe + Clone> SubmitHandler<T> for CommandSubmitHandler {
+    async fn on_submit(&mut self, _payload: T) -> Result<VizualMsg> {
+        VizualMsg::new(self.command.clone())
     }
 }
 
 #[async_trait]
-pub trait Retrieve_handler<Value: Thread_safe>: Thread_safe + dyn_clone::DynClone {
+pub trait RetrieveHandler<Value: ThreadSafe>: ThreadSafe + dyn_clone::DynClone {
     async fn on_retrieve(&mut self) -> Result<State<Value>>;
 }
 
-dyn_clone::clone_trait_object!(<Value> Retrieve_handler<Value> where Value: Thread_safe);
+dyn_clone::clone_trait_object!(<Value> RetrieveHandler<Value> where Value: ThreadSafe);
 
 #[async_trait]
-impl<F, Fut, Value> Retrieve_handler<Value> for F
+impl<F, Fut, Value> RetrieveHandler<Value> for F
 where
-    F: FnMut() -> Fut + Clone + Thread_safe,
+    F: FnMut() -> Fut + Clone + ThreadSafe,
     Fut: std::future::Future<Output = Result<State<Value>>> + Send + 'static,
-    Value: Thread_safe,
+    Value: ThreadSafe,
 {
     async fn on_retrieve(&mut self) -> Result<State<Value>> {
         (self)().await

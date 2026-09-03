@@ -3,26 +3,26 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use super::{
-    super::{Layout_input, Widget_trait},
+    super::{LayoutInput, WidgetTrait},
     block::Block,
 };
 use crate::{
-    component::Children, theme::Theme, widget::Widget, widget::widgets::block::Block_style,
+    component::Children, theme::Theme, widget::Widget, widget::widgets::block::BlockStyle,
 };
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct Paper_style {
-    pub block: Block_style,
+pub struct PaperStyle {
+    pub block: BlockStyle,
 }
 
 #[derive(Clone)]
 pub struct Paper {
     child: Widget,
-    pub style: crate::style::Style<Paper_style>,
+    pub style: crate::style::Style<PaperStyle>,
 }
 
 impl Paper {
-    pub fn new(child: impl Widget_trait) -> Self {
+    pub fn new(child: impl WidgetTrait) -> Self {
         Self {
             child: child.as_any(),
             style: crate::style::Style::default(),
@@ -30,22 +30,22 @@ impl Paper {
     }
 }
 
-impl From<Theme> for Paper_style {
+impl From<Theme> for PaperStyle {
     fn from(theme: Theme) -> Self {
         theme.specific.paper
     }
 }
 
 #[async_trait]
-impl Widget_trait for Paper {
+impl WidgetTrait for Paper {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
         let style = self.style.get(&theme);

@@ -5,16 +5,16 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use crate::{
-    Vizual_msg,
-    component::{Children, Shared_component},
+    VizualMsg,
+    component::{Children, SharedComponent},
     constraint,
-    event::{Event, Key_code, Wheel_delta},
+    event::{Event, KeyCode, WheelDelta},
     geometry::{Direction, Point, Rect, Size},
     widget::{
-        Layout_input, Render_input, Widget, Widget_trait,
+        LayoutInput, RenderInput, Widget, WidgetTrait,
         widgets::{
-            block::{Block, Block_style},
-            layout::axis::{Axis, Axis_style},
+            block::{Block, BlockStyle},
+            layout::axis::{Axis, AxisStyle},
         },
     },
 };
@@ -22,13 +22,13 @@ use crate::{
 const SCROLL_STEP: f64 = 115.0;
 
 #[derive(Clone)]
-pub struct Scroll_content {
+pub struct ScrollContent {
     child: Widget,
     offset: Point,
 }
 
-impl Scroll_content {
-    pub fn new(child: impl Widget_trait, offset: Point) -> Self {
+impl ScrollContent {
+    pub fn new(child: impl WidgetTrait, offset: Point) -> Self {
         Self {
             child: child.as_any(),
             offset,
@@ -37,10 +37,10 @@ impl Scroll_content {
 }
 
 #[async_trait]
-impl Widget_trait for Scroll_content {
+impl WidgetTrait for ScrollContent {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             hitbox,
             problem,
             mask,
@@ -48,7 +48,7 @@ impl Widget_trait for Scroll_content {
             relayout,
             theme,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         *mask = true;
 
@@ -93,16 +93,16 @@ impl Widget_trait for Scroll_content {
 #[derive(Clone)]
 pub struct Scroll {
     child: Widget,
-    root_component: Option<Shared_component>,
+    root_component: Option<SharedComponent>,
     offset: Point,
     content_size: Size,
     viewport: Rect,
-    pub style: Option<Block_style>,
+    pub style: Option<BlockStyle>,
     pub block: bool,
 }
 
 impl Scroll {
-    pub fn new(child: impl Widget_trait) -> Self {
+    pub fn new(child: impl WidgetTrait) -> Self {
         Self {
             child: child.as_any(),
             root_component: None,
@@ -137,20 +137,20 @@ impl Scroll {
 }
 
 #[async_trait]
-impl Widget_trait for Scroll {
+impl WidgetTrait for Scroll {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             focus,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         focus.set_interactive(true);
 
-        let content_widget = Scroll_content::new(self.child.clone(), self.offset);
+        let content_widget = ScrollContent::new(self.child.clone(), self.offset);
 
         let has_vertical =
             self.content_size.height > self.viewport.size.height && self.viewport.size.height > 0.0;
@@ -166,7 +166,7 @@ impl Widget_trait for Scroll {
                     self.content_size.width,
                 );
                 let mut v_axis = Axis::new(Direction::Vertical, (content_widget, h_bar));
-                v_axis.style.set(Axis_style::Gap(0.0));
+                v_axis.style.set(AxisStyle::Gap(0.0));
                 Box::new(v_axis)
             }
             false => Box::new(content_widget),
@@ -181,7 +181,7 @@ impl Widget_trait for Scroll {
                     self.content_size.height,
                 );
                 let mut h_axis = Axis::new(Direction::Horizontal, (content_column, v_bar));
-                h_axis.style.set(Axis_style::Gap(0.0));
+                h_axis.style.set(AxisStyle::Gap(0.0));
                 Box::new(h_axis)
             }
             false => content_column,
@@ -207,7 +207,7 @@ impl Widget_trait for Scroll {
 
     async fn render(
         &mut self,
-        Render_input { focus, context, .. }: Render_input<'_, '_>,
+        RenderInput { focus, context, .. }: RenderInput<'_, '_>,
     ) -> Result<()> {
         focus.set_interactive(true);
 
@@ -231,42 +231,42 @@ impl Widget_trait for Scroll {
         Ok(())
     }
 
-    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
         let key = input.key;
         let relayout = input.relayout;
         let delta = match key.code {
-            Key_code::Arrow_left => Point::new(-SCROLL_STEP, 0.0),
-            Key_code::Arrow_right => Point::new(SCROLL_STEP, 0.0),
-            Key_code::Arrow_up => Point::new(0.0, -SCROLL_STEP),
-            Key_code::Arrow_down => Point::new(0.0, SCROLL_STEP),
-            _ => return Vizual_msg::none(),
+            KeyCode::ArrowLeft => Point::new(-SCROLL_STEP, 0.0),
+            KeyCode::ArrowRight => Point::new(SCROLL_STEP, 0.0),
+            KeyCode::ArrowUp => Point::new(0.0, -SCROLL_STEP),
+            KeyCode::ArrowDown => Point::new(0.0, SCROLL_STEP),
+            _ => return VizualMsg::none(),
         };
 
         match self.scroll_by(delta) {
             true => {
                 relayout.send();
-                Vizual_msg::none()
+                VizualMsg::none()
             }
-            false => Vizual_msg::none(),
+            false => VizualMsg::none(),
         }
     }
 
     async fn on_other_event(
         &mut self,
-        input: crate::widget::Other_event<'_>,
-    ) -> Result<Vizual_msg> {
+        input: crate::widget::OtherEvent<'_>,
+    ) -> Result<VizualMsg> {
         let event = input.event;
         let relayout = input.relayout;
         let Event::Wheel(wheel) = event else {
-            return Vizual_msg::none();
+            return VizualMsg::none();
         };
         if !self.viewport.contains(wheel.position) {
-            return Vizual_msg::none();
+            return VizualMsg::none();
         }
 
         let delta = match wheel.delta {
-            Wheel_delta::Lines(delta) => Point::new(-delta.x * SCROLL_STEP, -delta.y * SCROLL_STEP),
-            Wheel_delta::Logical_pixels(delta) => Point::new(-delta.x, -delta.y),
+            WheelDelta::Lines(delta) => Point::new(-delta.x * SCROLL_STEP, -delta.y * SCROLL_STEP),
+            WheelDelta::LogicalPixels(delta) => Point::new(-delta.x, -delta.y),
         };
         let delta = match wheel.modifiers.shift {
             true => Point::new(delta.y, 0.0),
@@ -276,16 +276,16 @@ impl Widget_trait for Scroll {
         match self.scroll_by(delta) {
             true => {
                 relayout.send();
-                Vizual_msg::none()
+                VizualMsg::none()
             }
-            false => Vizual_msg::none(),
+            false => VizualMsg::none(),
         }
     }
 }
 
 pub(crate) async fn find_scroll_content_and_child(
-    root: &Shared_component,
-) -> Result<Option<(Shared_component, Shared_component)>> {
+    root: &SharedComponent,
+) -> Result<Option<(SharedComponent, SharedComponent)>> {
     let mut stack = vec![root.clone()];
     while let Some(current) = stack.pop() {
         let lock = current.lock().await?;

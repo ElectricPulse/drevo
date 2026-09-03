@@ -5,7 +5,7 @@ use crate::{
     component::Children,
     geometry::Direction,
     layouter::constraints::{prohibit_overlap, shrink_wrap},
-    widget::{Into_widgets, Layout_input, Widget, Widget_trait},
+    widget::{IntoWidgets, LayoutInput, Widget, WidgetTrait},
 };
 
 #[derive(Clone)]
@@ -15,7 +15,7 @@ pub struct Grid {
 }
 
 impl Grid {
-    pub fn new(children: impl Into_widgets, gap: f64) -> Self {
+    pub fn new(children: impl IntoWidgets, gap: f64) -> Self {
         Self {
             children: children.into(),
             gap,
@@ -24,15 +24,15 @@ impl Grid {
 }
 
 #[async_trait]
-impl Widget_trait for Grid {
+impl WidgetTrait for Grid {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             hitbox,
             problem,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let mut children = Vec::with_capacity(self.children.len());
         for (index, child) in self.children.iter().enumerate() {

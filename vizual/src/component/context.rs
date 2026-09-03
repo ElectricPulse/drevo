@@ -11,12 +11,12 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Component_context {
+pub struct ComponentContext {
     pub formula: Arc<Mutex<Formula>>,
     pub component_path: Vec<String>,
 }
 
-impl Component_context {
+impl ComponentContext {
     pub fn new(formula: Arc<Mutex<Formula>>) -> Self {
         Self {
             formula,

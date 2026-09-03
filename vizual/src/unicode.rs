@@ -20,21 +20,21 @@ impl fmt::Display for Error {
 
 // Internal error for fetching a continuation byte
 #[derive(Debug, Clone)]
-enum Next_err {
+enum NextErr {
     Eof,
     Invalid,
 }
 
-fn next_byte<I: Iterator<Item = u8>>(iter: &mut I) -> Result<u32, Next_err> {
+fn next_byte<I: Iterator<Item = u8>>(iter: &mut I) -> Result<u32, NextErr> {
     match iter.next() {
         Some(c) => {
             if c & 0xC0 == 0x80 {
                 Ok((c & 0x3F) as u32)
             } else {
-                Err(Next_err::Invalid)
+                Err(NextErr::Invalid)
             }
         }
-        None => Err(Next_err::Eof),
+        None => Err(NextErr::Eof),
     }
 }
 
@@ -43,10 +43,10 @@ fn raw_decode_from<I: Iterator<Item = u8>>(a: u32, iter: &mut I) -> Result<u32, 
 
     let need = |iter: &mut I, bytes: &mut Vec<u8>| -> Result<u32, Error> {
         let byte = next_byte(iter).map_err(|e| match e {
-            Next_err::Eof => Error::InvalidEndingSequence {
+            NextErr::Eof => Error::InvalidEndingSequence {
                 bytes: bytes.to_vec(),
             },
-            Next_err::Invalid => Error::InvalidSequence,
+            NextErr::Invalid => Error::InvalidSequence,
         })?;
 
         bytes.push(byte as u8);

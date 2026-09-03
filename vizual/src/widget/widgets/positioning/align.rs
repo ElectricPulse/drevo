@@ -3,11 +3,11 @@ use async_trait::async_trait;
 use color_eyre::Result;
 
 use crate::{
-    component::{Children, context::Component_context},
+    component::{Children, context::ComponentContext},
     constraint,
     geometry::Direction,
     layouter::{hitbox::Hitbox, objective::Objective},
-    widget::{Layout_input, Widget, Widget_trait},
+    widget::{LayoutInput, Widget, WidgetTrait},
 };
 
 #[derive(Clone)]
@@ -23,7 +23,7 @@ pub struct Align {
 }
 
 impl Align {
-    pub fn new(child: impl Widget_trait, alignments: Alignments) -> Self {
+    pub fn new(child: impl WidgetTrait, alignments: Alignments) -> Self {
         Self {
             child: child.as_any(),
             alignments,
@@ -31,7 +31,7 @@ impl Align {
     }
 
     async fn align(
-        problem: &Component_context,
+        problem: &ComponentContext,
         parent: &Hitbox,
         hitbox: &mut Hitbox,
         objective: Objective,
@@ -50,22 +50,22 @@ impl Align {
                     parent.get_end_position(direction) - hitbox.get_end_position(direction);
                 problem.minimize(end_margin, priority).await
             }
-            Objective::Minimize_delta => Ok(()),
+            Objective::MinimizeDelta => Ok(()),
         }
     }
 }
 
 #[async_trait]
-impl Widget_trait for Align {
+impl WidgetTrait for Align {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             hitbox,
             parent,
             problem,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         for (direction, objective) in [
             (Direction::Horizontal, self.alignments.horizontal),

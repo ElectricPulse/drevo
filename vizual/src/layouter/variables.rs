@@ -3,11 +3,11 @@ use std::{
     sync::Mutex,
 };
 
-use super::variable::{Solver_variable, Variable};
-use crate::component::debug::Component_tree;
+use super::variable::{SolverVariable, Variable};
+use crate::component::debug::ComponentTree;
 
 #[derive(Clone)]
-pub struct Variable_metadata {
+pub struct VariableMetadata {
     pub name: String,
     pub path: String,
     pub component_path: String,
@@ -17,14 +17,14 @@ pub struct Variable_metadata {
 }
 
 #[derive(Default)]
-struct Variable_registry {
-    variables: Vec<Variable_metadata>,
+struct VariableRegistry {
+    variables: Vec<VariableMetadata>,
 }
 
 /// Owns the solver variables used by a layout problem.
 #[derive(Default)]
 pub struct Variables {
-    registry: Mutex<Variable_registry>,
+    registry: Mutex<VariableRegistry>,
 }
 
 impl Variables {
@@ -61,8 +61,8 @@ impl Variables {
             .registry
             .lock()
             .expect("layout variable registry poisoned");
-        let id = Solver_variable(registry.variables.len());
-        registry.variables.push(Variable_metadata {
+        let id = SolverVariable(registry.variables.len());
+        registry.variables.push(VariableMetadata {
             name: name.into(),
             path: path.into(),
             component_path: component_path.into(),
@@ -98,14 +98,14 @@ impl Variables {
         variable
     }
 
-    pub(crate) fn metadata(&self, variable: Solver_variable) -> Variable_metadata {
+    pub(crate) fn metadata(&self, variable: SolverVariable) -> VariableMetadata {
         self.registry
             .lock()
             .expect("layout variable registry poisoned")
             .variables
             .get(variable.0)
             .cloned()
-            .unwrap_or_else(|| Variable_metadata {
+            .unwrap_or_else(|| VariableMetadata {
                 name: format!("{variable:?}"),
                 path: String::new(),
                 component_path: String::new(),
@@ -115,7 +115,7 @@ impl Variables {
             })
     }
 
-    pub(crate) fn name(&self, variable: Solver_variable) -> String {
+    pub(crate) fn name(&self, variable: SolverVariable) -> String {
         self.registry
             .lock()
             .expect("layout variable registry poisoned")
@@ -127,8 +127,8 @@ impl Variables {
 
     pub(crate) fn component_tree(
         &self,
-        variables: &HashSet<Solver_variable>,
-        tree: &Component_tree,
+        variables: &HashSet<SolverVariable>,
+        tree: &ComponentTree,
     ) -> Vec<(usize, String, Option<String>)> {
         let registry = self
             .registry

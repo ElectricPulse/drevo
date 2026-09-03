@@ -2,30 +2,30 @@ use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-use super::super::{Layout_input, Widget_trait};
-use super::title_block::Title_block;
+use super::super::{LayoutInput, WidgetTrait};
+use super::title_block::TitleBlock;
 use crate::{
-    Vizual_msg,
+    VizualMsg,
     component::Children,
-    event::{Event, Key_code, Key_event},
-    handlers::Submit_handler,
+    event::{Event, KeyCode, KeyEvent},
+    handlers::SubmitHandler,
     style::Color,
     widget::widgets::{
-        block::{Block, Block_style, Border_style},
+        block::{Block, BlockStyle, BorderStyle},
         text::Text,
     },
 };
 
 #[derive(Clone)]
-pub struct Text_input {
+pub struct TextInput {
     title: String,
     input: String,
     cursor: usize,
-    submit_handler: Box<dyn Submit_handler<String>>,
+    submit_handler: Box<dyn SubmitHandler<String>>,
 }
 
-impl Text_input {
-    pub fn new(title: impl Into<String>, submit_handler: Box<dyn Submit_handler<String>>) -> Self {
+impl TextInput {
+    pub fn new(title: impl Into<String>, submit_handler: Box<dyn SubmitHandler<String>>) -> Self {
         Self {
             title: title.into(),
             input: String::new(),
@@ -64,22 +64,22 @@ impl Text_input {
         self.cursor += text.len();
     }
 
-    fn edit_key(&mut self, key: &Key_event) -> bool {
+    fn edit_key(&mut self, key: &KeyEvent) -> bool {
         match key.code {
-            Key_code::Arrow_left => self.cursor = self.previous_boundary(),
-            Key_code::Arrow_right => self.cursor = self.next_boundary(),
-            Key_code::Home => self.cursor = 0,
-            Key_code::End => self.cursor = self.input.len(),
-            Key_code::Backspace if self.cursor > 0 => {
+            KeyCode::ArrowLeft => self.cursor = self.previous_boundary(),
+            KeyCode::ArrowRight => self.cursor = self.next_boundary(),
+            KeyCode::Home => self.cursor = 0,
+            KeyCode::End => self.cursor = self.input.len(),
+            KeyCode::Backspace if self.cursor > 0 => {
                 let previous = self.previous_boundary();
                 self.input.replace_range(previous..self.cursor, "");
                 self.cursor = previous;
             }
-            Key_code::Delete if self.cursor < self.input.len() => {
+            KeyCode::Delete if self.cursor < self.input.len() => {
                 self.input
                     .replace_range(self.cursor..self.next_boundary(), "");
             }
-            Key_code::Character(_) | Key_code::Space
+            KeyCode::Character(_) | KeyCode::Space
                 if !key.modifiers.control && !key.modifiers.alt =>
             {
                 let Some(text) = &key.text else {
@@ -94,10 +94,10 @@ impl Text_input {
 }
 
 #[async_trait]
-impl Widget_trait for Text_input {
+impl WidgetTrait for TextInput {
     async fn layout(
         &mut self,
-        Layout_input { focus, slots, .. }: Layout_input<'_>,
+        LayoutInput { focus, slots, .. }: LayoutInput<'_>,
     ) -> Result<Children> {
         focus.set_interactive(true);
 
@@ -105,15 +105,15 @@ impl Widget_trait for Text_input {
 
         let content = Block::new(
             content,
-            Block_style {
+            BlockStyle {
                 padding: 0.0,
                 background: Color::Black,
-                border: Border_style {
+                border: BorderStyle {
                     color: Color::Black,
                     thickness: 0.0,
                     radius: 1.0,
                 },
-                focused_border: Border_style {
+                focused_border: BorderStyle {
                     color: Color::Black,
                     thickness: 0.0,
                     radius: 1.0,
@@ -121,38 +121,38 @@ impl Widget_trait for Text_input {
             },
         );
 
-        let block = Title_block::new(content, self.title.clone());
+        let block = TitleBlock::new(content, self.title.clone());
 
         Ok(vec![display!(block)])
     }
 
-    async fn on_key_press(&mut self, input: crate::widget::Key_press<'_>) -> Result<Vizual_msg> {
+    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
         let key = input.key;
         let relayout = input.relayout;
-        if matches!(key.code, Key_code::Escape) {
+        if matches!(key.code, KeyCode::Escape) {
             return self.submit_handler.on_submit(self.input.clone()).await;
         }
 
         match self.edit_key(key) {
             true => {
                 relayout.send();
-                Vizual_msg::none()
+                VizualMsg::none()
             }
-            false => Vizual_msg::none(),
+            false => VizualMsg::none(),
         }
     }
 
     async fn on_other_event(
         &mut self,
-        input: crate::widget::Other_event<'_>,
-    ) -> Result<Vizual_msg> {
+        input: crate::widget::OtherEvent<'_>,
+    ) -> Result<VizualMsg> {
         let event = input.event;
         let relayout = input.relayout;
         let Event::Text(text) = event else {
-            return Vizual_msg::none();
+            return VizualMsg::none();
         };
         self.insert(text);
         relayout.send();
-        Vizual_msg::none()
+        VizualMsg::none()
     }
 }

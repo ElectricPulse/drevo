@@ -2,44 +2,44 @@ use crate::macros::display;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-use super::{super::text::Text, Menu, Menu_item};
+use super::{super::text::Text, Menu, MenuItem};
 use crate::{
     component::Children,
-    handlers::Retrieve_handler,
+    handlers::RetrieveHandler,
     state::State,
-    widget::{Layout_input, custom_widget::Custom_widget_trait},
+    widget::{LayoutInput, custom_widget::CustomWidgetTrait},
 };
 
 #[derive(Clone, Copy)]
-struct Boolean_menu_item {
+struct BooleanMenuItem {
     value: bool,
 }
 
-impl Boolean_menu_item {
+impl BooleanMenuItem {
     fn label(&self) -> &'static str {
         if self.value { "Enabled" } else { "Disabled" }
     }
 }
 
 #[async_trait]
-impl Retrieve_handler<bool> for Boolean_menu_item {
+impl RetrieveHandler<bool> for BooleanMenuItem {
     async fn on_retrieve(&mut self) -> Result<State<bool>> {
         Ok(self.value.into())
     }
 }
 
 #[async_trait]
-impl Custom_widget_trait for Boolean_menu_item {
+impl CustomWidgetTrait for BooleanMenuItem {
     type Payload = bool;
 
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
         selected: bool,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
@@ -58,7 +58,7 @@ impl Menu<bool> {
     pub async fn boolean(default: bool) -> Result<Self> {
         let items = [false, true]
             .into_iter()
-            .map(|value| -> Menu_item<bool> { Box::new(Boolean_menu_item { value }) })
+            .map(|value| -> MenuItem<bool> { Box::new(BooleanMenuItem { value }) })
             .collect::<Vec<_>>();
         let default_item = usize::from(default);
 

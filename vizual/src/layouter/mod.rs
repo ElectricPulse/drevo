@@ -29,11 +29,11 @@ use self::{
     constraint::Constraint,
     expression::Expression,
     hitbox::Hitbox,
-    variable::{Solver_variable, Variable},
+    variable::{SolverVariable, Variable},
     variables::Variables,
 };
 use crate::{
-    component::debug::Component_tree,
+    component::debug::ComponentTree,
     constraint,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
@@ -41,22 +41,22 @@ use crate::{
 
 // This is an async callback for the sake of being generic and allowing for more than x, y, width,
 // height setting on child.
-pub trait Setter_callback:
+pub trait SetterCallback:
     Fn(f64) -> BoxFuture<'static, ()> + Send + Sync + dyn_clone::DynClone
 {
 }
 
-impl<Callback> Setter_callback for Callback where
+impl<Callback> SetterCallback for Callback where
     Callback: Fn(f64) -> BoxFuture<'static, ()> + Send + Sync + Clone + 'static
 {
 }
 
-dyn_clone::clone_trait_object!(Setter_callback);
+dyn_clone::clone_trait_object!(SetterCallback);
 
-pub type Setter = Box<dyn Setter_callback>;
+pub type Setter = Box<dyn SetterCallback>;
 
 const PRIORITY_LEVELS: usize = 3;
-type Priority_objective = Vec<Expression>;
+type PriorityObjective = Vec<Expression>;
 // As of this moment the usage of priorities has crystalized like this:
 // 2 is for minimizing the root dimension to fit the window size.
 // 1 is for gaps, spaces, margins, and paddings.
@@ -79,7 +79,7 @@ impl Field for f64 {
 
 #[derive(Clone, Debug)]
 pub struct Solution {
-    values: HashMap<Solver_variable, f64>,
+    values: HashMap<SolverVariable, f64>,
 }
 
 impl Solution {
@@ -98,9 +98,9 @@ impl Solution {
 
 pub struct Problem {
     constraints: Vec<Constraint>,
-    objectives: [Priority_objective; PRIORITY_LEVELS],
+    objectives: [PriorityObjective; PRIORITY_LEVELS],
     pub(crate) variables: Arc<Variables>,
-    declared_variables: HashSet<Solver_variable>,
+    declared_variables: HashSet<SolverVariable>,
 }
 
 /// The declarations produced by one component's `layout` call.
@@ -112,7 +112,7 @@ pub struct Formula {
     /// Helper variables declared while this component's layout is evaluated.
     pub(crate) variables: Vec<Variable>,
     pub(crate) constraints: Vec<Constraint>,
-    pub(crate) objectives: [Priority_objective; PRIORITY_LEVELS],
+    pub(crate) objectives: [PriorityObjective; PRIORITY_LEVELS],
     pub(crate) registry: Arc<Variables>,
 }
 
@@ -163,7 +163,7 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objectives: impl IntoIterator<Item = &'a Expression>,
-    ) -> Vec<Solver_variable> {
+    ) -> Vec<SolverVariable> {
         let mut variables = self.declared_variables.clone();
         variables.extend(
             constraints
@@ -203,7 +203,7 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objective: Option<(&Expression, Sense)>,
-    ) -> (RowProblem, Vec<Solver_variable>, HashMap<Solver_variable, Col>) {
+    ) -> (RowProblem, Vec<SolverVariable>, HashMap<SolverVariable, Col>) {
         let mut problem = RowProblem::default();
         let variables = self.live_variables(constraints, objective.iter().map(|(expr, _)| *expr));
         let mut cols = HashMap::with_capacity(variables.len());
@@ -265,7 +265,7 @@ impl Problem {
     fn solution_from_highs(
         &self,
         solved: highs::SolvedModel,
-        variables: &[Solver_variable],
+        variables: &[SolverVariable],
     ) -> Result<Solution> {
         let solver_solution = solved.get_solution();
         let cols = solver_solution.columns();
@@ -348,7 +348,7 @@ impl Problem {
         &self,
         conflict_indices: Vec<usize>,
         constraints: &[Constraint],
-        component_tree: &Component_tree,
+        component_tree: &ComponentTree,
     ) -> Result<Solution> {
         let conflicting_constraints = if !conflict_indices.is_empty() {
             conflict_indices
@@ -377,7 +377,7 @@ impl Problem {
     fn compute_primal_ray(
         highs_ptr: *const std::ffi::c_void,
         num_cols: usize,
-    ) -> Vec<(Solver_variable, f64)> {
+    ) -> Vec<(SolverVariable, f64)> {
         let mut has_primal_ray: highs_sys::HighsInt = 0;
         let mut primal_ray_values = vec![0.0f64; num_cols];
         let ret = unsafe {
@@ -391,7 +391,7 @@ impl Problem {
             primal_ray_values
                 .into_iter()
                 .enumerate()
-                .filter_map(|(idx, val)| (val.abs() > 1e-6).then_some((Solver_variable(idx), val)))
+                .filter_map(|(idx, val)| (val.abs() > 1e-6).then_some((SolverVariable(idx), val)))
                 .collect()
         } else {
             Vec::new()
@@ -428,7 +428,7 @@ impl Problem {
     fn is_unbounded(
         &self,
         constraints: &[Constraint],
-        variable: Solver_variable,
+        variable: SolverVariable,
         maximize: bool,
     ) -> bool {
         let mut expr = Expression::default();
@@ -453,8 +453,8 @@ impl Problem {
         constraints: &[Constraint],
         objective: &Expression,
         priority: Option<usize>,
-        primal_ray: &[(Solver_variable, f64)],
-        component_tree: &Component_tree,
+        primal_ray: &[(SolverVariable, f64)],
+        component_tree: &ComponentTree,
     ) -> Result<Solution> {
         let mut underconstrained = Vec::new();
         let mut details = Vec::new();
@@ -646,7 +646,7 @@ impl Problem {
 
     fn display_constraint_side(
         &self,
-        coefficients: impl IntoIterator<Item = (Solver_variable, f64)>,
+        coefficients: impl IntoIterator<Item = (SolverVariable, f64)>,
         constant: f64,
     ) -> String {
         let mut terms = coefficients
@@ -719,8 +719,8 @@ impl Problem {
     fn with_component_tree(
         &self,
         details: String,
-        variables: impl IntoIterator<Item = Solver_variable>,
-        tree: &Component_tree,
+        variables: impl IntoIterator<Item = SolverVariable>,
+        tree: &ComponentTree,
     ) -> String {
         let variables = variables.into_iter().collect::<HashSet<_>>();
         let component_tree = self
@@ -744,7 +744,7 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objectives: &[(usize, Expression)],
-        component_tree: &Component_tree,
+        component_tree: &ComponentTree,
     ) -> Result<Solution> {
         match self.solve_objectives(constraints, objectives) {
             Ok(solution) => Ok(solution),
@@ -764,7 +764,7 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objectives: &[(usize, Expression)],
-        component_tree: &Component_tree,
+        component_tree: &ComponentTree,
     ) -> Result<Solution> {
         for (priority, objective) in objectives {
             let model = self.build_model(constraints, Some((objective, Sense::Maximise)));
@@ -844,7 +844,7 @@ impl Problem {
         mut constraints: Vec<Constraint>,
         root: Hitbox,
         screen: Size,
-        component_tree: &Component_tree,
+        component_tree: &ComponentTree,
     ) -> Result<Solution> {
         Self::constrain_root_to_screen(&mut constraints, &root, screen);
 
@@ -876,7 +876,7 @@ impl Problem {
         &mut self,
         root: Hitbox,
         screen: Size,
-        component_tree: &Component_tree,
+        component_tree: &ComponentTree,
     ) -> Result<Solution> {
         self.full_solve(self.constraints.clone(), root, screen, component_tree)
             .await

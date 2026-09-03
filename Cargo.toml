@@ -12,7 +12,5 @@ readme = "README.md"
 derive-where = "1.6.1"
 
 [workspace.lints.rust]
-non_camel_case_types = "allow"
-non_upper_case_globals = "allow"
 unused_must_use = "warn"
 unused_results = "warn"

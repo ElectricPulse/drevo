@@ -2,7 +2,7 @@ use std::hash::{Hash, Hasher};
 
 /// A solver variable identifier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Solver_variable(pub usize);
+pub struct SolverVariable(pub usize);
 
 /// A hitbox coordinate backed directly by a solver variable.
 ///
@@ -11,12 +11,12 @@ pub struct Solver_variable(pub usize);
 /// an equality constraint after the component has finished laying itself out.
 #[derive(Clone, Copy, Debug)]
 pub struct Variable {
-    pub(crate) variable: Solver_variable,
+    pub(crate) variable: SolverVariable,
     pub(crate) shared: bool,
 }
 
 impl Variable {
-    pub(crate) fn new(variable: Solver_variable) -> Self {
+    pub(crate) fn new(variable: SolverVariable) -> Self {
         Self {
             variable,
             shared: true,

@@ -23,16 +23,16 @@ use super::{
     text::Text,
 };
 use crate::{
-    Vizual_command, Vizual_msg,
+    VizualCommand, VizualMsg,
     component::Children,
     config::COMMAND_WAIT_TIMEOUT,
     geometry::Direction,
     state::Store,
     sync::Mutex,
     unicode,
-    widget::{Layout_input, Shared_widget, Widget_trait},
+    widget::{LayoutInput, SharedWidget, WidgetTrait},
 };
-use lucide_icons::Icon as Lucide_icon;
+use lucide_icons::Icon as LucideIcon;
 
 #[derive(Clone)]
 pub struct Terminal {
@@ -40,23 +40,23 @@ pub struct Terminal {
     shell: Store<String>,
     command: Store<String>,
     text: Store<Content>,
-    scroll: Shared_widget<Scroll>,
+    scroll: SharedWidget<Scroll>,
     pub restart: bool,
-    current_handle: Arc<Mutex<Option<Command_handle>>>,
+    current_handle: Arc<Mutex<Option<CommandHandle>>>,
     working_dir: Arc<Mutex<Option<PathBuf>>>,
     envs: Arc<Mutex<Vec<(String, String)>>>,
 }
 
 #[async_trait]
-impl Widget_trait for Terminal {
+impl WidgetTrait for Terminal {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(relayout.clone()).await?;
         let directory = self.directory.affect(relayout.clone()).await?.clone();
@@ -84,7 +84,7 @@ impl Widget_trait for Terminal {
         let directory_row = Anchor::left(Axis::new(
             Direction::Horizontal,
             (
-                Anchor::v_middle(Icon::new(Lucide_icon::Folder)),
+                Anchor::v_middle(Icon::new(LucideIcon::Folder)),
                 Anchor::v_middle(directory_label),
                 Anchor::v_middle(directory_paragraph),
             ),
@@ -92,7 +92,7 @@ impl Widget_trait for Terminal {
         let shell_row = Anchor::left(Axis::new(
             Direction::Horizontal,
             (
-                Anchor::v_middle(Icon::new(Lucide_icon::Terminal)),
+                Anchor::v_middle(Icon::new(LucideIcon::Terminal)),
                 Anchor::v_middle(shell_label),
                 Anchor::v_middle(shell_paragraph),
             ),
@@ -101,19 +101,19 @@ impl Widget_trait for Terminal {
         let command_row = if self.restart {
             let terminal = self.clone();
             let restart_button = Anchor::v_middle(Button::new(
-                Icon::new(Lucide_icon::RotateCw),
+                Icon::new(LucideIcon::RotateCw),
                 move |_payload| {
                     let terminal = terminal.clone();
                     async move {
                         let _ = terminal.restart().await;
-                        Vizual_msg::new(Vizual_command::Resolve)
+                        VizualMsg::new(VizualCommand::Resolve)
                     }
                 },
             ));
             Anchor::left(Axis::new(
                 Direction::Horizontal,
                 (
-                    Anchor::v_middle(Icon::new(Lucide_icon::Play)),
+                    Anchor::v_middle(Icon::new(LucideIcon::Play)),
                     Anchor::v_middle(command_label),
                     Anchor::v_middle(command_paragraph),
                     restart_button,
@@ -123,7 +123,7 @@ impl Widget_trait for Terminal {
             Anchor::left(Axis::new(
                 Direction::Horizontal,
                 (
-                    Anchor::v_middle(Icon::new(Lucide_icon::Play)),
+                    Anchor::v_middle(Icon::new(LucideIcon::Play)),
                     Anchor::v_middle(command_label),
                     Anchor::v_middle(command_paragraph),
                 ),
@@ -205,15 +205,15 @@ fn get_command(
     process
 }
 
-pub struct Command_handle_inner {
+pub struct CommandHandleInner {
     read_handle: tokio::task::JoinHandle<Result<()>>,
     command_handle: tokio::process::Child,
 }
 
-pub type Command_state = Arc<Mutex<Command_handle_inner>>;
+pub type CommandState = Arc<Mutex<CommandHandleInner>>;
 
 #[derive(Clone)]
-pub struct Command_handle(pub Command_state);
+pub struct CommandHandle(pub CommandState);
 
 fn get_program_exit_status(result: std::io::Result<ExitStatus>) -> Result<()> {
     let result = result.wrap_err("")?;
@@ -224,7 +224,7 @@ fn get_program_exit_status(result: std::io::Result<ExitStatus>) -> Result<()> {
     }
 }
 
-impl Command_handle {
+impl CommandHandle {
     pub fn ensure_stopped_in_background(&self) {
         let handle = self.clone();
         if let Ok(runtime) = tokio::runtime::Handle::try_current() {
@@ -260,7 +260,7 @@ impl Command_handle {
         Self::wait_locked(&mut inner).await
     }
 
-    async fn wait_locked(inner: &mut Command_handle_inner) -> Result<()> {
+    async fn wait_locked(inner: &mut CommandHandleInner) -> Result<()> {
         tokio::select! {
             command_handle = inner.command_handle.wait() => {
                 inner.read_handle.abort();
@@ -293,7 +293,7 @@ impl Command_handle {
 fn run_command(
     mut command: tokio::process::Command,
     text: Store<Content>,
-) -> Result<Command_handle> {
+) -> Result<CommandHandle> {
     let (output_reader, stdout) = io::pipe().wrap_err("")?;
     let stderr = stdout.try_clone().wrap_err("")?;
     let _ = command.kill_on_drop(true);
@@ -305,12 +305,12 @@ fn run_command(
         .wrap_err("")?;
 
     let read_handle = tokio::spawn(read(output_reader, text));
-    let state = Arc::new(Mutex::new(Command_handle_inner {
+    let state = Arc::new(Mutex::new(CommandHandleInner {
         read_handle,
         command_handle,
     }));
 
-    Ok(Command_handle(state))
+    Ok(CommandHandle(state))
 }
 
 impl Terminal {
@@ -386,7 +386,7 @@ impl Terminal {
         Ok(())
     }
 
-    pub async fn run(&self, args: impl Into<String>) -> Result<Command_handle> {
+    pub async fn run(&self, args: impl Into<String>) -> Result<CommandHandle> {
         let command = args.into();
         #[cfg(unix)]
         {
@@ -417,7 +417,7 @@ impl Terminal {
         &self,
         args: impl Into<String>,
         working_dir: impl AsRef<Path>,
-    ) -> Result<Command_handle> {
+    ) -> Result<CommandHandle> {
         let command = args.into();
         #[cfg(unix)]
         {
@@ -443,7 +443,7 @@ impl Terminal {
         }
     }
 
-    pub async fn run_command(&self, command: tokio::process::Command) -> Result<Command_handle> {
+    pub async fn run_command(&self, command: tokio::process::Command) -> Result<CommandHandle> {
         #[cfg(unix)]
         {
             let handle = run_command(command, self.text.clone())?;
@@ -457,7 +457,7 @@ impl Terminal {
         }
     }
 
-    pub async fn restart(&self) -> Result<Command_handle> {
+    pub async fn restart(&self) -> Result<CommandHandle> {
         let mut handle_lock = self.current_handle.lock().await?;
         if let Some(handle) = handle_lock.take() {
             let _ = handle.ensure_stopped().await;

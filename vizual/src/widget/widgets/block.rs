@@ -1,5 +1,5 @@
 use super::{
-    super::{Layout_input, Render_input, Widget_trait},
+    super::{LayoutInput, RenderInput, WidgetTrait},
     positioning::space::Space,
 };
 use crate::macros::display;
@@ -11,30 +11,44 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct Border_style {
+pub struct BorderStyle {
     pub thickness: f64,
     pub color: Color,
     pub radius: f64,
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub struct Block_style {
-    pub padding: f64,
-    pub background: Color,
-    pub border: Border_style,
-    pub focused_border: Border_style,
+impl BorderStyle {
+    /// Returns a square border that does not paint or reserve space.
+    pub fn none() -> Self {
+        Self {
+            thickness: 0.0,
+            color: Color::Black,
+            radius: 0.0,
+        }
+    }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub struct BlockStyle {
+    pub padding: f64,
+    pub background: Color,
+    pub border: BorderStyle,
+    pub focused_border: BorderStyle,
+}
+
+/// A styled container with no default style.
+///
+/// Callers must provide a `BlockStyle` when constructing a block.
 #[derive(Clone)]
 pub struct Block {
     child: Widget,
-    pub style: Block_style,
+    pub style: BlockStyle,
     pub focusable: bool,
     pub delta: Option<Delta>,
 }
 
 impl Block {
-    pub fn new(child: impl Widget_trait, style: Block_style) -> Self {
+    pub fn new(child: impl WidgetTrait, style: BlockStyle) -> Self {
         Self {
             child: child.as_any(),
             style,
@@ -45,10 +59,10 @@ impl Block {
 }
 
 #[async_trait]
-impl Widget_trait for Block {
+impl WidgetTrait for Block {
     async fn layout(
         &mut self,
-        Layout_input { focus, slots, .. }: Layout_input<'_>,
+        LayoutInput { focus, slots, .. }: LayoutInput<'_>,
     ) -> Result<Children> {
         focus.set_interactive(self.focusable);
         let style = self.style;
@@ -62,12 +76,12 @@ impl Widget_trait for Block {
 
     async fn render(
         &mut self,
-        Render_input {
+        RenderInput {
             focus,
             hitbox,
             scene,
             ..
-        }: Render_input<'_, '_>,
+        }: RenderInput<'_, '_>,
     ) -> Result<()> {
         let focused = self.focusable && focus.get();
         paint_block(scene, hitbox, &self.style, focused);
@@ -75,7 +89,7 @@ impl Widget_trait for Block {
     }
 }
 
-fn paint_block(scene: &mut Scene<'_>, hitbox: Rect, style: &Block_style, focused: bool) {
+fn paint_block(scene: &mut Scene<'_>, hitbox: Rect, style: &BlockStyle, focused: bool) {
     let border = match focused {
         true => style.focused_border,
         false => style.border,

@@ -3,7 +3,7 @@ use crate::{
     config::BORDER_SIZE,
     constraint,
     geometry::Direction,
-    widget::{Layout_input, Render_input, Widget_trait},
+    widget::{LayoutInput, RenderInput, WidgetTrait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -20,12 +20,12 @@ impl Linebreak {
 }
 
 #[async_trait]
-impl Widget_trait for Linebreak {
+impl WidgetTrait for Linebreak {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             hitbox, problem, ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         problem
             .constrain(constraint!(
@@ -38,13 +38,13 @@ impl Widget_trait for Linebreak {
 
     async fn render(
         &mut self,
-        Render_input {
+        RenderInput {
             rerender,
             theme,
             hitbox,
             scene,
             ..
-        }: Render_input<'_, '_>,
+        }: RenderInput<'_, '_>,
     ) -> Result<()> {
         scene.fill_rect(hitbox, theme.affect(rerender).await?.semantic.border);
         Ok(())

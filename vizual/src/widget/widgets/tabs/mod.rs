@@ -6,33 +6,33 @@ use color_eyre::eyre::Result;
 use uuid::Uuid;
 
 use super::{
-    super::{Layout_input, Render_input, Shared_widget, Widget, Widget_trait},
+    super::{LayoutInput, RenderInput, SharedWidget, Widget, WidgetTrait},
     layout::axis::Axis,
     positioning::anchor::Anchor,
     text::Text,
 };
 use crate::{
     component::Children,
-    event::Key_code,
+    event::KeyCode,
     geometry::Direction,
     state::Store,
-    widget::widgets::positioning::anchor::{Anchor_position, Anchors},
+    widget::widgets::positioning::anchor::{AnchorPosition, Anchors},
 };
 
-use self::tab::{Tab, Tab_specification};
+use self::tab::{Tab, TabSpecification};
 use crate::utils;
 
 #[derive(Clone)]
 pub struct Tabs {
-    header: Shared_widget<Tab_bar>,
+    header: SharedWidget<TabBar>,
 }
 
 impl Tabs {
-    pub fn new(pages: Vec<Tab_specification>) -> Self {
+    pub fn new(pages: Vec<TabSpecification>) -> Self {
         let pages: Vec<Tab> = pages.into_iter().map(Tab::new).collect();
         let selected_page = Store::new(pages.first().map(|page| page.id).unwrap_or_default());
 
-        let header = Tab_bar::new(selected_page.clone(), pages);
+        let header = TabBar::new(selected_page.clone(), pages);
 
         Self {
             header: header.into_shared(),
@@ -46,12 +46,12 @@ struct Page {
 }
 
 #[derive(Clone)]
-struct Tab_bar {
+struct TabBar {
     selected_page: Store<Uuid>,
     pages: Vec<Page>,
 }
 
-impl Tab_bar {
+impl TabBar {
     fn new(selected_page: Store<Uuid>, tabs: Vec<Tab>) -> Self {
         Self {
             pages: tabs.into_iter().map(|tab| Page { tab }).collect(),
@@ -60,7 +60,7 @@ impl Tab_bar {
     }
 }
 
-impl Tab_bar {
+impl TabBar {
     fn find_id(&self, id: Uuid) -> Option<usize> {
         self.pages.iter().position(|page| page.tab.id == id)
     }
@@ -90,16 +90,16 @@ impl Tab_bar {
 }
 
 #[async_trait]
-impl Widget_trait for Tab_bar {
+impl WidgetTrait for TabBar {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             focus,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         focus.set_interactive(true);
         let mut buttons: Vec<Widget> = Vec::with_capacity(self.pages.len());
@@ -118,7 +118,7 @@ impl Widget_trait for Tab_bar {
             let button = Anchor::new(
                 button,
                 Anchors {
-                    vertical: Some(Anchor_position::Middle),
+                    vertical: Some(AnchorPosition::Middle),
                     horizontal: None,
                 },
             );
@@ -131,48 +131,48 @@ impl Widget_trait for Tab_bar {
 
     async fn on_key_press(
         &mut self,
-        input: crate::widget::Key_press<'_>,
-    ) -> Result<crate::Vizual_msg> {
+        input: crate::widget::KeyPress<'_>,
+    ) -> Result<crate::VizualMsg> {
         let key = input.key;
-        if let Key_code::Character(char) = key.code
+        if let KeyCode::Character(char) = key.code
             && let Some(digit) = char.to_digit(10)
         {
             let digit = digit as usize;
             if digit >= self.pages.len() {
-                return crate::Vizual_msg::none();
+                return crate::VizualMsg::none();
             }
 
             if digit == self.get_page_index().await? {
-                return crate::Vizual_msg::new(crate::Vizual_command::None);
+                return crate::VizualMsg::new(crate::VizualCommand::None);
             }
 
             self.set_page_index(digit).await?;
-            return crate::Vizual_msg::none();
+            return crate::VizualMsg::none();
         }
 
         if let Some(page_index) =
             utils::handle_keys_for_iterable(key, self.pages.len(), self.get_page_index().await?)
         {
             self.set_page_index(page_index).await?;
-            return crate::Vizual_msg::none();
+            return crate::VizualMsg::none();
         }
 
-        crate::Vizual_msg::none()
+        crate::VizualMsg::none()
     }
 
-    async fn render(&mut self, Render_input { focus, .. }: Render_input<'_, '_>) -> Result<()> {
+    async fn render(&mut self, RenderInput { focus, .. }: RenderInput<'_, '_>) -> Result<()> {
         focus.set_interactive(true);
         Ok(())
     }
 }
 
 #[async_trait]
-impl Widget_trait for Tabs {
+impl WidgetTrait for Tabs {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             slots, relayout, ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let selected = self.header.lock().await?.get_selected(relayout).await?;
         let axis = match selected {

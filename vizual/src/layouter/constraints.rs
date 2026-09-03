@@ -1,6 +1,6 @@
 use super::hitbox::Hitbox;
 use crate::{
-    component::Child, component::context::Component_context, config::MAXIMUM_LAYOUT_VALUE,
+    component::Child, component::context::ComponentContext, config::MAXIMUM_LAYOUT_VALUE,
     constraint, geometry::Direction,
 };
 use color_eyre::eyre::Result;
@@ -8,7 +8,7 @@ use color_eyre::eyre::Result;
 /// Shrink-wraps each component edge around the corresponding child edges.
 ///
 pub async fn shrink_wrap(
-    problem: &Component_context,
+    problem: &ComponentContext,
     hitbox: Hitbox,
     children: &[Child],
     direction: Direction,
@@ -58,7 +58,7 @@ pub async fn shrink_wrap(
 }
 
 pub async fn prohibit_overlap(
-    problem: &Component_context,
+    problem: &ComponentContext,
     first: Hitbox,
     second: Hitbox,
     gap: f64,

@@ -2,20 +2,20 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use parley::Layout;
 
-use super::super::{Layout_input, Render_input, Widget_trait};
+use super::super::{LayoutInput, RenderInput, WidgetTrait};
 use crate::{
     geometry::{Direction, Size},
-    graphics::text::{Styled_text, Text_brush},
-    widget::widgets::text::Text_style,
+    graphics::text::{StyledText, TextBrush},
+    widget::widgets::text::TextStyle,
 };
 
 /// Text which wraps to its resolved width and clips any overflow outside its resolved height.
 #[derive(Clone)]
 pub struct Paragraph {
-    content: Styled_text,
+    content: StyledText,
     static_direction: Direction,
     static_size: f64,
-    cached_layout: Option<Layout<Text_brush>>,
+    cached_layout: Option<Layout<TextBrush>>,
 }
 
 impl Paragraph {
@@ -24,21 +24,21 @@ impl Paragraph {
     pub fn new(direction: Direction, size: f64) -> Self {
         assert!(size.is_finite() && size >= 0.0);
         Self {
-            content: Styled_text::styled("", Text_style::default()),
+            content: StyledText::styled("", TextStyle::default()),
             static_direction: direction,
             static_size: size,
             cached_layout: None,
         }
     }
 
-    pub fn set_styled_content(&mut self, content: impl Into<String>, style: Text_style) {
-        self.content = Styled_text::styled(content, style);
+    pub fn set_styled_content(&mut self, content: impl Into<String>, style: TextStyle) {
+        self.content = StyledText::styled(content, style);
         self.cached_layout = None;
     }
 
     async fn width_for_height(
         &self,
-        text_context: &crate::graphics::text::Text_context,
+        text_context: &crate::graphics::text::TextContext,
     ) -> Result<f64> {
         let unwrapped = text_context.build_layout(&self.content).await?;
         let natural_width = f64::from(unwrapped.full_width());
@@ -74,8 +74,8 @@ impl Paragraph {
 
     async fn compute_layout(
         &self,
-        text_context: &crate::graphics::text::Text_context,
-    ) -> Result<(Size, Layout<Text_brush>)> {
+        text_context: &crate::graphics::text::TextContext,
+    ) -> Result<(Size, Layout<TextBrush>)> {
         match self.static_direction {
             Direction::Horizontal => {
                 let layout = text_context
@@ -97,15 +97,15 @@ impl Paragraph {
 }
 
 #[async_trait]
-impl Widget_trait for Paragraph {
+impl WidgetTrait for Paragraph {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             hitbox,
             problem,
             text_context,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<crate::component::Children> {
         let (size, layout) = self.compute_layout(text_context).await?;
         self.cached_layout = Some(layout);
@@ -124,12 +124,12 @@ impl Widget_trait for Paragraph {
 
     async fn render(
         &mut self,
-        Render_input {
+        RenderInput {
             hitbox,
             scene,
             text_context,
             ..
-        }: Render_input<'_, '_>,
+        }: RenderInput<'_, '_>,
     ) -> Result<()> {
         if hitbox.size.width > 0.0 && hitbox.size.height > 0.0 {
             if let Some(layout) = &self.cached_layout {

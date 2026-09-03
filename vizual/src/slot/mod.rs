@@ -12,27 +12,27 @@ use color_eyre::eyre::Result;
 
 use crate::{
     component::{
-        Child_reference, Component, Shared_component, context::Component_context,
-        debug::Component_debug,
+        ChildReference, Component, SharedComponent, context::ComponentContext,
+        debug::ComponentDebug,
     },
     layouter::hitbox::Hitbox,
     sync::Mutex,
-    widget::Widget_trait,
+    widget::WidgetTrait,
 };
 
-use self::manager::Slot_records;
+use self::manager::SlotRecords;
 
 static NEXT_COMPONENT_NAME: AtomicU64 = AtomicU64::new(1);
 static NEXT_COMPONENT_ID: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone)]
-pub struct Component_slot {
-    reference: Child_reference,
+pub struct ComponentSlot {
+    reference: ChildReference,
     name: String,
     path: String,
 }
 
-impl Component_slot {
+impl ComponentSlot {
     #[track_caller]
     pub fn new() -> Self {
         Self::new_at(Location::caller())
@@ -46,13 +46,13 @@ impl Component_slot {
         }
     }
 
-    pub fn get_reference(&self) -> Child_reference {
+    pub fn get_reference(&self) -> ChildReference {
         self.reference.clone()
     }
 
     pub(crate) async fn dismount(&mut self) -> Result<()> {
         if let Some(component) = self.reference.upgrade() {
-            Shared_component::new(component).dismount().await?;
+            SharedComponent::new(component).dismount().await?;
         }
         self.reference = Weak::new();
         Ok(())
@@ -60,27 +60,27 @@ impl Component_slot {
 
     pub async fn set(
         &mut self,
-        widget: impl Widget_trait,
-        problem: Component_context,
-    ) -> Result<Shared_component> {
+        widget: impl WidgetTrait,
+        problem: ComponentContext,
+    ) -> Result<SharedComponent> {
         self.set_with_parent(widget, problem, None).await
     }
 
     pub async fn set_child(
         &mut self,
-        widget: impl Widget_trait,
-        problem: Component_context,
+        widget: impl WidgetTrait,
+        problem: ComponentContext,
         parent: &Hitbox,
-    ) -> Result<Shared_component> {
+    ) -> Result<SharedComponent> {
         self.set_with_parent(widget, problem, Some(parent)).await
     }
 
     async fn set_with_parent(
         &mut self,
-        widget: impl Widget_trait,
-        mut problem: Component_context,
+        widget: impl WidgetTrait,
+        mut problem: ComponentContext,
         parent: Option<&Hitbox>,
-    ) -> Result<Shared_component> {
+    ) -> Result<SharedComponent> {
         let widget = widget.as_any();
 
         problem.component_path.push(self.name.clone());
@@ -101,7 +101,7 @@ impl Component_slot {
                 reference.hitbox.make_independent();
             }
 
-            Shared_component::new(lock.clone())
+            SharedComponent::new(lock.clone())
         } else {
             let mut hitbox = Hitbox::new(
                 &variables,
@@ -113,10 +113,10 @@ impl Component_slot {
                 hitbox.make_independent();
             }
 
-            let lock = Shared_component::new(Arc::new(Mutex::new(Component {
+            let lock = SharedComponent::new(Arc::new(Mutex::new(Component {
                 id: NEXT_COMPONENT_ID.fetch_add(1, Ordering::Relaxed),
                 name: self.name.clone(),
-                debug: Component_debug::new(self.path.clone()),
+                debug: ComponentDebug::new(self.path.clone()),
                 hitbox,
                 formula: None,
                 variables,
@@ -125,7 +125,7 @@ impl Component_slot {
                 children: Vec::new(),
                 layout_children: Vec::new(),
                 parent: None,
-                slot_manager: Slot_records::new(problem),
+                slot_manager: SlotRecords::new(problem),
                 logical: false,
                 mask: false,
             })));
@@ -138,7 +138,7 @@ impl Component_slot {
     }
 }
 
-impl Default for Component_slot {
+impl Default for ComponentSlot {
     fn default() -> Self {
         Self::new()
     }

@@ -22,7 +22,6 @@ which I haven't implemented because they are complex and make the code even less
 - tab refocuses without clicking
 - in apps like react the same lifetime used to track widget is the same as the component lifetime ie. a stable id used in slots.set() means you dont have to store menu under `Shared_widget<Menu>`. Since Menu needs to keep state of the selected item
 - make scroll bars draggable
-- fix the occasional ~500 ms stutter during scrolling
 - figure out a better Paragraph sizing and constraint-negotiation model
 - switch to vello hybrid
 - Switch to microlp once it adds presolve and priorities
@@ -38,9 +37,6 @@ which I haven't implemented because they are complex and make the code even less
 - Implement scaling fonts down for constrained layouts, which is useful on
   mobile screens.
 - a widget shouldn't have to reconcile itself between system theme or override
-- When Winit exposes cross-platform window-size negotiation, let the window
-  manager propose a size and have Vizual respond with a supported size instead
-  of calculating and publishing a minimum window size in advance.
 - Make the Vizual Configurator save popup work.
 - Create a dedicated demo of `Alignments` capabilities; the current Vizual
   Configurator does not fit the concept well enough to demonstrate them.

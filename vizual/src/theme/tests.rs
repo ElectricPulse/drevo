@@ -2,21 +2,21 @@ use super::*;
 
 #[test]
 fn system_theme_tracks_system_changes() {
-    let theme = system_theme(System_theme::Dark).set_system(System_theme::Light);
+    let theme = system_theme(SystemTheme::Dark).set_system(SystemTheme::Light);
 
-    assert_eq!(theme.mode(), System_theme::Light);
-    assert_eq!(theme.system(), System_theme::Light);
+    assert_eq!(theme.mode(), SystemTheme::Light);
+    assert_eq!(theme.system(), SystemTheme::Light);
     assert!(theme.follows_system());
 }
 
 #[test]
 fn explicit_theme_keeps_its_mode_when_the_system_changes() {
-    let theme = system_theme(System_theme::Dark)
-        .select(System_theme::Dark)
-        .set_system(System_theme::Light);
+    let theme = system_theme(SystemTheme::Dark)
+        .select(SystemTheme::Dark)
+        .set_system(SystemTheme::Light);
 
-    assert_eq!(theme.mode(), System_theme::Dark);
-    assert_eq!(theme.system(), System_theme::Light);
+    assert_eq!(theme.mode(), SystemTheme::Dark);
+    assert_eq!(theme.system(), SystemTheme::Light);
     assert!(!theme.follows_system());
 }
 
@@ -43,7 +43,7 @@ fn fluent_neutral_surfaces_progress_inward() {
     let light = light_theme();
     assert_eq!(
         light.specific.body.block.background,
-        light.semantic.background.lighten(LIGHT_STEP)
+        light.semantic.background.darken(LIGHT_STEP)
     );
     assert_eq!(
         light.specific.paper.block.background,
@@ -57,6 +57,15 @@ fn fluent_neutral_surfaces_progress_inward() {
         light.specific.button.highlight,
         light.specific.button.block.background.darken(15)
     );
+}
+
+#[test]
+fn header_uses_the_base_background_without_a_border() {
+    for theme in [dark_theme(), light_theme()] {
+        assert_eq!(theme.specific.header.background, theme.semantic.background);
+        assert_eq!(theme.specific.header.border.thickness, 0.0);
+        assert_eq!(theme.specific.header.focused_border.thickness, 0.0);
+    }
 }
 
 #[test]

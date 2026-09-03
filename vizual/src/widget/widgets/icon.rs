@@ -1,29 +1,29 @@
 use async_trait::async_trait;
 use color_eyre::Result;
-use lucide_icons::Icon as Lucide_icon;
+use lucide_icons::Icon as LucideIcon;
 use parley::Layout;
 
 use super::{
-    super::{Layout_input, Render_input, Widget_trait},
-    text::Text_style,
+    super::{LayoutInput, RenderInput, WidgetTrait},
+    text::TextStyle,
 };
 use crate::{
     component::Children,
     geometry::{Direction, Point, Size},
-    graphics::text::{Styled_text, Text_brush, icon_ink_bounds},
+    graphics::text::{StyledText, TextBrush, icon_ink_bounds},
     state::State,
     style::Style,
 };
 
 #[derive(Clone)]
 pub struct Icon {
-    icon: State<Lucide_icon>,
-    pub style: Style<Text_style>,
-    cached_layout: Option<(Point, Layout<Text_brush>)>,
+    icon: State<LucideIcon>,
+    pub style: Style<TextStyle>,
+    cached_layout: Option<(Point, Layout<TextBrush>)>,
 }
 
 impl Icon {
-    pub fn new(icon: impl Into<State<Lucide_icon>>) -> Self {
+    pub fn new(icon: impl Into<State<LucideIcon>>) -> Self {
         Self {
             icon: icon.into(),
             style: Style::default(),
@@ -33,23 +33,23 @@ impl Icon {
 }
 
 #[async_trait]
-impl Widget_trait for Icon {
+impl WidgetTrait for Icon {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             relayout,
             theme,
             hitbox,
             problem,
             text_context,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         let icon = *self.icon.affect(relayout.clone()).await?;
         let theme = theme.affect(relayout).await?;
         let style = self.style.get(&theme);
         let layout = text_context
-            .build_layout(&Styled_text::icon(icon, style))
+            .build_layout(&StyledText::icon(icon, style))
             .await?;
         let bounds = icon_ink_bounds(&layout, icon, style.size);
         let size = bounds.map_or_else(
@@ -73,14 +73,14 @@ impl Widget_trait for Icon {
 
     async fn render(
         &mut self,
-        Render_input {
+        RenderInput {
             rerender,
             theme,
             hitbox,
             scene,
             text_context,
             ..
-        }: Render_input<'_, '_>,
+        }: RenderInput<'_, '_>,
     ) -> Result<()> {
         if let Some((offset, layout)) = &self.cached_layout {
             let origin = Point::new(hitbox.origin.x + offset.x, hitbox.origin.y + offset.y);

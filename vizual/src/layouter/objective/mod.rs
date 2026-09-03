@@ -1,7 +1,7 @@
 use color_eyre::eyre::{Result, ensure, eyre};
 
 use super::{Formula, PRIORITY_LEVELS, Problem, expression::Expression, variable::Variable};
-use crate::{component::context::Component_context, constraint};
+use crate::{component::context::ComponentContext, constraint};
 
 #[cfg(test)]
 mod tests;
@@ -13,13 +13,13 @@ pub enum Objective {
     Maximize,
     Minimize,
     #[default]
-    Minimize_delta,
+    MinimizeDelta,
 }
 
 impl Objective {
     pub async fn apply(
         self,
-        problem: &Component_context,
+        problem: &ComponentContext,
         expression: Expression,
         target: f64,
         delta: Delta,
@@ -38,7 +38,7 @@ impl Objective {
                     .await?;
                 problem.minimize(expression, priority).await
             }
-            Self::Minimize_delta => {
+            Self::MinimizeDelta => {
                 problem
                     .minimize_delta(expression, target, delta, priority)
                     .await

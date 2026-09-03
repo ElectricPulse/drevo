@@ -4,36 +4,36 @@ pub(crate) mod debug;
 use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
 use std::sync::{Arc, Weak};
-use vello::{Scene as Vello_scene, kurbo::Affine};
+use vello::{Scene as VelloScene, kurbo::Affine};
 
 use crate::{
     Signal,
-    focus::Focused_path,
+    focus::FocusedPath,
     geometry::Direction,
-    graphics::text::Text_context,
+    graphics::text::TextContext,
     layouter::{Formula, Solution, hitbox::Hitbox, variables::Variables},
-    slot::manager::Slot_records,
+    slot::manager::SlotRecords,
     state::Store,
     sync::{Mutex, MutexGuard},
     theme::Theme,
-    widget::{Focus_provider, Layout_input, Render_input, Widget},
+    widget::{FocusProvider, LayoutInput, RenderInput, Widget},
 };
 
-use self::{context::Component_context, debug::Component_debug};
+use self::{context::ComponentContext, debug::ComponentDebug};
 
 pub type Id = u64;
 
-pub type Child = Shared_component;
+pub type Child = SharedComponent;
 
 pub type Children = Vec<Child>;
 
-pub type Parent = Option<Child_reference>;
+pub type Parent = Option<ChildReference>;
 
 pub struct Component {
     /// Stable identity used by layout-state subscriptions.
     pub(crate) id: Id,
     pub name: String,
-    pub(crate) debug: Component_debug,
+    pub(crate) debug: ComponentDebug,
     pub(crate) hitbox: Hitbox,
     pub(crate) formula: Option<Formula>,
     pub(crate) variables: Arc<Variables>,
@@ -46,7 +46,7 @@ pub struct Component {
     pub children: Children,
     /// Includes logical children, which participate in layout and formula assembly.
     pub(crate) layout_children: Children,
-    pub slot_manager: Slot_records,
+    pub slot_manager: SlotRecords,
     /// Marks this component as a logical child rather than a graphical child.
     ///
     /// Excludes the component from the layout parent's `children` list after `layout`,
@@ -59,22 +59,22 @@ pub struct Component {
 
 /// A component as attached to its parent.
 #[derive(Clone)]
-pub struct Shared_component {
+pub struct SharedComponent {
     component: Arc<Mutex<Component>>,
 }
 
-pub struct Render_context<'a> {
-    pub(crate) focused_path: &'a Focused_path,
+pub struct RenderContext<'a> {
+    pub(crate) focused_path: &'a FocusedPath,
     pub(crate) solution: &'a Solution,
 }
 
-impl From<Shared_component> for Parent {
-    fn from(value: Shared_component) -> Self {
+impl From<SharedComponent> for Parent {
+    fn from(value: SharedComponent) -> Self {
         Some(value.as_reference())
     }
 }
 
-impl Shared_component {
+impl SharedComponent {
     pub fn new(component: Arc<Mutex<Component>>) -> Self {
         Self { component }
     }
@@ -83,7 +83,7 @@ impl Shared_component {
         self.component.lock().await
     }
 
-    pub fn compare(&self, node: &Shared_component) -> bool {
+    pub fn compare(&self, node: &SharedComponent) -> bool {
         Arc::ptr_eq(&self.component, &node.component)
     }
 
@@ -91,7 +91,7 @@ impl Shared_component {
         Arc::as_ptr(&self.component) as usize
     }
 
-    pub fn as_reference(&self) -> Child_reference {
+    pub fn as_reference(&self) -> ChildReference {
         Arc::downgrade(&self.component)
     }
 
@@ -137,7 +137,7 @@ impl Shared_component {
     pub async fn share_dimension(
         &self,
         parent: Hitbox,
-        problem: &Component_context,
+        problem: &ComponentContext,
         direction: Direction,
     ) -> Result<()> {
         self.lock()
@@ -162,12 +162,12 @@ impl Shared_component {
         &mut self,
         rerender: Signal,
         theme: Store<Theme>,
-        focused_path: &Focused_path,
+        focused_path: &FocusedPath,
         parent_reference: Parent,
         parent: Hitbox,
-        _problem: Component_context,
-        text_context: &mut Text_context,
-        root: &Shared_component,
+        _problem: ComponentContext,
+        text_context: &mut TextContext,
+        root: &SharedComponent,
     ) -> Result<Children> {
         let mut this = self.lock().await?;
 
@@ -178,7 +178,7 @@ impl Shared_component {
         // Slots reset a child before its parent configures it.  Parent layouts (such as Axis)
         // deliberately mark child edges independent before the child's own layout begins, so a
         // second reset here would erase that parent-owned choice.
-        let mut problem = Component_context::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
+        let mut problem = ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
             &this.variables,
         )))));
 
@@ -197,11 +197,11 @@ impl Shared_component {
 
             slot_manager.set_problem(problem.clone());
 
-            let mut focus = Focus_provider::new(focused_path.contains(self));
+            let mut focus = FocusProvider::new(focused_path.contains(self));
 
             let children = {
                 let mut slots = slot_manager.slots(hitbox);
-                let input = Layout_input {
+                let input = LayoutInput {
                     relayout,
                     theme,
                     focus: &mut focus,
@@ -244,11 +244,11 @@ impl Shared_component {
         &mut self,
         rerender: Signal,
         theme: Store<Theme>,
-        focused_path: &Focused_path,
+        focused_path: &FocusedPath,
         children: Children,
-        mut problem: Component_context,
-        text_context: &mut Text_context,
-        root: &Shared_component,
+        mut problem: ComponentContext,
+        text_context: &mut TextContext,
+        root: &SharedComponent,
     ) -> Result<()> {
         let hitbox = {
             let component = self.lock().await?;
@@ -294,8 +294,8 @@ impl Shared_component {
         rerender: crate::Signal,
         theme: Store<Theme>,
         scene: &mut crate::graphics::scene::Scene<'_>,
-        text_context: &mut Text_context,
-        context: &Render_context<'_>,
+        text_context: &mut TextContext,
+        context: &RenderContext<'_>,
     ) -> Result<()> {
         let (is_mask, hitbox, children) = {
             let this = self.lock().await?;
@@ -307,7 +307,7 @@ impl Shared_component {
         };
 
         if is_mask {
-            let mut logical_scene = Vello_scene::new();
+            let mut logical_scene = VelloScene::new();
             {
                 let mut logical_scene_wrapper =
                     crate::graphics::scene::Scene::new(&mut logical_scene);
@@ -365,8 +365,8 @@ impl Shared_component {
         rerender: Signal,
         theme: Store<Theme>,
         scene: &mut crate::graphics::scene::Scene<'_>,
-        text_context: &mut Text_context,
-        context: &Render_context<'_>,
+        text_context: &mut TextContext,
+        context: &RenderContext<'_>,
     ) -> Result<()> {
         let hitbox = {
             let this = self.lock().await?;
@@ -375,8 +375,8 @@ impl Shared_component {
 
         let mut this = self.lock().await?;
         let focused = context.focused_path.contains(self);
-        let mut focus = Focus_provider::new(focused);
-        let input = Render_input {
+        let mut focus = FocusProvider::new(focused);
+        let input = RenderInput {
             rerender,
             theme,
             focus: &mut focus,
@@ -392,7 +392,7 @@ impl Shared_component {
     }
 }
 
-pub type Child_reference = Weak<Mutex<Component>>;
+pub type ChildReference = Weak<Mutex<Component>>;
 
 #[cfg(test)]
 mod tests;
