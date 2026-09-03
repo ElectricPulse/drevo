@@ -83,8 +83,7 @@ impl WidgetTrait for Block {
             ..
         }: RenderInput<'_, '_>,
     ) -> Result<()> {
-        let focused = self.focusable && focus.get();
-        paint_block(scene, hitbox, &self.style, focused);
+        paint_block(scene, hitbox, &self.style, self.focusable && focus.get());
         Ok(())
     }
 }

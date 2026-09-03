@@ -10,10 +10,13 @@
 pub mod constraint;
 pub mod constraints;
 pub mod expression;
+pub mod formula;
 pub mod hitbox;
 pub mod objective;
 pub mod variable;
 pub mod variables;
+
+pub use formula::Formula;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -101,38 +104,6 @@ pub struct Problem {
     objectives: [PriorityObjective; PRIORITY_LEVELS],
     pub(crate) variables: Arc<Variables>,
     declared_variables: HashSet<SolverVariable>,
-}
-
-/// The declarations produced by one component's `layout` call.
-///
-/// A formula is intentionally independent from the transient `Problem` used by a solve.  The
-/// latter is rebuilt from the live component tree, while this value is retained by its owner.
-#[derive(Clone)]
-pub struct Formula {
-    /// Helper variables declared while this component's layout is evaluated.
-    pub(crate) variables: Vec<Variable>,
-    pub(crate) constraints: Vec<Constraint>,
-    pub(crate) objectives: [PriorityObjective; PRIORITY_LEVELS],
-    pub(crate) registry: Arc<Variables>,
-}
-
-impl Formula {
-    pub fn new(variables: Arc<Variables>) -> Self {
-        Self {
-            variables: Vec::new(),
-            constraints: Vec::new(),
-            objectives: std::array::from_fn(|_| Vec::new()),
-            registry: variables,
-        }
-    }
-
-    pub(crate) fn registry(&self) -> Arc<Variables> {
-        Arc::clone(&self.registry)
-    }
-
-    pub(crate) fn constrain(&mut self, constraint: Constraint) {
-        self.constraints.push(constraint);
-    }
 }
 
 impl Problem {

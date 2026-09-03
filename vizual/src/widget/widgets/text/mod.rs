@@ -1,3 +1,5 @@
+pub mod ansi;
+
 use super::super::{LayoutInput, RenderInput, WidgetTrait};
 use async_trait::async_trait;
 use color_eyre::Result;

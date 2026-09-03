@@ -2,8 +2,7 @@ use async_trait::async_trait;
 use color_eyre::Result;
 use std::sync::Arc;
 
-use super::super::{LayoutInput, RenderInput, WidgetTrait};
-use super::text::TextStyle;
+use super::TextStyle;
 use crate::{
     component::Children,
     geometry::Direction,
@@ -11,6 +10,7 @@ use crate::{
     state::{State, StateTrait, memoization::Memoization},
     style::Style,
     sync::Mutex,
+    widget::{LayoutInput, RenderInput, WidgetTrait},
 };
 
 #[cfg(test)]

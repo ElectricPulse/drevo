@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use derive_where::derive_where;
 use std::sync::{Arc, Weak};
+use winit::window::Window;
 
 use crate::{
     component::{Children, RenderContext, context::ComponentContext},
@@ -40,8 +41,7 @@ impl FocusProvider {
         }
     }
 
-    pub fn get(&mut self) -> bool {
-        self.set_interactive(true);
+    pub fn get(&self) -> bool {
         self.focused
     }
 
@@ -78,7 +78,7 @@ pub struct LayoutInput<'a> {
 pub struct RenderInput<'a, 'scene> {
     pub rerender: crate::Signal,
     pub theme: Store<Theme>,
-    pub focus: &'a mut FocusProvider,
+    pub focus: &'a FocusProvider,
     pub hitbox: Rect,
     pub scene: &'a mut Scene<'scene>,
     pub text_context: &'a mut TextContext,
@@ -88,21 +88,25 @@ pub struct RenderInput<'a, 'scene> {
 pub struct AllEvents<'a> {
     pub event: &'a Event,
     pub relayout: Signal,
+    pub window: Option<Arc<Window>>,
 }
 
 pub struct MouseEvent<'a> {
     pub mouse: &'a PointerEvent,
     pub relayout: Signal,
+    pub window: Option<Arc<Window>>,
 }
 
 pub struct KeyPress<'a> {
     pub key: &'a KeyEvent,
     pub relayout: Signal,
+    pub window: Option<Arc<Window>>,
 }
 
 pub struct OtherEvent<'a> {
     pub event: &'a Event,
     pub relayout: Signal,
+    pub window: Option<Arc<Window>>,
 }
 
 #[async_trait]
@@ -154,11 +158,17 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
         VizualMsg::none()
     }
 
-    async fn forward_event(&mut self, event: &Event, relayout: Signal) -> Result<VizualMsg> {
+    async fn forward_event(
+        &mut self,
+        event: &Event,
+        relayout: Signal,
+        window: Arc<Window>,
+    ) -> Result<VizualMsg> {
         let msg = self
             .on_all_events(AllEvents {
                 event,
                 relayout: relayout.clone(),
+                window: Some(Arc::clone(&window)),
             })
             .await?;
 
@@ -167,14 +177,31 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
         }
 
         if let Event::Key(key) = event {
-            return self.on_key_press(KeyPress { key, relayout }).await;
+            return self
+                .on_key_press(KeyPress {
+                    key,
+                    relayout,
+                    window: Some(window),
+                })
+                .await;
         }
 
         if let Event::Pointer(mouse) = event {
-            return self.on_mouse_click(MouseEvent { mouse, relayout }).await;
+            return self
+                .on_mouse_click(MouseEvent {
+                    mouse,
+                    relayout,
+                    window: Some(window),
+                })
+                .await;
         }
 
-        self.on_other_event(OtherEvent { event, relayout }).await
+        self.on_other_event(OtherEvent {
+            event,
+            relayout,
+            window: Some(window),
+        })
+            .await
     }
 
     fn as_any(self) -> Widget
@@ -234,8 +261,13 @@ impl WidgetTrait for Widget {
         (**self).on_other_event(input).await
     }
 
-    async fn forward_event(&mut self, event: &Event, relayout: Signal) -> Result<VizualMsg> {
-        (**self).forward_event(event, relayout).await
+    async fn forward_event(
+        &mut self,
+        event: &Event,
+        relayout: Signal,
+        window: Arc<Window>,
+    ) -> Result<VizualMsg> {
+        (**self).forward_event(event, relayout, window).await
     }
 }
 
@@ -304,9 +336,14 @@ impl<T: WidgetTrait + ?Sized> WidgetTrait for SharedWidget<T> {
         inner.on_other_event(input).await
     }
 
-    async fn forward_event(&mut self, event: &Event, relayout: Signal) -> Result<VizualMsg> {
+    async fn forward_event(
+        &mut self,
+        event: &Event,
+        relayout: Signal,
+        window: Arc<Window>,
+    ) -> Result<VizualMsg> {
         let mut inner = self.0.lock().await?;
-        inner.forward_event(event, relayout).await
+        inner.forward_event(event, relayout, window).await
     }
 }
 

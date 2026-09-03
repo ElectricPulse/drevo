@@ -1,4 +1,4 @@
-use crate::macros::display;
+use crate::{VizualMsg, event::PointerButton, macros::display, widget::MouseEvent};
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
@@ -40,9 +40,12 @@ impl WidgetTrait for Header {
             relayout,
             theme,
             slots,
+            focus,
             ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
+        focus.set_interactive(true);
+
         let theme = theme.affect(relayout).await?;
         let mut name = Text::new(self.name.clone());
         name.style.set(theme.specific.text.title);
@@ -65,5 +68,15 @@ impl WidgetTrait for Header {
         );
 
         Ok(vec![display!(Grid::new((name, settings), 0.0))])
+    }
+
+    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<VizualMsg> {
+        if input.mouse.button == PointerButton::Primary
+            && let Some(window) = input.window
+        {
+            let _ = window.drag_window();
+        }
+
+        VizualMsg::none()
     }
 }

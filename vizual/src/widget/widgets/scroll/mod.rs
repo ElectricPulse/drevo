@@ -207,10 +207,8 @@ impl WidgetTrait for Scroll {
 
     async fn render(
         &mut self,
-        RenderInput { focus, context, .. }: RenderInput<'_, '_>,
+        RenderInput { context, .. }: RenderInput<'_, '_>,
     ) -> Result<()> {
-        focus.set_interactive(true);
-
         if let Some(root_comp) = &self.root_component {
             if let Some((content_comp, child_comp)) =
                 find_scroll_content_and_child(root_comp).await?

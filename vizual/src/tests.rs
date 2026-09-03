@@ -36,8 +36,7 @@ impl WidgetTrait for FocusableBox {
         Ok(Vec::new())
     }
 
-    async fn render(&mut self, RenderInput { focus, .. }: RenderInput<'_, '_>) -> Result<()> {
-        focus.set_interactive(true);
+    async fn render(&mut self, RenderInput { .. }: RenderInput<'_, '_>) -> Result<()> {
         Ok(())
     }
 }
@@ -64,8 +63,7 @@ impl WidgetTrait for OffsetClick {
         Ok(Vec::new())
     }
 
-    async fn render(&mut self, RenderInput { focus, .. }: RenderInput<'_, '_>) -> Result<()> {
-        focus.set_interactive(true);
+    async fn render(&mut self, RenderInput { .. }: RenderInput<'_, '_>) -> Result<()> {
         Ok(())
     }
 

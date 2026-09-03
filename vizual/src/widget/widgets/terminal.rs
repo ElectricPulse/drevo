@@ -12,7 +12,6 @@ use async_trait::async_trait;
 use color_eyre::eyre::{Result, WrapErr, bail};
 
 use super::{
-    ansi::{Ansi, Content},
     button::Button,
     icon::Icon,
     layout::axis::Axis,
@@ -20,7 +19,7 @@ use super::{
     paragraph::Paragraph,
     positioning::anchor::Anchor,
     scroll::Scroll,
-    text::Text,
+    text::{Text, ansi::{Ansi, Content}},
 };
 use crate::{
     VizualCommand, VizualMsg,

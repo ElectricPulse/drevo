@@ -102,8 +102,9 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 &mut self,
                 event: &::vizual::event::Event,
                 relayout: ::vizual::Signal,
+                window: ::std::sync::Arc<::vizual::Window>,
             ) -> ::color_eyre::eyre::Result<::vizual::VizualMsg> {
-                ::vizual::widget::WidgetTrait::forward_event(&mut self.#field, event, relayout).await
+                ::vizual::widget::WidgetTrait::forward_event(&mut self.#field, event, relayout, window).await
             }
         }
     })

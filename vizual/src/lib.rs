@@ -59,8 +59,10 @@ use winit::{
     event::{ElementState, Ime, MouseButton, MouseScrollDelta, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     keyboard::{Key, ModifiersState, NamedKey},
-    window::{Theme as WindowTheme, Window, WindowId},
+    window::{Theme as WindowTheme, WindowId},
 };
+
+pub use winit::window::Window;
 
 use component::{ChildReference, SharedComponent, context::ComponentContext};
 use config::{DEFAULT_SCREEN_SIZE, MINIMUM_WINDOW_SIZE};
@@ -219,6 +221,7 @@ struct AppProblem {
     root_hitbox: Hitbox,
     variables: Arc<Variables>,
     rerender: Signal,
+    window: Option<Arc<Window>>,
 }
 
 impl AppProblem {
@@ -238,6 +241,7 @@ impl AppProblem {
             root_hitbox,
             variables,
             rerender,
+            window: None,
         })
     }
 
@@ -354,6 +358,7 @@ impl AppProblem {
         }
 
         focus.set(&node);
+        // It's easier to use drill_event even for a focus event while drill_event already needs to exist to pass on keyboard events
         let cmd = self.drill_event(event, focus).await?;
 
         self.signal_component(&node).await?;
@@ -386,6 +391,9 @@ impl AppProblem {
             return Err(eyre!("The last found parent should be the root"));
         }
 
+        let Some(window) = &self.window else {
+            return Ok(VizualCommand::None);
+        };
         let mut message = VizualMsg::none()?;
         for node in &nodes {
             let new_message = {
@@ -393,7 +401,7 @@ impl AppProblem {
                 let id = node.id;
                 let message = node
                     .widget
-                    .forward_event(event, self.rerender.for_component(id))
+                    .forward_event(event, self.rerender.for_component(id), Arc::clone(window))
                     .await?;
                 message
             };
@@ -597,6 +605,7 @@ impl AppProblem {
 
 enum UiInput {
     Initialize(Size),
+    Window(Arc<Window>),
     Event(Event),
     Resize(Size),
     Rerender,
@@ -620,8 +629,10 @@ async fn layout_problem<T: WidgetTrait>(
     root_slot: &mut ComponentSlot,
     text_context: &mut TextContext,
     variables: Arc<Variables>,
+    window: Option<Arc<Window>>,
 ) -> Result<AppProblem> {
     let mut problem = AppProblem::new(root, root_slot, variables, rerender.clone()).await?;
+    problem.window = window;
     log_duration(0, "app problem layout", || {
         problem.layout(rerender, theme, focus, text_context)
     })
@@ -642,6 +653,7 @@ async fn ui_loop<T: WidgetTrait>(
     let mut text_context = TextContext::new();
     let variables = Arc::new(Variables::new());
     let mut app_problem: Option<AppProblem> = None;
+    let mut window: Option<Arc<Window>> = None;
     let mut solution = None;
     let mut window_size = None;
     let mut render_open = true;
@@ -715,6 +727,13 @@ async fn ui_loop<T: WidgetTrait>(
         let layout_request_started = matches!(&input, UiInput::Layout(_)).then(Instant::now);
         let mut relayout = false;
         let mut command = match input {
+            UiInput::Window(value) => {
+                window = Some(Arc::clone(&value));
+                if let Some(problem) = &mut app_problem {
+                    problem.window = Some(value);
+                }
+                continue;
+            }
             UiInput::SystemTheme(system) => {
                 let updated = theme.read().await?.set_system(system);
                 theme.set(updated).await?;
@@ -746,10 +765,7 @@ async fn ui_loop<T: WidgetTrait>(
             }
             UiInput::Rerender => VizualCommand::Render,
             UiInput::Layout(ids) => {
-                log_info(
-                    0,
-                    format_args!("RenderRequest::Layout components: {ids:?}"),
-                );
+                log_info(0, format_args!("RenderRequest::Layout components: {ids:?}"));
                 if let Some(problem) = &app_problem {
                     for id in ids {
                         let _ = problem.root.invalidate_formula(id).await?;
@@ -791,6 +807,7 @@ async fn ui_loop<T: WidgetTrait>(
                 &mut root_slot,
                 &mut text_context,
                 Arc::clone(&variables),
+                window.clone(),
             )
             .await?;
             solution = Some(problem.solve(size).await?);
@@ -930,9 +947,10 @@ impl WindowApp {
         self.renderer = Some(renderer);
         self.state = Some(RenderState {
             surface,
-            window,
+            window: Arc::clone(&window),
             valid,
         });
+        let _ = self.input.send(UiInput::Window(window));
         if valid {
             self.send_size();
         }

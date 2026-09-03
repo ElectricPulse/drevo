@@ -37,6 +37,7 @@ async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
             .on_key_press(crate::widget::KeyPress {
                 key: &right,
                 relayout: manager.rerender.for_component(0),
+                window: None,
             })
             .await?;
     }
@@ -62,6 +63,7 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
         .on_other_event(crate::widget::OtherEvent {
             event: &event,
             relayout: manager.rerender.for_component(0),
+            window: None,
         })
         .await?;
     assert!(!message.has_command());
@@ -73,6 +75,7 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
         .on_other_event(crate::widget::OtherEvent {
             event: &event,
             relayout: manager.rerender.for_component(0),
+            window: None,
         })
         .await?;
     assert!(!message.has_command());

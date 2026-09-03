@@ -56,6 +56,7 @@ async fn menu_item_container_submits_on_enter() -> Result<()> {
                 repeat: false,
             },
             relayout: manager.rerender.for_component(0),
+            window: None,
         })
         .await?;
 

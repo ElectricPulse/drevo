@@ -41,6 +41,7 @@ async fn settings_button_focus_can_navigate_the_menu_with_arrow_keys() -> Result
                 repeat: false,
             },
             relayout: manager.rerender.for_component(0),
+            window: None,
         })
         .await?;
 

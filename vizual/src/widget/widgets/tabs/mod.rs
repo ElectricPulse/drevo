@@ -160,8 +160,7 @@ impl WidgetTrait for TabBar {
         crate::VizualMsg::none()
     }
 
-    async fn render(&mut self, RenderInput { focus, .. }: RenderInput<'_, '_>) -> Result<()> {
-        focus.set_interactive(true);
+    async fn render(&mut self, RenderInput { .. }: RenderInput<'_, '_>) -> Result<()> {
         Ok(())
     }
 }

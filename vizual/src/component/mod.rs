@@ -374,19 +374,17 @@ impl SharedComponent {
         };
 
         let mut this = self.lock().await?;
-        let focused = context.focused_path.contains(self);
-        let mut focus = FocusProvider::new(focused);
+        let focus = FocusProvider::new(context.focused_path.contains(self));
         let input = RenderInput {
             rerender,
             theme,
-            focus: &mut focus,
+            focus: &focus,
             hitbox,
             scene,
             text_context,
             context,
         };
         this.widget.render(input).await?;
-        this.focusable = focus.is_active();
 
         Ok(())
     }
