@@ -916,7 +916,7 @@ impl Problem {
         .await
     }
 
-    pub async fn solve(
+    pub(crate) async fn solve(
         &mut self,
         root: Hitbox,
         screen: Size,
@@ -925,13 +925,13 @@ impl Problem {
         let mut constraints = self.constraints.clone();
         Self::constrain_root_to_screen(&mut constraints, &root, screen);
 
-        log_duration(0, "layouting", true, None, || async {
+        log_duration(0, "layouting", true, || async {
             let mut objectives_array = self.objectives.clone();
             let root_width = root.get_dimension(Direction::Horizontal);
             let root_height = root.get_dimension(Direction::Vertical);
             objectives_array[2].push((root_width + root_height) * -1.0);
 
-            let objectives = log_duration(2, "filter objectives", false, None, async || {
+            let objectives = log_duration(2, "filter objectives", false, async || {
                 objectives_array
                     .iter()
                     .enumerate()

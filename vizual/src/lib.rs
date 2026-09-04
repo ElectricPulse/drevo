@@ -63,7 +63,7 @@ use winit::{
 pub use winit::window::Window;
 
 use component::{ChildReference, SharedComponent, context::ComponentContext};
-use config::{COPY_SOLUTION_TO_FORMULA, DEFAULT_SCREEN_SIZE, LAYOUT_TIMEOUT, MINIMUM_WINDOW_SIZE};
+use config::{COPY_SOLUTION_TO_FORMULA, DEFAULT_SCREEN_SIZE, MINIMUM_WINDOW_SIZE};
 use event::{
     Event, KeyCode, KeyEvent, Modifiers, PointerButton, PointerEvent, SCROLL_STEP, WheelEvent,
 };
@@ -617,7 +617,7 @@ async fn layout_problem<T: WidgetTrait>(
 ) -> Result<AppProblem> {
     let mut problem = AppProblem::new(root, root_slot, variables, rerender.clone()).await?;
     problem.window = window;
-    log_duration(0, "component layout()", false, Some(LAYOUT_TIMEOUT), || {
+    log_duration(0, "component layout()", false, || {
         problem.layout(rerender, theme, focus, text_context)
     })
     .await?;
@@ -797,7 +797,7 @@ async fn ui_loop<T: WidgetTrait>(
         if matches!(command, VizualCommand::Render)
             && let (Some(problem), Some(solution)) = (&mut app_problem, &solution)
         {
-            let scene = log_duration(0, "component render()", false, None, || {
+            let scene = log_duration(0, "component render()", false, || {
                 problem.render(
                     rerender.clone(),
                     theme.clone(),
