@@ -77,8 +77,14 @@ impl WidgetTrait for Axis {
         if self.limit_cross {
             // If the performance heavy lexicographic priorites are ever used and priorities become expensive a second algorithm as described here
             // can be used to avoid creating a new priority at the cost of a creating child elements count amount of binary variables:
-            // It selects one bounding element with a binary variable and forces that element's
-            // cross-axis start and end margins to zero.
+            //  For each child element it creates a binary variable that means true == this is the biggest element, false == this isn't the biggest element
+            //  Then it sets the sum of the binaries to be 1 so that only one element is biggest
+            //  Then for each element it says that (1 - binary) * very_big_number >= margin between element edge and hitbox edge
+            //  It does that constraint for both start and end edge of the cross direction
+            //  Which means that both edges need for every element to be independent
+            //  Then you say that all other elements must be inside the hitbox
+            //  Anchor::middle still works in this system because as of the time of writing this comment it calculates the start and end margin
+            //  as a difference of its own hitbox (which in this case it would duplicitly make independent) and the parent hitbox (which would still be axis)
             formula.minimize(id!(), hitbox.get_dimension(cross), 0)?;
         }
 
@@ -86,56 +92,6 @@ impl WidgetTrait for Axis {
             let element = slots.set(index as u64, element.clone()).await?;
             elements.push(element);
         }
-
-        // Second cross-axis system, kept for comparison. With objective blending enabled and a
-        // carefully chosen weight, the priority-0 system above may be faster than this one.
-        /*
-        let cross_start = hitbox.get_start_position(cross);
-        let cross_end = hitbox.get_end_position(cross);
-        let mut binaries = Vec::with_capacity(self.elements.len());
-
-        for element in &elements {
-
-
-            // Exactly one child is selected. Its nonnegative margins are forced to zero, so it
-            // is the bounding child: its distance from this axis hitbox (its parent) is zero.
-            let binary = formula.binary_variable(id!())?;
-            binaries.push(binary);
-            let start_margin = formula.variable(id!())?;
-            let end_margin = formula.variable(id!())?;
-            let start_adjuster = formula.bounded_variable(id!(), 0.0, f64::INFINITY, false)?;
-            let end_adjuster = formula.bounded_variable(id!(), 0.0, f64::INFINITY, false)?;
-            formula.constrain(id!(), constraint!(start_margin >= 0.0))?;
-            formula.constrain(id!(), constraint!(end_margin >= 0.0))?;
-            formula.constrain(
-                id!(),
-                constraint!((1.0 - binary) * MAXIMUM_LAYOUT_VALUE >= start_margin),
-            )?;
-            formula.constrain(
-                id!(),
-                constraint!((1.0 - binary) * MAXIMUM_LAYOUT_VALUE >= end_margin),
-            )?;
-            formula.constrain(
-                id!(),
-                constraint!(
-                    cross_start.clone() - element_hitbox.get_start_position(cross)
-                        == start_margin - start_adjuster
-                ),
-            )?;
-            formula.constrain(
-                id!(),
-                constraint!(
-                    cross_end.clone() - element_hitbox.get_end_position(cross)
-                        == end_margin - end_adjuster
-                ),
-            )?;
-        }
-
-        let binary_sum = binaries
-            .into_iter()
-            .fold(Expression::from(0.0), |sum, binary| sum + binary);
-        formula.constrain(id!(), constraint!(binary_sum == 1.0))?;
-        */
 
         if elements.len() >= 2 {
             let theme = theme.affect(relayout).await?;
