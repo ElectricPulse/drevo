@@ -165,7 +165,6 @@ impl SharedComponent {
         text_context: &mut TextContext,
         root: &SharedComponent,
     ) -> Result<Children> {
-        let started = Instant::now();
         let mut this = self.lock().await?;
 
         // Slots reset a child before its parent configures it.  Parent layouts (such as Axis)
@@ -174,14 +173,17 @@ impl SharedComponent {
         this.parent = parent_reference;
         problem.component_path.push(this.name.clone());
         this.formula.begin(problem.component_path.join("."));
+
         let start_x = this.hitbox.start.x;
         let start_y = this.hitbox.start.y;
         let end_x = this.hitbox.end.x;
         let end_y = this.hitbox.end.y;
+
         this.formula.register_variable("hitbox.start.x", start_x)?;
         this.formula.register_variable("hitbox.start.y", start_y)?;
         this.formula.register_variable("hitbox.end.x", end_x)?;
         this.formula.register_variable("hitbox.end.y", end_y)?;
+
         let relayout = rerender;
         let children = {
             let Component {
@@ -191,6 +193,7 @@ impl SharedComponent {
                 hitbox,
                 focusable,
                 mask,
+                debug,
                 ..
             } = &mut *this;
 
@@ -212,7 +215,19 @@ impl SharedComponent {
                     root,
                     mask,
                 };
+                let started = Instant::now();
                 let children = widget.layout(input).await?;
+                let elapsed = started.elapsed();
+                if elapsed > LAYOUT_TIMEOUT {
+                    log_info(
+                        0,
+                        format_args!(
+                            "widget layout() at {} took {:?}",
+                            debug.source_path(),
+                            elapsed,
+                        ),
+                    );
+                }
 
                 hitbox.constrain_shared(&parent, formula).await?;
 
@@ -233,19 +248,8 @@ impl SharedComponent {
                 non_logical_children.push(child.clone());
             }
         }
+        
         this.children = non_logical_children;
-
-        let elapsed = started.elapsed();
-        if elapsed > LAYOUT_TIMEOUT {
-            log_info(
-                0,
-                format_args!(
-                    "component layout() at {} took {:?}",
-                    this.debug.source_path(),
-                    elapsed,
-                ),
-            );
-        }
 
         Ok(children)
     }
