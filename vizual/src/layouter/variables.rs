@@ -182,7 +182,7 @@ impl Variables {
                 (
                     component.depth,
                     component.name.clone(),
-                    Some(component.source_path.clone()),
+                    Some(component.debug.source_path()),
                 )
             })
             .collect()

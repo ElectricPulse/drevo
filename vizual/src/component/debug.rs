@@ -22,7 +22,7 @@ impl ComponentDebug {
 pub(crate) struct ComponentSource {
     pub component_path: String,
     pub name: String,
-    pub source_path: String,
+    pub debug: ComponentDebug,
     pub depth: usize,
 }
 
@@ -39,11 +39,11 @@ impl SharedComponent {
         parent_path: String,
         depth: usize,
     ) -> Result<ComponentTree> {
-        let (name, source_path, children) = {
+        let (name, debug, children) = {
             let component = self.lock().await?;
             (
                 component.name.clone(),
-                component.debug.source_path.clone(),
+                component.debug.clone(),
                 component.children.clone(),
             )
         };
@@ -54,7 +54,7 @@ impl SharedComponent {
         let mut tree = vec![ComponentSource {
             component_path: component_path.clone(),
             name,
-            source_path,
+            debug,
             depth,
         }];
 
