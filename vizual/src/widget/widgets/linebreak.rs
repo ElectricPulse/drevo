@@ -24,14 +24,15 @@ impl WidgetTrait for Linebreak {
     async fn layout(
         &mut self,
         LayoutInput {
-            hitbox, problem, ..
+            hitbox,
+            formula: problem,
+            ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
-        problem
-            .constrain(constraint!(
-                hitbox.get_dimension(self.direction.flip()) == BORDER_SIZE
-            ))
-            .await?;
+        problem.constrain(
+            crate::id!(),
+            constraint!(hitbox.get_dimension(self.direction.flip()) == BORDER_SIZE),
+        )?;
 
         Ok(Vec::new())
     }

@@ -102,7 +102,7 @@ impl WidgetTrait for Paragraph {
         &mut self,
         LayoutInput {
             hitbox,
-            problem,
+            formula: problem,
             text_context,
             ..
         }: LayoutInput<'_>,
@@ -115,7 +115,7 @@ impl WidgetTrait for Paragraph {
             (Direction::Vertical, size.height),
         ] {
             hitbox
-                .set_static_dimension(&problem, direction, size)
+                .set_static_dimension(problem, direction, size)
                 .await?;
         }
 

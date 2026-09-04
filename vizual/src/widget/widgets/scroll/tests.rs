@@ -36,7 +36,7 @@ async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
         let _ = scroll
             .on_key_press(crate::widget::KeyPress {
                 key: &right,
-                relayout: manager.rerender.for_component(0),
+                relayout: manager.rerender.clone(),
                 window: None,
             })
             .await?;
@@ -62,7 +62,7 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
     let message = scroll
         .on_other_event(crate::widget::OtherEvent {
             event: &event,
-            relayout: manager.rerender.for_component(0),
+            relayout: manager.rerender.clone(),
             window: None,
         })
         .await?;
@@ -74,7 +74,7 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
     let message = scroll
         .on_other_event(crate::widget::OtherEvent {
             event: &event,
-            relayout: manager.rerender.for_component(0),
+            relayout: manager.rerender.clone(),
             window: None,
         })
         .await?;

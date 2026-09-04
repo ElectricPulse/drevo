@@ -3,10 +3,10 @@ use async_trait::async_trait;
 use color_eyre::Result;
 
 use crate::{
-    component::{Children, context::ComponentContext},
+    component::Children,
     constraint,
     geometry::Direction,
-    layouter::{hitbox::Hitbox, objective::Objective},
+    layouter::{Formula, hitbox::Hitbox, objective::Objective},
     widget::{LayoutInput, Widget, WidgetTrait},
 };
 
@@ -31,7 +31,7 @@ impl Align {
     }
 
     async fn align(
-        problem: &ComponentContext,
+        formula: &mut Formula,
         parent: &Hitbox,
         hitbox: &mut Hitbox,
         objective: Objective,
@@ -43,12 +43,12 @@ impl Align {
             Objective::Minimize => {
                 let start_margin =
                     hitbox.get_start_position(direction) - parent.get_start_position(direction);
-                problem.minimize(start_margin, priority).await
+                formula.minimize(crate::id!(), start_margin, priority)
             }
             Objective::Maximize => {
                 let end_margin =
                     parent.get_end_position(direction) - hitbox.get_end_position(direction);
-                problem.minimize(end_margin, priority).await
+                formula.minimize(crate::id!(), end_margin, priority)
             }
             Objective::MinimizeDelta => Ok(()),
         }
@@ -62,7 +62,7 @@ impl WidgetTrait for Align {
         LayoutInput {
             hitbox,
             parent,
-            problem,
+            formula: problem,
             slots,
             ..
         }: LayoutInput<'_>,
@@ -78,23 +78,25 @@ impl WidgetTrait for Align {
         }
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
-            problem
-                .constrain(constraint!(
+            problem.constrain(
+                crate::id!(),
+                constraint!(
                     hitbox.get_start_position(direction) >= parent.get_start_position(direction)
-                ))
-                .await?;
-            problem
-                .constrain(constraint!(
+                ),
+            )?;
+            problem.constrain(
+                crate::id!(),
+                constraint!(
                     hitbox.get_end_position(direction) <= parent.get_end_position(direction)
-                ))
-                .await?;
+                ),
+            )?;
         }
 
         if let Some(horizontal) = self.alignments.horizontal {
-            Self::align(&problem, &parent, hitbox, horizontal, Direction::Horizontal).await?;
+            Self::align(problem, &parent, hitbox, horizontal, Direction::Horizontal).await?;
         }
         if let Some(vertical) = self.alignments.vertical {
-            Self::align(&problem, &parent, hitbox, vertical, Direction::Vertical).await?;
+            Self::align(problem, &parent, hitbox, vertical, Direction::Vertical).await?;
         }
 
         Ok(vec![display!(self.child.clone())])

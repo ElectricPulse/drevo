@@ -12,7 +12,7 @@ fn higher_objective_priority_wins_lexicographically() -> Result<()> {
         (0, Expression::from(y.clone())),
     ];
 
-    let solution = problem.solve_objectives(&constraints, &objectives)?;
+    let solution = problem.solve_internal(&constraints, &objectives)?;
 
     assert_eq!(solution.value(&x), 10.0);
     assert_eq!(solution.value(&y), 0.0);

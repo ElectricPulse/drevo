@@ -28,7 +28,6 @@ pub mod widget;
 extern crate self as vizual;
 
 use std::{
-    collections::HashSet,
     fs::OpenOptions,
     path::Path,
     sync::{
@@ -44,7 +43,6 @@ use simplelog::{
     ColorChoice, CombinedLogger, Config as LogConfig, LevelFilter, SharedLogger, TermLogger,
     TerminalMode, WriteLogger,
 };
-use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use tokio::sync::mpsc;
 use vello::{
     AaConfig, Renderer, RendererOptions, Scene,
@@ -65,19 +63,18 @@ use winit::{
 pub use winit::window::Window;
 
 use component::{ChildReference, SharedComponent, context::ComponentContext};
-use config::{DEFAULT_SCREEN_SIZE, MINIMUM_WINDOW_SIZE};
+use config::{COPY_SOLUTION_TO_FORMULA, DEFAULT_SCREEN_SIZE, LAYOUT_TIMEOUT, MINIMUM_WINDOW_SIZE};
 use event::{
     Event, KeyCode, KeyEvent, Modifiers, PointerButton, PointerEvent, SCROLL_STEP, WheelEvent,
 };
 use focus::{Focus, FocusSearchDirection};
 use geometry::{Point, Size};
 use graphics::{scene::Scene as GraphicsScene, text::TextContext};
-use layouter::{Formula, Problem, Solution, hitbox::Hitbox, variables::Variables};
+use layouter::{Problem, Solution, hitbox::Hitbox, variables::Variables};
 use log::{log_duration, log_info};
 use render_manager::{RenderManager, RenderReceiver};
 use slot::ComponentSlot;
 use state::Store;
-use sync::Mutex;
 use theme::{SystemTheme, Theme};
 use widget::{SharedWidget, WidgetTrait, widgets::root::Root};
 
@@ -174,41 +171,24 @@ static SIGNAL_ID: AtomicU64 = AtomicU64::new(0);
 #[derive(Clone)]
 pub struct Signal {
     pub(crate) id: u64,
-    target: Option<component::Id>,
     sender: mpsc::UnboundedSender<RenderRequest>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RenderRequest {
     Rerender,
-    Layout(component::Id),
 }
 
 impl Signal {
     pub(crate) fn new(sender: mpsc::UnboundedSender<RenderRequest>) -> Self {
         Self {
             id: SIGNAL_ID.fetch_add(1, Ordering::Relaxed),
-            target: None,
             sender,
         }
     }
 
-    pub(crate) fn for_component(&self, id: component::Id) -> Self {
-        // This is probably only a micro-optimization, and incremental component relayouting is
-        // currently broken because refreshing a slot invalidates its preserved component formula.
-        Self {
-            id,
-            target: Some(id),
-            sender: self.sender.clone(),
-        }
-    }
-
     pub fn send(&self) {
-        let request = match self.target {
-            Some(component) => RenderRequest::Layout(component),
-            None => RenderRequest::Rerender,
-        };
-        let _ = self.sender.send(request);
+        let _ = self.sender.send(RenderRequest::Rerender);
     }
 }
 
@@ -231,8 +211,7 @@ impl AppProblem {
         variables: Arc<Variables>,
         rerender: Signal,
     ) -> Result<Self> {
-        let component_context =
-            ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
+        let component_context = ComponentContext::new(Arc::clone(&variables));
         let root = root_slot.set(root, component_context.clone()).await?;
         let root_hitbox = root.get_hitbox().await?;
 
@@ -262,9 +241,7 @@ impl AppProblem {
                 &focused_path,
                 None,
                 self.root_hitbox.clone(),
-                ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
-                    &self.variables,
-                ))))),
+                ComponentContext::new(Arc::clone(&self.variables)),
                 text_context,
                 &root,
             )
@@ -275,9 +252,7 @@ impl AppProblem {
                 theme,
                 &focused_path,
                 children,
-                ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
-                    &self.variables,
-                ))))),
+                ComponentContext::new(Arc::clone(&self.variables)),
                 text_context,
                 &root,
             )
@@ -289,10 +264,22 @@ impl AppProblem {
     async fn solve(&self, size: Size) -> Result<Solution> {
         let component_tree = self.root.component_tree().await?;
         let mut problem = Problem::new(Arc::clone(&self.variables));
-        self.root.add_cached_formulas(&mut problem).await?;
-        problem
+        self.root.add_formulas(&mut problem).await?;
+        let solution = problem
             .solve(self.root_hitbox.clone(), size, &component_tree)
-            .await
+            .await?;
+        if COPY_SOLUTION_TO_FORMULA {
+            let (loaded_variables, loaded_constraints) = problem.warm_start_counts();
+            let (stored_variables, stored_constraints) =
+                self.root.store_solution(&solution).await?;
+            log_info(
+                2,
+                format_args!(
+                    "layout solution copy: Solution -> Formula: {stored_variables} variables, {stored_constraints} constraints; Formula -> Problem: {loaded_variables} variables, {loaded_constraints} constraints",
+                ),
+            );
+        }
+        Ok(solution)
     }
 
     async fn render(
@@ -316,9 +303,8 @@ impl AppProblem {
         Ok(scene)
     }
 
-    async fn signal_component(&self, component: &SharedComponent) -> Result<()> {
-        let id = component.lock().await?.id;
-        self.rerender.for_component(id).send();
+    async fn signal_component(&self, _component: &SharedComponent) -> Result<()> {
+        self.rerender.send();
         Ok(())
     }
 
@@ -398,10 +384,9 @@ impl AppProblem {
         for node in &nodes {
             let new_message = {
                 let mut node = node.lock().await?;
-                let id = node.id;
                 let message = node
                     .widget
-                    .forward_event(event, self.rerender.for_component(id), Arc::clone(window))
+                    .forward_event(event, self.rerender.clone(), Arc::clone(window))
                     .await?;
                 message
             };
@@ -609,7 +594,6 @@ enum UiInput {
     Event(Event),
     Resize(Size),
     Rerender,
-    Layout(HashSet<component::Id>),
     SystemTheme(SystemTheme),
 }
 
@@ -633,7 +617,7 @@ async fn layout_problem<T: WidgetTrait>(
 ) -> Result<AppProblem> {
     let mut problem = AppProblem::new(root, root_slot, variables, rerender.clone()).await?;
     problem.window = window;
-    log_duration(0, "app problem layout", || {
+    log_duration(0, "component layout()", false, Some(LAYOUT_TIMEOUT), || {
         problem.layout(rerender, theme, focus, text_context)
     })
     .await?;
@@ -668,28 +652,18 @@ async fn ui_loop<T: WidgetTrait>(
                     render_request = render_receiver.0.recv(), if render_open => {
                         match render_request {
                             Some(first) => {
-                                let mut layouts = HashSet::new();
-                                let mut rerender_requested = false;
-                                let mut add = |request| match request {
-                                    RenderRequest::Rerender => rerender_requested = true,
-                                    RenderRequest::Layout(id) => { let _ = layouts.insert(id); }
-                                };
-                                add(first);
+                                let _ = first;
                                 let deadline = tokio::time::Instant::from_std(Instant::now() + Duration::from_millis(10));
                                 loop {
                                     tokio::select! {
                                         request = render_receiver.0.recv() => match request {
-                                            Some(request) => add(request),
+                                            Some(_) => {},
                                             None => { render_open = false; break; }
                                         },
                                         _ = tokio::time::sleep_until(deadline) => break,
                                     }
                                 }
-                                match layouts.is_empty() {
-                                    true if rerender_requested => Some(UiInput::Rerender),
-                                    true => continue,
-                                    false => Some(UiInput::Layout(layouts)),
-                                }
+                                Some(UiInput::Rerender)
                             }
                             None => {
                                 render_open = false;
@@ -724,7 +698,7 @@ async fn ui_loop<T: WidgetTrait>(
             input => input,
         };
 
-        let layout_request_started = matches!(&input, UiInput::Layout(_)).then(Instant::now);
+        let layout_request_started = matches!(&input, UiInput::Rerender).then(Instant::now);
         let mut relayout = false;
         let mut command = match input {
             UiInput::Window(value) => {
@@ -763,14 +737,7 @@ async fn ui_loop<T: WidgetTrait>(
                 relayout = app_problem.is_none();
                 VizualCommand::Resolve
             }
-            UiInput::Rerender => VizualCommand::Render,
-            UiInput::Layout(ids) => {
-                log_info(0, format_args!("RenderRequest::Layout components: {ids:?}"));
-                if let Some(problem) = &app_problem {
-                    for id in ids {
-                        let _ = problem.root.invalidate_formula(id).await?;
-                    }
-                }
+            UiInput::Rerender => {
                 relayout = true;
                 VizualCommand::Resolve
             }
@@ -823,14 +790,14 @@ async fn ui_loop<T: WidgetTrait>(
         if let Some(started) = layout_request_started {
             log_info(
                 0,
-                format_args!("RenderRequest::Layout took {:?}", started.elapsed()),
+                format_args!("global layout request took {:?}", started.elapsed()),
             );
         }
 
         if matches!(command, VizualCommand::Render)
             && let (Some(problem), Some(solution)) = (&mut app_problem, &solution)
         {
-            let scene = log_duration(0, "app problem render", || {
+            let scene = log_duration(0, "component render()", false, None, || {
                 problem.render(
                     rerender.clone(),
                     theme.clone(),
@@ -994,11 +961,6 @@ impl WindowApp {
         let Some(renderer) = &mut self.renderer else {
             return;
         };
-
-        let timestamp = OffsetDateTime::now_utc()
-            .format(&Rfc3339)
-            .unwrap_or_else(|_| "unknown".to_owned());
-        log_info(0, format_args!("render timestamp: {timestamp}"));
 
         let mut physical_scene = Scene::new();
         physical_scene.append(logical_scene, Some(Affine::scale(self.scale_factor)));

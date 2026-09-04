@@ -1,9 +1,9 @@
 use crate::macros::display;
 use crate::{
-    component::{Children, context::ComponentContext},
+    component::Children,
     constraint,
     geometry::Direction,
-    layouter::{expression::Expression, objective::Delta},
+    layouter::{Formula, expression::Expression, objective::Delta},
     widget::{LayoutInput, Widget, WidgetTrait},
 };
 use async_trait::async_trait;
@@ -107,7 +107,7 @@ impl Space {
 
     async fn expression(
         &self,
-        problem: &ComponentContext,
+        formula: &mut Formula,
         target: f64,
         delta: &mut Option<Delta>,
     ) -> Result<Expression> {
@@ -115,19 +115,17 @@ impl Space {
         let delta = match delta.as_ref() {
             Some(delta) => delta.clone(),
             None => {
-                let new_delta = problem.add_delta("space-delta", self.priority).await?;
+                let new_delta = formula.add_delta(crate::id!(), self.priority)?;
                 *delta = Some(new_delta.clone());
                 new_delta
             }
         };
-        let space = target * (1 - delta.clone());
+        let space: Expression = target * (1.0 - delta.clone());
 
         if self.minimum > 0.0 {
-            problem
-                .constrain(constraint!(space.clone() >= self.minimum))
-                .await?;
+            formula.constrain(crate::id!(), constraint!(space.clone() >= self.minimum))?;
         }
-        problem.minimize(delta, self.priority).await?;
+        formula.minimize(crate::id!(), delta, self.priority)?;
 
         Ok(space)
     }
@@ -140,7 +138,7 @@ impl WidgetTrait for Space {
         LayoutInput {
             hitbox,
             parent,
-            problem,
+            formula: problem,
             slots,
             ..
         }: LayoutInput<'_>,
@@ -152,27 +150,29 @@ impl WidgetTrait for Space {
             if let Some(space) = spaces.start(direction)
                 && space != 0.0
             {
-                let space = self.expression(&problem, space, &mut delta).await?;
+                let space = self.expression(problem, space, &mut delta).await?;
                 hitbox.make_start_independent(direction);
-                problem
-                    .constrain(constraint!(
+                problem.constrain(
+                    crate::id!(),
+                    constraint!(
                         hitbox.get_start_position(direction)
                             == parent.get_start_position(direction) + space
-                    ))
-                    .await?;
+                    ),
+                )?;
             }
 
             if let Some(space) = spaces.end(direction)
                 && space != 0.0
             {
-                let space = self.expression(&problem, space, &mut delta).await?;
+                let space = self.expression(problem, space, &mut delta).await?;
                 hitbox.make_end_independent(direction);
-                problem
-                    .constrain(constraint!(
+                problem.constrain(
+                    crate::id!(),
+                    constraint!(
                         hitbox.get_end_position(direction)
                             == parent.get_end_position(direction) - space
-                    ))
-                    .await?;
+                    ),
+                )?;
             }
         }
 

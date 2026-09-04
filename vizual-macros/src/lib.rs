@@ -16,7 +16,7 @@ pub fn display(input: TokenStream) -> TokenStream {
     let child = parse_macro_input!(input as Expr);
 
     quote! {
-        slots.set(::vizual::id!(), #child).await?
+        slots.set(::vizual::num_id!(), #child).await?
     }
     .into()
 }

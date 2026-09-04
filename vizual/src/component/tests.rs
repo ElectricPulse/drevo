@@ -28,7 +28,6 @@ fn widget_derive_forwards_the_current_trait_interface() {
 
 fn component(name: &str, variables: &Variables, problem: ComponentContext) -> SharedComponent {
     SharedComponent::new(Arc::new(Mutex::new(Component {
-        id: 0,
         name: name.to_string(),
         debug: ComponentDebug::new("test".to_string()),
         hitbox: Hitbox::new(
@@ -37,8 +36,7 @@ fn component(name: &str, variables: &Variables, problem: ComponentContext) -> Sh
             name.to_string(),
             "test".to_string(),
         ),
-        formula: None,
-        variables: Arc::new(Variables::new()),
+        formula: Formula::new(Arc::new(Variables::new())),
         widget: Box::new(EmptyWidget),
         focusable: false,
         parent: None,
@@ -53,8 +51,7 @@ fn component(name: &str, variables: &Variables, problem: ComponentContext) -> Sh
 #[tokio::test]
 async fn focused_path_contains_the_target_and_its_parents() -> Result<()> {
     let variables = Arc::new(Variables::new());
-    let formula = Arc::new(Mutex::new(Formula::new(Arc::clone(&variables))));
-    let context = ComponentContext::new(formula);
+    let context = ComponentContext::new(Arc::clone(&variables));
     let parent = component("parent", &variables, context.clone());
     let child = component("child", &variables, context.clone());
     let unrelated = component("unrelated", &variables, context);

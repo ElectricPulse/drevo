@@ -51,7 +51,7 @@ impl WidgetTrait for Axis {
             relayout,
             theme,
             hitbox,
-            problem,
+            formula: problem,
             slots,
             ..
         }: LayoutInput<'_>,
@@ -67,17 +67,15 @@ impl WidgetTrait for Axis {
 
         if self.limit_cross {
             let cross_direction = direction.flip();
-            problem
-                .minimize(hitbox.get_dimension(cross_direction), 0)
-                .await?;
+            problem.minimize(crate::id!(), hitbox.get_dimension(cross_direction), 0)?;
         }
 
         if elements.len() >= 2 {
             let theme = theme.affect(relayout).await?;
             let AxisStyle::Gap(gap) = self.style.get(&theme);
             // One delta controls every gap belonging to this axis.
-            let gap_delta = problem.add_delta("axis-gap-delta", self.priority).await?;
-            let gap = gap * (1 - gap_delta);
+            let gap_delta = problem.add_delta(crate::id!(), self.priority)?;
+            let gap: crate::layouter::expression::Expression = gap * (1.0 - gap_delta);
 
             for pair in elements.windows(2) {
                 let [previous, current] = pair else {
@@ -95,9 +93,10 @@ impl WidgetTrait for Axis {
                     current.hitbox.get_start_position(direction)
                 };
 
-                problem
-                    .constrain(constraint!(current_start - previous_end == gap.clone()))
-                    .await?;
+                problem.constrain(
+                    crate::id!(),
+                    constraint!(current_start - previous_end == gap.clone()),
+                )?;
             }
         }
 

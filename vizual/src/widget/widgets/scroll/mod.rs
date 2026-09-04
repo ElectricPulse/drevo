@@ -40,7 +40,7 @@ impl WidgetTrait for ScrollContent {
         &mut self,
         LayoutInput {
             hitbox,
-            problem,
+            formula: problem,
             mask,
             slots,
             relayout,
@@ -52,16 +52,14 @@ impl WidgetTrait for ScrollContent {
 
         let theme = theme.affect(relayout).await?;
 
-        problem
-            .constrain(constraint!(
-                hitbox.get_dimension(Direction::Horizontal) >= theme.units.em * 3.0
-            ))
-            .await?;
-        problem
-            .constrain(constraint!(
-                hitbox.get_dimension(Direction::Vertical) >= theme.units.em * 3.0
-            ))
-            .await?;
+        problem.constrain(
+            crate::id!(),
+            constraint!(hitbox.get_dimension(Direction::Horizontal) >= theme.units.em * 3.0),
+        )?;
+        problem.constrain(
+            crate::id!(),
+            constraint!(hitbox.get_dimension(Direction::Vertical) >= theme.units.em * 3.0),
+        )?;
 
         let child = display!(self.child.clone());
 
@@ -70,18 +68,20 @@ impl WidgetTrait for ScrollContent {
             let child_hitbox = &mut child_lock.hitbox;
             child_hitbox.make_independent();
 
-            problem
-                .constrain(constraint!(
+            problem.constrain(
+                crate::id!(),
+                constraint!(
                     child_hitbox.get_start_position(Direction::Horizontal)
                         == hitbox.get_start_position(Direction::Horizontal) - self.offset.x
-                ))
-                .await?;
-            problem
-                .constrain(constraint!(
+                ),
+            )?;
+            problem.constrain(
+                crate::id!(),
+                constraint!(
                     child_hitbox.get_start_position(Direction::Vertical)
                         == hitbox.get_start_position(Direction::Vertical) - self.offset.y
-                ))
-                .await?;
+                ),
+            )?;
         }
 
         Ok(vec![child])

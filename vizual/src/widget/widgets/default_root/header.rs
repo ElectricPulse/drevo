@@ -1,10 +1,11 @@
-use crate::{VizualMsg, event::PointerButton, macros::display, widget::MouseEvent};
+use crate::{
+    VizualMsg, event::PointerButton, geometry::Direction, macros::display, widget::{MouseEvent, widgets::layout::axis::Axis},
+};
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use super::{
     super::{
-        layout::grid::Grid,
         positioning::anchor::{Anchor, AnchorPosition, Anchors},
         text::Text,
     },
@@ -67,7 +68,10 @@ impl WidgetTrait for Header {
             },
         );
 
-        Ok(vec![display!(Grid::new((name, settings), 0.0))])
+        Ok(vec![display!(Axis::new(
+            Direction::Horizontal,
+            (name, settings),
+        ))])
     }
 
     async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<VizualMsg> {

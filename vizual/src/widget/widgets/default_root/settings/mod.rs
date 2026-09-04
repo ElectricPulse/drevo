@@ -171,7 +171,7 @@ impl WidgetTrait for PositionedMenu {
             relayout,
             theme,
             hitbox,
-            problem,
+            formula: problem,
             slots,
             ..
         }: LayoutInput<'_>,
@@ -186,39 +186,31 @@ impl WidgetTrait for PositionedMenu {
         let vertical_difference = hitbox.get_start_position(Direction::Vertical)
             - self.button.get_end_position(Direction::Vertical)
             - gap * 0.5;
-        let horizontal_distance = problem
-            .add_nonnegative_variable("settings-menu-horizontal-distance")
-            .await?;
-        let vertical_distance = problem
-            .add_nonnegative_variable("settings-menu-vertical-distance")
-            .await?;
+        let horizontal_distance =
+            problem.bounded_variable(crate::id!(), 0.0, f64::INFINITY, false)?;
+        let vertical_distance =
+            problem.bounded_variable(crate::id!(), 0.0, f64::INFINITY, false)?;
 
-        problem
-            .constrain(constraint!(
-                horizontal_distance.clone() >= horizontal_difference.clone()
-            ))
-            .await?;
-        problem
-            .constrain(constraint!(
-                horizontal_distance.clone() >= -horizontal_difference
-            ))
-            .await?;
-        problem
-            .constrain(constraint!(
-                vertical_distance.clone() >= vertical_difference.clone()
-            ))
-            .await?;
-        problem
-            .constrain(constraint!(
-                vertical_distance.clone() >= -vertical_difference
-            ))
-            .await?;
+        problem.constrain(
+            crate::id!(),
+            constraint!(horizontal_distance.clone() >= horizontal_difference.clone()),
+        )?;
+        problem.constrain(
+            crate::id!(),
+            constraint!(horizontal_distance.clone() >= -horizontal_difference),
+        )?;
+        problem.constrain(
+            crate::id!(),
+            constraint!(vertical_distance.clone() >= vertical_difference.clone()),
+        )?;
+        problem.constrain(
+            crate::id!(),
+            constraint!(vertical_distance.clone() >= -vertical_difference),
+        )?;
 
         // The two nonnegative variables model the absolute coordinate differences, so their sum
         // is the Manhattan distance between the requested vertices.
-        problem
-            .minimize(horizontal_distance + vertical_distance, 1)
-            .await?;
+        problem.minimize(crate::id!(), horizontal_distance + vertical_distance, 1)?;
 
         Ok(vec![display!(self.child.clone())])
     }

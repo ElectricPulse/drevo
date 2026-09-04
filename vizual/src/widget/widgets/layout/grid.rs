@@ -9,6 +9,10 @@ use crate::{
 };
 
 #[derive(Clone)]
+/// Lays out children without overlap.
+///
+/// Warning: every pair of children uses binary variables to select their relative position.
+/// Those variables make the layout a MIP and can substantially slow solving as the grid grows.
 pub struct Grid {
     children: Vec<Widget>,
     gap: f64,
@@ -29,7 +33,7 @@ impl WidgetTrait for Grid {
         &mut self,
         LayoutInput {
             hitbox,
-            problem,
+            formula: problem,
             slots,
             ..
         }: LayoutInput<'_>,
@@ -44,12 +48,12 @@ impl WidgetTrait for Grid {
                 let first_hitbox = first.get_hitbox().await?;
                 let second_hitbox = second.get_hitbox().await?;
 
-                prohibit_overlap(&problem, first_hitbox, second_hitbox, self.gap).await?;
+                prohibit_overlap(problem, first_hitbox, second_hitbox, self.gap)?;
             }
         }
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
-            shrink_wrap(&problem, hitbox.clone(), &children, direction).await?;
+            shrink_wrap(problem, hitbox.clone(), &children, direction).await?;
         }
 
         Ok(children)

@@ -125,11 +125,19 @@ impl Slots<'_> {
 }
 
 #[macro_export]
-macro_rules! id {
+macro_rules! num_id {
     () => {
         // `line!` and `column!` resolve to the outer macro invocation, so `display!` receives a
         // stable ID for its call site. Keep generated IDs separate from manually assigned IDs,
         // which commonly use collection indexes.
         u64::MAX / 2 + ((line!() as u64) << 32) + column!() as u64
+    };
+}
+
+/// Returns a stable string key for a formula declaration at this source location.
+#[macro_export]
+macro_rules! id {
+    () => {
+        $crate::num_id!().to_string()
     };
 }

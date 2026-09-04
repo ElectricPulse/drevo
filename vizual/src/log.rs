@@ -1,4 +1,8 @@
-use std::{fmt::Display, future::Future, time::Instant};
+use std::{
+    fmt::Display,
+    future::Future,
+    time::{Duration, Instant},
+};
 
 pub fn log_info(indentation: usize, message: impl Display) {
     ::log::info!("{:indentation$}{message}", "");
@@ -7,6 +11,8 @@ pub fn log_info(indentation: usize, message: impl Display) {
 pub async fn log_duration<Output, Callback, CallbackFuture>(
     indentation: usize,
     name: impl Into<String>,
+    log_started: bool,
+    threshold: Option<Duration>,
     callback: Callback,
 ) -> Output
 where
@@ -14,12 +20,17 @@ where
     CallbackFuture: Future<Output = Output>,
 {
     let name = name.into();
-    log_info(indentation, format_args!("{name} started"));
+    if log_started {
+        log_info(indentation, format_args!("{name} started"));
+    }
     let started = Instant::now();
     let output = callback().await;
-    log_info(
-        indentation,
-        format_args!("{name} finished in {:?}", started.elapsed()),
-    );
+    let elapsed = started.elapsed();
+    if threshold.map_or(true, |threshold| elapsed > threshold) {
+        log_info(
+            indentation,
+            format_args!("{name} finished in {:?}", elapsed),
+        );
+    }
     output
 }

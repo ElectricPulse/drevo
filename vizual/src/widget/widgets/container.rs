@@ -35,17 +35,17 @@ impl WidgetTrait for Container {
         &mut self,
         LayoutInput {
             hitbox,
-            problem,
+            formula: problem,
             slots,
             ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         if let Some(size) = self.fixed_size {
             hitbox
-                .set_static_dimension(&problem, Direction::Horizontal, size.width)
+                .set_static_dimension(problem, Direction::Horizontal, size.width)
                 .await?;
             hitbox
-                .set_static_dimension(&problem, Direction::Vertical, size.height)
+                .set_static_dimension(problem, Direction::Vertical, size.height)
                 .await?;
         }
 

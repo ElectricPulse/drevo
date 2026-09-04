@@ -2,8 +2,8 @@ use color_eyre::eyre::Result;
 
 use super::{Solution, expression::Expression, variable::Variable, variables::Variables};
 use crate::{
-    component::context::ComponentContext,
     geometry::{Direction, Point, Rect},
+    layouter::Formula,
 };
 
 #[cfg(test)]
@@ -109,17 +109,15 @@ impl Hitbox {
     pub(crate) async fn constrain_shared(
         &self,
         parent: &Self,
-        problem: &ComponentContext,
+        formula: &mut Formula,
     ) -> Result<()> {
         for direction in [Direction::Horizontal, Direction::Vertical] {
             constrain_shared_variable(
                 self.start.get(direction),
                 parent.start.get(direction),
-                problem,
-            )
-            .await?;
-            constrain_shared_variable(self.end.get(direction), parent.end.get(direction), problem)
-                .await?;
+                formula,
+            )?;
+            constrain_shared_variable(self.end.get(direction), parent.end.get(direction), formula)?;
         }
         Ok(())
     }
@@ -128,26 +126,26 @@ impl Hitbox {
     pub async fn share_dimension(
         &self,
         parent: &Hitbox,
-        problem: &ComponentContext,
+        formula: &mut Formula,
         direction: Direction,
     ) -> Result<()> {
-        problem
-            .constrain(crate::constraint!(
-                self.get_dimension(direction) == parent.get_dimension(direction)
-            ))
-            .await
+        formula.constrain(
+            crate::id!(),
+            crate::constraint!(self.get_dimension(direction) == parent.get_dimension(direction)),
+        )
     }
 
     /// Constrains one derived dimension to a fixed value.
     pub async fn set_static_dimension(
         &self,
-        problem: &ComponentContext,
+        formula: &mut Formula,
         direction: Direction,
         value: f64,
     ) -> Result<()> {
-        problem
-            .constrain(crate::constraint!(self.get_dimension(direction) == value))
-            .await
+        formula.constrain(
+            crate::id!(),
+            crate::constraint!(self.get_dimension(direction) == value),
+        )
     }
 
     /// Returns the derived `end - start` dimension for one axis.
@@ -180,15 +178,13 @@ impl Hitbox {
     }
 }
 
-async fn constrain_shared_variable(
+fn constrain_shared_variable(
     variable: Variable,
     parent: Variable,
-    problem: &ComponentContext,
+    formula: &mut Formula,
 ) -> Result<()> {
     if variable.is_shared() && variable != parent {
-        problem
-            .constrain(crate::constraint!(variable == parent))
-            .await?;
+        formula.constrain(crate::id!(), crate::constraint!(variable == parent))?;
     }
     Ok(())
 }

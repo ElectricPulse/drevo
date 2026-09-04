@@ -1,9 +1,9 @@
 use crate::macros::display;
 use crate::{
-    component::{Children, context::ComponentContext},
+    component::Children,
     constraint,
     geometry::Direction,
-    layouter::hitbox::Hitbox,
+    layouter::{Formula, hitbox::Hitbox},
     widget::{LayoutInput, Widget, WidgetTrait},
 };
 use async_trait::async_trait;
@@ -98,7 +98,7 @@ impl Anchor {
 
     /// Applies the selected anchor to this hitbox within its parent.
     async fn anchor(
-        problem: &ComponentContext,
+        formula: &mut Formula,
         parent: &Hitbox,
         hitbox: &mut Hitbox,
         position: Option<AnchorPosition>,
@@ -107,45 +107,50 @@ impl Anchor {
         match position {
             Some(AnchorPosition::Start) => {
                 hitbox.make_end_independent(direction);
-                problem
-                    .constrain(constraint!(
+                formula.constrain(
+                    crate::id!(),
+                    constraint!(
                         hitbox.get_end_position(direction) <= parent.get_end_position(direction)
-                    ))
-                    .await?;
+                    ),
+                )?;
             }
             Some(AnchorPosition::Middle) => {
                 hitbox.make_start_independent(direction);
                 hitbox.make_end_independent(direction);
 
-                problem
-                    .constrain(constraint!(
+                formula.constrain(
+                    crate::id!(),
+                    constraint!(
                         hitbox.get_start_position(direction)
                             >= parent.get_start_position(direction)
-                    ))
-                    .await?;
-                problem
-                    .constrain(constraint!(
+                    ),
+                )?;
+                formula.constrain(
+                    crate::id!(),
+                    constraint!(
                         hitbox.get_end_position(direction) <= parent.get_end_position(direction)
-                    ))
-                    .await?;
+                    ),
+                )?;
 
                 let start_margin =
                     hitbox.get_start_position(direction) - parent.get_start_position(direction);
                 let end_margin =
                     parent.get_end_position(direction) - hitbox.get_end_position(direction);
-                problem
-                    .constrain(constraint!(start_margin.clone() == end_margin))
-                    .await?;
-                problem.minimize(start_margin, 0).await?;
+                formula.constrain(
+                    crate::id!(),
+                    constraint!(start_margin.clone() == end_margin),
+                )?;
+                formula.minimize(crate::id!(), start_margin, 0)?;
             }
             Some(AnchorPosition::End) => {
                 hitbox.make_start_independent(direction);
-                problem
-                    .constrain(constraint!(
+                formula.constrain(
+                    crate::id!(),
+                    constraint!(
                         hitbox.get_start_position(direction)
                             >= parent.get_start_position(direction)
-                    ))
-                    .await?;
+                    ),
+                )?;
             }
             None => {}
         }
@@ -161,13 +166,13 @@ impl WidgetTrait for Anchor {
         LayoutInput {
             hitbox,
             parent,
-            problem,
+            formula: problem,
             slots,
             ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         Self::anchor(
-            &problem,
+            problem,
             &parent,
             hitbox,
             self.anchors.horizontal,
@@ -176,7 +181,7 @@ impl WidgetTrait for Anchor {
         .await?;
 
         Self::anchor(
-            &problem,
+            problem,
             &parent,
             hitbox,
             self.anchors.vertical,

@@ -31,12 +31,14 @@ use highs::{Col, HighsModelStatus, HighsStatus, Model, RowProblem, Sense};
 use self::{
     constraint::Constraint,
     expression::Expression,
+    formula::WarmStart,
     hitbox::Hitbox,
     variable::{SolverVariable, Variable},
     variables::Variables,
 };
 use crate::{
     component::debug::ComponentTree,
+    config::COPY_SOLUTION_TO_FORMULA,
     constraint,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
@@ -83,6 +85,8 @@ impl Field for f64 {
 #[derive(Clone, Debug)]
 pub struct Solution {
     values: HashMap<SolverVariable, f64>,
+    warm_variables: HashMap<SolverVariable, WarmStart>,
+    warm_constraints: HashMap<String, WarmStart>,
 }
 
 impl Solution {
@@ -91,6 +95,14 @@ impl Solution {
             .get(&variable.variable)
             .copied()
             .unwrap_or_default()
+    }
+
+    pub(crate) fn warm_start_for_variable(&self, variable: Variable) -> Option<WarmStart> {
+        self.warm_variables.get(&variable.variable).copied()
+    }
+
+    pub(crate) fn warm_start_for_constraint(&self, name: &str) -> Option<WarmStart> {
+        self.warm_constraints.get(name).copied()
     }
 
     #[cfg(test)]
@@ -104,6 +116,8 @@ pub struct Problem {
     objectives: [PriorityObjective; PRIORITY_LEVELS],
     pub(crate) variables: Arc<Variables>,
     declared_variables: HashSet<SolverVariable>,
+    warm_variables: HashMap<SolverVariable, WarmStart>,
+    warm_constraints: HashMap<String, WarmStart>,
 }
 
 impl Problem {
@@ -113,6 +127,8 @@ impl Problem {
             objectives: std::array::from_fn(|_| Vec::new()),
             variables,
             declared_variables: HashSet::new(),
+            warm_variables: HashMap::new(),
+            warm_constraints: HashMap::new(),
         }
     }
 
@@ -124,10 +140,28 @@ impl Problem {
     pub(crate) fn add_formula(&mut self, formula: &Formula) {
         self.declared_variables
             .extend(formula.variables.iter().map(|variable| variable.variable));
+        if COPY_SOLUTION_TO_FORMULA {
+            for variable in &formula.variables {
+                if let Some(warm_start) = formula.variable_warm_start(*variable) {
+                    let _ = self.warm_variables.insert(variable.variable, warm_start);
+                }
+            }
+            for constraint in &formula.constraints {
+                if let Some(name) = constraint.name() {
+                    if let Some(warm_start) = formula.constraint_warm_start(name) {
+                        let _ = self.warm_constraints.insert(name.to_string(), warm_start);
+                    }
+                }
+            }
+        }
         self.constraints.extend(formula.constraints.iter().cloned());
         for (target, source) in self.objectives.iter_mut().zip(&formula.objectives) {
             target.extend(source.iter().cloned());
         }
+    }
+
+    pub(crate) fn warm_start_counts(&self) -> (usize, usize) {
+        (self.warm_variables.len(), self.warm_constraints.len())
     }
 
     fn live_variables<'a>(
@@ -235,20 +269,105 @@ impl Problem {
         model
     }
 
+    fn apply_warm_start(
+        &self,
+        model: &mut Model,
+        variables: &[SolverVariable],
+        _constraints: &[Constraint],
+    ) {
+        if !COPY_SOLUTION_TO_FORMULA {
+            return;
+        }
+        let Some(columns) = variables
+            .iter()
+            .map(|variable| {
+                self.warm_variables
+                    .get(variable)
+                    .map(|warm_start| warm_start.value)
+            })
+            .collect::<Option<Vec<_>>>()
+        else {
+            log_info(
+                2,
+                format_args!(
+                    "layout warm start: 0 columns submitted; {} of {} live variables have prior values",
+                    self.warm_variables.len(),
+                    variables.len(),
+                ),
+            );
+            return;
+        };
+        let Some(column_duals) = variables
+            .iter()
+            .map(|variable| {
+                self.warm_variables
+                    .get(variable)
+                    .map(|warm_start| warm_start.dual)
+            })
+            .collect::<Option<Vec<_>>>()
+        else {
+            return;
+        };
+        // A formula does not own temporary root-to-screen rows, so it cannot provide a complete
+        // row/dual solution for the newly built model. HiGHS accepts an incumbent column vector
+        // on its own; passing partial rows or duals produces an inconsistent warm start.
+        if let Err(status) = model.try_set_solution(Some(&columns), None, Some(&column_duals), None)
+        {
+            log::debug!("HiGHS rejected layout warm start: {status:?}");
+        } else {
+            log_info(
+                2,
+                format_args!(
+                    "layout warm start: submitted {} column values and {} column duals; no row values or row duals",
+                    columns.len(),
+                    column_duals.len(),
+                ),
+            );
+        }
+    }
+
     fn solution_from_highs(
         &self,
         solved: highs::SolvedModel,
         variables: &[SolverVariable],
+        constraints: &[Constraint],
     ) -> Result<Solution> {
         let solver_solution = solved.get_solution();
         let cols = solver_solution.columns();
         let mut values = HashMap::with_capacity(variables.len());
+        let col_duals = solver_solution.dual_columns();
+        let rows = solver_solution.rows();
+        let row_duals = solver_solution.dual_rows();
+        let mut warm_variables = HashMap::with_capacity(variables.len());
         for (index, variable) in variables.iter().enumerate() {
             if index < cols.len() {
                 let _ = values.insert(*variable, cols[index]);
+                let _ = warm_variables.insert(
+                    *variable,
+                    WarmStart {
+                        value: cols[index],
+                        dual: col_duals.get(index).copied().unwrap_or_default(),
+                    },
+                );
             }
         }
-        Ok(Solution { values })
+        let mut warm_constraints = HashMap::new();
+        for (index, constraint) in constraints.iter().enumerate() {
+            if let Some(name) = constraint.name() {
+                let _ = warm_constraints.insert(
+                    name.to_string(),
+                    WarmStart {
+                        value: rows.get(index).copied().unwrap_or_default(),
+                        dual: row_duals.get(index).copied().unwrap_or_default(),
+                    },
+                );
+            }
+        }
+        Ok(Solution {
+            values,
+            warm_variables,
+            warm_constraints,
+        })
     }
 
     fn compute_iis(
@@ -490,7 +609,7 @@ impl Problem {
         Err(eyre!("{msg}"))
     }
 
-    fn solve_objectives(
+    fn solve_internal(
         &self,
         constraints: &[Constraint],
         objectives: &[(usize, Expression)],
@@ -499,6 +618,7 @@ impl Problem {
             constraints,
             objectives.iter().map(|(_, objective)| objective),
         );
+
         let variable_count = variables.len();
         let weights = vec![-1.0; objectives.len()];
         let offsets = objectives
@@ -527,13 +647,14 @@ impl Problem {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
+
         let objective_count = highs_sys::HighsInt::try_from(objectives.len())
             .map_err(|_| eyre!("too many layout priorities for HiGHS"))?;
 
         log_info(
             2,
             format_args!(
-                "lexicographic model: {variable_count} variables, {} constraints, {} priorities",
+                "MILP model: {variable_count} variables, {} constraints, {} priorities",
                 constraints.len(),
                 objectives.len(),
             ),
@@ -572,26 +693,23 @@ impl Problem {
             }
         }
         log_info(
-            4,
-            format_args!(
-                "lexicographic model recreation took {:?}",
-                model_started.elapsed()
-            ),
+            2,
+            format_args!("model recreation took {:?}", model_started.elapsed()),
         );
 
         let solve_started = Instant::now();
+        self.apply_warm_start(&mut model, &variables, constraints);
         let solved = model
             .try_solve()
             .map_err(|error| eyre!("HiGHS error while solving model: {error:?}"))?;
-        log_info(
-            2,
-            format_args!("lexicographic solve took {:?}", solve_started.elapsed()),
-        );
+        log_info(2, format_args!("solve {:?}", solve_started.elapsed()));
 
         match solved.status() {
             HighsModelStatus::Optimal
             | HighsModelStatus::ObjectiveBound
-            | HighsModelStatus::ObjectiveTarget => self.solution_from_highs(solved, &variables),
+            | HighsModelStatus::ObjectiveTarget => {
+                self.solution_from_highs(solved, &variables, constraints)
+            }
             HighsModelStatus::Infeasible => {
                 let conflict_indices = Self::compute_iis(
                     solved.as_ptr() as *mut std::ffi::c_void,
@@ -716,26 +834,6 @@ impl Problem {
         }
     }
 
-    async fn solve_objectives_with_diagnostics(
-        &self,
-        constraints: &[Constraint],
-        objectives: &[(usize, Expression)],
-        component_tree: &ComponentTree,
-    ) -> Result<Solution> {
-        match self.solve_objectives(constraints, objectives) {
-            Ok(solution) => Ok(solution),
-            Err(error) => {
-                let msg = error.to_string();
-                if msg.contains("Layout is overconstrained") {
-                    Err(error)
-                } else {
-                    self.diagnose_objectives_failure(constraints, objectives, component_tree)
-                        .await
-                }
-            }
-        }
-    }
-
     async fn diagnose_objectives_failure(
         &self,
         constraints: &[Constraint],
@@ -818,47 +916,50 @@ impl Problem {
         .await
     }
 
-    async fn full_solve(
+    pub async fn solve(
         &mut self,
-        mut constraints: Vec<Constraint>,
         root: Hitbox,
         screen: Size,
         component_tree: &ComponentTree,
     ) -> Result<Solution> {
+        let mut constraints = self.constraints.clone();
         Self::constrain_root_to_screen(&mut constraints, &root, screen);
 
-        log_duration(0, "layout full solve", || async {
+        log_duration(0, "layouting", true, None, || async {
             let mut objectives_array = self.objectives.clone();
             let root_width = root.get_dimension(Direction::Horizontal);
             let root_height = root.get_dimension(Direction::Vertical);
             objectives_array[2].push((root_width + root_height) * -1.0);
 
-            let objectives = objectives_array
-                .iter()
-                .enumerate()
-                .filter_map(|(priority, priority_objectives)| {
-                    let objective = priority_objectives
-                        .iter()
-                        .cloned()
-                        .fold(Expression::default(), |sum, expression| sum + expression);
-                    (!objective.coefficients.is_empty()).then_some((priority, objective))
-                })
-                .collect::<Vec<_>>();
+            let objectives = log_duration(2, "filter objectives", false, None, async || {
+                objectives_array
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(priority, priority_objectives)| {
+                        let objective = priority_objectives
+                            .iter()
+                            .cloned()
+                            .fold(Expression::default(), |sum, expression| sum + expression);
+                        (!objective.coefficients.is_empty()).then_some((priority, objective))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .await;
 
-            self.solve_objectives_with_diagnostics(&constraints, &objectives, component_tree)
-                .await
+            match self.solve_internal(&constraints, &objectives) {
+                Ok(solution) => Ok(solution),
+                Err(error) => {
+                    let msg = error.to_string();
+                    if msg.contains("Layout is overconstrained") {
+                        Err(error)
+                    } else {
+                        self.diagnose_objectives_failure(&constraints, &objectives, component_tree)
+                            .await
+                    }
+                }
+            }
         })
         .await
-    }
-
-    pub(crate) async fn solve(
-        &mut self,
-        root: Hitbox,
-        screen: Size,
-        component_tree: &ComponentTree,
-    ) -> Result<Solution> {
-        self.full_solve(self.constraints.clone(), root, screen, component_tree)
-            .await
     }
 }
 

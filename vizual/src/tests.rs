@@ -23,14 +23,14 @@ impl WidgetTrait for FocusableBox {
         LayoutInput {
             focus,
             hitbox,
-            problem,
+            formula: problem,
             ..
         }: LayoutInput<'_>,
     ) -> Result<component::Children> {
         focus.set_interactive(true);
         for direction in [Direction::Horizontal, Direction::Vertical] {
             hitbox
-                .set_static_dimension(&problem, direction, 20.0)
+                .set_static_dimension(problem, direction, 20.0)
                 .await?;
         }
         Ok(Vec::new())
@@ -48,16 +48,16 @@ impl WidgetTrait for OffsetClick {
         LayoutInput {
             focus,
             hitbox,
-            problem,
+            formula: problem,
             ..
         }: LayoutInput<'_>,
     ) -> Result<component::Children> {
         focus.set_interactive(true);
         hitbox
-            .set_static_dimension(&problem, crate::geometry::Direction::Horizontal, 100.0)
+            .set_static_dimension(problem, crate::geometry::Direction::Horizontal, 100.0)
             .await?;
         hitbox
-            .set_static_dimension(&problem, crate::geometry::Direction::Vertical, 20.0)
+            .set_static_dimension(problem, crate::geometry::Direction::Vertical, 20.0)
             .await?;
 
         Ok(Vec::new())
@@ -283,10 +283,10 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
         )
         .await?;
     assert!(matches!(command, VizualCommand::None));
-    let crate::RenderRequest::Layout(id) = render_manager.receiver.0.recv().await.unwrap() else {
-        panic!("scroll event must signal its component");
-    };
-    assert!(problem.root.invalidate_formula(id).await?);
+    assert_eq!(
+        render_manager.receiver.0.recv().await,
+        Some(crate::RenderRequest::Rerender)
+    );
 
     Ok(())
 }
@@ -333,10 +333,10 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
         )
         .await?;
     assert!(matches!(command, VizualCommand::None));
-    let crate::RenderRequest::Layout(id) = render_manager.receiver.0.recv().await.unwrap() else {
-        panic!("scroll event must signal its component");
-    };
-    assert!(problem.root.invalidate_formula(id).await?);
+    assert_eq!(
+        render_manager.receiver.0.recv().await,
+        Some(crate::RenderRequest::Rerender)
+    );
 
     problem
         .layout(rerender.clone(), theme.clone(), &focus, &mut text_context)

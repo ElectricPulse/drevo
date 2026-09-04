@@ -3,15 +3,20 @@ pub(crate) mod debug;
 
 use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
-use std::sync::{Arc, Weak};
+use std::{
+    sync::{Arc, Weak},
+    time::Instant,
+};
 use vello::{Scene as VelloScene, kurbo::Affine};
 
 use crate::{
     Signal,
+    config::LAYOUT_TIMEOUT,
     focus::FocusedPath,
     geometry::Direction,
     graphics::text::TextContext,
-    layouter::{Formula, Solution, hitbox::Hitbox, variables::Variables},
+    layouter::{Formula, Solution, hitbox::Hitbox},
+    log::log_info,
     slot::manager::SlotRecords,
     state::Store,
     sync::{Mutex, MutexGuard},
@@ -21,8 +26,6 @@ use crate::{
 
 use self::{context::ComponentContext, debug::ComponentDebug};
 
-pub type Id = u64;
-
 pub type Child = SharedComponent;
 
 pub type Children = Vec<Child>;
@@ -30,13 +33,10 @@ pub type Children = Vec<Child>;
 pub type Parent = Option<ChildReference>;
 
 pub struct Component {
-    /// Stable identity used by layout-state subscriptions.
-    pub(crate) id: Id,
     pub name: String,
     pub(crate) debug: ComponentDebug,
     pub(crate) hitbox: Hitbox,
-    pub(crate) formula: Option<Formula>,
-    pub(crate) variables: Arc<Variables>,
+    pub(crate) formula: Formula,
     pub widget: Widget,
     // TODO: Convert focusability/focus tracking into reactive state when per-component
     // relayouting is implemented, so a focus change only notifies components that subscribe to
@@ -103,50 +103,43 @@ impl SharedComponent {
     }
 
     #[async_recursion]
-    pub(crate) async fn add_cached_formulas(
-        &self,
-        problem: &mut crate::layouter::Problem,
-    ) -> Result<()> {
+    pub(crate) async fn add_formulas(&self, problem: &mut crate::layouter::Problem) -> Result<()> {
         let (formula, children) = {
             let component = self.lock().await?;
             (component.formula.clone(), component.layout_children.clone())
         };
-        let formula = formula.expect("formula must be cached before solving");
         problem.add_formula(&formula);
         for child in children {
-            child.add_cached_formulas(problem).await?;
+            child.add_formulas(problem).await?;
         }
         Ok(())
     }
 
     #[async_recursion]
-    pub(crate) async fn invalidate_formula(&self, id: Id) -> Result<bool> {
-        let children = {
+    pub(crate) async fn store_solution(&self, solution: &Solution) -> Result<(usize, usize)> {
+        let (mut variables, mut constraints, children) = {
             let mut component = self.lock().await?;
-            if component.id == id {
-                component.formula = None;
-                return Ok(true);
-            }
-            component.layout_children.clone()
+            let (variables, constraints) = component.formula.store_solution(solution);
+            (variables, constraints, component.layout_children.clone())
         };
         for child in children {
-            if child.invalidate_formula(id).await? {
-                return Ok(true);
-            }
+            let (child_variables, child_constraints) = child.store_solution(solution).await?;
+            variables += child_variables;
+            constraints += child_constraints;
         }
-        Ok(false)
+        Ok((variables, constraints))
     }
 
     pub async fn share_dimension(
         &self,
         parent: Hitbox,
-        problem: &ComponentContext,
+        formula: &mut Formula,
         direction: Direction,
     ) -> Result<()> {
         self.lock()
             .await?
             .hitbox
-            .share_dimension(&parent, problem, direction)
+            .share_dimension(&parent, formula, direction)
             .await
     }
 
@@ -168,29 +161,32 @@ impl SharedComponent {
         focused_path: &FocusedPath,
         parent_reference: Parent,
         parent: Hitbox,
-        _problem: ComponentContext,
+        mut problem: ComponentContext,
         text_context: &mut TextContext,
         root: &SharedComponent,
     ) -> Result<Children> {
+        let started = Instant::now();
         let mut this = self.lock().await?;
-
-        if this.formula.is_some() {
-            return Ok(this.layout_children.clone());
-        }
 
         // Slots reset a child before its parent configures it.  Parent layouts (such as Axis)
         // deliberately mark child edges independent before the child's own layout begins, so a
         // second reset here would erase that parent-owned choice.
-        let mut problem = ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(
-            &this.variables,
-        )))));
-
         this.parent = parent_reference;
         problem.component_path.push(this.name.clone());
-        let relayout = rerender.for_component(this.id);
+        this.formula.begin(problem.component_path.join("."));
+        let start_x = this.hitbox.start.x;
+        let start_y = this.hitbox.start.y;
+        let end_x = this.hitbox.end.x;
+        let end_y = this.hitbox.end.y;
+        this.formula.register_variable("hitbox.start.x", start_x)?;
+        this.formula.register_variable("hitbox.start.y", start_y)?;
+        this.formula.register_variable("hitbox.end.x", end_x)?;
+        this.formula.register_variable("hitbox.end.y", end_y)?;
+        let relayout = rerender;
         let children = {
             let Component {
                 widget,
+                formula,
                 slot_manager,
                 hitbox,
                 focusable,
@@ -210,7 +206,7 @@ impl SharedComponent {
                     focus: &mut focus,
                     hitbox,
                     parent: parent.clone(),
-                    problem: problem.clone(),
+                    formula,
                     text_context,
                     slots: &mut slots,
                     root,
@@ -218,7 +214,7 @@ impl SharedComponent {
                 };
                 let children = widget.layout(input).await?;
 
-                hitbox.constrain_shared(&parent, &problem).await?;
+                hitbox.constrain_shared(&parent, formula).await?;
 
                 children
             };
@@ -228,7 +224,7 @@ impl SharedComponent {
             children
         };
 
-        this.formula = Some(problem.lock().await?.clone());
+        this.formula.finish();
         this.layout_children = children.clone();
 
         let mut non_logical_children = Vec::new();
@@ -238,6 +234,18 @@ impl SharedComponent {
             }
         }
         this.children = non_logical_children;
+
+        let elapsed = started.elapsed();
+        if elapsed > LAYOUT_TIMEOUT {
+            log_info(
+                0,
+                format_args!(
+                    "component layout of {:?} took {:?}",
+                    problem.component_path.join("."),
+                    elapsed
+                ),
+            );
+        }
 
         Ok(children)
     }

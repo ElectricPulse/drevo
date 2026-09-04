@@ -95,7 +95,7 @@ impl WidgetTrait for Ansi {
             relayout,
             theme,
             hitbox,
-            problem,
+            formula: problem,
             text_context,
             ..
         }: LayoutInput<'_>,
@@ -122,10 +122,10 @@ impl WidgetTrait for Ansi {
         let size = layout.size;
 
         hitbox
-            .set_static_dimension(&problem, Direction::Horizontal, size.width)
+            .set_static_dimension(problem, Direction::Horizontal, size.width)
             .await?;
         hitbox
-            .set_static_dimension(&problem, Direction::Vertical, size.height)
+            .set_static_dimension(problem, Direction::Vertical, size.height)
             .await?;
 
         Ok(Vec::new())

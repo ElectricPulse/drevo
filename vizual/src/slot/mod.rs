@@ -23,7 +23,6 @@ use crate::{
 use self::manager::SlotRecords;
 
 static NEXT_COMPONENT_NAME: AtomicU64 = AtomicU64::new(1);
-static NEXT_COMPONENT_ID: AtomicU64 = AtomicU64::new(1);
 
 // `display!` uses `slots.set` to return children from `WidgetTrait::layout`. This raises the
 // question of why the trait does not return a `HashMap<Id, Box<dyn WidgetTrait>>` directly.
@@ -94,7 +93,7 @@ impl ComponentSlot {
 
         problem.component_path.push(self.name.clone());
         let component_path = problem.component_path.join(".");
-        let variables = problem.lock().await?.registry();
+        let variables = Arc::clone(&problem.variables);
 
         let lock = if let Some(lock) = self.reference.upgrade() {
             let mut reference = lock.lock().await?;
@@ -122,12 +121,10 @@ impl ComponentSlot {
             }
 
             let lock = SharedComponent::new(Arc::new(Mutex::new(Component {
-                id: NEXT_COMPONENT_ID.fetch_add(1, Ordering::Relaxed),
                 name: self.name.clone(),
                 debug: ComponentDebug::new(self.path.clone()),
                 hitbox,
-                formula: None,
-                variables,
+                formula: crate::layouter::Formula::new(Arc::clone(&variables)),
                 widget,
                 focusable: false,
                 children: Vec::new(),

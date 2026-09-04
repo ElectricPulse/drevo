@@ -23,3 +23,10 @@ pub(crate) const MAXIMUM_LAYOUT_VALUE: f64 = 21_000.0;
 pub(crate) const BORDER_SIZE: f64 = 1.0;
 
 pub(crate) const COMMAND_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
+
+pub(crate) const LAYOUT_TIMEOUT: Duration = Duration::from_millis(10);
+
+/// Retains the last solved values and duals on formulas so the next rebuilt layout model can use
+/// them as a HiGHS warm start. Disable this to compare cold layout solves.
+/// Disabled as of now because if offers no performance benefit
+pub(crate) const COPY_SOLUTION_TO_FORMULA: bool = false;

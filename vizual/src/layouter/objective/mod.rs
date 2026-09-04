@@ -1,7 +1,7 @@
 use color_eyre::eyre::{Result, ensure, eyre};
 
 use super::{Formula, PRIORITY_LEVELS, Problem, expression::Expression, variable::Variable};
-use crate::{component::context::ComponentContext, constraint};
+use crate::constraint;
 
 #[cfg(test)]
 mod tests;
@@ -17,9 +17,9 @@ pub enum Objective {
 }
 
 impl Objective {
-    pub async fn apply(
+    pub fn apply(
         self,
-        problem: &ComponentContext,
+        formula: &mut Formula,
         expression: Expression,
         target: f64,
         delta: Delta,
@@ -27,21 +27,15 @@ impl Objective {
     ) -> Result<()> {
         match self {
             Self::Maximize => {
-                problem
-                    .constrain(constraint!(expression.clone() <= target))
-                    .await?;
-                problem.maximize(expression, priority).await
+                formula.constrain(crate::id!(), constraint!(expression.clone() <= target))?;
+                formula.maximize(crate::id!(), expression, priority)
             }
             Self::Minimize => {
-                problem
-                    .constrain(constraint!(expression.clone() >= target))
-                    .await?;
-                problem.minimize(expression, priority).await
+                formula.constrain(crate::id!(), constraint!(expression.clone() >= target))?;
+                formula.minimize(crate::id!(), expression, priority)
             }
             Self::MinimizeDelta => {
-                problem
-                    .minimize_delta(expression, target, delta, priority)
-                    .await
+                formula.minimize_delta(crate::id!(), expression, target, delta, priority)
             }
         }
     }
@@ -99,7 +93,6 @@ macro_rules! formula_objectives {
 }
 
 formula_objectives!(Problem);
-formula_objectives!(Formula);
 
 impl Problem {
     pub fn add_delta(
@@ -112,23 +105,6 @@ impl Problem {
         let delta =
             self.variables
                 .make_independent_bounded(0.0, 1.0, false, name, path, component_path);
-        self.minimize(delta, priority)?;
-        Ok(delta)
-    }
-}
-
-impl Formula {
-    pub fn add_delta(
-        &mut self,
-        name: String,
-        path: String,
-        component_path: String,
-        priority: usize,
-    ) -> Result<Delta> {
-        let delta =
-            self.registry
-                .make_independent_bounded(0.0, 1.0, false, name, path, component_path);
-        self.variables.push(delta);
         self.minimize(delta, priority)?;
         Ok(delta)
     }

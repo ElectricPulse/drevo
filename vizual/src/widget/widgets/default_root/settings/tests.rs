@@ -40,7 +40,7 @@ async fn settings_button_focus_can_navigate_the_menu_with_arrow_keys() -> Result
                 text: None,
                 repeat: false,
             },
-            relayout: manager.rerender.for_component(0),
+            relayout: manager.rerender.clone(),
             window: None,
         })
         .await?;
@@ -52,7 +52,7 @@ async fn settings_button_focus_can_navigate_the_menu_with_arrow_keys() -> Result
 
 #[tokio::test]
 async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> {
-    let render_manager = RenderManager::new();
+    let mut render_manager = RenderManager::new();
     let rerender = render_manager.rerender;
     let theme = Store::new(dark_theme());
     let settings = Settings::new(Store::new(ThemeChoice::Dark));
@@ -107,8 +107,10 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
     assert!(focus.compare(&button_block));
     assert!(focus.focused_path().await?.contains(&settings));
 
-    let settings_id = settings.lock().await?.id;
-    assert!(settings.invalidate_formula(settings_id).await?);
+    assert_eq!(
+        render_manager.receiver.0.recv().await,
+        Some(crate::RenderRequest::Rerender)
+    );
 
     let previous_problem = problem;
     let mut problem = AppProblem::new(

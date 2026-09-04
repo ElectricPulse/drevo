@@ -167,14 +167,14 @@ impl<Choice: ThreadSafe> WidgetTrait for Menu<Choice> {
         &mut self,
         LayoutInput {
             relayout,
-            problem,
+            formula: problem,
             slots,
             ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         let selected = *self.selected.affect(relayout).await?;
         let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());
-        let button_delta = problem.add_delta("menu-item-button-delta", 1).await?;
+        let button_delta = problem.add_delta(crate::id!(), 1)?;
 
         for (index, item) in self.items.iter().enumerate() {
             let row = MenuItemContainer {

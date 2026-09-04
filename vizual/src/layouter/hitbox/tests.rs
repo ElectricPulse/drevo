@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::{layouter::Formula, sync::Mutex};
+use crate::layouter::Formula;
 
 #[test]
 fn dimensions_are_derived_from_start_and_end() {
@@ -37,13 +37,12 @@ async fn shared_edges_are_constrained_to_the_parent_after_layout() -> Result<()>
         "child".to_string(),
         "test".to_string(),
     );
-    let context = ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
+    let mut formula = Formula::new(Arc::clone(&variables));
 
-    child.constrain_shared(&parent, &context).await?;
+    child.constrain_shared(&parent, &mut formula).await?;
 
-    let problem = context.lock().await?;
-    assert_eq!(problem.constraints.len(), 4);
-    let horizontal_start = problem.constraints[0].expression();
+    assert_eq!(formula.constraints.len(), 4);
+    let horizontal_start = formula.constraints[0].expression();
     assert_eq!(
         horizontal_start.coefficients.get(&child.start.x.variable),
         Some(&1.0)
@@ -71,11 +70,11 @@ async fn independent_edges_do_not_receive_parent_equalities() -> Result<()> {
         "test".to_string(),
     );
     child.make_start_independent(Direction::Horizontal);
-    let context = ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
+    let mut formula = Formula::new(Arc::clone(&variables));
 
-    child.constrain_shared(&parent, &context).await?;
+    child.constrain_shared(&parent, &mut formula).await?;
 
-    assert_eq!(context.lock().await?.constraints.len(), 3);
+    assert_eq!(formula.constraints.len(), 3);
     Ok(())
 }
 
@@ -88,14 +87,13 @@ async fn static_dimensions_add_a_constraint_over_the_existing_edges() -> Result<
         "child".to_string(),
         "test".to_string(),
     );
-    let context = ComponentContext::new(Arc::new(Mutex::new(Formula::new(Arc::clone(&variables)))));
+    let mut formula = Formula::new(Arc::clone(&variables));
 
     hitbox
-        .set_static_dimension(&context, Direction::Horizontal, 42.0)
+        .set_static_dimension(&mut formula, Direction::Horizontal, 42.0)
         .await?;
 
-    let problem = context.lock().await?;
-    let constraint = problem.constraints[0].expression();
+    let constraint = formula.constraints[0].expression();
     assert_eq!(constraint.coefficients.len(), 2);
     assert_eq!(constraint.constant, -42.0);
     Ok(())
