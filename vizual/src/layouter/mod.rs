@@ -174,7 +174,11 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objective: Option<(&Expression, Sense)>,
-    ) -> (RowProblem, Vec<SolverVariable>, HashMap<SolverVariable, Col>) {
+    ) -> (
+        RowProblem,
+        Vec<SolverVariable>,
+        HashMap<SolverVariable, Col>,
+    ) {
         let mut problem = RowProblem::default();
         let variables = self.live_variables(constraints, objective.iter().map(|(expr, _)| *expr));
         let mut cols = HashMap::with_capacity(variables.len());
@@ -202,9 +206,7 @@ impl Problem {
                 .expression
                 .coefficients
                 .iter()
-                .filter_map(|(var, coeff)| {
-                    cols.get(var).map(|col| (*col, *coeff))
-                })
+                .filter_map(|(var, coeff)| cols.get(var).map(|col| (*col, *coeff)))
                 .collect::<Vec<_>>();
             let rhs = -constraint.expression.constant;
             if constraint.equality {
@@ -493,7 +495,10 @@ impl Problem {
         constraints: &[Constraint],
         objectives: &[(usize, Expression)],
     ) -> Result<Solution> {
-        let variables = self.live_variables(constraints, objectives.iter().map(|(_, objective)| objective));
+        let variables = self.live_variables(
+            constraints,
+            objectives.iter().map(|(_, objective)| objective),
+        );
         let variable_count = variables.len();
         let weights = vec![-1.0; objectives.len()];
         let offsets = objectives
@@ -744,14 +749,16 @@ impl Problem {
                     HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
                         let primal_ray = Self::compute_primal_ray(
                             solved.as_ptr() as *const std::ffi::c_void,
-                            self.live_variables(constraints, std::iter::once(objective)).len(),
+                            self.live_variables(constraints, std::iter::once(objective))
+                                .len(),
                         );
                         Some(Err(primal_ray))
                     }
                     HighsModelStatus::Infeasible => {
                         let iis = Self::compute_iis(
                             solved.as_ptr() as *mut std::ffi::c_void,
-                            self.live_variables(constraints, std::iter::once(objective)).len(),
+                            self.live_variables(constraints, std::iter::once(objective))
+                                .len(),
                             constraints.len(),
                         );
                         Some(Ok(iis))
@@ -793,7 +800,8 @@ impl Problem {
             if let Ok(solved) = model.try_solve() {
                 Self::compute_primal_ray(
                     solved.as_ptr() as *const std::ffi::c_void,
-                    self.live_variables(constraints, std::iter::once(&combined_objective)).len(),
+                    self.live_variables(constraints, std::iter::once(&combined_objective))
+                        .len(),
                 )
             } else {
                 Vec::new()

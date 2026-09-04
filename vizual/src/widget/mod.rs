@@ -11,7 +11,7 @@ use std::sync::{Arc, Weak};
 use winit::window::Window;
 
 use crate::{
-    component::{Children, RenderContext, context::ComponentContext},
+    component::{Children, RenderContext, SharedComponent, context::ComponentContext},
     event::{Event, KeyEvent, PointerEvent},
     geometry::Rect,
     graphics::scene::Scene,
@@ -201,7 +201,7 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
             relayout,
             window: Some(window),
         })
-            .await
+        .await
     }
 
     fn as_any(self) -> Widget
@@ -268,6 +268,46 @@ impl WidgetTrait for Widget {
         window: Arc<Window>,
     ) -> Result<VizualMsg> {
         (**self).forward_event(event, relayout, window).await
+    }
+}
+
+#[async_trait]
+impl WidgetTrait for SharedComponent {
+    async fn layout(&mut self, input: LayoutInput<'_>) -> Result<Children> {
+        self.lock().await?.widget.layout(input).await
+    }
+
+    async fn render(&mut self, input: RenderInput<'_, '_>) -> Result<()> {
+        self.lock().await?.widget.render(input).await
+    }
+
+    async fn on_all_events(&mut self, input: AllEvents<'_>) -> Result<VizualMsg> {
+        self.lock().await?.widget.on_all_events(input).await
+    }
+
+    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<VizualMsg> {
+        self.lock().await?.widget.on_mouse_click(input).await
+    }
+
+    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<VizualMsg> {
+        self.lock().await?.widget.on_key_press(input).await
+    }
+
+    async fn on_other_event(&mut self, input: OtherEvent<'_>) -> Result<VizualMsg> {
+        self.lock().await?.widget.on_other_event(input).await
+    }
+
+    async fn forward_event(
+        &mut self,
+        event: &Event,
+        relayout: Signal,
+        window: Arc<Window>,
+    ) -> Result<VizualMsg> {
+        self.lock()
+            .await?
+            .widget
+            .forward_event(event, relayout, window)
+            .await
     }
 }
 

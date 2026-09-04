@@ -142,10 +142,7 @@ impl WidgetTrait for TextInput {
         }
     }
 
-    async fn on_other_event(
-        &mut self,
-        input: crate::widget::OtherEvent<'_>,
-    ) -> Result<VizualMsg> {
+    async fn on_other_event(&mut self, input: crate::widget::OtherEvent<'_>) -> Result<VizualMsg> {
         let event = input.event;
         let relayout = input.relayout;
         let Event::Text(text) = event else {

@@ -90,10 +90,7 @@ impl<Choice: ThreadSafe> WidgetTrait for MenuItemContainer<Choice> {
         Ok(vec![display!(widget)])
     }
 
-    async fn on_mouse_click(
-        &mut self,
-        input: crate::widget::MouseEvent<'_>,
-    ) -> Result<VizualMsg> {
+    async fn on_mouse_click(&mut self, input: crate::widget::MouseEvent<'_>) -> Result<VizualMsg> {
         self.submit(input.relayout).await
     }
 

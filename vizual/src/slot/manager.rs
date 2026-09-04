@@ -127,8 +127,9 @@ impl Slots<'_> {
 #[macro_export]
 macro_rules! id {
     () => {
-        // TODO: This u64::MAX/2 offset is a workaround for namespace conflicts with other `slots.set` calls that
-        // commonly use `set_generic` with the index from an iteration as the key.
-        (::uniqify::uniqify!() as u64) + u64::MAX / 2
+        // `line!` and `column!` resolve to the outer macro invocation, so `display!` receives a
+        // stable ID for its call site. Keep generated IDs separate from manually assigned IDs,
+        // which commonly use collection indexes.
+        u64::MAX / 2 + ((line!() as u64) << 32) + column!() as u64
     };
 }

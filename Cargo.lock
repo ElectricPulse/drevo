@@ -2830,15 +2830,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
 
 [[package]]
-name = "uniqify"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0a9b3662daa6750c37e987875605039856d2cad4938bf60913bcf46cd91e45e"
-dependencies = [
- "quote",
-]
-
-[[package]]
 name = "unit-intervals"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2941,7 +2932,6 @@ dependencies = [
  "skrifa 0.42.1",
  "time",
  "tokio",
- "uniqify",
  "unit-intervals",
  "uuid",
  "vello",

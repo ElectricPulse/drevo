@@ -67,7 +67,7 @@ pub use winit::window::Window;
 use component::{ChildReference, SharedComponent, context::ComponentContext};
 use config::{DEFAULT_SCREEN_SIZE, MINIMUM_WINDOW_SIZE};
 use event::{
-    Event, KeyCode, KeyEvent, Modifiers, PointerButton, PointerEvent, WheelDelta, WheelEvent,
+    Event, KeyCode, KeyEvent, Modifiers, PointerButton, PointerEvent, SCROLL_STEP, WheelEvent,
 };
 use focus::{Focus, FocusSearchDirection};
 use geometry::{Point, Size};
@@ -1151,11 +1151,11 @@ impl ApplicationHandler<UserEvent> for WindowApp {
             WindowEvent::MouseWheel { delta, .. } => {
                 let delta = match delta {
                     MouseScrollDelta::LineDelta(x, y) => {
-                        WheelDelta::Lines(Point::new(f64::from(x), f64::from(y)))
+                        Point::new(f64::from(x) * SCROLL_STEP, f64::from(y) * SCROLL_STEP)
                     }
                     MouseScrollDelta::PixelDelta(delta) => {
                         let delta = delta.to_logical::<f64>(self.scale_factor);
-                        WheelDelta::LogicalPixels(Point::new(delta.x, delta.y))
+                        Point::new(delta.x, delta.y)
                     }
                 };
                 let _ = self.input.send(UiInput::Event(Event::Wheel(WheelEvent {

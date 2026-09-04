@@ -126,7 +126,8 @@ impl WidgetTrait for TabBar {
         }
 
         let axis = Anchor::left(Axis::new(Direction::Horizontal, buttons));
-        Ok(vec![display!(axis)])
+        let axis = display!(axis);
+        Ok(vec![axis])
     }
 
     async fn on_key_press(
@@ -178,6 +179,7 @@ impl WidgetTrait for Tabs {
             Some(widget) => Axis::new(Direction::Vertical, (self.header.clone(), widget)),
             None => Axis::new(Direction::Vertical, (self.header.clone(),)),
         };
-        Ok(vec![display!(axis)])
+        let axis = display!(axis);
+        Ok(vec![axis])
     }
 }

@@ -28,7 +28,7 @@ use crate::{
     theme::{SystemTheme, Theme},
     utils::{get_next_index, get_previous_index},
     widget::{
-        LayoutInput, RenderInput, Widget, WidgetTrait,
+        LayoutInput, MouseEvent, RenderInput, Widget, WidgetTrait,
         custom_widget::CustomWidgetTrait,
         widgets::{paper::Paper, positioning::anchor::AnchorPosition},
     },
@@ -237,6 +237,7 @@ impl WidgetTrait for Settings {
             ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
+        focus.set_interactive(true);
         let focused = focus.get();
         let choice = *self.choice.affect(relayout.clone()).await?;
         let current_theme = theme.affect(relayout.clone()).await?;
@@ -284,7 +285,8 @@ impl WidgetTrait for Settings {
         let menu = display!(menu);
         menu.lock().await?.logical = true;
 
-        // Appending the dialog to the root component's children while maintaining settings as its logical layout parent is a neat way to bypass ancestor masking/clipping issues, ensuring it renders on top of the entire tree. In the future, instead of root, dedicated layer containers could be passed into layout.
+        // Appending the dialog to the root component's children while maintaining settings as its logical layout parent is a neat way to bypass ancestor masking/clipping issues, ensuring it renders on top of the entire tree.
+        // In the future, instead of root, dedicated layer containers could be passed into layout.
         root.lock().await?.children.push(menu.clone());
 
         Ok(vec![button, menu])
@@ -292,6 +294,11 @@ impl WidgetTrait for Settings {
 
     async fn render(&mut self, RenderInput { .. }: RenderInput<'_, '_>) -> Result<()> {
         Ok(())
+    }
+
+    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<VizualMsg> {
+        input.relayout.send();
+        VizualMsg::none()
     }
 
     async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {

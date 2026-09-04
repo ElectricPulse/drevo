@@ -96,10 +96,7 @@ impl WidgetTrait for Button {
         Ok(vec![display!(block)])
     }
 
-    async fn on_mouse_click(
-        &mut self,
-        input: crate::widget::MouseEvent<'_>,
-    ) -> Result<VizualMsg> {
+    async fn on_mouse_click(&mut self, input: crate::widget::MouseEvent<'_>) -> Result<VizualMsg> {
         self.submit(false, input.relayout).await
     }
 

@@ -19,7 +19,10 @@ use super::{
     paragraph::Paragraph,
     positioning::anchor::Anchor,
     scroll::Scroll,
-    text::{Text, ansi::{Ansi, Content}},
+    text::{
+        Text,
+        ansi::{Ansi, Content},
+    },
 };
 use crate::{
     VizualCommand, VizualMsg,

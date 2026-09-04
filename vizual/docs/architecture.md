@@ -41,7 +41,11 @@ A component tracks the lifetime of a widget instance, its hitbox, cached formula
 
 So you can click a text form and begin typing while the UI changes its anchor from `display!(Anchor::left(form))` to `display!(Anchor::right(form))` and it will retain focus.
 
-Slot reuse preserves the component ID and lifetime. Refreshing a slot currently replaces its widget and invalidates that component formula, so descendant layout caches can still be rebuilt. This makes the current per-component relayout path less granular than intended.
+`SharedComponent` also implements `WidgetTrait` by forwarding to its stored widget. As a current
+workaround when different widgets must be stored in one variable, first pass each alternative
+through `display!()`, then store the resulting `SharedComponent`. This preserves a component
+identity for each alternative while `display!()` still cannot distinguish a stable widget from a
+replacement widget between layout calls - which is especially important if the widget wants to cache results from layout() calls
 
 ## Text
 

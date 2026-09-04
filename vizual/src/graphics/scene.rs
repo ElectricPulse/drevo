@@ -68,12 +68,7 @@ impl<'a> Scene<'a> {
         );
     }
 
-    pub(crate) fn append_clipped(
-        &mut self,
-        scene: &VelloScene,
-        viewport: Rect,
-        transform: Affine,
-    ) {
+    pub(crate) fn append_clipped(&mut self, scene: &VelloScene, viewport: Rect, transform: Affine) {
         let viewport = to_kurbo_rect(viewport);
         self.scene
             .push_clip_layer(Fill::NonZero, Affine::IDENTITY, &viewport);

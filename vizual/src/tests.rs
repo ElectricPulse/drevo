@@ -67,10 +67,7 @@ impl WidgetTrait for OffsetClick {
         Ok(())
     }
 
-    async fn on_mouse_click(
-        &mut self,
-        _input: crate::widget::MouseEvent<'_>,
-    ) -> Result<VizualMsg> {
+    async fn on_mouse_click(&mut self, _input: crate::widget::MouseEvent<'_>) -> Result<VizualMsg> {
         VizualMsg::new(VizualCommand::Quit)
     }
 }

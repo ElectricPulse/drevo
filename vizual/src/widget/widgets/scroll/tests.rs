@@ -54,7 +54,7 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
     scroll.viewport = Rect::new(0.0, 0.0, 100.0, 100.0);
     let mut wheel = WheelEvent {
         position: Point::new(50.0, 50.0),
-        delta: WheelDelta::Lines(Point::new(0.0, -1.0)),
+        delta: Point::new(0.0, -SCROLL_STEP),
         modifiers: Modifiers::default(),
     };
 

@@ -105,6 +105,7 @@ impl WidgetTrait for Ansi {
         let font_size = self.style.get(&theme).size;
         let mut text = content.text().clone();
         text.size = font_size;
+
         let memoization = {
             let mut cached_layout = self.cached_layout.lock().await?;
             match &*cached_layout {
@@ -116,6 +117,7 @@ impl WidgetTrait for Ansi {
                 }
             }
         };
+
         let layout = memoization.affect(relayout).await?;
         let size = layout.size;
 

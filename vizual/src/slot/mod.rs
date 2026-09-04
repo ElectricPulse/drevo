@@ -25,6 +25,15 @@ use self::manager::SlotRecords;
 static NEXT_COMPONENT_NAME: AtomicU64 = AtomicU64::new(1);
 static NEXT_COMPONENT_ID: AtomicU64 = AtomicU64::new(1);
 
+// `display!` uses `slots.set` to return children from `WidgetTrait::layout`. This raises the
+// question of why the trait does not return a `HashMap<Id, Box<dyn WidgetTrait>>` directly.
+// Slots let widgets retain control of the resulting `Component` instances when that is needed.
+// Portals, such as the dialog in the default-root settings header, use that control to mount a
+// layout child in a different graphical parent.
+//
+// A widget can store a `ComponentSlot` directly when it always renders the same child. That is
+// marginally faster than calling `slots.set`, but the difference is too small to justify the
+// extra state in most widgets. Prefer `slots.set` unless a widget needs direct component control.
 #[derive(Clone)]
 pub struct ComponentSlot {
     reference: ChildReference,
@@ -93,7 +102,6 @@ impl ComponentSlot {
             reference.debug.source_path = self.path.clone();
             reference.widget = widget;
             reference.slot_manager.set_problem(problem);
-            reference.formula = None;
             reference.hitbox.reset_shared();
             reference.logical = false;
             reference.mask = false;

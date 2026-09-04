@@ -1,5 +1,7 @@
 use crate::geometry::Point;
 
+pub(crate) const SCROLL_STEP: f64 = 105.0;
+
 #[derive(Clone, Debug)]
 pub enum Event {
     Key(KeyEvent),
@@ -61,14 +63,9 @@ pub struct PointerEvent {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum WheelDelta {
-    Lines(Point),
-    LogicalPixels(Point),
-}
-
-#[derive(Clone, Copy, Debug)]
 pub struct WheelEvent {
     pub position: Point,
-    pub delta: WheelDelta,
+    /// Scroll distance in the logical-pixel coordinate space used for layout.
+    pub delta: Point,
     pub modifiers: Modifiers,
 }

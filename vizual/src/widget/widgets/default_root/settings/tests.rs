@@ -107,6 +107,9 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
     assert!(focus.compare(&button_block));
     assert!(focus.focused_path().await?.contains(&settings));
 
+    let settings_id = settings.lock().await?.id;
+    assert!(settings.invalidate_formula(settings_id).await?);
+
     let previous_problem = problem;
     let mut problem = AppProblem::new(
         root.clone(),

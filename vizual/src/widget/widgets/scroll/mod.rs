@@ -8,7 +8,7 @@ use crate::{
     VizualMsg,
     component::{Children, SharedComponent},
     constraint,
-    event::{Event, KeyCode, WheelDelta},
+    event::{Event, KeyCode, SCROLL_STEP},
     geometry::{Direction, Point, Rect, Size},
     widget::{
         LayoutInput, RenderInput, Widget, WidgetTrait,
@@ -18,8 +18,6 @@ use crate::{
         },
     },
 };
-
-const SCROLL_STEP: f64 = 115.0;
 
 #[derive(Clone)]
 pub struct ScrollContent {
@@ -205,10 +203,7 @@ impl WidgetTrait for Scroll {
         Ok(vec![component])
     }
 
-    async fn render(
-        &mut self,
-        RenderInput { context, .. }: RenderInput<'_, '_>,
-    ) -> Result<()> {
+    async fn render(&mut self, RenderInput { context, .. }: RenderInput<'_, '_>) -> Result<()> {
         if let Some(root_comp) = &self.root_component {
             if let Some((content_comp, child_comp)) =
                 find_scroll_content_and_child(root_comp).await?
@@ -249,10 +244,7 @@ impl WidgetTrait for Scroll {
         }
     }
 
-    async fn on_other_event(
-        &mut self,
-        input: crate::widget::OtherEvent<'_>,
-    ) -> Result<VizualMsg> {
+    async fn on_other_event(&mut self, input: crate::widget::OtherEvent<'_>) -> Result<VizualMsg> {
         let event = input.event;
         let relayout = input.relayout;
         let Event::Wheel(wheel) = event else {
@@ -262,10 +254,7 @@ impl WidgetTrait for Scroll {
             return VizualMsg::none();
         }
 
-        let delta = match wheel.delta {
-            WheelDelta::Lines(delta) => Point::new(-delta.x * SCROLL_STEP, -delta.y * SCROLL_STEP),
-            WheelDelta::LogicalPixels(delta) => Point::new(-delta.x, -delta.y),
-        };
+        let delta = Point::new(-wheel.delta.x, -wheel.delta.y);
         let delta = match wheel.modifiers.shift {
             true => Point::new(delta.y, 0.0),
             false => delta,

@@ -14,11 +14,12 @@ where
     CallbackFuture: Future<Output = Output>,
 {
     let name = name.into();
+    log_info(indentation, format_args!("{name} started"));
     let started = Instant::now();
     let output = callback().await;
     log_info(
         indentation,
-        format_args!("{name} took {:?}", started.elapsed()),
+        format_args!("{name} finished in {:?}", started.elapsed()),
     );
     output
 }

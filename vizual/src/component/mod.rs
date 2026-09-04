@@ -44,6 +44,9 @@ pub struct Component {
     pub focusable: bool,
     pub parent: Parent,
     pub children: Children,
+    // TODO: Replace `children` and `layout_children` with a child enum that distinguishes
+    // graphical children from virtual children. Logical children are still experimental, and
+    // introducing that enum requires changing the `WidgetTrait` layout signature.
     /// Includes logical children, which participate in layout and formula assembly.
     pub(crate) layout_children: Children,
     pub slot_manager: SlotRecords,
