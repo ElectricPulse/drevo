@@ -1,5 +1,9 @@
 use crate::{
-    VizualMsg, event::PointerButton, geometry::Direction, macros::display, widget::{MouseEvent, widgets::layout::axis::Axis},
+    VizualMsg,
+    event::PointerButton,
+    geometry::Direction,
+    macros::display,
+    widget::{MouseEvent, widgets::layout::axis::Axis},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -64,7 +68,7 @@ impl WidgetTrait for Header {
             settings,
             Anchors {
                 horizontal: Some(AnchorPosition::End),
-                vertical: Some(AnchorPosition::Start),
+                vertical: Some(AnchorPosition::Middle),
             },
         );
 

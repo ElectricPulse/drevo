@@ -49,4 +49,3 @@ pub fn normalize_path(path: impl AsRef<std::path::Path>) -> String {
     let cleaned = path_clean::clean(path.as_ref());
     replace_homedir::replace_homedir(&cleaned.to_string_lossy(), "~")
 }
-

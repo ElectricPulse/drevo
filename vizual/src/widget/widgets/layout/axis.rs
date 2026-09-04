@@ -9,6 +9,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use vizual_macros::display;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AxisStyle {
@@ -29,7 +30,6 @@ pub struct Axis {
     pub style: Style<AxisStyle>,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
-    pub limit_cross: bool,
 }
 
 impl Axis {
@@ -39,7 +39,6 @@ impl Axis {
             elements: elements.into(),
             style: Style::default(),
             priority: 1,
-            limit_cross: false,
         }
     }
 }
@@ -60,15 +59,18 @@ impl WidgetTrait for Axis {
         let direction = self.direction;
         let mut elements = Vec::with_capacity(self.elements.len());
 
-        for (index, element) in self.elements.iter().enumerate() {
-            let container = Container::new(element.clone());
-            let container = slots.set(index as u64, container).await?;
-            elements.push(container);
-        }
+        let cross = direction.flip();
+        let cross_start = hitbox.get_start_position(cross);
+        let cross_end = hitbox.get_end_position(cross);
 
-        if self.limit_cross {
-            let cross_direction = direction.flip();
-            problem.minimize(id!(), hitbox.get_dimension(cross_direction), 0)?;
+        for (index, element) in self.elements.iter().enumerate() {
+            let element = slots.set(index as u64, element).await?;
+            let mut element_hitbox = element.get_hitbox().await?;
+
+            element_hitbox.make_start_independent(cross);
+            element_hitbox.make_end_independent(cross);
+
+            elements.push(container);
         }
 
         if elements.len() >= 2 {

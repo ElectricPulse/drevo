@@ -144,10 +144,7 @@ impl Hitbox {
         direction: Direction,
         value: f64,
     ) -> Result<()> {
-        formula.constrain(
-            id!(),
-            constraint!(self.get_dimension(direction) == value),
-        )
+        formula.constrain(id!(), constraint!(self.get_dimension(direction) == value))
     }
 
     /// Returns the derived `end - start` dimension for one axis.

@@ -20,10 +20,10 @@ use crate::{
     VizualMsg,
     component::Children,
     constraint,
-    id,
     event::KeyCode,
     geometry::{Direction, Size},
     handlers::RetrieveHandler,
+    id,
     layouter::hitbox::Hitbox,
     state::{State, Store},
     theme::{SystemTheme, Theme},
@@ -123,8 +123,10 @@ impl CustomWidgetTrait for ThemeMenuItem {
                 focused_border: border,
             },
         );
-        let swatch = Container::new(swatch)
-            .fixed_size(Size::new(current_theme.units.em, current_theme.units.em));
+        let swatch = Container::new(
+            swatch,
+            Size::new(current_theme.units.em, current_theme.units.em),
+        );
         let swatch = Anchor::new(
             swatch,
             Anchors {
@@ -187,10 +189,8 @@ impl WidgetTrait for PositionedMenu {
         let vertical_difference = hitbox.get_start_position(Direction::Vertical)
             - self.button.get_end_position(Direction::Vertical)
             - gap * 0.5;
-        let horizontal_distance =
-            problem.bounded_variable(id!(), 0.0, f64::INFINITY, false)?;
-        let vertical_distance =
-            problem.bounded_variable(id!(), 0.0, f64::INFINITY, false)?;
+        let horizontal_distance = problem.bounded_variable(id!(), 0.0, f64::INFINITY, false)?;
+        let vertical_distance = problem.bounded_variable(id!(), 0.0, f64::INFINITY, false)?;
 
         problem.constrain(
             id!(),

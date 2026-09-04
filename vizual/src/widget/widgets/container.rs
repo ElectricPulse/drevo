@@ -8,24 +8,19 @@ use crate::{
     geometry::{Direction, Size},
 };
 
-/// Gives a child an intermediate hitbox with an optional static size.
+/// Gives a child an intermediate hitbox with a static size.
 #[derive(Clone)]
 pub struct Container {
     child: Widget,
-    fixed_size: Option<Size>,
+    size: Size,
 }
 
 impl Container {
-    pub fn new(child: impl WidgetTrait) -> Self {
+    pub fn new(child: impl WidgetTrait, size: Size) -> Self {
         Self {
             child: child.as_any(),
-            fixed_size: None,
+            size,
         }
-    }
-
-    pub fn fixed_size(mut self, size: Size) -> Self {
-        self.fixed_size = Some(size);
-        self
     }
 }
 
@@ -40,14 +35,12 @@ impl WidgetTrait for Container {
             ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
-        if let Some(size) = self.fixed_size {
-            hitbox
-                .set_static_dimension(problem, Direction::Horizontal, size.width)
-                .await?;
-            hitbox
-                .set_static_dimension(problem, Direction::Vertical, size.height)
-                .await?;
-        }
+        hitbox
+            .set_static_dimension(problem, Direction::Horizontal, self.size.width)
+            .await?;
+        hitbox
+            .set_static_dimension(problem, Direction::Vertical, self.size.height)
+            .await?;
 
         let child = display!(self.child.clone());
 

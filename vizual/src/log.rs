@@ -1,4 +1,8 @@
-use std::{fmt::Display, future::Future, time::Instant};
+use std::{
+    fmt::Display,
+    future::Future,
+    time::{Duration, Instant},
+};
 
 pub fn log_info(indentation: usize, message: impl Display) {
     ::log::info!("{:indentation$}{message}", "");
@@ -27,3 +31,22 @@ where
     output
 }
 
+pub async fn log_timeout<Output, Callback, CallbackFuture>(
+    indentation: usize,
+    name: impl Into<String>,
+    timeout: Duration,
+    callback: Callback,
+) -> Output
+where
+    Callback: FnOnce() -> CallbackFuture,
+    CallbackFuture: Future<Output = Output>,
+{
+    let started = Instant::now();
+    let output = callback().await;
+    let elapsed = started.elapsed();
+    if elapsed > timeout {
+        let name = name.into();
+        log_info(indentation, format_args!("{name} took {elapsed:?}"));
+    }
+    output
+}

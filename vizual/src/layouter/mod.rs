@@ -933,10 +933,7 @@ impl Problem {
         Self::constrain_root_to_screen(&mut constraints, &root, screen);
 
         log_duration(0, "layouting", true, || async {
-            let mut objectives_array = self.objectives.clone();
-            let root_width = root.get_dimension(Direction::Horizontal);
-            let root_height = root.get_dimension(Direction::Vertical);
-            objectives_array[2].push((root_width + root_height) * -1.0);
+            let objectives_array = self.objectives.clone();
 
             let objectives = log_duration(2, "filter objectives", false, async || {
                 objectives_array

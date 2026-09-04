@@ -3,10 +3,7 @@ pub(crate) mod debug;
 
 use async_recursion::async_recursion;
 use color_eyre::eyre::Result;
-use std::{
-    sync::{Arc, Weak},
-    time::Instant,
-};
+use std::sync::{Arc, Weak};
 use vello::{Scene as VelloScene, kurbo::Affine};
 
 use crate::{
@@ -16,7 +13,7 @@ use crate::{
     geometry::Direction,
     graphics::text::TextContext,
     layouter::{Formula, Solution, hitbox::Hitbox},
-    log::log_info,
+    log::log_timeout,
     slot::manager::SlotRecords,
     state::Store,
     sync::{Mutex, MutexGuard},
@@ -215,19 +212,13 @@ impl SharedComponent {
                     root,
                     mask,
                 };
-                let started = Instant::now();
-                let children = widget.layout(input).await?;
-                let elapsed = started.elapsed();
-                if elapsed > LAYOUT_TIMEOUT {
-                    log_info(
-                        0,
-                        format_args!(
-                            "widget layout() at {} took {:?}",
-                            debug.source_path(),
-                            elapsed,
-                        ),
-                    );
-                }
+                let children = log_timeout(
+                    0,
+                    format!("widget layout() at {}", debug.source_path()),
+                    LAYOUT_TIMEOUT,
+                    || widget.layout(input),
+                )
+                .await?;
 
                 hitbox.constrain_shared(&parent, formula).await?;
 
@@ -248,7 +239,7 @@ impl SharedComponent {
                 non_logical_children.push(child.clone());
             }
         }
-        
+
         this.children = non_logical_children;
 
         Ok(children)
