@@ -12,6 +12,10 @@ impl ComponentDebug {
     pub fn new(source_path: String) -> Self {
         Self { source_path }
     }
+
+    pub fn source_path(&self) -> &str {
+        &self.source_path
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
