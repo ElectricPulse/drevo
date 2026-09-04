@@ -11,6 +11,7 @@
 - Calling layout of a widget manually is prohibited inside another widget as that will fail to create a child with its own events.
 - put tests in a separate tests.rs (where they must be in a directory named by the former `<file>.rs` ie. `<file>/tests.rs` where `<file>.rs` gets put in `<file>/mod.rs`)
 - proactively fix typos in code, comments, and documentation
+- If you encounter a seemingly unintended deletion, do not restore it: it was probably the user deleting code while you were working.
 
 # Documentation
 
