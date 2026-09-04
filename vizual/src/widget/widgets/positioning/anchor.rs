@@ -3,6 +3,7 @@ use crate::{
     component::Children,
     constraint,
     geometry::Direction,
+    id,
     layouter::{Formula, hitbox::Hitbox},
     widget::{LayoutInput, Widget, WidgetTrait},
 };
@@ -108,7 +109,7 @@ impl Anchor {
             Some(AnchorPosition::Start) => {
                 hitbox.make_end_independent(direction);
                 formula.constrain(
-                    crate::id!(),
+                    id!(),
                     constraint!(
                         hitbox.get_end_position(direction) <= parent.get_end_position(direction)
                     ),
@@ -119,14 +120,14 @@ impl Anchor {
                 hitbox.make_end_independent(direction);
 
                 formula.constrain(
-                    crate::id!(),
+                    id!(),
                     constraint!(
                         hitbox.get_start_position(direction)
                             >= parent.get_start_position(direction)
                     ),
                 )?;
                 formula.constrain(
-                    crate::id!(),
+                    id!(),
                     constraint!(
                         hitbox.get_end_position(direction) <= parent.get_end_position(direction)
                     ),
@@ -137,15 +138,15 @@ impl Anchor {
                 let end_margin =
                     parent.get_end_position(direction) - hitbox.get_end_position(direction);
                 formula.constrain(
-                    crate::id!(),
+                    id!(),
                     constraint!(start_margin.clone() == end_margin),
                 )?;
-                formula.minimize(crate::id!(), start_margin, 0)?;
+                formula.minimize(id!(), start_margin, 0)?;
             }
             Some(AnchorPosition::End) => {
                 hitbox.make_start_independent(direction);
                 formula.constrain(
-                    crate::id!(),
+                    id!(),
                     constraint!(
                         hitbox.get_start_position(direction)
                             >= parent.get_start_position(direction)

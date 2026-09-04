@@ -6,6 +6,7 @@ use crate::{
     component::Children,
     constraint,
     geometry::Direction,
+    id,
     layouter::{Formula, hitbox::Hitbox, objective::Objective},
     widget::{LayoutInput, Widget, WidgetTrait},
 };
@@ -43,12 +44,12 @@ impl Align {
             Objective::Minimize => {
                 let start_margin =
                     hitbox.get_start_position(direction) - parent.get_start_position(direction);
-                formula.minimize(crate::id!(), start_margin, priority)
+                formula.minimize(id!(), start_margin, priority)
             }
             Objective::Maximize => {
                 let end_margin =
                     parent.get_end_position(direction) - hitbox.get_end_position(direction);
-                formula.minimize(crate::id!(), end_margin, priority)
+                formula.minimize(id!(), end_margin, priority)
             }
             Objective::MinimizeDelta => Ok(()),
         }
@@ -79,13 +80,13 @@ impl WidgetTrait for Align {
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
             problem.constrain(
-                crate::id!(),
+                id!(),
                 constraint!(
                     hitbox.get_start_position(direction) >= parent.get_start_position(direction)
                 ),
             )?;
             problem.constrain(
-                crate::id!(),
+                id!(),
                 constraint!(
                     hitbox.get_end_position(direction) <= parent.get_end_position(direction)
                 ),

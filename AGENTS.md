@@ -12,6 +12,7 @@
 - put tests in a separate tests.rs (where they must be in a directory named by the former `<file>.rs` ie. `<file>/tests.rs` where `<file>.rs` gets put in `<file>/mod.rs`)
 - proactively fix typos in code, comments, and documentation
 - If you encounter a seemingly unintended deletion, do not restore it: it was probably the user deleting code while you were working.
+- Do not use namespaces directly inside code (e.g. `crate::id!()`); import items directly at the top of the file unless the file was already written that way or you are explicitly instructed to do so.
 
 # Documentation
 

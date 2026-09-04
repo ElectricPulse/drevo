@@ -2,6 +2,7 @@ use crate::{
     component::Children,
     constraint,
     geometry::Direction,
+    id,
     style::Style,
     theme::Theme,
     widget::{IntoWidgets, LayoutInput, Widget, WidgetTrait, widgets::container::Container},
@@ -67,14 +68,14 @@ impl WidgetTrait for Axis {
 
         if self.limit_cross {
             let cross_direction = direction.flip();
-            problem.minimize(crate::id!(), hitbox.get_dimension(cross_direction), 0)?;
+            problem.minimize(id!(), hitbox.get_dimension(cross_direction), 0)?;
         }
 
         if elements.len() >= 2 {
             let theme = theme.affect(relayout).await?;
             let AxisStyle::Gap(gap) = self.style.get(&theme);
             // One delta controls every gap belonging to this axis.
-            let gap_delta = problem.add_delta(crate::id!(), self.priority)?;
+            let gap_delta = problem.add_delta(id!(), self.priority)?;
             let gap: crate::layouter::expression::Expression = gap * (1.0 - gap_delta);
 
             for pair in elements.windows(2) {
@@ -94,7 +95,7 @@ impl WidgetTrait for Axis {
                 };
 
                 problem.constrain(
-                    crate::id!(),
+                    id!(),
                     constraint!(current_start - previous_end == gap.clone()),
                 )?;
             }

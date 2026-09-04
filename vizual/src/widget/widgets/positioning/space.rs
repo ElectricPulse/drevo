@@ -3,6 +3,7 @@ use crate::{
     component::Children,
     constraint,
     geometry::Direction,
+    id,
     layouter::{Formula, expression::Expression, objective::Delta},
     widget::{LayoutInput, Widget, WidgetTrait},
 };
@@ -115,7 +116,7 @@ impl Space {
         let delta = match delta.as_ref() {
             Some(delta) => delta.clone(),
             None => {
-                let new_delta = formula.add_delta(crate::id!(), self.priority)?;
+                let new_delta = formula.add_delta(id!(), self.priority)?;
                 *delta = Some(new_delta.clone());
                 new_delta
             }
@@ -123,9 +124,9 @@ impl Space {
         let space: Expression = target * (1.0 - delta.clone());
 
         if self.minimum > 0.0 {
-            formula.constrain(crate::id!(), constraint!(space.clone() >= self.minimum))?;
+            formula.constrain(id!(), constraint!(space.clone() >= self.minimum))?;
         }
-        formula.minimize(crate::id!(), delta, self.priority)?;
+        formula.minimize(id!(), delta, self.priority)?;
 
         Ok(space)
     }
@@ -153,7 +154,7 @@ impl WidgetTrait for Space {
                 let space = self.expression(problem, space, &mut delta).await?;
                 hitbox.make_start_independent(direction);
                 problem.constrain(
-                    crate::id!(),
+                    id!(),
                     constraint!(
                         hitbox.get_start_position(direction)
                             == parent.get_start_position(direction) + space
@@ -167,7 +168,7 @@ impl WidgetTrait for Space {
                 let space = self.expression(problem, space, &mut delta).await?;
                 hitbox.make_end_independent(direction);
                 problem.constrain(
-                    crate::id!(),
+                    id!(),
                     constraint!(
                         hitbox.get_end_position(direction)
                             == parent.get_end_position(direction) - space

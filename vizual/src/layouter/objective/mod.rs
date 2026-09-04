@@ -1,7 +1,7 @@
 use color_eyre::eyre::{Result, ensure, eyre};
 
 use super::{Formula, PRIORITY_LEVELS, Problem, expression::Expression, variable::Variable};
-use crate::constraint;
+use crate::{constraint, id};
 
 #[cfg(test)]
 mod tests;
@@ -27,15 +27,15 @@ impl Objective {
     ) -> Result<()> {
         match self {
             Self::Maximize => {
-                formula.constrain(crate::id!(), constraint!(expression.clone() <= target))?;
-                formula.maximize(crate::id!(), expression, priority)
+                formula.constrain(id!(), constraint!(expression.clone() <= target))?;
+                formula.maximize(id!(), expression, priority)
             }
             Self::Minimize => {
-                formula.constrain(crate::id!(), constraint!(expression.clone() >= target))?;
-                formula.minimize(crate::id!(), expression, priority)
+                formula.constrain(id!(), constraint!(expression.clone() >= target))?;
+                formula.minimize(id!(), expression, priority)
             }
             Self::MinimizeDelta => {
-                formula.minimize_delta(crate::id!(), expression, target, delta, priority)
+                formula.minimize_delta(id!(), expression, target, delta, priority)
             }
         }
     }

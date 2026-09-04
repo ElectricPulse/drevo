@@ -3,6 +3,7 @@ use crate::{
     config::BORDER_SIZE,
     constraint,
     geometry::Direction,
+    id,
     widget::{LayoutInput, RenderInput, WidgetTrait},
 };
 use async_trait::async_trait;
@@ -30,7 +31,7 @@ impl WidgetTrait for Linebreak {
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         problem.constrain(
-            crate::id!(),
+            id!(),
             constraint!(hitbox.get_dimension(self.direction.flip()) == BORDER_SIZE),
         )?;
 

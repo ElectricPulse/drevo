@@ -1,6 +1,6 @@
 use super::hitbox::Hitbox;
 use crate::{
-    component::Child, config::MAXIMUM_LAYOUT_VALUE, constraint, geometry::Direction,
+    component::Child, config::MAXIMUM_LAYOUT_VALUE, constraint, geometry::Direction, id,
     layouter::Formula,
 };
 use color_eyre::eyre::Result;
@@ -22,20 +22,20 @@ pub async fn shrink_wrap(
     }
     for child_hitbox in child_hitboxes {
         formula.constrain(
-            crate::id!(),
+            id!(),
             constraint!(
                 hitbox.get_start_position(direction) <= child_hitbox.get_start_position(direction)
             ),
         )?;
         formula.constrain(
-            crate::id!(),
+            id!(),
             constraint!(
                 hitbox.get_end_position(direction) >= child_hitbox.get_end_position(direction)
             ),
         )?;
     }
-    formula.maximize(crate::id!(), hitbox.get_start_position(direction), 0)?;
-    formula.minimize(crate::id!(), hitbox.get_end_position(direction), 0)?;
+    formula.maximize(id!(), hitbox.get_start_position(direction), 0)?;
+    formula.minimize(id!(), hitbox.get_end_position(direction), 0)?;
     Ok(())
 }
 
@@ -50,11 +50,11 @@ pub fn prohibit_overlap(
     let first_above = formula.binary_variable("prohibit-overlap-first-above")?;
     let second_above = formula.binary_variable("prohibit-overlap-second-above")?;
     formula.constrain(
-        crate::id!(),
+        id!(),
         constraint!(first_left + second_left + first_above + second_above == 1),
     )?;
     formula.constrain(
-        crate::id!(),
+        id!(),
         constraint!(
             first.get_end_position(Direction::Horizontal) + gap
                 <= second.get_start_position(Direction::Horizontal)
@@ -62,7 +62,7 @@ pub fn prohibit_overlap(
         ),
     )?;
     formula.constrain(
-        crate::id!(),
+        id!(),
         constraint!(
             second.get_end_position(Direction::Horizontal) + gap
                 <= first.get_start_position(Direction::Horizontal)
@@ -70,7 +70,7 @@ pub fn prohibit_overlap(
         ),
     )?;
     formula.constrain(
-        crate::id!(),
+        id!(),
         constraint!(
             first.get_end_position(Direction::Vertical) + gap
                 <= second.get_start_position(Direction::Vertical)
@@ -78,7 +78,7 @@ pub fn prohibit_overlap(
         ),
     )?;
     formula.constrain(
-        crate::id!(),
+        id!(),
         constraint!(
             second.get_end_position(Direction::Vertical) + gap
                 <= first.get_start_position(Direction::Vertical)

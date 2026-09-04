@@ -24,7 +24,7 @@ pub(crate) const BORDER_SIZE: f64 = 1.0;
 
 pub(crate) const COMMAND_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
 
-pub(crate) const LAYOUT_TIMEOUT: Duration = Duration::from_millis(10);
+pub(crate) const LAYOUT_TIMEOUT: Duration = Duration::from_millis(2);
 
 /// Retains the last solved values and duals on formulas so the next rebuilt layout model can use
 /// them as a HiGHS warm start. Disable this to compare cold layout solves.

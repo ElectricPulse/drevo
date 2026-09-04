@@ -2,7 +2,9 @@ use color_eyre::eyre::Result;
 
 use super::{Solution, expression::Expression, variable::Variable, variables::Variables};
 use crate::{
+    constraint,
     geometry::{Direction, Point, Rect},
+    id,
     layouter::Formula,
 };
 
@@ -130,8 +132,8 @@ impl Hitbox {
         direction: Direction,
     ) -> Result<()> {
         formula.constrain(
-            crate::id!(),
-            crate::constraint!(self.get_dimension(direction) == parent.get_dimension(direction)),
+            id!(),
+            constraint!(self.get_dimension(direction) == parent.get_dimension(direction)),
         )
     }
 
@@ -143,8 +145,8 @@ impl Hitbox {
         value: f64,
     ) -> Result<()> {
         formula.constrain(
-            crate::id!(),
-            crate::constraint!(self.get_dimension(direction) == value),
+            id!(),
+            constraint!(self.get_dimension(direction) == value),
         )
     }
 
@@ -184,7 +186,7 @@ fn constrain_shared_variable(
     formula: &mut Formula,
 ) -> Result<()> {
     if variable.is_shared() && variable != parent {
-        formula.constrain(crate::id!(), crate::constraint!(variable == parent))?;
+        formula.constrain(id!(), constraint!(variable == parent))?;
     }
     Ok(())
 }

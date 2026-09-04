@@ -20,6 +20,7 @@ use crate::{
     event::KeyCode,
     geometry::Direction,
     handlers::RetrieveHandler,
+    id,
     layouter::variable::Variable,
     state::{State, Store},
     sync::ThreadSafe,
@@ -174,7 +175,7 @@ impl<Choice: ThreadSafe> WidgetTrait for Menu<Choice> {
     ) -> Result<Children> {
         let selected = *self.selected.affect(relayout).await?;
         let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());
-        let button_delta = problem.add_delta(crate::id!(), 1)?;
+        let button_delta = problem.add_delta(id!(), 1)?;
 
         for (index, item) in self.items.iter().enumerate() {
             let row = MenuItemContainer {
