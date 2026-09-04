@@ -20,6 +20,13 @@ pub(crate) const MINIMUM_WINDOW_SIZE: Size = Size::new(100.0, 100.0);
 // TODO: solve this some other way
 pub(crate) const MAXIMUM_LAYOUT_VALUE: f64 = 21_000.0;
 
+pub(crate) const MAX_ZOOM: f64 = 50.0;
+/// At 1× scale, one logical pixel is one physical pixel; a full-HD display is 1920 pixels wide.
+/// This weight is [`MAX_ZOOM`] times that so weights should survive that max zoom.
+/// I am 99% sure that this calculation is partly bogus but I don't want to think about it ¯\_(ツ)_/¯
+/// weights are then calculated as BLENDED_GOAL_WEIGHT to the power of priority (starting from lowest priority at 0)
+pub(crate) const BLENDED_GOAL_WEIGHT: f64 = 1920.0 * MAX_ZOOM;
+
 pub(crate) const BORDER_SIZE: f64 = 1.0;
 
 pub(crate) const COMMAND_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -29,4 +36,4 @@ pub(crate) const LAYOUT_TIMEOUT: Duration = Duration::from_millis(2);
 /// Retains the last solved values and duals on formulas so the next rebuilt layout model can use
 /// them as a HiGHS warm start. Disable this to compare cold layout solves.
 /// Disabled as of now because if offers no performance benefit
-pub(crate) const COPY_SOLUTION_TO_FORMULA: bool = true;
+pub(crate) const COPY_SOLUTION_TO_FORMULA: bool = false;

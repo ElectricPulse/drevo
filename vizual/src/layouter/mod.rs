@@ -38,7 +38,7 @@ use self::{
 };
 use crate::{
     component::debug::ComponentTree,
-    config::COPY_SOLUTION_TO_FORMULA,
+    config::{BLENDED_GOAL_WEIGHT, COPY_SOLUTION_TO_FORMULA},
     constraint,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
@@ -62,6 +62,12 @@ pub type Setter = Box<dyn SetterCallback>;
 
 const PRIORITY_LEVELS: usize = 3;
 type PriorityObjective = Vec<Expression>;
+#[derive(Clone)]
+struct Goal {
+    priority: usize,
+    expression: Expression,
+}
+
 // As of this moment the usage of priorities has crystalized like this:
 // 2 is for minimizing the root dimension to fit the window size.
 // 1 is for gaps, spaces, margins, and paddings.
@@ -609,14 +615,11 @@ impl Problem {
         Err(eyre!("{msg}"))
     }
 
-    fn solve_internal(
-        &self,
-        constraints: &[Constraint],
-        objectives: &[(usize, Expression)],
-    ) -> Result<Solution> {
+    // This is AI slop
+    fn solve_internal(&self, constraints: &[Constraint], objectives: &[Goal]) -> Result<Solution> {
         let variables = self.live_variables(
             constraints,
-            objectives.iter().map(|(_, objective)| objective),
+            objectives.iter().map(|objective| &objective.expression),
         );
 
         let variable_count = variables.len();
@@ -627,16 +630,20 @@ impl Problem {
                 info.is_integer && info.lower == 0.0 && info.upper == 1.0
             })
             .count();
-        let weights = vec![-1.0; objectives.len()];
+        let weights = objectives
+            .iter()
+            .map(|goal| BLENDED_GOAL_WEIGHT.powi(goal.priority as i32))
+            .collect::<Vec<_>>();
         let offsets = objectives
             .iter()
-            .map(|(_, objective)| objective.constant)
+            .map(|objective| objective.expression.constant)
             .collect::<Vec<_>>();
         let coefficients = objectives
             .iter()
-            .flat_map(|(_, objective)| {
+            .flat_map(|objective| {
                 variables.iter().map(|variable| {
                     objective
+                        .expression
                         .coefficients
                         .get(variable)
                         .copied()
@@ -648,9 +655,12 @@ impl Problem {
         let relative_tolerances = vec![-1.0; objectives.len()];
         let priorities = objectives
             .iter()
-            .map(|(priority, _)| {
-                highs_sys::HighsInt::try_from(*priority).map_err(|_| {
-                    eyre!("layout priority {priority} does not fit HiGHS' priority type")
+            .map(|objective| {
+                highs_sys::HighsInt::try_from(objective.priority).map_err(|_| {
+                    eyre!(
+                        "layout priority {} does not fit HiGHS' priority type",
+                        objective.priority
+                    )
                 })
             })
             .collect::<Result<Vec<_>>>()?;
@@ -671,8 +681,6 @@ impl Problem {
         let mut model = self.build_model(constraints, None);
 
         if !objectives.is_empty() {
-            model.set_option("blend_multi_objectives", false);
-
             let status = unsafe {
                 highs_sys::Highs_passLinearObjectives(
                     model.as_ptr(),
@@ -689,12 +697,12 @@ impl Problem {
                 Ok(HighsStatus::OK) => {}
                 Ok(status) => {
                     return Err(eyre!(
-                        "HiGHS rejected the lexicographic objectives with status {status:?}"
+                        "HiGHS rejected the layout goals with status {status:?}"
                     ));
                 }
                 Err(status) => {
                     return Err(eyre!(
-                        "HiGHS returned an invalid status while loading lexicographic objectives: {status:?}"
+                        "HiGHS returned an invalid status while loading layout goals: {status:?}"
                     ));
                 }
             }
@@ -844,26 +852,33 @@ impl Problem {
     async fn diagnose_objectives_failure(
         &self,
         constraints: &[Constraint],
-        objectives: &[(usize, Expression)],
+        objectives: &[Goal],
         component_tree: &ComponentTree,
     ) -> Result<Solution> {
-        for (priority, objective) in objectives {
-            let model = self.build_model(constraints, Some((objective, Sense::Maximise)));
+        for objective in objectives {
+            let model =
+                self.build_model(constraints, Some((&objective.expression, Sense::Maximise)));
             let failure = match model.try_solve() {
                 Ok(solved) => match solved.status() {
                     HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
                         let primal_ray = Self::compute_primal_ray(
                             solved.as_ptr() as *const std::ffi::c_void,
-                            self.live_variables(constraints, std::iter::once(objective))
-                                .len(),
+                            self.live_variables(
+                                constraints,
+                                std::iter::once(&objective.expression),
+                            )
+                            .len(),
                         );
                         Some(Err(primal_ray))
                     }
                     HighsModelStatus::Infeasible => {
                         let iis = Self::compute_iis(
                             solved.as_ptr() as *mut std::ffi::c_void,
-                            self.live_variables(constraints, std::iter::once(objective))
-                                .len(),
+                            self.live_variables(
+                                constraints,
+                                std::iter::once(&objective.expression),
+                            )
+                            .len(),
                             constraints.len(),
                         );
                         Some(Ok(iis))
@@ -878,8 +893,8 @@ impl Problem {
                     return self
                         .describe_underconstrained(
                             constraints,
-                            objective,
-                            Some(*priority),
+                            &objective.expression,
+                            Some(objective.priority),
                             &primal_ray,
                             component_tree,
                         )
@@ -896,8 +911,8 @@ impl Problem {
 
         let combined_objective = objectives
             .iter()
-            .fold(Expression::default(), |sum, (_, objective)| {
-                sum + objective.clone()
+            .fold(Expression::default(), |sum, objective| {
+                sum + objective.expression.clone()
             });
 
         let primal_ray = {
@@ -944,7 +959,10 @@ impl Problem {
                             .iter()
                             .cloned()
                             .fold(Expression::default(), |sum, expression| sum + expression);
-                        (!objective.coefficients.is_empty()).then_some((priority, objective))
+                        (!objective.coefficients.is_empty()).then_some(Goal {
+                            priority,
+                            expression: objective,
+                        })
                     })
                     .collect::<Vec<_>>()
             })

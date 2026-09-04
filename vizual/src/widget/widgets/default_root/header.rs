@@ -72,10 +72,9 @@ impl WidgetTrait for Header {
             },
         );
 
-        Ok(vec![display!(Axis::new(
-            Direction::Horizontal,
-            (name, settings),
-        ))])
+        Ok(vec![display!(
+            Axis::new(Direction::Horizontal, (name, settings)).limit_cross()
+        )])
     }
 
     async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<VizualMsg> {

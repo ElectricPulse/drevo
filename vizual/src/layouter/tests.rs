@@ -1,21 +1,27 @@
 use super::*;
 
 #[test]
-fn higher_objective_priority_wins_lexicographically() -> Result<()> {
+fn goals_are_blended_by_priority_weight() -> Result<()> {
     let variables = Arc::new(Variables::new());
     let problem = Problem::new(Arc::clone(&variables));
     let x = variables.make_independent_bounded(0.0, 10.0, false, "x", "test", "test");
     let y = variables.make_independent_bounded(0.0, 10.0, false, "y", "test", "test");
-    let constraints = vec![constraint!(x.clone() + y.clone() <= 10)];
+    let constraints = vec![constraint!(x.clone() + y.clone() == 10)];
     let objectives = vec![
-        (1, Expression::from(x.clone())),
-        (0, Expression::from(y.clone())),
+        Goal {
+            priority: 1,
+            expression: Expression::from(x.clone()),
+        },
+        Goal {
+            priority: 0,
+            expression: Expression::from(y.clone()),
+        },
     ];
 
     let solution = problem.solve_internal(&constraints, &objectives)?;
 
-    assert_eq!(solution.value(&x), 10.0);
-    assert_eq!(solution.value(&y), 0.0);
+    assert_eq!(solution.value(&x), 0.0);
+    assert_eq!(solution.value(&y), 10.0);
     Ok(())
 }
 

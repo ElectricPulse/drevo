@@ -63,7 +63,11 @@ Avoid constraining a parent from a child; this will probably be prohibited in th
 
 ## Constraint priorities
 
-The solver supports priorities for constraints and objectives, but ordinary layout should avoid
-them. Each additional priority level significantly degrades solve performance. A formulation using
-several binary variables at one priority is often faster than expressing the same choice with an
-additional priority level.
+Layout uses weighted priorities rather than HiGHS' lexicographic priorities. Every variable
+ultimately represents a hitbox coordinate or dimension, so objectives stay within a known,
+reasonable range. That makes choosing a sufficiently large blend weight straightforward; priority
+`p` uses `BLENDED_GOAL_WEIGHT.powi(p)`. See `BLENDED_GOAL_WEIGHT` in `config.rs` for the
+calculation.
+
+Lexicographic priorities are available, but are much slower. Weighted priorities preserve the
+needed ordering without paying that solve-time cost.

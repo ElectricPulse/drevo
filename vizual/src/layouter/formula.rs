@@ -183,6 +183,15 @@ impl Formula {
 
     pub fn maximize(
         &mut self,
+        id: impl Into<String>,
+        expression: impl Into<Expression>,
+        priority: usize,
+    ) -> Result<()> {
+        self.minimize(id, expression.into() * -1.0, priority)
+    }
+
+    pub fn minimize(
+        &mut self,
         _id: impl Into<String>,
         expression: impl Into<Expression>,
         priority: usize,
@@ -195,15 +204,6 @@ impl Formula {
         }
         self.objectives[priority].push(expression.into());
         Ok(())
-    }
-
-    pub fn minimize(
-        &mut self,
-        id: impl Into<String>,
-        expression: impl Into<Expression>,
-        priority: usize,
-    ) -> Result<()> {
-        self.maximize(id, expression.into() * -1.0, priority)
     }
 
     pub fn minimize_delta(

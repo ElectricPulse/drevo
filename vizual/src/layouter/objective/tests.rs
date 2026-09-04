@@ -18,7 +18,7 @@ fn each_delta_use_adds_separate_objective() -> Result<()> {
         problem.objectives[1]
             .first()
             .and_then(|objective| objective.coefficients.get(&delta.variable)),
-        Some(&-1.0)
+        Some(&1.0)
     );
 
     problem.minimize_delta(Expression::from(0.0), 1.0, delta, 1)?;
@@ -28,7 +28,7 @@ fn each_delta_use_adds_separate_objective() -> Result<()> {
     assert!(
         problem.objectives[1]
             .iter()
-            .all(|objective| objective.coefficients.get(&delta.variable) == Some(&-1.0))
+            .all(|objective| objective.coefficients.get(&delta.variable) == Some(&1.0))
     );
     Ok(())
 }

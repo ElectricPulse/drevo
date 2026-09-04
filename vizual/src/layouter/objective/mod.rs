@@ -49,6 +49,14 @@ macro_rules! formula_objectives {
                 expression: impl Into<Expression>,
                 priority: usize,
             ) -> Result<()> {
+                self.minimize(expression.into() * -1.0, priority)
+            }
+
+            pub fn minimize(
+                &mut self,
+                expression: impl Into<Expression>,
+                priority: usize,
+            ) -> Result<()> {
                 if priority >= PRIORITY_LEVELS {
                     return Err(eyre!(
                         "Layout objective priority {priority} is outside the supported range 0..{}",
@@ -58,14 +66,6 @@ macro_rules! formula_objectives {
 
                 self.objectives[priority].push(expression.into());
                 Ok(())
-            }
-
-            pub fn minimize(
-                &mut self,
-                expression: impl Into<Expression>,
-                priority: usize,
-            ) -> Result<()> {
-                self.maximize(expression.into() * -1.0, priority)
             }
 
             pub fn minimize_delta(

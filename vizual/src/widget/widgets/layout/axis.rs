@@ -1,10 +1,8 @@
 use crate::{
     component::Children,
-    config::MAXIMUM_LAYOUT_VALUE,
     constraint,
     geometry::Direction,
     id,
-    layouter::expression::Expression,
     style::Style,
     theme::Theme,
     widget::{IntoWidgets, LayoutInput, Widget, WidgetTrait},
@@ -31,6 +29,15 @@ pub struct Axis {
     pub style: Style<AxisStyle>,
     // TODO: Keep priority manual until there is a way to set it automatically.
     priority: usize,
+    /// Limits the cross-axis size to the space required by the elements.
+    ///
+    /// Enable this when elements position themselves along the cross axis, such as elements in a
+    /// horizontal Axis using `Anchor::v_middle`. Their anchors constrain them within the Axis, and
+    /// this objective then shrinks the Axis around them.
+    ///
+    /// Without it, the shared cross axis grows to fill the available parent space which sometimes isn't desired.
+    /// Imagine a toolbar filled with vertically centered icons
+    pub limit_cross: bool,
 }
 
 impl Axis {
@@ -40,6 +47,7 @@ impl Axis {
             elements: elements.into(),
             style: Style::default(),
             priority: 1,
+            limit_cross: false,
         }
     }
 }
@@ -66,22 +74,28 @@ impl WidgetTrait for Axis {
 
         let cross = direction.flip();
 
-        // First cross-axis system, kept for comparison:
-        //
-        // formula.minimize(id!(), hitbox.get_dimension(cross), 0)?;
-        //
-        // It uses an extra objective priority. The binary-selector system below is faster in
-        // practice, even with one binary per child, because it avoids that priority level.
+        if self.limit_cross {
+            // If the performance heavy lexicographic priorites are ever used and priorities become expensive a second algorithm as described here
+            // can be used to avoid creating a new priority at the cost of a creating child elements count amount of binary variables:
+            // It selects one bounding element with a binary variable and forces that element's
+            // cross-axis start and end margins to zero.
+            formula.minimize(id!(), hitbox.get_dimension(cross), 0)?;
+        }
+
+        for (index, element) in self.elements.iter().enumerate() {
+            let element = slots.set(index as u64, element.clone()).await?;
+            elements.push(element);
+        }
+
+        // Second cross-axis system, kept for comparison. With objective blending enabled and a
+        // carefully chosen weight, the priority-0 system above may be faster than this one.
+        /*
         let cross_start = hitbox.get_start_position(cross);
         let cross_end = hitbox.get_end_position(cross);
         let mut binaries = Vec::with_capacity(self.elements.len());
 
-        for (index, element) in self.elements.iter().enumerate() {
-            let element = slots.set(index as u64, element.clone()).await?;
-            let mut element_hitbox = element.get_hitbox().await?;
+        for element in &elements {
 
-            element_hitbox.make_start_independent(cross);
-            element_hitbox.make_end_independent(cross);
 
             // Exactly one child is selected. Its nonnegative margins are forced to zero, so it
             // is the bounding child: its distance from this axis hitbox (its parent) is zero.
@@ -115,13 +129,13 @@ impl WidgetTrait for Axis {
                         == end_margin - end_adjuster
                 ),
             )?;
-            elements.push(element);
         }
 
         let binary_sum = binaries
             .into_iter()
             .fold(Expression::from(0.0), |sum, binary| sum + binary);
         formula.constrain(id!(), constraint!(binary_sum == 1.0))?;
+        */
 
         if elements.len() >= 2 {
             let theme = theme.affect(relayout).await?;
