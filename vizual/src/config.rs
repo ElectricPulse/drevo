@@ -29,4 +29,4 @@ pub(crate) const LAYOUT_TIMEOUT: Duration = Duration::from_millis(2);
 /// Retains the last solved values and duals on formulas so the next rebuilt layout model can use
 /// them as a HiGHS warm start. Disable this to compare cold layout solves.
 /// Disabled as of now because if offers no performance benefit
-pub(crate) const COPY_SOLUTION_TO_FORMULA: bool = false;
+pub(crate) const COPY_SOLUTION_TO_FORMULA: bool = true;

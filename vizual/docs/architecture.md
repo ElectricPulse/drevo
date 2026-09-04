@@ -60,3 +60,10 @@ replacement widget between layout calls - which is especially important if the w
 The entire layout is handled by a MILP solver. Currently, you can constrain widgets in a web of equations however you like. The primary flow of these constraints should be from the parent onto its children.
 
 Avoid constraining a parent from a child; this will probably be prohibited in the future.
+
+## Constraint priorities
+
+The solver supports priorities for constraints and objectives, but ordinary layout should avoid
+them. Each additional priority level significantly degrades solve performance. A formulation using
+several binary variables at one priority is often faster than expressing the same choice with an
+additional priority level.
