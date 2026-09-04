@@ -10,6 +10,8 @@ use crate::{
 use async_trait::async_trait;
 use color_eyre::Result;
 
+const PRIORITY: usize = 0;
+
 #[derive(Clone, Copy)]
 pub enum AnchorPosition {
     Start,
@@ -118,12 +120,10 @@ impl Anchor {
         match position {
             Some(AnchorPosition::Start) => {
                 hitbox.make_end_independent(direction);
-                formula.constrain(
-                    id!(),
-                    constraint!(
-                        hitbox.get_end_position(direction) <= parent.get_end_position(direction)
-                    ),
-                )?;
+                let end_margin =
+                    parent.get_end_position(direction) - hitbox.get_end_position(direction);
+                formula.constrain(id!(), constraint!(end_margin.clone() >= 0.0))?;
+                formula.minimize(id!(), end_margin, PRIORITY)?;
             }
             Some(AnchorPosition::Middle) => {
                 hitbox.make_start_independent(direction);
@@ -149,16 +149,14 @@ impl Anchor {
                     parent.get_end_position(direction) - hitbox.get_end_position(direction);
 
                 formula.constrain(id!(), constraint!(start_margin.clone() == end_margin))?;
+                formula.minimize(id!(), start_margin, PRIORITY)?;
             }
             Some(AnchorPosition::End) => {
                 hitbox.make_start_independent(direction);
-                formula.constrain(
-                    id!(),
-                    constraint!(
-                        hitbox.get_start_position(direction)
-                            >= parent.get_start_position(direction)
-                    ),
-                )?;
+                let start_margin =
+                    hitbox.get_start_position(direction) - parent.get_start_position(direction);
+                formula.constrain(id!(), constraint!(start_margin.clone() >= 0.0))?;
+                formula.minimize(id!(), start_margin, PRIORITY)?;
             }
             None => {}
         }

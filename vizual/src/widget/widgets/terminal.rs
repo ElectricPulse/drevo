@@ -320,7 +320,7 @@ impl Terminal {
         let directory = Store::new(
             std::env::current_dir()
                 .map(|path| std::fs::canonicalize(&path).unwrap_or(path))
-                .map(|path| path.display().to_string())
+                .map(crate::utils::normalize_path)
                 .unwrap_or_default(),
         );
         let shell = Store::new("/bin/bash".to_string());
@@ -394,7 +394,7 @@ impl Terminal {
         {
             let current_dir = std::env::current_dir()
                 .map(|path| std::fs::canonicalize(&path).unwrap_or(path))
-                .map(|path| path.display().to_string())
+                .map(crate::utils::normalize_path)
                 .unwrap_or_default();
             self.directory.set(current_dir).await?;
             self.shell.set("/bin/bash".to_string()).await?;
@@ -425,7 +425,7 @@ impl Terminal {
         {
             let canonical_dir = std::fs::canonicalize(working_dir.as_ref())
                 .unwrap_or_else(|_| working_dir.as_ref().to_path_buf());
-            let dir_str = canonical_dir.display().to_string();
+            let dir_str = crate::utils::normalize_path(&canonical_dir);
             self.directory.set(dir_str).await?;
             self.shell.set("/bin/bash".to_string()).await?;
             self.command.set(command.clone()).await?;

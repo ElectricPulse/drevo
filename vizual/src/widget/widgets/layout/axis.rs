@@ -91,7 +91,7 @@ impl WidgetTrait for Axis {
             //  Then you say that all other elements must be inside the hitbox
             //  Anchor::middle still works in this system because as of the time of writing this comment it calculates the start and end margin
             //  as a difference of its own hitbox (which in this case it would duplicitly make independent) and the parent hitbox (which would still be axis)
-            formula.minimize(id!(), hitbox.get_dimension(cross), 0)?;
+            formula.minimize(id!(), hitbox.get_dimension(cross), 1)?;
         }
 
         for (index, element) in self.elements.iter().enumerate() {
