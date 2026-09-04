@@ -13,8 +13,8 @@ impl ComponentDebug {
         Self { source_path }
     }
 
-    pub fn source_path(&self) -> &str {
-        &self.source_path
+    pub fn source_path(&self) -> String {
+        crate::utils::normalize_path(&self.source_path)
     }
 }
 

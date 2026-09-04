@@ -240,8 +240,7 @@ impl SharedComponent {
             log_info(
                 0,
                 format_args!(
-                    "component layout() of {:?} at {} took {:?}",
-                    this.name,
+                    "component layout() at {} took {:?}",
                     this.debug.source_path(),
                     elapsed,
                 ),

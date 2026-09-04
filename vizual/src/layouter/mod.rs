@@ -620,6 +620,13 @@ impl Problem {
         );
 
         let variable_count = variables.len();
+        let binary_count = variables
+            .iter()
+            .filter(|variable| {
+                let info = self.variables.metadata(**variable);
+                info.is_integer && info.lower == 0.0 && info.upper == 1.0
+            })
+            .count();
         let weights = vec![-1.0; objectives.len()];
         let offsets = objectives
             .iter()
@@ -654,7 +661,7 @@ impl Problem {
         log_info(
             2,
             format_args!(
-                "MILP model: {variable_count} variables, {} constraints, {} priorities",
+                "MILP model: {variable_count} variables ({binary_count} binary), {} constraints, {} priorities",
                 constraints.len(),
                 objectives.len(),
             ),

@@ -617,7 +617,7 @@ async fn layout_problem<T: WidgetTrait>(
 ) -> Result<AppProblem> {
     let mut problem = AppProblem::new(root, root_slot, variables, rerender.clone()).await?;
     problem.window = window;
-    log_duration(0, "component layout()", false, || {
+    log_duration(0, "component layout()", true, || {
         problem.layout(rerender, theme, focus, text_context)
     })
     .await?;
@@ -718,12 +718,6 @@ async fn ui_loop<T: WidgetTrait>(
                     DEFAULT_SCREEN_SIZE.width.min(maximum_size.width),
                     DEFAULT_SCREEN_SIZE.height.min(maximum_size.height),
                 );
-                log_info(
-                    0,
-                    format_args!(
-                        "initial screen size {initial_size:?}, default: {DEFAULT_SCREEN_SIZE:?}, display: {maximum_size:?}"
-                    ),
-                );
                 if proxy
                     .send_event(UserEvent::Initialize(initial_size))
                     .is_err()
@@ -807,6 +801,7 @@ async fn ui_loop<T: WidgetTrait>(
                 )
             })
             .await?;
+            println!();
             if proxy.send_event(UserEvent::Scene(scene)).is_err() {
                 break;
             }

@@ -283,36 +283,4 @@ impl WidgetTrait for Settings {
 
         Ok(vec![button, menu])
     }
-
-    async fn render(&mut self, RenderInput { .. }: RenderInput<'_, '_>) -> Result<()> {
-        Ok(())
-    }
-
-    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<VizualMsg> {
-        input.relayout.send();
-        VizualMsg::none()
-    }
-
-    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
-        let key = input.key;
-        let relayout = input.relayout;
-        let index = match key.code {
-            KeyCode::ArrowUp | KeyCode::ArrowDown => {
-                let choice = *self.choice.read().await?;
-                ThemeChoice::ALL
-                    .iter()
-                    .position(|candidate| *candidate == choice)
-                    .expect("selected theme choice must be present in the theme menu")
-            }
-            _ => return VizualMsg::none(),
-        };
-        let index = match key.code {
-            KeyCode::ArrowUp => get_previous_index(ThemeChoice::ALL.len(), index),
-            _ => get_next_index(ThemeChoice::ALL.len(), index),
-        };
-        self.choice.set(ThemeChoice::ALL[index]).await?;
-
-        relayout.send();
-        VizualMsg::none()
-    }
 }
