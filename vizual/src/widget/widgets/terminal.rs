@@ -141,8 +141,7 @@ impl WidgetTrait for Terminal {
                 Linebreak::new(Direction::Horizontal),
                 self.scroll.clone(),
             ),
-        )
-        .limit_cross();
+        );
 
         Ok(vec![display!(axis)])
     }

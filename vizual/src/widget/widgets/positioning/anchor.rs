@@ -77,6 +77,16 @@ impl Anchor {
         )
     }
 
+    pub fn top_right(child: impl WidgetTrait) -> Self {
+        Self::new(
+            child,
+            Anchors {
+                horizontal: Some(AnchorPosition::End),
+                vertical: Some(AnchorPosition::Start),
+            },
+        )
+    }
+
     pub fn middle(child: impl WidgetTrait) -> Self {
         Self::new(
             child,

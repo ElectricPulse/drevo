@@ -69,9 +69,10 @@ struct Goal {
 }
 
 // As of this moment the usage of priorities has crystalized like this:
-// 2 is for minimizing the root dimension to fit the window size.
-// 1 is for gaps, spaces, margins, and paddings.
-// 0 is for shrink wrap of parents around their children
+// 2 is for minimizing the root dimension to fit the window size, and for gaps, spaces, margins,
+// and paddings.
+// 1 is currently unused.
+// 0 is for cross-axis limits and shrink-wrap of parents around their children.
 
 pub trait Field: Send {
     fn set_from_solver(&mut self, value: f64);

@@ -9,7 +9,7 @@ fn goals_are_blended_by_priority_weight() -> Result<()> {
     let constraints = vec![constraint!(x.clone() + y.clone() == 10)];
     let objectives = vec![
         Goal {
-            priority: 1,
+            priority: 2,
             expression: Expression::from(x.clone()),
         },
         Goal {

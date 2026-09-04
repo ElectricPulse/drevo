@@ -67,7 +67,7 @@ impl WidgetTrait for Block {
         focus.set_interactive(self.focusable);
         let style = self.style;
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
-        let mut space = Space::uniform(self.child.clone(), style.padding + border_thickness, 1);
+        let mut space = Space::uniform(self.child.clone(), style.padding + border_thickness, 2);
         space.delta = self.delta.clone();
         space.minimum = border_thickness;
 

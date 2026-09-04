@@ -37,7 +37,7 @@ pub struct Axis {
     ///
     /// Without it, the shared cross axis grows to fill the available parent space which sometimes isn't desired.
     /// Imagine a toolbar filled with vertically centered icons
-    pub limit_cross: bool,
+    limit_cross: bool,
 }
 
 impl Axis {
@@ -46,9 +46,15 @@ impl Axis {
             direction,
             elements: elements.into(),
             style: Style::default(),
-            priority: 1,
-            limit_cross: false,
+            priority: 2,
+            limit_cross: true,
         }
+    }
+
+    // Lets the cross axis grow to fill its available parent space.
+    pub fn free_cross(mut self) -> Self {
+        self.limit_cross = false;
+        self
     }
 }
 

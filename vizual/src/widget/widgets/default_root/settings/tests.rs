@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::*;
 use crate::{
     AppProblem, KeyEvent, VizualCommand,
-    event::{Modifiers, PointerButton, PointerEvent},
+    event::{KeyCode, Modifiers, PointerButton, PointerEvent},
     focus::Focus,
     geometry::{Point, Size},
     graphics::text::TextContext,
