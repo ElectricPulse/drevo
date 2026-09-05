@@ -20,12 +20,23 @@ pub(crate) const MINIMUM_WINDOW_SIZE: Size = Size::new(100.0, 100.0);
 // TODO: solve this some other way
 pub(crate) const MAXIMUM_LAYOUT_VALUE: f64 = 21_000.0;
 
-pub(crate) const MAX_ZOOM: f64 = 100.0;
+pub(crate) const MAX_ZOOM: f64 = 20.0;
 /// At 1× scale, one logical pixel is one physical pixel; a full-HD display is 1920 pixels wide.
 /// This weight is [`MAX_ZOOM`] times that so weights should survive that max zoom.
 /// I am 99% sure that this calculation is partly bogus but I don't want to think about it ¯\_(ツ)_/¯
 /// weights are then calculated as BLENDED_GOAL_WEIGHT to the power of priority (starting from lowest priority at 0)
 pub(crate) const BLENDED_GOAL_WEIGHT: f64 = 1920.0 * MAX_ZOOM;
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Priorities {
+    Weighted,
+    Lexicographic,
+}
+
+/// Created so that one can investigate if there are any problems with the weights by doing a
+/// true lexicographic solve.
+pub(crate) const PRIORITIES: Priorities = Priorities::Weighted;
 
 pub(crate) const BORDER_SIZE: f64 = 1.0;
 

@@ -40,7 +40,7 @@ use self::{
 };
 use crate::{
     component::debug::ComponentTree,
-    config::{BLENDED_GOAL_WEIGHT, COPY_SOLUTION_TO_FORMULA},
+    config::{BLENDED_GOAL_WEIGHT, COPY_SOLUTION_TO_FORMULA, PRIORITIES, Priorities},
     constraint,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
@@ -657,10 +657,13 @@ impl Problem {
                 info.is_integer && info.lower == 0.0 && info.upper == 1.0
             })
             .count();
-        let weights = objectives
-            .iter()
-            .map(|goal| BLENDED_GOAL_WEIGHT.powi(goal.priority as i32))
-            .collect::<Vec<_>>();
+        let weights = match PRIORITIES {
+            Priorities::Weighted => objectives
+                .iter()
+                .map(|goal| BLENDED_GOAL_WEIGHT.powi(goal.priority as i32))
+                .collect::<Vec<_>>(),
+            Priorities::Lexicographic => vec![1.0; objectives.len()],
+        };
         let offsets = objectives
             .iter()
             .map(|objective| objective.expression.constant)
@@ -708,6 +711,15 @@ impl Problem {
         let mut model = self.build_model(constraints, None);
 
         if !objectives.is_empty() {
+            match PRIORITIES {
+                Priorities::Weighted => {
+                    model.set_option("blend_multi_objectives", true);
+                }
+                Priorities::Lexicographic => {
+                    model.set_option("blend_multi_objectives", false);
+                }
+            }
+
             let status = unsafe {
                 highs_sys::Highs_passLinearObjectives(
                     model.as_ptr(),

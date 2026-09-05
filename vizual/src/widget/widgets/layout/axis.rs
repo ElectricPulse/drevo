@@ -52,7 +52,6 @@ impl WidgetTrait for Axis {
         LayoutInput {
             relayout,
             theme,
-            hitbox,
             formula,
             slots,
             ..

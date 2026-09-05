@@ -169,8 +169,6 @@ impl WidgetTrait for Scroll {
     async fn layout(
         &mut self,
         LayoutInput {
-            hitbox,
-            formula,
             relayout,
             theme,
             focus,
