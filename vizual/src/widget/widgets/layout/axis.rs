@@ -3,6 +3,7 @@ use crate::{
     constraint,
     geometry::Direction,
     id,
+    layouter::priorities::{CROSS_AXIS_LIMIT, GAP},
     style::Style,
     theme::Theme,
     widget::{IntoWidgets, LayoutInput, Widget, WidgetTrait},
@@ -27,8 +28,6 @@ pub struct Axis {
     direction: Direction,
     elements: Vec<Widget>,
     pub style: Style<AxisStyle>,
-    // TODO: Keep priority manual until there is a way to set it automatically.
-    priority: usize,
     /// Limits the cross-axis size to the space required by the elements.
     ///
     /// Enable this when elements position themselves along the cross axis, such as elements in a
@@ -46,7 +45,6 @@ impl Axis {
             direction,
             elements: elements.into(),
             style: Style::default(),
-            priority: 2,
             limit_cross: true,
         }
     }
@@ -91,7 +89,7 @@ impl WidgetTrait for Axis {
             //  Then you say that all other elements must be inside the hitbox
             //  Anchor::middle still works in this system because as of the time of writing this comment it calculates the start and end margin
             //  as a difference of its own hitbox (which in this case it would duplicitly make independent) and the parent hitbox (which would still be axis)
-            formula.minimize(id!(), hitbox.get_dimension(cross), 1)?;
+            formula.minimize(id!(), hitbox.get_dimension(cross), CROSS_AXIS_LIMIT)?;
         }
 
         for (index, element) in self.elements.iter().enumerate() {
@@ -103,7 +101,7 @@ impl WidgetTrait for Axis {
             let theme = theme.affect(relayout).await?;
             let AxisStyle::Gap(gap) = self.style.get(&theme);
             // One delta controls every gap belonging to this axis.
-            let gap_delta = formula.add_delta(id!(), self.priority)?;
+            let gap_delta = formula.add_delta(id!(), GAP)?;
             let gap: crate::layouter::expression::Expression = gap * (1.0 - gap_delta);
 
             for pair in elements.windows(2) {

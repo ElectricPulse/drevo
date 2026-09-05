@@ -13,6 +13,7 @@ pub mod geometry;
 pub mod graphics;
 pub mod handlers;
 pub mod layouter;
+pub use layouter::priorities;
 pub mod log;
 pub mod macros;
 pub mod render_manager;
@@ -67,9 +68,7 @@ use config::{
     COPY_SOLUTION_TO_FORMULA, DEFAULT_SCREEN_SIZE, MINIMUM_WINDOW_SIZE, REQUEST_DEBOUNCE,
     SCROLL_SENSITIVITY,
 };
-use event::{
-    Event, KeyCode, KeyEvent, Modifiers, PointerButton, PointerEvent, WheelEvent,
-};
+use event::{Event, KeyCode, KeyEvent, Modifiers, PointerButton, PointerEvent, WheelEvent};
 use focus::{Focus, FocusSearchDirection};
 use geometry::{Point, Size};
 use graphics::{scene::Scene as GraphicsScene, text::TextContext};
@@ -187,7 +186,10 @@ pub(crate) enum RenderRequest {
 }
 
 impl Signal {
-    pub(crate) fn new(sender: mpsc::UnboundedSender<RenderRequest>, request: RenderRequest) -> Self {
+    pub(crate) fn new(
+        sender: mpsc::UnboundedSender<RenderRequest>,
+        request: RenderRequest,
+    ) -> Self {
         Self {
             id: SIGNAL_ID.fetch_add(1, Ordering::Relaxed),
             sender,
@@ -745,9 +747,7 @@ async fn ui_loop<T: WidgetTrait>(
                 relayout = app_problem.is_none();
                 VizualCommand::Resolve
             }
-            UiInput::Rerender => {
-                VizualCommand::Render
-            }
+            UiInput::Rerender => VizualCommand::Render,
             UiInput::Layout => VizualCommand::Layout,
             UiInput::Event(event) => match (&mut app_problem, &solution) {
                 (Some(problem), Some(solution)) => {
@@ -1115,12 +1115,10 @@ impl ApplicationHandler<UserEvent> for WindowApp {
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 let delta = match delta {
-                    MouseScrollDelta::LineDelta(x, y) => {
-                        Point::new(
-                            f64::from(x) * SCROLL_SENSITIVITY,
-                            f64::from(y) * SCROLL_SENSITIVITY,
-                        )
-                    }
+                    MouseScrollDelta::LineDelta(x, y) => Point::new(
+                        f64::from(x) * SCROLL_SENSITIVITY,
+                        f64::from(y) * SCROLL_SENSITIVITY,
+                    ),
                     MouseScrollDelta::PixelDelta(delta) => {
                         let delta = delta.to_logical::<f64>(self.scale_factor);
                         Point::new(delta.x, delta.y)
@@ -1253,7 +1251,16 @@ pub fn run<T: WidgetTrait>(title: impl Into<String>, root: T) -> Result<()> {
     let (input_sender, input_receiver) = mpsc::unbounded_channel();
     let ui_theme = theme.clone();
     let ui_task = runtime.spawn(async move {
-        if let Err(error) = ui_loop(root, rerender, layout, ui_theme, receiver, input_receiver, proxy).await
+        if let Err(error) = ui_loop(
+            root,
+            rerender,
+            layout,
+            ui_theme,
+            receiver,
+            input_receiver,
+            proxy,
+        )
+        .await
         {
             let _ = error_proxy.send_event(UserEvent::Error(format!("{error:?}")));
         }

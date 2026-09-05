@@ -49,7 +49,7 @@ async fn priority_results_do_not_persist_between_solves() -> Result<()> {
         child.get_end_position(Direction::Horizontal)
             == root.get_end_position(Direction::Horizontal)
     ));
-    problem.minimize(child.get_dimension(Direction::Horizontal), 0)?;
+    problem.minimize(child.get_dimension(Direction::Horizontal), SHRINK_WRAP)?;
 
     let component_tree = Vec::new();
     let first = problem

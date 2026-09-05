@@ -15,8 +15,7 @@ Vizual is a component-based Rust UI framework with state tracking and a MILP con
 See [docs/architecture.md](vizual/docs/architecture.md) for details.
 
 - **State tracking**: `Store<T>` tracks the component relayout signals supplied through `.affect()`. Updating a store signals those components.
-- **MILP layouter**: Layout rules are expressed as linear constraints and solved with lexicographical priorities.
-    You might think that the layouter is a huge performance bottleneck, but it easily allows 60FPS for very complex layouts
+- **MILP layouter**: Layouting is expressed as linear constraints similar to iOS Auto Layout
 - **Tuple layout**: Multi-child containers like `Axis` and `Grid` accept tuples of different widget types through `Into_widgets`.
 - **Event routing and focus**: Keyboard and pointer events route through the focus hierarchy. A widget must be interactive to receive clicks.
 
@@ -75,11 +74,14 @@ runtime remains active for asynchronous widget and background work.
 ## Documentation
 See [docs/index.md](vizual/docs/index.md) for documentation and examples.
 
+## Performance
+You might think that the layouter is a huge performance bottleneck, but it easily allows 60FPS for very complex layouts
+Compile with `--release` for optimal FPS
+
 ## Pre-release notes
-- Currently cargo nightly is required because of ```#[track_caller]``` usage in the database
+- Currently cargo nightly is required because of `#[track_caller]` usage in the source code
 
 ## Roadmap
-
 See [docs/roadmap.md](vizual/docs/roadmap.md) for known bugs and planned work.
 
 ## Technologies used

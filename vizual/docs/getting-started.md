@@ -13,6 +13,7 @@ Add the dependencies:
 
 ```toml
 [dependencies]
+async-trait = "0.1"
 color-eyre = "0.6"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 vizual = { git = "https://github.com/ElectricPulse/vizual" }

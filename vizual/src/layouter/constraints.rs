@@ -1,4 +1,4 @@
-use super::hitbox::Hitbox;
+use super::{hitbox::Hitbox, priorities::SHRINK_WRAP};
 use crate::{
     component::Child, config::MAXIMUM_LAYOUT_VALUE, constraint, geometry::Direction, id,
     layouter::Formula,
@@ -34,8 +34,8 @@ pub async fn shrink_wrap(
             ),
         )?;
     }
-    formula.maximize(id!(), hitbox.get_start_position(direction), 0)?;
-    formula.minimize(id!(), hitbox.get_end_position(direction), 0)?;
+    formula.maximize(id!(), hitbox.get_start_position(direction), SHRINK_WRAP)?;
+    formula.minimize(id!(), hitbox.get_end_position(direction), SHRINK_WRAP)?;
     Ok(())
 }
 

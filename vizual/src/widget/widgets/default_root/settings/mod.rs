@@ -22,7 +22,7 @@ use crate::{
     geometry::{Direction, Size},
     handlers::RetrieveHandler,
     id,
-    layouter::hitbox::Hitbox,
+    layouter::{hitbox::Hitbox, priorities::ROOT_MINIMIZATION},
     state::{State, Store},
     theme::{SystemTheme, Theme},
     widget::{
@@ -208,7 +208,11 @@ impl WidgetTrait for PositionedMenu {
 
         // The two nonnegative variables model the absolute coordinate differences, so their sum
         // is the Manhattan distance between the requested vertices.
-        problem.minimize(id!(), horizontal_distance + vertical_distance, 2)?;
+        problem.minimize(
+            id!(),
+            horizontal_distance + vertical_distance,
+            ROOT_MINIMIZATION,
+        )?;
 
         Ok(vec![display!(self.child.clone())])
     }

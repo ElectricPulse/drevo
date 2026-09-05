@@ -13,10 +13,12 @@ pub mod expression;
 pub mod formula;
 pub mod hitbox;
 pub mod objective;
+pub mod priorities;
 pub mod variable;
 pub mod variables;
 
 pub use formula::Formula;
+pub use priorities::*;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -60,19 +62,12 @@ dyn_clone::clone_trait_object!(SetterCallback);
 
 pub type Setter = Box<dyn SetterCallback>;
 
-const PRIORITY_LEVELS: usize = 3;
 type PriorityObjective = Vec<Expression>;
 #[derive(Clone)]
 struct Goal {
     priority: usize,
     expression: Expression,
 }
-
-// As of this moment the usage of priorities has crystalized like this:
-// 2 is for minimizing the root dimension to fit the window size, and for gaps, spaces, margins,
-// and paddings.
-// 1 is currently unused.
-// 0 is for cross-axis limits and shrink-wrap of parents around their children.
 
 pub trait Field: Send {
     fn set_from_solver(&mut self, value: f64);

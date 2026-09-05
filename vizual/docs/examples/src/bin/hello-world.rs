@@ -1,13 +1,13 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use vizual::{
-    Vizual_msg,
+    VizualMsg,
     component::Children,
-    event::{Key_code, Key_event},
+    event::KeyCode,
+    macros::display,
     state::Store,
-    widget::{Layout_input, Widget_trait, widgets::text::Text},
+    widget::{KeyPress, LayoutInput, WidgetTrait, widgets::text::Text},
 };
-use vizual::macros::display;
 
 #[derive(Clone)]
 struct Counter {
@@ -15,31 +15,32 @@ struct Counter {
 }
 
 #[async_trait]
-impl Widget_trait for Counter {
+impl WidgetTrait for Counter {
     async fn layout(
         &mut self,
-        Layout_input {
+        LayoutInput {
             focus,
-            render,
+            relayout,
             slots,
             ..
-        }: Layout_input<'_>,
+        }: LayoutInput<'_>,
     ) -> Result<Children> {
         focus.set_interactive(true);
-        let value = self.value.affect(render).await?;
+        let value = self.value.affect(relayout).await?;
         let text = Text::new(format!("Count: {} (use ↑ and ↓)", *value));
         Ok(vec![display!(text)])
     }
 
-    async fn on_key_press(&mut self, key: &Key_event) -> Result<Vizual_msg> {
-        let value = match key.code {
-            Key_code::Arrow_up => *self.value.get().await? + 1,
-            Key_code::Arrow_down => *self.value.get().await? - 1,
-            _ => return Vizual_msg::none(),
+    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<VizualMsg> {
+        let current = *self.value.read().await?;
+        let value = match input.key.code {
+            KeyCode::ArrowUp => current + 1,
+            KeyCode::ArrowDown => current - 1,
+            _ => return VizualMsg::none(),
         };
 
         self.value.set(value).await?;
-        Vizual_msg::none()
+        VizualMsg::none()
     }
 }
 
@@ -51,6 +52,6 @@ async fn main() -> Result<()> {
         "Hello from Vizual",
         Counter {
             value: Store::new(0),
-        }
+        },
     )
 }

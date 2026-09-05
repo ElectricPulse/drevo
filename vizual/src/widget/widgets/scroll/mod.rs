@@ -12,6 +12,7 @@ use crate::{
     event::{Event, KeyCode},
     geometry::{Direction, Point, Rect, Size},
     id,
+    layouter::priorities::CONTENT,
     widget::{
         LayoutInput, RenderInput, Widget, WidgetTrait,
         widgets::{
@@ -62,6 +63,8 @@ impl WidgetTrait for ScrollContent {
             id!(),
             constraint!(hitbox.get_dimension(Direction::Vertical) >= theme.units.em * 3.0),
         )?;
+        problem.maximize(id!(), hitbox.get_dimension(Direction::Horizontal), CONTENT)?;
+        problem.maximize(id!(), hitbox.get_dimension(Direction::Vertical), CONTENT)?;
 
         let child = display!(self.child.clone());
 
@@ -141,6 +144,8 @@ impl WidgetTrait for Scroll {
     async fn layout(
         &mut self,
         LayoutInput {
+            hitbox,
+            formula,
             relayout,
             theme,
             focus,
@@ -149,6 +154,9 @@ impl WidgetTrait for Scroll {
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         focus.set_interactive(true);
+
+        formula.maximize(id!(), hitbox.get_dimension(Direction::Horizontal), CONTENT)?;
+        formula.maximize(id!(), hitbox.get_dimension(Direction::Vertical), CONTENT)?;
 
         let content_widget = ScrollContent::new(self.child.clone(), self.offset);
 

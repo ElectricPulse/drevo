@@ -4,8 +4,12 @@ use super::{
 };
 use crate::macros::display;
 use crate::{
-    component::Children, geometry::Rect, graphics::scene::Scene, layouter::objective::Delta,
-    style::Color, widget::Widget,
+    component::Children,
+    geometry::Rect,
+    graphics::scene::Scene,
+    layouter::{objective::Delta, priorities::SPACING},
+    style::Color,
+    widget::Widget,
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -67,7 +71,8 @@ impl WidgetTrait for Block {
         focus.set_interactive(self.focusable);
         let style = self.style;
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
-        let mut space = Space::uniform(self.child.clone(), style.padding + border_thickness, 2);
+        let mut space =
+            Space::uniform(self.child.clone(), style.padding + border_thickness, SPACING);
         space.delta = self.delta.clone();
         space.minimum = border_thickness;
 

@@ -9,9 +9,11 @@ use vello::{Scene as VelloScene, kurbo::Affine};
 use crate::{
     Signal,
     config::LAYOUT_TIMEOUT,
+    constraint,
     focus::FocusedPath,
     geometry::Direction,
     graphics::text::TextContext,
+    id,
     layouter::{Formula, Solution, hitbox::Hitbox},
     log::log_timeout,
     slot::manager::SlotRecords,
@@ -212,6 +214,8 @@ impl SharedComponent {
         // second reset here would erase that parent-owned choice.
         this.parent = parent_reference;
         problem.push(|| this.name.clone());
+
+        let hitbox = this.hitbox.clone();
         this.formula.begin(problem.join());
 
         let start_x = this.hitbox.start.x;
@@ -223,6 +227,11 @@ impl SharedComponent {
         this.formula.register_variable("hitbox.start.y", start_y)?;
         this.formula.register_variable("hitbox.end.x", end_x)?;
         this.formula.register_variable("hitbox.end.y", end_y)?;
+
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            this.formula
+                .constrain(id!(), constraint!(hitbox.get_dimension(direction) >= 0))?;
+        }
 
         let relayout = layout;
         let children = {

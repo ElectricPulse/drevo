@@ -7,7 +7,7 @@ use crate::{
     constraint,
     geometry::Direction,
     id,
-    layouter::{Formula, hitbox::Hitbox, objective::Objective},
+    layouter::{Formula, hitbox::Hitbox, objective::Objective, priorities::ALIGNMENT},
     widget::{LayoutInput, Widget, WidgetTrait},
 };
 
@@ -38,7 +38,7 @@ impl Align {
         objective: Objective,
         direction: Direction,
     ) -> Result<()> {
-        let priority = 0;
+        let priority = ALIGNMENT;
 
         match objective {
             Objective::Minimize => {

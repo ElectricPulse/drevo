@@ -31,7 +31,7 @@ pub(crate) const BORDER_SIZE: f64 = 1.0;
 
 /// Logical pixels moved for one line-based mouse-wheel tick and arrow-key press.
 /// I got to the current value by testing how different values feel :)
-pub(crate) const SCROLL_SENSITIVITY: f64 = 134.0;
+pub(crate) const SCROLL_SENSITIVITY: f64 = 124.0;
 
 pub(crate) const COMMAND_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
 

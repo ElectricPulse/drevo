@@ -1,73 +1,62 @@
 # Widget hitbox
 
-Each widget has its own hitbox, which by default is shared with the parent.
-The method `hitbox.variable.make_independent()` unlinks that variable from the parent.
+Each widget has its own hitbox, which by default is shared with its parent.
+Calling `hitbox.make_independent()` unlinks all four hitbox variables from the parent. Individual edges can be unlinked with `hitbox.make_start_independent(direction)` or `hitbox.make_end_independent(direction)`.
 
-This is designed so that elements are, by default, the exact same width and height as their parents. It prevents the CSS hell of having to put `width: 100%; height: 100%` on every container.
-
-Either the widget is the same size as the parent container, or you explicitly position it with an `Anchor`/`Space`/`Alignment` component, most likely `Anchor::top_left(widget)`.
+By default, elements have the exact same width and height as their parents. To resize or position an element, use layout widgets such as `Anchor`, `Space`, or `Align` (for example, `Anchor::top_left(widget)`).
 
 ## Example
 
-An `Axis(Direction::Vertical, children)` layout component for example shares the top edge with the first child element, it shares the bottom edge with the last edge. And it shares the x-coordinate side edges with all the child elements.
+An `Axis(Direction::Vertical, children)` layout component shares its top edge with the first child and its bottom edge with the last child. It shares both horizontal (x-coordinate) edges with all children.
 
-# Widget_trait
+# WidgetTrait
 
-`Widget_trait::layout()` returns `Children`. It defines constraints for the component hitbox and chooses child widgets with `display!()` or `slots.set()`.
+`WidgetTrait::layout()` returns visual `Children`. It defines constraints on the component hitbox and mounts child widgets using `display!()` or `slots.set()`.
 
-`layout()` receives `Layout_input`, including `relayout: Signal`. Stores read with `.affect(relayout)` signal this component when their value changes.
+`layout()` receives `LayoutInput`, including `relayout: Signal`. Stores read with `store.affect(relayout)` signal the application to relayout when their value changes.
 
-`render()` receives a resolved hitbox and draws onto a `vello::Scene`. Its `Render_input` carries the global `rerender` signal for render-only updates.
+`render()` receives `RenderInput`, which includes a resolved `hitbox: Rect` and draws onto a `vello::Scene` through `GraphicsScene`. It carries the global `rerender` signal for render-only updates.
 
-Event handlers receive borrowed typed inputs: `Mouse_event`, `Key_press`, `All_events`, and `Other_event`. Each includes the owning component's `relayout` signal. `forward_event()` selects the appropriate handler from an `Event`.
+Event handlers receive borrowed typed inputs: `MouseEvent`, `KeyPress`, `AllEvents`, and `OtherEvent`. Each includes `relayout: Signal` and optional window access. `forward_event()` dispatches an incoming `Event` to the appropriate handler.
 
 ## Signals and state
 
-`Render_manager::new()` creates one global `rerender` signal and its receiver. `Signal::for_component(id)` derives a component-targeted `relayout` signal from that same channel.
+`Signal` sends requests (`RenderRequest::Rerender` or `RenderRequest::Layout`) through an unbounded channel to the UI loop.
 
-The UI loop batches signal requests for 10 ms. A global signal redraws. A component signal invalidates its cached formula, rebuilds layout, solves, then redraws.
+The UI loop coalesces requests over a short debounce window (1 ms). A `Rerender` request redraws the current scene. A `Layout` request rebuilds the widget tree layout, solves constraints with HiGHS, and redraws.
 
-`Store<T>` holds a value and records signals passed to `.affect()`. `Store::set()` signals those subscribers. `State<T>` is the read/affect abstraction; constants do not subscribe.
+`Store<T>` holds a value and tracks subscribers passed to `.affect()`. Calling `store.set(value)` notifies all subscribed signals. `store.read()` accesses the value without subscribing.
 
-`memoization()` creates a cached derived `State`. It records source-store versions and reruns its async callback only after a dependency changes. Calling `.affect(signal)` subscribes that signal to every source store.
+`State<T>` is the read/affect trait object abstraction (`Box<dyn StateTrait<Output = T>>`). `Constant<T>` implements `StateTrait` without tracking subscriptions.
+
+`memoization()` derives a cached `State` from dependency stores. It tracks store versions and reruns its async calculation only when a source version changes. Calling `.affect(signal)` subscribes that signal to every dependency store.
 
 # Component
 
-The primary function that converts a widget into a component is display!(). Underneath, what it does is assign a compile-time-generated ID and then call slots.set(id, child).
+The `display!(child)` macro mounts a child widget into a component. It generates a stable source-location ID using `num_id!()` and calls `slots.set(id, child).await?`.
 
-In other words, if you are generating widgets in a map, etc., please use slots.set() manually with an ID that remains unique to an element, just like the key in <Element key={}> in React.
+For dynamic lists of widgets (such as in loops or iterators), call `slots.set(id, child)` directly with unique integer keys, analogous to keys in UI frameworks.
 
-A component tracks the lifetime of a widget instance, its hitbox, cached formula, child slots, and focusability.
+A component tracks the lifetime of a widget instance, its hitbox, its child slots, and focusability across layout passes. Focus is preserved across layout changes as long as the component identity is maintained.
 
-So you can click a text form and begin typing while the UI changes its anchor from `display!(Anchor::left(form))` to `display!(Anchor::right(form))` and it will retain focus.
-
-`SharedComponent` also implements `WidgetTrait` by forwarding to its stored widget. As a current
-workaround when different widgets must be stored in one variable, first pass each alternative
-through `display!()`, then store the resulting `SharedComponent`. This preserves a component
-identity for each alternative while `display!()` still cannot distinguish a stable widget from a
-replacement widget between layout calls - which is especially important if the widget wants to cache results from layout() calls
+`SharedComponent` wraps `Arc<Mutex<Component>>` and also implements `WidgetTrait` by forwarding calls to its internal widget.
 
 ## Text
 
-`Text_context` owns the Parley font and layout contexts as stores. They do not need to be dynamic today, but are stores so they can be replaced later.
+`TextContext` manages shared font and layout contexts backed by `Store`.
 
-`Text` and `Ansi` memoize both their shaped Parley layout and its measured size. The memo survives widget cloning and recomputes when either text-context store changes or when the styled text changes.
+`Text` and `Ansi` widgets memoize both their shaped Parley layout and measured dimensions. The memoization recomputes only when text or font dependencies change.
 
-`Ansi::Content` incrementally parses ANSI input. `Content::append()` parses only the new sequence and preserves parser state, including open SGR styles and OSC-8 hyperlinks.
+`ansi::Content` incrementally parses ANSI escape sequences, preserving style and link state across appends.
 
 # Layouter
 
-The entire layout is handled by a MILP solver. Currently, you can constrain widgets in a web of equations however you like. The primary flow of these constraints should be from the parent onto its children.
+Layout equations are compiled into a mixed-integer linear programming (MILP) problem solved by HiGHS. Constraints are declared through `Formula` or `Problem`.
 
-Avoid constraining a parent from a child; this will probably be prohibited in the future.
+Constraints should flow from parent to child. Avoid constraining a parent's dimensions from a child.
 
 ## Constraint priorities
 
-Layout uses weighted priorities rather than HiGHS' lexicographic priorities. Every variable
-ultimately represents a hitbox coordinate or dimension, so objectives stay within a known,
-reasonable range. That makes choosing a sufficiently large blend weight straightforward; priority
-`p` uses `BLENDED_GOAL_WEIGHT.powi(p)`. See `BLENDED_GOAL_WEIGHT` in `config.rs` for the
-calculation.
+Layout objectives use weighted priorities rather than HiGHS' lexicographic priorities. Because variables represent screen coordinates or dimensions within known bounds, priorities use a geometric scale: priority `p` uses `BLENDED_GOAL_WEIGHT.powi(p)`.
 
-Lexicographic priorities are available, but are much slower. Weighted priorities preserve the
-needed ordering without paying that solve-time cost.
+Weighted priorities preserve the required constraint ordering without paying the solve-time penalty of multi-pass lexicographic solves.

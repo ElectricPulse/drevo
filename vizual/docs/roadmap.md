@@ -13,7 +13,7 @@ which I haven't implemented because they are complex and make the code even less
 
 ## To-Do list
 - add a global popup - save & exit, exit, cancel that will work for configurator as of now
-- most of the Submit_handlers could be converted into closures
+- most of the `SubmitHandler`s could be converted into closures
 - think about if scroll couldnt alter hitboxes after layout - to improve performance
 - add an explicit fill objective to compete with the default Axis cross-axis limit
 - automate `Axis::limit_cross`, or reconcile it into a more coherent layout behavior
@@ -23,7 +23,7 @@ which I haven't implemented because they are complex and make the code even less
 - add an example patmat build
 - finish text input with parley cursor positioning
 - tab refocuses without clicking
-- in apps like react the same lifetime used to track widget is the same as the component lifetime ie. a stable id used in slots.set() means you dont have to store menu under `Shared_widget<Menu>`. Since Menu needs to keep state of the selected item
+- in apps like react the same lifetime used to track widget is the same as the component lifetime ie. a stable id used in `slots.set()` means you dont have to store menu under `SharedWidget<Menu>`. Since Menu needs to keep state of the selected item
 - make scroll bars draggable
 - figure out a better Paragraph sizing and constraint-negotiation model
 - switch to vello hybrid
@@ -49,19 +49,19 @@ which I haven't implemented because they are complex and make the code even less
 - Crystallize the relational-delta layout system. It should probably support
   weights for adjusting how relationships scale, while an absolute-difference
   system likely has a place alongside it.
-- Look into removing the `Shared_widget<Concrete>` to `Shared_menu_item<Choice>`
-  conversion shim. It only exists because the `Shared_widget` newtype does not
-  automatically unsize to a trait object; consider making `Shared_widget` a
+- Look into removing the `SharedWidget<Concrete>` to `SharedMenuItem<Choice>`
+  conversion shim. It only exists because the `SharedWidget` newtype does not
+  automatically unsize to a trait object; consider making `SharedWidget` a
   type alias over `Arc<Mutex<T>>` or constructing menu items directly as their
   erased shared type.
-- Reconsider using `General_shared_widget` as a generic layout-composition
+- Reconsider using `GeneralSharedWidget` as a generic layout-composition
   escape hatch. Erasing and remounting widgets this way makes it impossible to
   reliably track which widget owns focus.
-- Reconcile the extra state-preserving behavior of `Child_slot` with the rest
+- Reconcile the extra state-preserving behavior of `ComponentSlot` with the rest
   of the widget API. Reusing a child slot can preserve component state such as
   focus when replacing one widget with another, but many widgets do not expose
   child-slot support even though that transition is possible.
-    You can pass display!() widget into a impl Widget_trait - how does that work? - the first child is just never used probably
+    You can pass `display!()` widget into a impl `WidgetTrait` - how does that work? - the first child is just never used probably
   Right now establishing a component lifetime also sets its hitbox (from the current parent) - these two would have to be separated - one is lifetime creation,
   second is mounting and hitbox creation
 - add some cool animations to elements to showcase the real time capabilities
