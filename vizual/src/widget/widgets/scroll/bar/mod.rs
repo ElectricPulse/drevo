@@ -125,7 +125,7 @@ impl WidgetTrait for Scrollbar {
         &mut self,
         LayoutInput {
             hitbox,
-            formula: problem,
+            formula,
             relayout,
             theme,
             ..
@@ -136,12 +136,12 @@ impl WidgetTrait for Scrollbar {
         match self.direction {
             Direction::Horizontal => {
                 hitbox
-                    .set_static_dimension(problem, Direction::Vertical, style.gutter)
+                    .set_static_dimension(formula, Direction::Vertical, style.gutter)
                     .await?;
             }
             Direction::Vertical => {
                 hitbox
-                    .set_static_dimension(problem, Direction::Horizontal, style.gutter)
+                    .set_static_dimension(formula, Direction::Horizontal, style.gutter)
                     .await?;
             }
         }

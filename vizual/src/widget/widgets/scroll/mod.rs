@@ -43,7 +43,7 @@ impl WidgetTrait for ScrollContent {
         &mut self,
         LayoutInput {
             hitbox,
-            formula: problem,
+            formula,
             mask,
             slots,
             relayout,
@@ -55,11 +55,11 @@ impl WidgetTrait for ScrollContent {
 
         let theme = theme.affect(relayout).await?;
 
-        problem.constrain(
+        formula.constrain(
             id!(),
             constraint!(hitbox.get_dimension(Direction::Horizontal) >= theme.units.em * 3.0),
         )?;
-        problem.constrain(
+        formula.constrain(
             id!(),
             constraint!(hitbox.get_dimension(Direction::Vertical) >= theme.units.em * 3.0),
         )?;
@@ -71,14 +71,14 @@ impl WidgetTrait for ScrollContent {
             let child_hitbox = &mut child_lock.hitbox;
             child_hitbox.make_independent();
 
-            problem.constrain(
+            formula.constrain(
                 id!(),
                 constraint!(
                     child_hitbox.get_start_position(Direction::Horizontal)
                         == hitbox.get_start_position(Direction::Horizontal) - self.offset.x
                 ),
             )?;
-            problem.constrain(
+            formula.constrain(
                 id!(),
                 constraint!(
                     child_hitbox.get_start_position(Direction::Vertical)
@@ -90,27 +90,27 @@ impl WidgetTrait for ScrollContent {
                 let child_dim = child_hitbox.get_dimension(direction);
                 let parent_dim = hitbox.get_dimension(direction);
 
-                let extra_content = problem.variable(format!("extra_content.{direction:?}"))?;
-                problem.constrain(
+                let extra_content = formula.variable(format!("extra_content.{direction:?}"))?;
+                formula.constrain(
                     format!("{}:{direction:?}:extra_content_ge_0", id!()),
                     constraint!(extra_content >= 0.0),
                 )?;
-                problem.constrain(
+                formula.constrain(
                     format!("{}:{direction:?}:extra_content_ge_child_sub_parent", id!()),
                     constraint!(extra_content >= child_dim.clone() - parent_dim.clone()),
                 )?;
-                problem.minimize(id!(), extra_content, EXTRA_CONTENT)?;
+                formula.minimize(id!(), extra_content, EXTRA_CONTENT)?;
 
-                let content_growth = problem.variable(format!("content_growth.{direction:?}"))?;
-                problem.constrain(
+                let content_growth = formula.variable(format!("content_growth.{direction:?}"))?;
+                formula.constrain(
                     format!("{}:{direction:?}:content_growth_ge_0", id!()),
                     constraint!(content_growth >= 0.0),
                 )?;
-                problem.constrain(
+                formula.constrain(
                     format!("{}:{direction:?}:content_growth_ge_parent_sub_child", id!()),
                     constraint!(content_growth >= parent_dim - child_dim),
                 )?;
-                problem.minimize(id!(), content_growth, CONTENT)?;
+                formula.minimize(id!(), content_growth, CONTENT)?;
             }
         }
 

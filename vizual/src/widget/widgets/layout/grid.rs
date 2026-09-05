@@ -33,7 +33,7 @@ impl WidgetTrait for Grid {
         &mut self,
         LayoutInput {
             hitbox,
-            formula: problem,
+            formula,
             slots,
             ..
         }: LayoutInput<'_>,
@@ -48,12 +48,12 @@ impl WidgetTrait for Grid {
                 let first_hitbox = first.get_hitbox().await?;
                 let second_hitbox = second.get_hitbox().await?;
 
-                prohibit_overlap(problem, first_hitbox, second_hitbox, self.gap)?;
+                prohibit_overlap(formula, first_hitbox, second_hitbox, self.gap)?;
             }
         }
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
-            shrink_wrap(problem, hitbox.clone(), &children, direction).await?;
+            shrink_wrap(formula, hitbox.clone(), &children, direction).await?;
         }
 
         Ok(children)

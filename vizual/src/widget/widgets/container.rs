@@ -30,16 +30,16 @@ impl WidgetTrait for Container {
         &mut self,
         LayoutInput {
             hitbox,
-            formula: problem,
+            formula,
             slots,
             ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         hitbox
-            .set_static_dimension(problem, Direction::Horizontal, self.size.width)
+            .set_static_dimension(formula, Direction::Horizontal, self.size.width)
             .await?;
         hitbox
-            .set_static_dimension(problem, Direction::Vertical, self.size.height)
+            .set_static_dimension(formula, Direction::Vertical, self.size.height)
             .await?;
 
         let child = display!(self.child.clone());

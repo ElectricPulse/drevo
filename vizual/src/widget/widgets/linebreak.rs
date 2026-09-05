@@ -26,11 +26,11 @@ impl WidgetTrait for Linebreak {
         &mut self,
         LayoutInput {
             hitbox,
-            formula: problem,
+            formula,
             ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
-        problem.constrain(
+        formula.constrain(
             id!(),
             constraint!(hitbox.get_dimension(self.direction.flip()) == BORDER_SIZE),
         )?;

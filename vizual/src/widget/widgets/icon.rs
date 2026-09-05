@@ -40,7 +40,7 @@ impl WidgetTrait for Icon {
             relayout,
             theme,
             hitbox,
-            formula: problem,
+            formula,
             text_context,
             ..
         }: LayoutInput<'_>,
@@ -62,10 +62,10 @@ impl WidgetTrait for Icon {
         self.cached_layout = Some((offset, layout));
 
         hitbox
-            .set_static_dimension(problem, Direction::Horizontal, size.width)
+            .set_static_dimension(formula, Direction::Horizontal, size.width)
             .await?;
         hitbox
-            .set_static_dimension(problem, Direction::Vertical, size.height)
+            .set_static_dimension(formula, Direction::Vertical, size.height)
             .await?;
 
         Ok(Vec::new())

@@ -175,7 +175,7 @@ impl WidgetTrait for PositionedMenu {
             relayout,
             theme,
             hitbox,
-            formula: problem,
+            formula,
             slots,
             ..
         }: LayoutInput<'_>,
@@ -190,29 +190,29 @@ impl WidgetTrait for PositionedMenu {
         let vertical_difference = hitbox.get_start_position(Direction::Vertical)
             - self.button.get_end_position(Direction::Vertical)
             - gap * 0.5;
-        let horizontal_distance = problem.bounded_variable(id!(), 0.0, f64::INFINITY, false)?;
-        let vertical_distance = problem.bounded_variable(id!(), 0.0, f64::INFINITY, false)?;
+        let horizontal_distance = formula.bounded_variable(id!(), 0.0, f64::INFINITY, false)?;
+        let vertical_distance = formula.bounded_variable(id!(), 0.0, f64::INFINITY, false)?;
 
-        problem.constrain(
+        formula.constrain(
             id!(),
             constraint!(horizontal_distance.clone() >= horizontal_difference.clone()),
         )?;
-        problem.constrain(
+        formula.constrain(
             id!(),
             constraint!(horizontal_distance.clone() >= -horizontal_difference),
         )?;
-        problem.constrain(
+        formula.constrain(
             id!(),
             constraint!(vertical_distance.clone() >= vertical_difference.clone()),
         )?;
-        problem.constrain(
+        formula.constrain(
             id!(),
             constraint!(vertical_distance.clone() >= -vertical_difference),
         )?;
 
         // The two nonnegative variables model the absolute coordinate differences, so their sum
         // is the Manhattan distance between the requested vertices.
-        problem.minimize(
+        formula.minimize(
             id!(),
             horizontal_distance + vertical_distance,
             ROOT_MINIMIZATION,

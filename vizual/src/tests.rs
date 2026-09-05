@@ -23,14 +23,14 @@ impl WidgetTrait for FocusableBox {
         LayoutInput {
             focus,
             hitbox,
-            formula: problem,
+            formula,
             ..
         }: LayoutInput<'_>,
     ) -> Result<component::Children> {
         focus.set_interactive(true);
         for direction in [Direction::Horizontal, Direction::Vertical] {
             hitbox
-                .set_static_dimension(problem, direction, 20.0)
+                .set_static_dimension(formula, direction, 20.0)
                 .await?;
         }
         Ok(Vec::new())
@@ -48,16 +48,16 @@ impl WidgetTrait for OffsetClick {
         LayoutInput {
             focus,
             hitbox,
-            formula: problem,
+            formula,
             ..
         }: LayoutInput<'_>,
     ) -> Result<component::Children> {
         focus.set_interactive(true);
         hitbox
-            .set_static_dimension(problem, crate::geometry::Direction::Horizontal, 100.0)
+            .set_static_dimension(formula, crate::geometry::Direction::Horizontal, 100.0)
             .await?;
         hitbox
-            .set_static_dimension(problem, crate::geometry::Direction::Vertical, 20.0)
+            .set_static_dimension(formula, crate::geometry::Direction::Vertical, 20.0)
             .await?;
 
         Ok(Vec::new())

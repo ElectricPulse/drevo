@@ -71,7 +71,7 @@ impl WidgetTrait for Text {
             relayout,
             theme,
             hitbox,
-            formula: problem,
+            formula,
             text_context,
             ..
         }: LayoutInput<'_>,
@@ -95,10 +95,10 @@ impl WidgetTrait for Text {
         let size = layout.size;
 
         hitbox
-            .set_static_dimension(problem, Direction::Horizontal, size.width)
+            .set_static_dimension(formula, Direction::Horizontal, size.width)
             .await?;
         hitbox
-            .set_static_dimension(problem, Direction::Vertical, size.height)
+            .set_static_dimension(formula, Direction::Vertical, size.height)
             .await?;
 
         Ok(Vec::new())

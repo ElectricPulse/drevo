@@ -63,7 +63,7 @@ impl WidgetTrait for Align {
         LayoutInput {
             hitbox,
             parent,
-            formula: problem,
+            formula,
             slots,
             ..
         }: LayoutInput<'_>,
@@ -79,13 +79,13 @@ impl WidgetTrait for Align {
         }
 
         for direction in [Direction::Horizontal, Direction::Vertical] {
-            problem.constrain(
+            formula.constrain(
                 id!(),
                 constraint!(
                     hitbox.get_start_position(direction) >= parent.get_start_position(direction)
                 ),
             )?;
-            problem.constrain(
+            formula.constrain(
                 id!(),
                 constraint!(
                     hitbox.get_end_position(direction) <= parent.get_end_position(direction)
@@ -94,10 +94,10 @@ impl WidgetTrait for Align {
         }
 
         if let Some(horizontal) = self.alignments.horizontal {
-            Self::align(problem, &parent, hitbox, horizontal, Direction::Horizontal).await?;
+            Self::align(formula, &parent, hitbox, horizontal, Direction::Horizontal).await?;
         }
         if let Some(vertical) = self.alignments.vertical {
-            Self::align(problem, &parent, hitbox, vertical, Direction::Vertical).await?;
+            Self::align(formula, &parent, hitbox, vertical, Direction::Vertical).await?;
         }
 
         Ok(vec![display!(self.child.clone())])

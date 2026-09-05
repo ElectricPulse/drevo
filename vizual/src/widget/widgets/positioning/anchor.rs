@@ -158,13 +158,13 @@ impl WidgetTrait for Anchor {
         LayoutInput {
             hitbox,
             parent,
-            formula: problem,
+            formula,
             slots,
             ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         Self::anchor(
-            problem,
+            formula,
             &parent,
             hitbox,
             self.anchors.horizontal,
@@ -172,7 +172,7 @@ impl WidgetTrait for Anchor {
         )?;
 
         Self::anchor(
-            problem,
+            formula,
             &parent,
             hitbox,
             self.anchors.vertical,
