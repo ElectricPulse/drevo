@@ -8,16 +8,17 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_FONTCONFIG_DLOPEN: 1
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install Fontconfig development files
+        run: sudo apt-get update && sudo apt-get install --yes libfontconfig1-dev
+      - name: Build workspace
+        run: cargo +nightly build --workspace --all-targets
+      - name: Test workspace
+        run: cargo +nightly test --workspace
