@@ -999,7 +999,7 @@ impl WindowApp {
             device_handle
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("vizual surface blit"),
+                    label: Some("drevo surface blit"),
                 });
         state.surface.blitter.copy(
             &device_handle.device,
@@ -1225,7 +1225,7 @@ pub fn run<T: WidgetTrait>(title: impl Into<String>, root: T) -> Result<()> {
     let theme = Store::new(Theme::default());
     let root = Root::new(root.into_shared()).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
-        .wrap_err("vizual::run requires an active Tokio runtime")?;
+        .wrap_err("drevo::run requires an active Tokio runtime")?;
     let event_loop = EventLoop::<UserEvent>::with_user_event()
         .build()
         .wrap_err("Failed to initialize the Winit event loop")?;

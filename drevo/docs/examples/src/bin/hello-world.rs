@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use vizual::{
+use drevo::{
     VizualMsg,
     component::Children,
     event::KeyCode,
@@ -48,7 +48,7 @@ impl WidgetTrait for Counter {
 async fn main() -> Result<()> {
     color_eyre::install()?;
 
-    vizual::run(
+    drevo::run(
         "Hello from Vizual",
         Counter {
             value: Store::new(0),

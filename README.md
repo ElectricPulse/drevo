@@ -1,4 +1,4 @@
-# ![banner](vizual/assets/banner.png)
+# ![banner](drevo/assets/banner.png)
 
 # Vizual
 
@@ -12,7 +12,7 @@ Vizual is a component-based Rust UI framework with state tracking and a MILP con
 
 ## Architecture
 
-See [docs/architecture.md](vizual/docs/architecture.md) for details.
+See [docs/architecture.md](drevo/docs/architecture.md) for details.
 
 - **State tracking**: `Store<T>` tracks the component relayout signals supplied through `.affect()`. Updating a store signals those components.
 - **MILP layouter**: Layouting is expressed as linear constraints similar to iOS Auto Layout
@@ -22,10 +22,10 @@ See [docs/architecture.md](vizual/docs/architecture.md) for details.
 ## Demo
 
 Build tool [PatMat](https://github.com/ElectricPulse/patmat)
-![patmat](vizual/assets/demo/patmat.gif)
+![patmat](drevo/assets/demo/patmat.gif)
 
 Configurator tool showcasing the flexibility of the margins/paddings
-![configurator](vizual/assets/demo/configurator.gif)
+![configurator](drevo/assets/demo/configurator.gif)
 
 ## Quick start
 
@@ -38,14 +38,14 @@ Create a new binary crate and add these dependencies:
 [dependencies]
 color-eyre = "0.6"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-vizual = { git = "https://github.com/ElectricPulse/vizual" }
+drevo = { git = "https://github.com/ElectricPulse/drevo" }
 ```
 
 Then replace `src/main.rs` with:
 
 ```rust
 use color_eyre::eyre::Result;
-use vizual::{
+use drevo::{
     geometry::Direction,
     theme,
     widget::widgets::paragraph::Paragraph,
@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
     let mut paragraph = Paragraph::new(Direction::Horizontal, 320.0);
     paragraph.set_styled_content("Hello from Vizual", theme::dark_theme().specific.text.paragraph);
 
-    vizual::run("Vizual example", paragraph)
+    drevo::run("Drevo example", paragraph)
 }
 ```
 
@@ -68,11 +68,11 @@ Run it with:
 cargo +nightly run
 ```
 
-`vizual::run` is synchronous because Winit owns the calling thread. The Tokio
+`drevo::run` is synchronous because Winit owns the calling thread. The Tokio
 runtime remains active for asynchronous widget and background work.
 
 ## Documentation
-See [docs/index.md](vizual/docs/index.md) for documentation and examples.
+See [docs/index.md](drevo/docs/index.md) for documentation and examples.
 
 ## Performance
 You might think that the layouter is a huge performance bottleneck, but it easily allows 60FPS for very complex layouts
@@ -82,7 +82,7 @@ Compile with `--release` for optimal FPS
 - Currently cargo nightly is required because of `#[track_caller]` usage in the source code
 
 ## Roadmap
-See [docs/roadmap.md](vizual/docs/roadmap.md) for known bugs and planned work.
+See [docs/roadmap.md](drevo/docs/roadmap.md) for known bugs and planned work.
 
 ## Technologies used
 - [winit](https://github.com/rust-windowing/winit) for window management

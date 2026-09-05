@@ -6,7 +6,7 @@ description = "Procedural macros for the Vizual UI framework"
 repository.workspace = true
 license.workspace = true
 categories = ["gui", "development-tools::procedural-macro-helpers"]
-keywords = ["gui", "ui", "macros", "derive", "vizual"]
+keywords = ["gui", "ui", "macros", "derive", "drevo"]
 
 [lib]
 proc-macro = true
