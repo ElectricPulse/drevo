@@ -1,10 +1,7 @@
 # ![logo](drevo/assets/logo.png)
-
-# Drevo
-
 [![crates.io](https://img.shields.io/crates/v/drevo.svg)](https://crates.io/crates/drevo)
 
-Drevo is a component-based Rust UI framework with state tracking and a MILP constraint layouter.
+Component-based Rust UI framework with state tracking and a MILP constraint layouter.
 
 ## Features
 - Layout containers for alignment, linear axes, and grids.
