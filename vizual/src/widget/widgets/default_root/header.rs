@@ -52,10 +52,8 @@ impl WidgetTrait for Header {
         focus.set_interactive(true);
 
         let theme = theme.affect(relayout).await?;
-        let mut name = Text::new(self.name.clone());
-        name.style.set(theme.specific.text.title);
         let name = Anchor::new(
-            name,
+            Text::new(self.name.clone()).style(theme.specific.text.title),
             Anchors {
                 horizontal: Some(AnchorPosition::Start),
                 vertical: Some(AnchorPosition::Middle),

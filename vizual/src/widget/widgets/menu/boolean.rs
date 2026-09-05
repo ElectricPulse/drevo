@@ -43,14 +43,12 @@ impl CustomWidgetTrait for BooleanMenuItem {
         selected: bool,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
-        let mut text = Text::new(self.label());
         let mut style = theme.specific.text.button;
         if !selected {
             style.color = theme.semantic.text.muted;
         }
-        text.style.set(style);
 
-        Ok(vec![display!(text)])
+        Ok(vec![display!(Text::new(self.label()).style(style))])
     }
 }
 

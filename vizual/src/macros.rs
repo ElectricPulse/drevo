@@ -1,3 +1,4 @@
 //! Procedural macros re-exported by Vizual.
 
-pub use vizual_macros::{WidgetTrait, display};
+// The Style derive is only a bodge and allows nicer syntax.
+pub use vizual_macros::{Style, WidgetTrait, display};

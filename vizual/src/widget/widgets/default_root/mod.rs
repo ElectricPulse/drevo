@@ -49,14 +49,13 @@ impl WidgetTrait for DefaultRoot {
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         let theme_value = theme.affect(relayout).await?;
-        let mut body = Paper::new(self.widget.clone());
-        body.style.set(theme_value.specific.body);
+        let body = Paper::new(self.widget.clone()).style(theme_value.specific.body);
 
         let header = Header::new(self.title.clone(), self.theme_choice.clone());
         let header = Block::new(header, theme_value.specific.header);
 
-        let mut root = axis::Axis::new(Direction::Vertical, (header, body));
-        root.style.set(axis::AxisStyle::Gap(0.0));
+        let root = axis::Axis::new(Direction::Vertical, (header, body))
+            .style(axis::AxisStyle::Gap(0.0));
 
         Ok(vec![display!(root)])
     }

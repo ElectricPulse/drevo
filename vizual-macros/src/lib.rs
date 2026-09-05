@@ -21,6 +21,81 @@ pub fn display(input: TokenStream) -> TokenStream {
     .into()
 }
 
+#[proc_macro_derive(Style)]
+/// Derives `.style(style) -> Self` for a struct with a `style: Style<...>` field.
+///
+/// This is only a bodge and allows nicer syntax.
+pub fn derive_style(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    expand_style(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+fn expand_style(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
+    let Data::Struct(data) = &input.data else {
+        return Err(syn::Error::new_spanned(
+            &input.ident,
+            "Style can only be derived for structs",
+        ));
+    };
+
+    let style_field = data
+        .fields
+        .iter()
+        .find(|field| {
+            field
+                .ident
+                .as_ref()
+                .map(|ident| ident == "style")
+                .unwrap_or(false)
+        })
+        .ok_or_else(|| {
+            syn::Error::new_spanned(
+                &input.ident,
+                "Style derive requires a field named `style`",
+            )
+        })?;
+
+    let concrete_style = extract_concrete_style(&style_field.ty)?;
+    let name = input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    Ok(quote! {
+        // This is only a bodge and allows nicer syntax.
+        impl #impl_generics #name #ty_generics #where_clause {
+            /// Sets the style of the widget.
+            ///
+            /// This is only a bodge and allows nicer syntax.
+            pub fn style(mut self, style: #concrete_style) -> Self {
+                self.style.set(style);
+                self
+            }
+        }
+    })
+}
+
+fn extract_concrete_style(ty: &Type) -> syn::Result<&Type> {
+    if let Type::Path(type_path) = ty {
+        if let Some(segment) = type_path.path.segments.last() {
+            if segment.ident == "Style" {
+                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                    for arg in &args.args {
+                        if let syn::GenericArgument::Type(concrete_ty) = arg {
+                            return Ok(concrete_ty);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Err(syn::Error::new_spanned(
+        ty,
+        "expected field `style` to be of type `Style<...>`",
+    ))
+}
+
 #[proc_macro_derive(WidgetTrait, attributes(widget_trait))]
 /// Derives `vizual::widget::WidgetTrait` by delegating to a field.
 pub fn derive_widget_trait(input: TokenStream) -> TokenStream {

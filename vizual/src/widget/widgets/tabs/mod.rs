@@ -108,13 +108,14 @@ impl WidgetTrait for TabBar {
         let theme = theme.affect(relayout).await?;
         for page in self.pages.iter_mut() {
             let active = selected_page == page.tab.id;
-            let mut text = Text::new(&page.tab.specification.name);
             let mut style = theme.specific.text.button;
             if !active {
                 style.color = theme.semantic.text.muted;
             }
-            text.style.set(style);
-            let button = page.tab.button(text, self.selected_page.clone());
+            let button = page.tab.button(
+                Text::new(&page.tab.specification.name).style(style),
+                self.selected_page.clone(),
+            );
             let button = Anchor::new(
                 button,
                 Anchors {

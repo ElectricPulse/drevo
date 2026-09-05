@@ -15,7 +15,7 @@ use crate::{
     style::Style,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Style)]
 pub struct Icon {
     icon: State<LucideIcon>,
     pub style: Style<TextStyle>,

@@ -37,14 +37,12 @@ impl CustomWidgetTrait for StringMenuItem {
         selected: bool,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
-        let mut text = Text::new(self.value.clone());
         let mut style = theme.specific.text.button;
         if !selected {
             style.color = theme.semantic.text.muted;
         }
-        text.style.set(style);
 
-        Ok(vec![display!(text)])
+        Ok(vec![display!(Text::new(self.value.clone()).style(style))])
     }
 }
 

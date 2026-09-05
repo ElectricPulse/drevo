@@ -103,12 +103,10 @@ impl CustomWidgetTrait for ThemeMenuItem {
     ) -> Result<Children> {
         let current_theme = theme.affect(relayout).await?;
         let preview_theme = self.choice.resolve(&current_theme);
-        let mut text = Text::new(label(self.choice, current_theme.system()));
         let mut style = current_theme.specific.text.button;
         if !selected {
             style.color = current_theme.semantic.text.muted;
         }
-        text.style.set(style);
 
         let border = preview_theme.specific.paper.block.border;
         let swatch = Block::new(
@@ -132,7 +130,13 @@ impl CustomWidgetTrait for ThemeMenuItem {
             },
         );
 
-        let row = Axis::new(Direction::Horizontal, (text, swatch));
+        let row = Axis::new(
+            Direction::Horizontal,
+            (
+                Text::new(label(self.choice, current_theme.system())).style(style),
+                swatch,
+            ),
+        );
         Ok(vec![display!(row)])
     }
 }

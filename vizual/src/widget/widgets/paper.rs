@@ -7,7 +7,8 @@ use super::{
     block::Block,
 };
 use crate::{
-    component::Children, theme::Theme, widget::Widget, widget::widgets::block::BlockStyle,
+    component::Children, style::Style, theme::Theme, widget::Widget,
+    widget::widgets::block::BlockStyle,
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -15,10 +16,10 @@ pub struct PaperStyle {
     pub block: BlockStyle,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Style)]
 pub struct Paper {
     child: Widget,
-    pub style: crate::style::Style<PaperStyle>,
+    pub style: Style<PaperStyle>,
 }
 
 impl Paper {

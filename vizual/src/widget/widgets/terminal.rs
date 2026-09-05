@@ -68,18 +68,12 @@ impl WidgetTrait for Terminal {
         let paragraph_width = theme.units.em * 30.0;
         let label_style = theme.specific.text.paragraph.bold();
 
-        let mut directory_label = Text::new("Directory:");
-        directory_label.style.set(label_style);
         let mut directory_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
         directory_paragraph.set_styled_content(directory, theme.specific.text.paragraph);
 
-        let mut shell_label = Text::new("Shell:");
-        shell_label.style.set(label_style);
         let mut shell_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
         shell_paragraph.set_styled_content(shell, theme.specific.text.paragraph);
 
-        let mut command_label = Text::new("Command:");
-        command_label.style.set(label_style);
         let mut command_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
         command_paragraph.set_styled_content(command, theme.specific.text.paragraph);
 
@@ -87,7 +81,7 @@ impl WidgetTrait for Terminal {
             Direction::Horizontal,
             (
                 Anchor::v_middle(Icon::new(LucideIcon::Folder)),
-                Anchor::v_middle(directory_label),
+                Anchor::v_middle(Text::new("Directory:").style(label_style)),
                 Anchor::v_middle(directory_paragraph),
             ),
         ));
@@ -95,7 +89,7 @@ impl WidgetTrait for Terminal {
             Direction::Horizontal,
             (
                 Anchor::v_middle(Icon::new(LucideIcon::Terminal)),
-                Anchor::v_middle(shell_label),
+                Anchor::v_middle(Text::new("Shell:").style(label_style)),
                 Anchor::v_middle(shell_paragraph),
             ),
         ));
@@ -116,7 +110,7 @@ impl WidgetTrait for Terminal {
                 Direction::Horizontal,
                 (
                     Anchor::v_middle(Icon::new(LucideIcon::Play)),
-                    Anchor::v_middle(command_label),
+                    Anchor::v_middle(Text::new("Command:").style(label_style)),
                     Anchor::v_middle(command_paragraph),
                     restart_button,
                 ),
@@ -126,7 +120,7 @@ impl WidgetTrait for Terminal {
                 Direction::Horizontal,
                 (
                     Anchor::v_middle(Icon::new(LucideIcon::Play)),
-                    Anchor::v_middle(command_label),
+                    Anchor::v_middle(Text::new("Command:").style(label_style)),
                     Anchor::v_middle(command_paragraph),
                 ),
             ))

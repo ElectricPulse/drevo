@@ -38,14 +38,11 @@ impl WidgetTrait for TitleBlock {
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         let theme = theme.affect(relayout).await?;
-        let mut title = Text::new(self.title.clone());
-        title.style.set(theme.specific.text.title);
-        let title = Anchor::left(title);
+        let title = Anchor::left(Text::new(self.title.clone()).style(theme.specific.text.title));
         let child = Anchor::left(self.child.clone());
 
-        let mut axis = Axis::new(Direction::Vertical, (title, child));
-
-        axis.style.set(AxisStyle::Gap(theme.units.em * 0.45));
+        let axis = Axis::new(Direction::Vertical, (title, child))
+            .style(AxisStyle::Gap(theme.units.em * 0.45));
 
         let paper = Paper::new(axis);
         Ok(vec![display!(paper)])

@@ -195,9 +195,10 @@ impl WidgetTrait for Scroll {
                     self.viewport.size.width,
                     self.content_size.width,
                 );
-                let mut v_axis = Axis::new(Direction::Vertical, (content_widget, h_bar));
-                v_axis.style.set(AxisStyle::Gap(0.0));
-                Box::new(v_axis)
+                Box::new(
+                    Axis::new(Direction::Vertical, (content_widget, h_bar))
+                        .style(AxisStyle::Gap(0.0)),
+                )
             }
             false => Box::new(content_widget),
         };
@@ -210,9 +211,10 @@ impl WidgetTrait for Scroll {
                     self.viewport.size.height,
                     self.content_size.height,
                 );
-                let mut h_axis = Axis::new(Direction::Horizontal, (content_column, v_bar));
-                h_axis.style.set(AxisStyle::Gap(0.0));
-                Box::new(h_axis)
+                Box::new(
+                    Axis::new(Direction::Horizontal, (content_column, v_bar))
+                        .style(AxisStyle::Gap(0.0)),
+                )
             }
             false => content_column,
         };

@@ -46,7 +46,7 @@ impl From<Theme> for TextStyle {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Style)]
 pub struct Text {
     content: State<String>,
     pub style: Style<TextStyle>,

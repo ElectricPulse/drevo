@@ -23,7 +23,7 @@ impl From<Theme> for AxisStyle {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Style)]
 pub struct Axis {
     direction: Direction,
     elements: Vec<Widget>,
