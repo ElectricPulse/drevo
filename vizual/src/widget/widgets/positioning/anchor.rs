@@ -4,7 +4,7 @@ use crate::{
     constraint,
     geometry::Direction,
     id,
-    layouter::{Formula, hitbox::Hitbox},
+    layouter::{Formula, hitbox::Hitbox, priorities::POSITIONING},
     widget::{LayoutInput, Widget, WidgetTrait},
 };
 use async_trait::async_trait;
@@ -121,6 +121,7 @@ impl Anchor {
                 let end_margin =
                     parent.get_end_position(direction) - hitbox.get_end_position(direction);
                 formula.constrain(id!(), constraint!(end_margin.clone() >= 0))?;
+                formula.minimize(id!(), end_margin, POSITIONING)?;
             }
             Some(AnchorPosition::Middle) => {
                 hitbox.make_start_independent(direction);
@@ -133,13 +134,15 @@ impl Anchor {
                     parent.get_end_position(direction) - hitbox.get_end_position(direction);
 
                 formula.constrain(id!(), constraint!(start_margin.clone() >= 0))?;
-                formula.constrain(id!(), constraint!(start_margin == end_margin))?;
+                formula.constrain(id!(), constraint!(start_margin.clone() == end_margin))?;
+                formula.minimize(id!(), start_margin, POSITIONING)?;
             }
             Some(AnchorPosition::End) => {
                 hitbox.make_start_independent(direction);
                 let start_margin =
                     hitbox.get_start_position(direction) - parent.get_start_position(direction);
                 formula.constrain(id!(), constraint!(start_margin.clone() >= 0))?;
+                formula.minimize(id!(), start_margin, POSITIONING)?;
             }
             None => {}
         }

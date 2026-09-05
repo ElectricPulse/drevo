@@ -123,9 +123,7 @@ impl Space {
         };
         let space: Expression = target * (1.0 - delta.clone());
 
-        if self.minimum > 0.0 {
-            formula.constrain(id!(), constraint!(space.clone() >= self.minimum))?;
-        }
+        formula.constrain(id!(), constraint!(space.clone() >= self.minimum))?;
         formula.minimize(id!(), delta, self.priority)?;
 
         Ok(space)

@@ -6,6 +6,7 @@ use crate::{
 use color_eyre::eyre::Result;
 
 /// Shrink-wraps each component edge around the corresponding child edges.
+// I dont believe this is needed anymore
 pub async fn shrink_wrap(
     formula: &mut Formula,
     hitbox: Hitbox,

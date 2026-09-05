@@ -7,12 +7,12 @@ use color_eyre::eyre::Result;
 use crate::{
     VizualMsg,
     component::{Children, SharedComponent},
-    constraint,
     config::SCROLL_SENSITIVITY,
+    constraint,
     event::{Event, KeyCode},
     geometry::{Direction, Point, Rect, Size},
     id,
-    layouter::priorities::CONTENT,
+    layouter::priorities::{CONTENT, EXTRA_CONTENT},
     widget::{
         LayoutInput, RenderInput, Widget, WidgetTrait,
         widgets::{
@@ -63,8 +63,6 @@ impl WidgetTrait for ScrollContent {
             id!(),
             constraint!(hitbox.get_dimension(Direction::Vertical) >= theme.units.em * 3.0),
         )?;
-        problem.maximize(id!(), hitbox.get_dimension(Direction::Horizontal), CONTENT)?;
-        problem.maximize(id!(), hitbox.get_dimension(Direction::Vertical), CONTENT)?;
 
         let child = display!(self.child.clone());
 
@@ -87,6 +85,33 @@ impl WidgetTrait for ScrollContent {
                         == hitbox.get_start_position(Direction::Vertical) - self.offset.y
                 ),
             )?;
+
+            for direction in [Direction::Horizontal, Direction::Vertical] {
+                let child_dim = child_hitbox.get_dimension(direction);
+                let parent_dim = hitbox.get_dimension(direction);
+
+                let extra_content = problem.variable(format!("extra_content.{direction:?}"))?;
+                problem.constrain(
+                    format!("{}:{direction:?}:extra_content_ge_0", id!()),
+                    constraint!(extra_content >= 0.0),
+                )?;
+                problem.constrain(
+                    format!("{}:{direction:?}:extra_content_ge_child_sub_parent", id!()),
+                    constraint!(extra_content >= child_dim.clone() - parent_dim.clone()),
+                )?;
+                problem.minimize(id!(), extra_content, EXTRA_CONTENT)?;
+
+                let content_growth = problem.variable(format!("content_growth.{direction:?}"))?;
+                problem.constrain(
+                    format!("{}:{direction:?}:content_growth_ge_0", id!()),
+                    constraint!(content_growth >= 0.0),
+                )?;
+                problem.constrain(
+                    format!("{}:{direction:?}:content_growth_ge_parent_sub_child", id!()),
+                    constraint!(content_growth >= parent_dim - child_dim),
+                )?;
+                problem.minimize(id!(), content_growth, CONTENT)?;
+            }
         }
 
         Ok(vec![child])
@@ -154,9 +179,6 @@ impl WidgetTrait for Scroll {
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         focus.set_interactive(true);
-
-        formula.maximize(id!(), hitbox.get_dimension(Direction::Horizontal), CONTENT)?;
-        formula.maximize(id!(), hitbox.get_dimension(Direction::Vertical), CONTENT)?;
 
         let content_widget = ScrollContent::new(self.child.clone(), self.offset);
 

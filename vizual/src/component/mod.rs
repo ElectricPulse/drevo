@@ -228,6 +228,8 @@ impl SharedComponent {
         this.formula.register_variable("hitbox.end.x", end_x)?;
         this.formula.register_variable("hitbox.end.y", end_y)?;
 
+        // In the was majority of widgets this end > start constraint isn't needed, but the performance difference is small
+        // and it eliminates possible edge cases
         for direction in [Direction::Horizontal, Direction::Vertical] {
             this.formula
                 .constrain(id!(), constraint!(hitbox.get_dimension(direction) >= 0))?;
