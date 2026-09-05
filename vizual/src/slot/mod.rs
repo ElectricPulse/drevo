@@ -91,8 +91,8 @@ impl ComponentSlot {
     ) -> Result<SharedComponent> {
         let widget = widget.as_any();
 
-        problem.component_path.push(self.name.clone());
-        let component_path = problem.component_path.join(".");
+        problem.push(|| self.name.clone());
+        let component_path = problem.join();
         let variables = Arc::clone(&problem.variables);
 
         let lock = if let Some(lock) = self.reference.upgrade() {

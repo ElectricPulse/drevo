@@ -67,3 +67,28 @@ async fn focused_path_contains_the_target_and_its_parents() -> Result<()> {
     assert!(!focused_path.contains(&unrelated));
     Ok(())
 }
+
+#[test]
+fn test_component_context_push_and_join() {
+    let variables = Arc::new(Variables::new());
+    let mut context = ComponentContext::new(variables);
+    let mut closure_called = false;
+    context.push(|| {
+        closure_called = true;
+        "root".to_string()
+    });
+
+    #[cfg(debug_assertions)]
+    {
+        assert!(closure_called);
+        assert_eq!(context.component_path, vec!["root"]);
+        assert_eq!(context.join(), "root");
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        assert!(!closure_called);
+        assert_eq!(context.component_path, Vec::<String>::new());
+        assert_eq!(context.join(), "");
+    }
+}

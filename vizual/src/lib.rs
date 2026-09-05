@@ -34,7 +34,7 @@ use std::{
         Arc,
         atomic::{AtomicU64, Ordering},
     },
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use async_recursion::async_recursion;
@@ -63,9 +63,12 @@ use winit::{
 pub use winit::window::Window;
 
 use component::{ChildReference, SharedComponent, context::ComponentContext};
-use config::{COPY_SOLUTION_TO_FORMULA, DEFAULT_SCREEN_SIZE, MINIMUM_WINDOW_SIZE};
+use config::{
+    COPY_SOLUTION_TO_FORMULA, DEFAULT_SCREEN_SIZE, MINIMUM_WINDOW_SIZE, REQUEST_DEBOUNCE,
+    SCROLL_SENSITIVITY,
+};
 use event::{
-    Event, KeyCode, KeyEvent, Modifiers, PointerButton, PointerEvent, SCROLL_STEP, WheelEvent,
+    Event, KeyCode, KeyEvent, Modifiers, PointerButton, PointerEvent, WheelEvent,
 };
 use focus::{Focus, FocusSearchDirection};
 use geometry::{Point, Size};
@@ -149,6 +152,7 @@ impl VizualMsg {
 pub enum VizualCommand {
     None,
     Resolve,
+    Layout,
     Render,
     Focus(ChildReference),
     Quit,
@@ -159,6 +163,7 @@ impl VizualCommand {
         match (self, command) {
             (Self::Quit, _) | (_, Self::Quit) => Self::Quit,
             (Self::Focus(focus), _) | (_, Self::Focus(focus)) => Self::Focus(focus),
+            (Self::Layout, _) | (_, Self::Layout) => Self::Layout,
             (Self::Resolve, _) | (_, Self::Resolve) => Self::Resolve,
             (Self::Render, _) | (_, Self::Render) => Self::Render,
             (Self::None, Self::None) => Self::None,
@@ -172,23 +177,26 @@ static SIGNAL_ID: AtomicU64 = AtomicU64::new(0);
 pub struct Signal {
     pub(crate) id: u64,
     sender: mpsc::UnboundedSender<RenderRequest>,
+    request: RenderRequest,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RenderRequest {
     Rerender,
+    Layout,
 }
 
 impl Signal {
-    pub(crate) fn new(sender: mpsc::UnboundedSender<RenderRequest>) -> Self {
+    pub(crate) fn new(sender: mpsc::UnboundedSender<RenderRequest>, request: RenderRequest) -> Self {
         Self {
             id: SIGNAL_ID.fetch_add(1, Ordering::Relaxed),
             sender,
+            request,
         }
     }
 
     pub fn send(&self) {
-        let _ = self.sender.send(RenderRequest::Rerender);
+        let _ = self.sender.send(self.request);
     }
 }
 
@@ -201,6 +209,7 @@ struct AppProblem {
     root_hitbox: Hitbox,
     variables: Arc<Variables>,
     rerender: Signal,
+    layout: Signal,
     window: Option<Arc<Window>>,
 }
 
@@ -219,6 +228,7 @@ impl AppProblem {
             root,
             root_hitbox,
             variables,
+            layout: rerender.clone(),
             rerender,
             window: None,
         })
@@ -226,17 +236,18 @@ impl AppProblem {
 
     async fn layout(
         &mut self,
-        rerender: Signal,
+        layout: Signal,
         theme: Store<Theme>,
         focus: &Focus,
         text_context: &mut TextContext,
     ) -> Result<()> {
+        self.layout = layout.clone();
         let focused_path = focus.focused_path().await?;
         let root = self.root.clone();
         let children = self
             .root
             .layout(
-                rerender.clone(),
+                layout.clone(),
                 theme.clone(),
                 &focused_path,
                 None,
@@ -248,7 +259,7 @@ impl AppProblem {
             .await?;
         self.root
             .layout_children(
-                rerender,
+                layout,
                 theme,
                 &focused_path,
                 children,
@@ -386,7 +397,7 @@ impl AppProblem {
                 let mut node = node.lock().await?;
                 let message = node
                     .widget
-                    .forward_event(event, self.rerender.clone(), Arc::clone(window))
+                    .forward_event(event, self.layout.clone(), Arc::clone(window))
                     .await?;
                 message
             };
@@ -594,6 +605,7 @@ enum UiInput {
     Event(Event),
     Resize(Size),
     Rerender,
+    Layout,
     SystemTheme(SystemTheme),
 }
 
@@ -608,6 +620,7 @@ enum UserEvent {
 async fn layout_problem<T: WidgetTrait>(
     root: SharedWidget<T>,
     rerender: Signal,
+    layout: Signal,
     theme: Store<Theme>,
     focus: &Focus,
     root_slot: &mut ComponentSlot,
@@ -618,7 +631,7 @@ async fn layout_problem<T: WidgetTrait>(
     let mut problem = AppProblem::new(root, root_slot, variables, rerender.clone()).await?;
     problem.window = window;
     log_duration(0, "component layout()", true, || {
-        problem.layout(rerender, theme, focus, text_context)
+        problem.layout(layout, theme, focus, text_context)
     })
     .await?;
     Ok(problem)
@@ -627,6 +640,7 @@ async fn layout_problem<T: WidgetTrait>(
 async fn ui_loop<T: WidgetTrait>(
     root: SharedWidget<T>,
     rerender: Signal,
+    layout: Signal,
     theme: Store<Theme>,
     mut render_receiver: RenderReceiver,
     mut input_receiver: mpsc::UnboundedReceiver<UiInput>,
@@ -652,18 +666,19 @@ async fn ui_loop<T: WidgetTrait>(
                     render_request = render_receiver.0.recv(), if render_open => {
                         match render_request {
                             Some(first) => {
-                                let _ = first;
-                                let deadline = tokio::time::Instant::from_std(Instant::now() + Duration::from_millis(10));
+                                let mut needs_layout = matches!(first, RenderRequest::Layout);
+                                let deadline = tokio::time::Instant::from_std(Instant::now() + REQUEST_DEBOUNCE);
                                 loop {
                                     tokio::select! {
                                         request = render_receiver.0.recv() => match request {
-                                            Some(_) => {},
+                                            Some(RenderRequest::Layout) => needs_layout = true,
+                                            Some(RenderRequest::Rerender) => {},
                                             None => { render_open = false; break; }
                                         },
                                         _ = tokio::time::sleep_until(deadline) => break,
                                     }
                                 }
-                                Some(UiInput::Rerender)
+                                Some(if needs_layout { UiInput::Layout } else { UiInput::Rerender })
                             }
                             None => {
                                 render_open = false;
@@ -698,7 +713,6 @@ async fn ui_loop<T: WidgetTrait>(
             input => input,
         };
 
-        let layout_request_started = matches!(&input, UiInput::Rerender).then(Instant::now);
         let mut relayout = false;
         let mut command = match input {
             UiInput::Window(value) => {
@@ -732,9 +746,9 @@ async fn ui_loop<T: WidgetTrait>(
                 VizualCommand::Resolve
             }
             UiInput::Rerender => {
-                relayout = true;
-                VizualCommand::Resolve
+                VizualCommand::Render
             }
+            UiInput::Layout => VizualCommand::Layout,
             UiInput::Event(event) => match (&mut app_problem, &solution) {
                 (Some(problem), Some(solution)) => {
                     problem.handle_event(&event, solution, &mut focus).await?
@@ -759,10 +773,11 @@ async fn ui_loop<T: WidgetTrait>(
             command = VizualCommand::Resolve;
         }
 
-        if relayout {
+        if relayout || matches!(command, VizualCommand::Layout) {
             let problem = layout_problem(
                 root.clone(),
                 rerender.clone(),
+                layout.clone(),
                 theme.clone(),
                 &focus,
                 &mut root_slot,
@@ -779,13 +794,6 @@ async fn ui_loop<T: WidgetTrait>(
                 solution = Some(problem.solve(size).await?);
                 command = VizualCommand::Render;
             }
-        }
-
-        if let Some(started) = layout_request_started {
-            log_info(
-                0,
-                format_args!("global layout request took {:?}", started.elapsed()),
-            );
         }
 
         if matches!(command, VizualCommand::Render)
@@ -1108,7 +1116,10 @@ impl ApplicationHandler<UserEvent> for WindowApp {
             WindowEvent::MouseWheel { delta, .. } => {
                 let delta = match delta {
                     MouseScrollDelta::LineDelta(x, y) => {
-                        Point::new(f64::from(x) * SCROLL_STEP, f64::from(y) * SCROLL_STEP)
+                        Point::new(
+                            f64::from(x) * SCROLL_SENSITIVITY,
+                            f64::from(y) * SCROLL_SENSITIVITY,
+                        )
                     }
                     MouseScrollDelta::PixelDelta(delta) => {
                         let delta = delta.to_logical::<f64>(self.scale_factor);
@@ -1225,7 +1236,11 @@ fn map_system_theme(theme: WindowTheme) -> SystemTheme {
 /// the window closes; widget tasks continue on the runtime. Vizual creates the
 /// render manager used by the root widget.
 pub fn run<T: WidgetTrait>(title: impl Into<String>, root: T) -> Result<()> {
-    let RenderManager { rerender, receiver } = RenderManager::new();
+    let RenderManager {
+        rerender,
+        layout,
+        receiver,
+    } = RenderManager::new();
     let theme = Store::new(Theme::default());
     let root = Root::new(root.into_shared()).into_shared();
     let runtime = tokio::runtime::Handle::try_current()
@@ -1238,7 +1253,7 @@ pub fn run<T: WidgetTrait>(title: impl Into<String>, root: T) -> Result<()> {
     let (input_sender, input_receiver) = mpsc::unbounded_channel();
     let ui_theme = theme.clone();
     let ui_task = runtime.spawn(async move {
-        if let Err(error) = ui_loop(root, rerender, ui_theme, receiver, input_receiver, proxy).await
+        if let Err(error) = ui_loop(root, rerender, layout, ui_theme, receiver, input_receiver, proxy).await
         {
             let _ = error_proxy.send_event(UserEvent::Error(format!("{error:?}")));
         }

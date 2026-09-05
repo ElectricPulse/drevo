@@ -1,5 +1,8 @@
 use super::*;
-use crate::event::{KeyEvent, Modifiers, WheelEvent};
+use crate::{
+    config::SCROLL_SENSITIVITY,
+    event::{KeyEvent, Modifiers, WheelEvent},
+};
 
 #[derive(Clone)]
 struct Empty;
@@ -36,7 +39,7 @@ async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
         let _ = scroll
             .on_key_press(crate::widget::KeyPress {
                 key: &right,
-                relayout: manager.rerender.clone(),
+                relayout: manager.layout.clone(),
                 window: None,
             })
             .await?;
@@ -48,13 +51,13 @@ async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
 
 #[tokio::test]
 async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Result<()> {
-    let manager = crate::render_manager::RenderManager::new();
+    let mut manager = crate::render_manager::RenderManager::new();
     let mut scroll = Scroll::new(Empty);
     scroll.content_size = Size::new(400.0, 400.0);
     scroll.viewport = Rect::new(0.0, 0.0, 100.0, 100.0);
     let mut wheel = WheelEvent {
         position: Point::new(50.0, 50.0),
-        delta: Point::new(0.0, -SCROLL_STEP),
+        delta: Point::new(0.0, -SCROLL_SENSITIVITY),
         modifiers: Modifiers::default(),
     };
 
@@ -62,24 +65,35 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
     let message = scroll
         .on_other_event(crate::widget::OtherEvent {
             event: &event,
-            relayout: manager.rerender.clone(),
+            relayout: manager.layout.clone(),
             window: None,
         })
         .await?;
     assert!(!message.has_command());
-    assert_eq!(scroll.offset, Point::new(0.0, SCROLL_STEP));
+    assert_eq!(scroll.offset, Point::new(0.0, SCROLL_SENSITIVITY));
+    assert_eq!(
+        manager.receiver.0.recv().await,
+        Some(crate::RenderRequest::Layout)
+    );
 
     wheel.modifiers.shift = true;
     let event = Event::Wheel(wheel);
     let message = scroll
         .on_other_event(crate::widget::OtherEvent {
             event: &event,
-            relayout: manager.rerender.clone(),
+            relayout: manager.layout.clone(),
             window: None,
         })
         .await?;
     assert!(!message.has_command());
-    assert_eq!(scroll.offset, Point::new(SCROLL_STEP, SCROLL_STEP));
+    assert_eq!(
+        scroll.offset,
+        Point::new(SCROLL_SENSITIVITY, SCROLL_SENSITIVITY)
+    );
+    assert_eq!(
+        manager.receiver.0.recv().await,
+        Some(crate::RenderRequest::Layout)
+    );
 
     Ok(())
 }

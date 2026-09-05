@@ -8,7 +8,8 @@ use crate::{
     VizualMsg,
     component::{Children, SharedComponent},
     constraint,
-    event::{Event, KeyCode, SCROLL_STEP},
+    config::SCROLL_SENSITIVITY,
+    event::{Event, KeyCode},
     geometry::{Direction, Point, Rect, Size},
     id,
     widget::{
@@ -229,10 +230,10 @@ impl WidgetTrait for Scroll {
         let key = input.key;
         let relayout = input.relayout;
         let delta = match key.code {
-            KeyCode::ArrowLeft => Point::new(-SCROLL_STEP, 0.0),
-            KeyCode::ArrowRight => Point::new(SCROLL_STEP, 0.0),
-            KeyCode::ArrowUp => Point::new(0.0, -SCROLL_STEP),
-            KeyCode::ArrowDown => Point::new(0.0, SCROLL_STEP),
+            KeyCode::ArrowLeft => Point::new(-SCROLL_SENSITIVITY, 0.0),
+            KeyCode::ArrowRight => Point::new(SCROLL_SENSITIVITY, 0.0),
+            KeyCode::ArrowUp => Point::new(0.0, -SCROLL_SENSITIVITY),
+            KeyCode::ArrowDown => Point::new(0.0, SCROLL_SENSITIVITY),
             _ => return VizualMsg::none(),
         };
 

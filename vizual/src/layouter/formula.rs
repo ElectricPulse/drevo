@@ -87,27 +87,9 @@ impl Formula {
         self.constraint_records.retain(|_, record| record.used);
     }
 
-    /// Claims a declaration key for this pass. A repeated source-level `id!()` can legitimately
-    /// occur in a loop, so later occurrences get a stable ordinal suffix.
-    fn claim(records: &mut HashMap<String, Record>, id: String) -> String {
-        for occurrence in 0.. {
-            let candidate = match occurrence {
-                0 => id.clone(),
-                _ => format!("{id}.{occurrence}"),
-            };
-            let record = records.entry(candidate.clone()).or_default();
-            if !record.used {
-                record.used = true;
-                return candidate;
-            }
-        }
-        unreachable!("an unbounded declaration ordinal cannot be exhausted")
-    }
-
     fn record_variable(&mut self, id: String, variable: Variable) -> Result<Variable> {
-        let id = Self::claim(&mut self.variable_records, id);
         self.variables.push(variable);
-        self.active_variables.push((id, variable));
+        self.active_variables.push((id.into(), variable));
         Ok(variable)
     }
 
@@ -163,12 +145,14 @@ impl Formula {
     }
 
     pub fn constrain(&mut self, id: impl Into<String>, constraint: Constraint) -> Result<()> {
-        let id = Self::claim(&mut self.constraint_records, id.into());
+        let id = id.into();
+
         let name = if self.component_path.is_empty() {
             id.clone()
         } else {
             format!("{}:{id}", self.component_path)
         };
+
         self.constraints.push(constraint.set_name(name.clone()));
         self.active_constraints.push((id, name));
         Ok(())

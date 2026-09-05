@@ -110,7 +110,7 @@ impl Anchor {
     }
 
     /// Applies the selected anchor to this hitbox within its parent.
-    async fn anchor(
+    fn anchor(
         formula: &mut Formula,
         parent: &Hitbox,
         hitbox: &mut Hitbox,
@@ -183,8 +183,7 @@ impl WidgetTrait for Anchor {
             hitbox,
             self.anchors.horizontal,
             Direction::Horizontal,
-        )
-        .await?;
+        )?;
 
         Self::anchor(
             problem,
@@ -192,8 +191,7 @@ impl WidgetTrait for Anchor {
             hitbox,
             self.anchors.vertical,
             Direction::Vertical,
-        )
-        .await?;
+        )?;
 
         Ok(vec![display!(self.child.clone())])
     }

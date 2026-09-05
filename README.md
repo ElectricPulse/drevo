@@ -16,7 +16,7 @@ See [docs/architecture.md](vizual/docs/architecture.md) for details.
 
 - **State tracking**: `Store<T>` tracks the component relayout signals supplied through `.affect()`. Updating a store signals those components.
 - **MILP layouter**: Layout rules are expressed as linear constraints and solved with lexicographical priorities.
-    You might think that the layouter is a huge performance bottleneck, but it easily allows 60FPS for very complex layouts with headroom for more as hot starting gets implemented.
+    You might think that the layouter is a huge performance bottleneck, but it easily allows 60FPS for very complex layouts
 - **Tuple layout**: Multi-child containers like `Axis` and `Grid` accept tuples of different widget types through `Into_widgets`.
 - **Event routing and focus**: Keyboard and pointer events route through the focus hierarchy. A widget must be interactive to receive clicks.
 

@@ -83,6 +83,14 @@ impl SharedComponent {
         self.component.lock().await
     }
 
+    pub fn try_lock(&self) -> Result<MutexGuard<'_, Component>> {
+        self.component.try_lock()
+    }
+
+    pub fn source_path(&self) -> Result<String> {
+        Ok(self.try_lock()?.debug.source_path())
+    }
+
     pub fn compare(&self, node: &SharedComponent) -> bool {
         Arc::ptr_eq(&self.component, &node.component)
     }
@@ -153,7 +161,42 @@ impl SharedComponent {
 
     pub(crate) async fn layout(
         &mut self,
-        rerender: Signal,
+        layout: Signal,
+        theme: Store<Theme>,
+        focused_path: &FocusedPath,
+        parent_reference: Parent,
+        parent: Hitbox,
+        problem: ComponentContext,
+        text_context: &mut TextContext,
+        root: &SharedComponent,
+    ) -> Result<Children> {
+        let component = self.clone();
+        log_timeout(
+            0,
+            move || {
+                let source_path = component.source_path().unwrap_or_default();
+                format!("component layout() at {source_path}")
+            },
+            LAYOUT_TIMEOUT,
+            || {
+                self.layout_inner(
+                    layout,
+                    theme,
+                    focused_path,
+                    parent_reference,
+                    parent,
+                    problem,
+                    text_context,
+                    root,
+                )
+            },
+        )
+        .await
+    }
+
+    async fn layout_inner(
+        &mut self,
+        layout: Signal,
         theme: Store<Theme>,
         focused_path: &FocusedPath,
         parent_reference: Parent,
@@ -168,8 +211,8 @@ impl SharedComponent {
         // deliberately mark child edges independent before the child's own layout begins, so a
         // second reset here would erase that parent-owned choice.
         this.parent = parent_reference;
-        problem.component_path.push(this.name.clone());
-        this.formula.begin(problem.component_path.join("."));
+        problem.push(|| this.name.clone());
+        this.formula.begin(problem.join());
 
         let start_x = this.hitbox.start.x;
         let start_y = this.hitbox.start.y;
@@ -181,7 +224,7 @@ impl SharedComponent {
         this.formula.register_variable("hitbox.end.x", end_x)?;
         this.formula.register_variable("hitbox.end.y", end_y)?;
 
-        let relayout = rerender;
+        let relayout = layout;
         let children = {
             let Component {
                 widget,
@@ -214,7 +257,7 @@ impl SharedComponent {
                 };
                 let children = log_timeout(
                     0,
-                    format!("widget layout() at {}", debug.source_path()),
+                    || format!("widget layout() at {}", debug.source_path()),
                     LAYOUT_TIMEOUT,
                     || widget.layout(input),
                 )
@@ -248,7 +291,7 @@ impl SharedComponent {
     #[async_recursion]
     pub(crate) async fn layout_children(
         &mut self,
-        rerender: Signal,
+        layout: Signal,
         theme: Store<Theme>,
         focused_path: &FocusedPath,
         children: Children,
@@ -258,7 +301,7 @@ impl SharedComponent {
     ) -> Result<()> {
         let hitbox = {
             let component = self.lock().await?;
-            problem.component_path.push(component.name.clone());
+            problem.push(|| component.name.clone());
             component.hitbox.clone()
         };
 
@@ -268,7 +311,7 @@ impl SharedComponent {
             let grandchildren = child
                 .clone()
                 .layout(
-                    rerender.clone(),
+                    layout.clone(),
                     theme.clone(),
                     focused_path,
                     self.clone().into(),
@@ -280,7 +323,7 @@ impl SharedComponent {
                 .await?;
             child
                 .layout_children(
-                    rerender.clone(),
+                    layout.clone(),
                     theme.clone(),
                     focused_path,
                     grandchildren,

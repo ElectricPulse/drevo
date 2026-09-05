@@ -20,7 +20,7 @@ pub(crate) const MINIMUM_WINDOW_SIZE: Size = Size::new(100.0, 100.0);
 // TODO: solve this some other way
 pub(crate) const MAXIMUM_LAYOUT_VALUE: f64 = 21_000.0;
 
-pub(crate) const MAX_ZOOM: f64 = 50.0;
+pub(crate) const MAX_ZOOM: f64 = 100.0;
 /// At 1× scale, one logical pixel is one physical pixel; a full-HD display is 1920 pixels wide.
 /// This weight is [`MAX_ZOOM`] times that so weights should survive that max zoom.
 /// I am 99% sure that this calculation is partly bogus but I don't want to think about it ¯\_(ツ)_/¯
@@ -29,9 +29,16 @@ pub(crate) const BLENDED_GOAL_WEIGHT: f64 = 1920.0 * MAX_ZOOM;
 
 pub(crate) const BORDER_SIZE: f64 = 1.0;
 
+/// Logical pixels moved for one line-based mouse-wheel tick and arrow-key press.
+/// I got to the current value by testing how different values feel :)
+pub(crate) const SCROLL_SENSITIVITY: f64 = 134.0;
+
 pub(crate) const COMMAND_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
 
-pub(crate) const LAYOUT_TIMEOUT: Duration = Duration::from_millis(2);
+/// Coalesces render and layout invalidations before work starts.
+pub(crate) const REQUEST_DEBOUNCE: Duration = Duration::from_millis(1);
+
+pub(crate) const LAYOUT_TIMEOUT: Duration = Duration::from_millis(1);
 
 /// Retains the last solved values and duals on formulas so the next rebuilt layout model can use
 /// them as a HiGHS warm start. Disable this to compare cold layout solves.

@@ -31,21 +31,23 @@ where
     output
 }
 
-pub async fn log_timeout<Output, Callback, CallbackFuture>(
+pub async fn log_timeout<Output, Callback, CallbackFuture, Name, NameCallback>(
     indentation: usize,
-    name: impl Into<String>,
+    name: NameCallback,
     timeout: Duration,
     callback: Callback,
 ) -> Output
 where
     Callback: FnOnce() -> CallbackFuture,
     CallbackFuture: Future<Output = Output>,
+    NameCallback: FnOnce() -> Name,
+    Name: Display,
 {
     let started = Instant::now();
     let output = callback().await;
     let elapsed = started.elapsed();
     if elapsed > timeout {
-        let name = name.into();
+        let name = name();
         log_info(indentation, format_args!("{name} took {elapsed:?}"));
     }
     output

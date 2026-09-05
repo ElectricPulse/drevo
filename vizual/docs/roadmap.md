@@ -17,6 +17,7 @@ which I haven't implemented because they are complex and make the code even less
 - think about if scroll couldnt alter hitboxes after layout - to improve performance
 - add an explicit fill objective to compete with the default Axis cross-axis limit
 - automate `Axis::limit_cross`, or reconcile it into a more coherent layout behavior
+- fix goal instability on small screens
 - choose if putting everything in a widget in a store really is the way
 - using parley implement text selection copying cursor &c
 - add an example patmat build

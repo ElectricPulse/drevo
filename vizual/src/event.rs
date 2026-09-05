@@ -1,7 +1,5 @@
 use crate::geometry::Point;
 
-pub(crate) const SCROLL_STEP: f64 = 105.0;
-
 #[derive(Clone, Debug)]
 pub enum Event {
     Key(KeyEvent),

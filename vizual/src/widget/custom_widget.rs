@@ -40,13 +40,14 @@ where
     async fn layout(&mut self, input: super::LayoutInput<'_>) -> Result<Children> {
         let contents = self.widget.layout(input, self.payload.clone()).await?;
 
-        // TODO: handle this some other way
+        // TODO: this is an absolutely arbitrary constraint from menu where an item should only return one child
         if contents.len() != 1 {
             return Err(eyre!(
                 "Custom widget layout must return exactly one child, got {}",
                 contents.len()
             ));
         }
+
         Ok(contents)
     }
 }
