@@ -1,4 +1,4 @@
-# ![banner](drevo/assets/banner.png)
+# ![logo](drevo/assets/logo.png)
 
 # Drevo
 
