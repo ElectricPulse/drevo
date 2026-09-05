@@ -12,7 +12,7 @@ use crate::{
     event::{Event, KeyCode},
     geometry::{Direction, Point, Rect, Size},
     id,
-    layouter::priorities::{CONTENT, EXTRA_CONTENT},
+    layouter::priorities::{EXCESS_SPACE, INTRINSIC_CONTENT},
     widget::{
         LayoutInput, RenderInput, Widget, WidgetTrait,
         widgets::{
@@ -90,27 +90,21 @@ impl WidgetTrait for ScrollContent {
                 let child_dim = child_hitbox.get_dimension(direction);
                 let parent_dim = hitbox.get_dimension(direction);
 
-                let extra_content = formula.variable(format!("extra_content.{direction:?}"))?;
-                formula.constrain(
-                    format!("{}:{direction:?}:extra_content_ge_0", id!()),
-                    constraint!(extra_content >= 0.0),
-                )?;
-                formula.constrain(
-                    format!("{}:{direction:?}:extra_content_ge_child_sub_parent", id!()),
-                    constraint!(extra_content >= child_dim.clone() - parent_dim.clone()),
-                )?;
-                formula.minimize(id!(), extra_content, EXTRA_CONTENT)?;
+                formula.maximize(id!(), parent_dim.clone() - child_dim.clone(), EXCESS_SPACE)?;
 
                 let content_growth = formula.variable(format!("content_growth.{direction:?}"))?;
+
                 formula.constrain(
                     format!("{}:{direction:?}:content_growth_ge_0", id!()),
                     constraint!(content_growth >= 0.0),
                 )?;
+
                 formula.constrain(
                     format!("{}:{direction:?}:content_growth_ge_parent_sub_child", id!()),
-                    constraint!(content_growth >= parent_dim - child_dim),
+                    constraint!(content_growth >= child_dim - parent_dim),
                 )?;
-                formula.minimize(id!(), content_growth, CONTENT)?;
+
+                formula.minimize(id!(), content_growth, INTRINSIC_CONTENT)?;
             }
         }
 
@@ -180,42 +174,30 @@ impl WidgetTrait for Scroll {
 
         let content_widget = ScrollContent::new(self.child.clone(), self.offset);
 
-        let has_vertical =
+        let vertical_scrollable =
             self.content_size.height > self.viewport.size.height && self.viewport.size.height > 0.0;
-        let has_horizontal =
+        let horizontal_scrollable =
             self.content_size.width > self.viewport.size.width && self.viewport.size.width > 0.0;
 
-        let content_column: Widget = match has_horizontal {
-            true => {
-                let h_bar = bar::Scrollbar::new(
-                    Direction::Horizontal,
-                    self.offset.x,
-                    self.viewport.size.width,
-                    self.content_size.width,
-                );
-                Box::new(
-                    Axis::new(Direction::Vertical, (content_widget, h_bar))
-                        .style(AxisStyle::Gap(0.0)),
-                )
-            }
-            false => Box::new(content_widget),
-        };
+        let h_bar = bar::Scrollbar::new(
+            Direction::Horizontal,
+            self.offset.x,
+            self.viewport.size.width,
+            self.content_size.width,
+            horizontal_scrollable,
+        );
+        let content_column =
+            Axis::new(Direction::Vertical, (content_widget, h_bar)).style(AxisStyle::Gap(0.0));
 
-        let root_widget: Widget = match has_vertical {
-            true => {
-                let v_bar = bar::Scrollbar::new(
-                    Direction::Vertical,
-                    self.offset.y,
-                    self.viewport.size.height,
-                    self.content_size.height,
-                );
-                Box::new(
-                    Axis::new(Direction::Horizontal, (content_column, v_bar))
-                        .style(AxisStyle::Gap(0.0)),
-                )
-            }
-            false => content_column,
-        };
+        let v_bar = bar::Scrollbar::new(
+            Direction::Vertical,
+            self.offset.y,
+            self.viewport.size.height,
+            self.content_size.height,
+            vertical_scrollable,
+        );
+        let root_widget =
+            Axis::new(Direction::Horizontal, (content_column, v_bar)).style(AxisStyle::Gap(0.0));
 
         let component = match self.block {
             true => {

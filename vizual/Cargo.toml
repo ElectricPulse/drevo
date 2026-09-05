@@ -1,6 +1,6 @@
 [package]
 name = "vizual"
-version = "0.1.4"
+version = "0.1.5"
 edition.workspace = true
 description = "An async, solver-driven desktop UI framework rendered with Vello"
 repository.workspace = true

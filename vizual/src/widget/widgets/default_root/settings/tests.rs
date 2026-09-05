@@ -104,7 +104,7 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
         )
         .await?;
     assert!(matches!(command, VizualCommand::None));
-    assert!(focus.compare(&button_block));
+    assert!(focus.compare(&button_block).await?);
     assert!(focus.focused_path().await?.contains(&settings));
 
     assert_eq!(
@@ -138,7 +138,7 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
         .await?;
     assert!(settings.lock().await?.focusable);
 
-    focus.reset();
+    focus.reset().await?;
     let previous_problem = problem;
     let mut problem = AppProblem::new(root, &mut root_slot, variables, rerender.clone()).await?;
     drop(previous_problem);

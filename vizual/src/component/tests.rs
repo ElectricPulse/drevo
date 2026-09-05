@@ -2,6 +2,7 @@ use super::*;
 use crate::{
     focus::Focus,
     layouter::{Formula, variables::Variables},
+    render_manager::RenderManager,
     widget::WidgetTrait,
 };
 
@@ -58,13 +59,19 @@ async fn focused_path_contains_the_target_and_its_parents() -> Result<()> {
     child.lock().await?.parent = Some(parent.as_reference());
     parent.lock().await?.children = vec![child.clone()];
 
-    let mut focus = Focus::new();
-    focus.set(&child);
+    let mut render_manager = RenderManager::new();
+    let focus = Focus::new();
+    drop(focus.affect(render_manager.layout.clone()).await?);
+    focus.set(&child).await?;
     let focused_path = focus.focused_path().await?;
 
     assert!(focused_path.contains(&child));
     assert!(focused_path.contains(&parent));
     assert!(!focused_path.contains(&unrelated));
+    assert_eq!(
+        render_manager.receiver.0.recv().await,
+        Some(crate::RenderRequest::Layout)
+    );
     Ok(())
 }
 

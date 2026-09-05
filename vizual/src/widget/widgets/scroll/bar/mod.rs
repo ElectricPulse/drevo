@@ -16,6 +16,7 @@ pub struct Scrollbar {
     pub offset: f64,
     pub viewport_length: f64,
     pub content_length: f64,
+    pub scrollable: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -43,12 +44,14 @@ impl Scrollbar {
         offset: f64,
         viewport_length: f64,
         content_length: f64,
+        scrollable: bool,
     ) -> Self {
         Self {
             direction,
             offset,
             viewport_length,
             content_length,
+            scrollable,
         }
     }
 
@@ -91,7 +94,11 @@ impl Scrollbar {
                 size: Size::new(thumb_size, thumb_length),
             },
         };
-        scene.fill_rounded_rect(thumb, theme.semantic.text.muted, thumb_size / 2.0);
+        let thumb_color = match self.scrollable {
+            true => theme.semantic.text.muted,
+            false => theme.semantic.text.muted.darken(10),
+        };
+        scene.fill_rounded_rect(thumb, thumb_color, thumb_size / 2.0);
     }
 
     fn with_cross_axis_size(&self, hitbox: Rect, size: f64) -> Rect {

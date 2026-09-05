@@ -37,9 +37,8 @@ pub struct Component {
     pub(crate) hitbox: Hitbox,
     pub(crate) formula: Formula,
     pub widget: Widget,
-    // TODO: Convert focusability/focus tracking into reactive state when per-component
-    // relayouting is implemented, so a focus change only notifies components that subscribe to
-    // it. Refocusing currently relayouts the whole tree, so storing this as a bool is sufficient.
+    // Focus is tracked reactively by `Focus`; this records whether this component accepted focus
+    // during its most recent layout.
     pub focusable: bool,
     pub parent: Parent,
     pub children: Children,

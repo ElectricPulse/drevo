@@ -210,7 +210,6 @@ struct AppProblem {
     root: SharedComponent,
     root_hitbox: Hitbox,
     variables: Arc<Variables>,
-    rerender: Signal,
     layout: Signal,
     window: Option<Arc<Window>>,
 }
@@ -230,8 +229,7 @@ impl AppProblem {
             root,
             root_hitbox,
             variables,
-            layout: rerender.clone(),
-            rerender,
+            layout: rerender,
             window: None,
         })
     }
@@ -244,7 +242,7 @@ impl AppProblem {
         text_context: &mut TextContext,
     ) -> Result<()> {
         self.layout = layout.clone();
-        let focused_path = focus.focused_path().await?;
+        let focused_path = focus.affected_path(layout.clone()).await?;
         let root = self.root.clone();
         let children = self
             .root
@@ -316,11 +314,6 @@ impl AppProblem {
         Ok(scene)
     }
 
-    async fn signal_component(&self, _component: &SharedComponent) -> Result<()> {
-        self.rerender.send();
-        Ok(())
-    }
-
     #[async_recursion]
     async fn handle_pointer_press(
         &mut self,
@@ -328,7 +321,7 @@ impl AppProblem {
         position: Point,
         event: &Event,
         solution: &Solution,
-        focus: &mut Focus,
+        focus: &Focus,
     ) -> Result<Option<VizualCommand>> {
         let (hits, children) = {
             let node_lock = node.lock().await?;
@@ -356,17 +349,15 @@ impl AppProblem {
             return Ok(None);
         }
 
-        focus.set(&node);
+        focus.set(&node).await?;
         // It's easier to use drill_event even for a focus event while drill_event already needs to exist to pass on keyboard events
         let cmd = self.drill_event(event, focus).await?;
-
-        self.signal_component(&node).await?;
 
         Ok(Some(cmd))
     }
 
-    async fn drill_event(&mut self, event: &Event, focus: &mut Focus) -> Result<VizualCommand> {
-        let Some(mut current_node) = focus.upgrade() else {
+    async fn drill_event(&mut self, event: &Event, focus: &Focus) -> Result<VizualCommand> {
+        let Some(mut current_node) = focus.upgrade().await? else {
             return Ok(VizualCommand::None);
         };
         let mut nodes = Vec::new();
@@ -416,9 +407,9 @@ impl AppProblem {
         &mut self,
         skip_count: usize,
         direction: FocusSearchDirection,
-        focus: &mut Focus,
+        focus: &Focus,
     ) -> Result<bool> {
-        let start = focus.upgrade().unwrap_or_else(|| self.root.clone());
+        let start = focus.upgrade().await?.unwrap_or_else(|| self.root.clone());
         let (found, skip_count) = self
             .find_focus(None, start, skip_count, direction, true, focus)
             .await?;
@@ -441,13 +432,13 @@ impl AppProblem {
         mut skip_count: usize,
         direction: FocusSearchDirection,
         up: bool,
-        focus: &mut Focus,
+        focus: &Focus,
     ) -> Result<(bool, usize)> {
         let lock = node.lock().await?;
 
-        if !up && lock.focusable && !focus.compare(&node) {
+        if !up && lock.focusable && !focus.compare(&node).await? {
             if skip_count == 0 {
-                focus.set(&node);
+                focus.set(&node).await?;
                 return Ok((true, skip_count));
             }
             skip_count -= 1;
@@ -475,9 +466,9 @@ impl AppProblem {
             return Ok((false, skip_count));
         }
 
-        if lock.focusable && !focus.compare(&node) {
+        if lock.focusable && !focus.compare(&node).await? {
             if skip_count == 0 {
-                focus.set(&node);
+                focus.set(&node).await?;
                 return Ok((true, skip_count));
             }
             skip_count -= 1;
@@ -514,7 +505,7 @@ impl AppProblem {
         &mut self,
         event: &Event,
         solution: &Solution,
-        focus: &mut Focus,
+        focus: &Focus,
     ) -> Result<VizualCommand> {
         if !matches!(event, Event::Pointer(_)) {
             let command = self.drill_event(event, focus).await?;
@@ -531,16 +522,10 @@ impl AppProblem {
                         _ => FocusSearchDirection::Left,
                     };
                     let _ = self.move_focus(0, direction, focus).await?;
-                    if let Some(node) = focus.upgrade() {
-                        self.signal_component(&node).await?;
-                    }
                     Ok(VizualCommand::None)
                 }
                 KeyCode::Escape => {
-                    if let Some(node) = focus.upgrade() {
-                        self.signal_component(&node).await?;
-                    }
-                    focus.reset();
+                    focus.reset().await?;
                     Ok(VizualCommand::None)
                 }
                 _ if check_quit_event(key) => Ok(VizualCommand::Quit),
@@ -557,14 +542,13 @@ impl AppProblem {
                         focus,
                     )
                     .await?;
-                if let Some(focused) = initial_focus.upgrade() {
-                    if focus.compare(&focused)
+                if let Some(focused) = initial_focus.upgrade().await? {
+                    if focus.compare(&focused).await?
                         && !self
                             .component_hit(&focused, pointer.position, solution)
                             .await?
                     {
-                        focus.reset();
-                        self.signal_component(&focused).await?;
+                        focus.reset().await?;
                         return Ok(VizualCommand::None);
                     }
                 }
@@ -648,7 +632,7 @@ async fn ui_loop<T: WidgetTrait>(
     mut input_receiver: mpsc::UnboundedReceiver<UiInput>,
     proxy: EventLoopProxy<UserEvent>,
 ) -> Result<()> {
-    let mut focus = Focus::new();
+    let focus = Focus::new();
     let mut root_slot = ComponentSlot::new();
     let mut text_context = TextContext::new();
     let variables = Arc::new(Variables::new());
@@ -751,7 +735,7 @@ async fn ui_loop<T: WidgetTrait>(
             UiInput::Layout => VizualCommand::Layout,
             UiInput::Event(event) => match (&mut app_problem, &solution) {
                 (Some(problem), Some(solution)) => {
-                    problem.handle_event(&event, solution, &mut focus).await?
+                    problem.handle_event(&event, solution, &focus).await?
                 }
                 _ if matches!(event, Event::CloseRequested) => VizualCommand::Quit,
                 _ => VizualCommand::None,
@@ -768,9 +752,8 @@ async fn ui_loop<T: WidgetTrait>(
         };
 
         if let VizualCommand::Focus(reference) = &command {
-            focus.set_with_reference(reference);
-            relayout = true;
-            command = VizualCommand::Resolve;
+            focus.set_with_reference(reference).await?;
+            command = VizualCommand::None;
         }
 
         if relayout || matches!(command, VizualCommand::Layout) {

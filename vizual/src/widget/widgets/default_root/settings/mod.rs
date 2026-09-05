@@ -22,7 +22,7 @@ use crate::{
     geometry::{Direction, Size},
     handlers::RetrieveHandler,
     id,
-    layouter::{hitbox::Hitbox, priorities::POSITIONING},
+    layouter::{hitbox::Hitbox, priorities::ALIGNMENT},
     state::{State, Store},
     theme::{SystemTheme, Theme},
     widget::{
@@ -215,7 +215,7 @@ impl WidgetTrait for PositionedMenu {
         formula.minimize(
             id!(),
             horizontal_distance + vertical_distance,
-            POSITIONING,
+            ALIGNMENT,
         )?;
 
         Ok(vec![display!(self.child.clone())])

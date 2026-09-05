@@ -20,12 +20,13 @@ pub(crate) const MINIMUM_WINDOW_SIZE: Size = Size::new(100.0, 100.0);
 // TODO: solve this some other way
 pub(crate) const MAXIMUM_LAYOUT_VALUE: f64 = 21_000.0;
 
-pub(crate) const MAX_ZOOM: f64 = 20.0;
-/// At 1× scale, one logical pixel is one physical pixel; a full-HD display is 1920 pixels wide.
+pub(crate) const MAX_ZOOM: f64 = 1.0;
+/// At 1× scale, one logical pixel is one physical pixel on the monitor (I choose 4k)
 /// This weight is [`MAX_ZOOM`] times that so weights should survive that max zoom.
 /// I am 99% sure that this calculation is partly bogus but I don't want to think about it ¯\_(ツ)_/¯
 /// weights are then calculated as BLENDED_GOAL_WEIGHT to the power of priority (starting from lowest priority at 0)
-pub(crate) const BLENDED_GOAL_WEIGHT: f64 = 1920.0 * MAX_ZOOM;
+/// Setting this too high makes the model return UnboundedOrInfeasible or just Error need to enable MODEL_DEBUG to see more
+pub(crate) const BLENDED_GOAL_WEIGHT: f64 = 4096.0 * MAX_ZOOM;
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -55,3 +56,5 @@ pub(crate) const LAYOUT_TIMEOUT: Duration = Duration::from_millis(1);
 /// them as a HiGHS warm start. Disable this to compare cold layout solves.
 /// Disabled as of now because if offers no performance benefit
 pub(crate) const COPY_SOLUTION_TO_FORMULA: bool = false;
+
+pub(crate) const MODEL_DEBUG: bool = false;

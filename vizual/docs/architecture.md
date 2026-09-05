@@ -57,6 +57,6 @@ Constraints should flow from parent to child. Avoid constraining a parent's dime
 
 ## Constraint priorities
 
-Layout objectives use weighted priorities rather than HiGHS' lexicographic priorities. Because variables represent screen coordinates or dimensions within known bounds, priorities use a geometric scale: priority `p` uses `BLENDED_GOAL_WEIGHT.powi(p)`.
+Layout objectives use weighted priorities by default rather than HiGHS' lexicographic priorities. Because variables represent screen coordinates or dimensions within known bounds, priorities use a geometric scale: priority `p` uses `BLENDED_GOAL_WEIGHT.powi(p)`.
 
 Weighted priorities preserve the required constraint ordering without paying the solve-time penalty of multi-pass lexicographic solves.

@@ -21,7 +21,7 @@ use crate::{
     geometry::Direction,
     handlers::RetrieveHandler,
     id,
-    layouter::{priorities::SPACING, variable::Variable},
+    layouter::{priorities::INTRINSIC_SPACING, variable::Variable},
     state::{State, Store},
     sync::ThreadSafe,
     utils::{get_next_index, get_previous_index},
@@ -175,7 +175,7 @@ impl<Choice: ThreadSafe> WidgetTrait for Menu<Choice> {
     ) -> Result<Children> {
         let selected = *self.selected.affect(relayout).await?;
         let mut rows: Vec<Widget> = Vec::with_capacity(self.items.len());
-        let button_delta = formula.add_delta(id!(), SPACING)?;
+        let button_delta = formula.add_delta(id!(), INTRINSIC_SPACING)?;
 
         for (index, item) in self.items.iter().enumerate() {
             let row = MenuItemContainer {

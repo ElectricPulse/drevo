@@ -40,7 +40,9 @@ use self::{
 };
 use crate::{
     component::debug::ComponentTree,
-    config::{BLENDED_GOAL_WEIGHT, COPY_SOLUTION_TO_FORMULA, PRIORITIES, Priorities},
+    config::{
+        BLENDED_GOAL_WEIGHT, COPY_SOLUTION_TO_FORMULA, MODEL_DEBUG, PRIORITIES, Priorities,
+    },
     constraint,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
@@ -67,6 +69,12 @@ type PriorityObjective = Vec<Expression>;
 struct Goal {
     priority: usize,
     expression: Expression,
+}
+
+#[derive(Clone, Copy)]
+enum ObjectiveLabel {
+    Priority(usize),
+    Weighted,
 }
 
 pub trait Field: Send {
@@ -294,7 +302,10 @@ impl Problem {
         let sense = objective.map(|(_, s)| s).unwrap_or(Sense::Maximise);
         let (problem, _, _) = self.build_row_problem(constraints, objective);
         let mut model = problem.optimise(sense);
-        model.make_quiet();
+        if MODEL_DEBUG {
+            model.set_option("output_flag", true);
+            model.set_option("log_to_console", true);
+        }
         model.set_option("presolve", "on");
         model.set_option("parallel", "on");
         model.set_option("mip_rel_gap", 0.0);
@@ -469,36 +480,6 @@ impl Problem {
         }
     }
 
-    async fn describe_infeasible(
-        &self,
-        conflict_indices: Vec<usize>,
-        constraints: &[Constraint],
-        component_tree: &ComponentTree,
-    ) -> Result<Solution> {
-        let conflicting_constraints = if !conflict_indices.is_empty() {
-            conflict_indices
-                .into_iter()
-                .filter_map(|idx| constraints.get(idx))
-                .collect::<Vec<_>>()
-        } else {
-            constraints.iter().collect::<Vec<_>>()
-        };
-
-        let displayed = self.display_constraints(conflicting_constraints.iter().copied())?;
-        let conflict = self.with_component_tree(
-            displayed,
-            conflicting_constraints
-                .iter()
-                .flat_map(|c| c.expression.referenced_variables()),
-            component_tree,
-        );
-
-        log::error!("layout conflicting constraints:\n{conflict}");
-        Err(eyre!(
-            "Layout is overconstrained; conflicting constraints:\n{conflict}"
-        ))
-    }
-
     fn compute_primal_ray(
         highs_ptr: *const std::ffi::c_void,
         num_cols: usize,
@@ -577,7 +558,7 @@ impl Problem {
         &self,
         constraints: &[Constraint],
         objective: &Expression,
-        priority: Option<usize>,
+        label: ObjectiveLabel,
         primal_ray: &[(SolverVariable, f64)],
         component_tree: &ComponentTree,
     ) -> Result<Solution> {
@@ -623,11 +604,13 @@ impl Problem {
         }
 
         let expr_str = self.display_expression(objective);
-        let header = match priority {
-            Some(p) => format!(
-                "Layout is underconstrained; priority {p} objective ({expr_str}) is unbounded"
+        let header = match label {
+            ObjectiveLabel::Priority(priority) => format!(
+                "Layout is underconstrained; priority {priority} objective ({expr_str}) is unbounded"
             ),
-            None => format!("Layout is underconstrained; objective ({expr_str}) is unbounded"),
+            ObjectiveLabel::Weighted => {
+                "Layout is underconstrained; weighted objective is unbounded".to_owned()
+            }
         };
 
         let message = match details.is_empty() {
@@ -657,12 +640,15 @@ impl Problem {
                 info.is_integer && info.lower == 0.0 && info.upper == 1.0
             })
             .count();
-        let weights = match PRIORITIES {
-            Priorities::Weighted => objectives
-                .iter()
-                .map(|goal| BLENDED_GOAL_WEIGHT.powi(goal.priority as i32))
-                .collect::<Vec<_>>(),
-            Priorities::Lexicographic => vec![1.0; objectives.len()],
+        let (weights, priority_mode) = match PRIORITIES {
+            Priorities::Weighted => (
+                objectives
+                    .iter()
+                    .map(|goal| BLENDED_GOAL_WEIGHT.powi(goal.priority as i32))
+                    .collect::<Vec<_>>(),
+                "weighted",
+            ),
+            Priorities::Lexicographic => (vec![1.0; objectives.len()], "lexicographic"),
         };
         let offsets = objectives
             .iter()
@@ -701,7 +687,7 @@ impl Problem {
         log_info(
             2,
             format_args!(
-                "MILP model: {variable_count} variables ({binary_count} binary), {} constraints, {} priorities",
+                "MILP model: {variable_count} variables ({binary_count} binary), {} constraints, {} priorities ({priority_mode})",
                 constraints.len(),
                 objectives.len(),
             ),
@@ -888,93 +874,97 @@ impl Problem {
         }
     }
 
-    async fn diagnose_objectives_failure(
+    async fn diagnose_objective(
         &self,
         constraints: &[Constraint],
-        objectives: &[Goal],
+        objective: &Goal,
+        label: ObjectiveLabel,
         component_tree: &ComponentTree,
-    ) -> Result<Solution> {
-        for objective in objectives {
+    ) -> Result<Option<f64>> {
+        let primal_ray = {
             let model =
-                self.build_model(constraints, Some((&objective.expression, Sense::Maximise)));
-            let failure = match model.try_solve() {
-                Ok(solved) => match solved.status() {
-                    HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
-                        let primal_ray = Self::compute_primal_ray(
-                            solved.as_ptr() as *const std::ffi::c_void,
-                            self.live_variables(
-                                constraints,
-                                std::iter::once(&objective.expression),
-                            )
-                            .len(),
-                        );
-                        Some(Err(primal_ray))
-                    }
-                    HighsModelStatus::Infeasible => {
-                        let iis = Self::compute_iis(
-                            solved.as_ptr() as *mut std::ffi::c_void,
-                            self.live_variables(
-                                constraints,
-                                std::iter::once(&objective.expression),
-                            )
-                            .len(),
-                            constraints.len(),
-                        );
-                        Some(Ok(iis))
-                    }
-                    _ => None,
-                },
-                Err(_) => None,
+                self.build_model(constraints, Some((&objective.expression, Sense::Minimise)));
+            let Ok(solved) = model.try_solve() else {
+                return Ok(None);
             };
 
-            match failure {
-                Some(Err(primal_ray)) => {
-                    return self
-                        .describe_underconstrained(
-                            constraints,
-                            &objective.expression,
-                            Some(objective.priority),
-                            &primal_ray,
-                            component_tree,
-                        )
-                        .await;
+            match solved.status() {
+                HighsModelStatus::Optimal
+                | HighsModelStatus::ObjectiveBound
+                | HighsModelStatus::ObjectiveTarget => {
+                    return Ok(Some(solved.objective_value()));
                 }
-                Some(Ok(iis)) => {
-                    return self
-                        .describe_infeasible(iis, constraints, component_tree)
-                        .await;
+                HighsModelStatus::Unbounded | HighsModelStatus::UnboundedOrInfeasible => {
+                    Self::compute_primal_ray(
+                        solved.as_ptr() as *const std::ffi::c_void,
+                        self.live_variables(constraints, std::iter::once(&objective.expression))
+                            .len(),
+                    )
                 }
-                None => {}
-            }
-        }
-
-        let combined_objective = objectives
-            .iter()
-            .fold(Expression::default(), |sum, objective| {
-                sum + objective.expression.clone()
-            });
-
-        let primal_ray = {
-            let model = self.build_model(constraints, Some((&combined_objective, Sense::Maximise)));
-            if let Ok(solved) = model.try_solve() {
-                Self::compute_primal_ray(
-                    solved.as_ptr() as *const std::ffi::c_void,
-                    self.live_variables(constraints, std::iter::once(&combined_objective))
-                        .len(),
-                )
-            } else {
-                Vec::new()
+                _ => return Ok(None),
             }
         };
 
         self.describe_underconstrained(
             constraints,
-            &combined_objective,
-            None,
+            &objective.expression,
+            label,
             &primal_ray,
             component_tree,
         )
         .await
+        .map(|_| None)
+    }
+
+    async fn diagnose_objectives_failure(
+        &self,
+        constraints: &[Constraint],
+        objectives: &[Goal],
+        component_tree: &ComponentTree,
+    ) -> Result<Option<Solution>> {
+        match PRIORITIES {
+            Priorities::Weighted => {
+                let expression = objectives.iter().fold(Expression::default(), |sum, goal| {
+                    sum + goal.expression.clone() * BLENDED_GOAL_WEIGHT.powi(goal.priority as i32)
+                });
+                let objective = Goal {
+                    priority: 0,
+                    expression,
+                };
+                let _ = self
+                    .diagnose_objective(
+                        constraints,
+                        &objective,
+                        ObjectiveLabel::Weighted,
+                        component_tree,
+                    )
+                    .await?;
+            }
+            Priorities::Lexicographic => {
+                let mut constraints = constraints.to_vec();
+
+                for objective in objectives.iter().rev() {
+                    let Some(value) = self
+                        .diagnose_objective(
+                            &constraints,
+                            objective,
+                            ObjectiveLabel::Priority(objective.priority),
+                            component_tree,
+                        )
+                        .await?
+                    else {
+                        return Ok(None);
+                    };
+
+                    constraints.push(Constraint::less_or_equal(
+                        objective.expression.clone(),
+                        value + objective.expression.constant,
+                    ));
+                }
+            }
+        }
+
+        Ok(None)
     }
 
     pub(crate) async fn solve(
@@ -1021,7 +1011,8 @@ impl Problem {
                         Err(error)
                     } else {
                         self.diagnose_objectives_failure(&constraints, &objectives, component_tree)
-                            .await
+                            .await?
+                            .ok_or(error)
                     }
                 }
             }

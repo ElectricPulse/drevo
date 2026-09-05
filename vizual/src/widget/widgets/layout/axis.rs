@@ -3,7 +3,7 @@ use crate::{
     constraint,
     geometry::Direction,
     id,
-    layouter::priorities::GAP,
+    layouter::priorities::{CROSS_AXIS_LIMIT, INTRINSIC_SPACING},
     style::Style,
     theme::Theme,
     widget::{IntoWidgets, LayoutInput, Widget, WidgetTrait},
@@ -28,6 +28,7 @@ pub struct Axis {
     direction: Direction,
     elements: Vec<Widget>,
     pub style: Style<AxisStyle>,
+    limit_cross: bool,
 }
 
 impl Axis {
@@ -36,11 +37,13 @@ impl Axis {
             direction,
             elements: elements.into(),
             style: Style::default(),
+            limit_cross: true,
         }
     }
 
     // Lets the cross axis grow to fill its available parent space.
-    pub fn free_cross(self) -> Self {
+    pub fn free_cross(mut self) -> Self {
+        self.limit_cross = false;
         self
     }
 }
@@ -52,6 +55,7 @@ impl WidgetTrait for Axis {
         LayoutInput {
             relayout,
             theme,
+            hitbox,
             formula,
             slots,
             ..
@@ -64,6 +68,14 @@ impl WidgetTrait for Axis {
             return Ok(elements);
         }
 
+        if self.limit_cross {
+            formula.minimize(
+                id!(),
+                hitbox.get_dimension(direction.flip()),
+                CROSS_AXIS_LIMIT,
+            )?;
+        }
+
         for (index, element) in self.elements.iter().enumerate() {
             let element = slots.set(index as u64, element.clone()).await?;
             elements.push(element);
@@ -73,7 +85,7 @@ impl WidgetTrait for Axis {
             let theme = theme.affect(relayout).await?;
             let AxisStyle::Gap(gap) = self.style.get(&theme);
             // One delta controls every gap belonging to this axis.
-            let gap_delta = formula.add_delta(id!(), GAP)?;
+            let gap_delta = formula.add_delta(id!(), INTRINSIC_SPACING)?;
             let gap: crate::layouter::expression::Expression = gap * (1.0 - gap_delta);
 
             for pair in elements.windows(2) {

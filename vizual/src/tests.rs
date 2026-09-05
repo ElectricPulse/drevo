@@ -96,18 +96,19 @@ async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Res
 
 #[tokio::test]
 async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
-    let render_manager = RenderManager::new();
-    let rerender = render_manager.rerender;
+    let mut render_manager = RenderManager::new();
+    let rerender = render_manager.rerender.clone();
+    let layout = render_manager.layout.clone();
     let theme = Store::new(theme::dark_theme());
     let root = Root::new(Anchor::top_left(FocusableBox)).into_shared();
     let mut root_slot = ComponentSlot::new();
     let variables = Arc::new(Variables::new());
     let mut text_context = TextContext::new();
-    let mut focus = Focus::new();
+    let focus = Focus::new();
     let mut problem = AppProblem::new(root, &mut root_slot, variables, rerender.clone()).await?;
 
     problem
-        .layout(rerender.clone(), theme.clone(), &focus, &mut text_context)
+        .layout(layout, theme.clone(), &focus, &mut text_context)
         .await?;
     let solution = problem.solve(Size::new(100.0, 100.0)).await?;
     let anchor = problem.root.lock().await?.children[0].clone();
@@ -123,11 +124,15 @@ async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
                 button: PointerButton::Primary,
             }),
             &solution,
-            &mut focus,
+            &focus,
         )
         .await?;
     assert!(matches!(command, VizualCommand::None));
-    assert!(focus.compare(&focusable));
+    assert!(focus.compare(&focusable).await?);
+    assert_eq!(
+        render_manager.receiver.0.recv().await,
+        Some(crate::RenderRequest::Layout)
+    );
 
     let command = problem
         .handle_event(
@@ -136,11 +141,15 @@ async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
                 button: PointerButton::Primary,
             }),
             &solution,
-            &mut focus,
+            &focus,
         )
         .await?;
     assert!(matches!(command, VizualCommand::None));
-    assert!(focus.upgrade().is_none());
+    assert!(focus.upgrade().await?.is_none());
+    assert_eq!(
+        render_manager.receiver.0.recv().await,
+        Some(crate::RenderRequest::Layout)
+    );
 
     Ok(())
 }
@@ -240,7 +249,7 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
     let mut root_slot = ComponentSlot::new();
     let variables = Arc::new(Variables::new());
     let mut text_context = TextContext::new();
-    let mut focus = Focus::new();
+    let focus = Focus::new();
     let mut problem = AppProblem::new(root, &mut root_slot, variables, rerender.clone()).await?;
 
     problem
@@ -269,7 +278,7 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
         )
         .await?;
     assert!(scroll.lock().await?.focusable);
-    focus.set(&scroll);
+    focus.set(&scroll).await?;
     let command = problem
         .handle_event(
             &Event::Key(KeyEvent {
@@ -279,7 +288,7 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
                 repeat: false,
             }),
             &solution,
-            &mut focus,
+            &focus,
         )
         .await?;
     assert!(matches!(command, VizualCommand::None));
@@ -300,7 +309,7 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
     let mut root_slot = ComponentSlot::new();
     let variables = Arc::new(Variables::new());
     let mut text_context = TextContext::new();
-    let mut focus = Focus::new();
+    let focus = Focus::new();
     let mut problem = AppProblem::new(root, &mut root_slot, variables, rerender.clone()).await?;
 
     problem
@@ -308,7 +317,7 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
         .await?;
     let solution = problem.solve(Size::new(80.0, 80.0)).await?;
     let scroll = problem.root.lock().await?.children[0].clone();
-    focus.set(&scroll);
+    focus.set(&scroll).await?;
 
     let _scene = problem
         .render(
@@ -329,7 +338,7 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
                 repeat: false,
             }),
             &solution,
-            &mut focus,
+            &focus,
         )
         .await?;
     assert!(matches!(command, VizualCommand::None));
@@ -353,7 +362,7 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
                 button: PointerButton::Primary,
             }),
             &solution,
-            &mut focus,
+            &focus,
         )
         .await?;
 

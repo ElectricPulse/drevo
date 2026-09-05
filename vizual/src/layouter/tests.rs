@@ -26,6 +26,27 @@ fn goals_are_blended_by_priority_weight() -> Result<()> {
 }
 
 #[tokio::test]
+async fn weighted_underconstrained_report_uses_weighted_objective() -> Result<()> {
+    let variables = Arc::new(Variables::new());
+    let problem = Problem::new(Arc::clone(&variables));
+    let unbounded = variables.make("unbounded", "test", "test");
+    let objective = Goal {
+        priority: EXCESS_SPACE,
+        expression: Expression::from(unbounded),
+    };
+    let component_tree = Vec::new();
+    let error = problem
+        .diagnose_objective(&[], &objective, ObjectiveLabel::Weighted, &component_tree)
+        .await
+        .unwrap_err()
+        .to_string();
+
+    assert!(error.contains("weighted objective is unbounded"));
+    assert!(!error.contains("priority 0 objective"));
+    Ok(())
+}
+
+#[tokio::test]
 async fn priority_results_do_not_persist_between_solves() -> Result<()> {
     let variables = Arc::new(Variables::new());
     let mut problem = Problem::new(Arc::clone(&variables));

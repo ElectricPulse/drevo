@@ -8,6 +8,7 @@
 - Model new behavior as a local component before extending shared infrastructure. Avoid cross-cutting hooks that merely compensate for a missing abstraction.
 - Do not create trivial wrapper macros or helper functions that merely forward to one constructor, such as `left_aligned(child)` around an anchor constructor. Put the expressive convenience constructor on the owning type instead, such as `Anchor::left(child)`.
 - Do not avoid making methods async when needed.
+- Do not explicitly enable an API or configuration option when its default already provides the required behavior. Do not add settings merely to be sure or to future-proof behavior.
 - Calling layout of a widget manually is prohibited inside another widget as that will fail to create a child with its own events.
 - put tests in a separate tests.rs (where they must be in a directory named by the former `<file>.rs` ie. `<file>/tests.rs` where `<file>.rs` gets put in `<file>/mod.rs`)
 - proactively fix typos in code, comments, and documentation

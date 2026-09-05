@@ -7,7 +7,7 @@ use crate::{
     component::Children,
     geometry::Rect,
     graphics::scene::Scene,
-    layouter::{objective::Delta, priorities::SPACING},
+    layouter::{objective::Delta, priorities::INTRINSIC_SPACING},
     style::Color,
     widget::Widget,
 };
@@ -72,7 +72,11 @@ impl WidgetTrait for Block {
         let style = self.style;
         let border_thickness = style.border.thickness.max(style.focused_border.thickness);
         let mut space =
-            Space::uniform(self.child.clone(), style.padding + border_thickness, SPACING);
+            Space::uniform(
+                self.child.clone(),
+                style.padding + border_thickness,
+                INTRINSIC_SPACING,
+            );
         space.delta = self.delta.clone();
         space.minimum = border_thickness;
 
