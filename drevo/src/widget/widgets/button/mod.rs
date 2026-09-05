@@ -7,7 +7,7 @@ use super::{
     block::{Block, BlockStyle},
 };
 use crate::{
-    VizualMsg, component::Children, event::KeyCode, handlers::SubmitHandler,
+    DrevoMsg, component::Children, event::KeyCode, handlers::SubmitHandler,
     layouter::objective::Delta, style::Color, theme::Theme, widget::Widget,
 };
 
@@ -62,14 +62,14 @@ impl Button {
 }
 
 impl Button {
-    async fn submit(&mut self, value: bool, relayout: crate::Signal) -> Result<VizualMsg> {
+    async fn submit(&mut self, value: bool, relayout: crate::Signal) -> Result<DrevoMsg> {
         let Some(handler) = &mut self.click_handler else {
-            return VizualMsg::none();
+            return DrevoMsg::none();
         };
         let message = handler.on_submit(value).await?;
-        if matches!(message.command, crate::VizualCommand::Resolve) {
+        if matches!(message.command, crate::DrevoCommand::Resolve) {
             relayout.send();
-            return VizualMsg::none();
+            return DrevoMsg::none();
         }
         Ok(message)
     }
@@ -96,16 +96,16 @@ impl WidgetTrait for Button {
         Ok(vec![display!(block)])
     }
 
-    async fn on_mouse_click(&mut self, input: crate::widget::MouseEvent<'_>) -> Result<VizualMsg> {
+    async fn on_mouse_click(&mut self, input: crate::widget::MouseEvent<'_>) -> Result<DrevoMsg> {
         self.submit(false, input.relayout).await
     }
 
-    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
+    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<DrevoMsg> {
         let key = input.key;
         if matches!(key.code, KeyCode::Enter) {
             return self.submit(true, input.relayout).await;
         }
 
-        VizualMsg::none()
+        DrevoMsg::none()
     }
 }

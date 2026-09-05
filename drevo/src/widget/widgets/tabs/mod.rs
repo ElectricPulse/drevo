@@ -134,32 +134,32 @@ impl WidgetTrait for TabBar {
     async fn on_key_press(
         &mut self,
         input: crate::widget::KeyPress<'_>,
-    ) -> Result<crate::VizualMsg> {
+    ) -> Result<crate::DrevoMsg> {
         let key = input.key;
         if let KeyCode::Character(char) = key.code
             && let Some(digit) = char.to_digit(10)
         {
             let digit = digit as usize;
             if digit >= self.pages.len() {
-                return crate::VizualMsg::none();
+                return crate::DrevoMsg::none();
             }
 
             if digit == self.get_page_index().await? {
-                return crate::VizualMsg::new(crate::VizualCommand::None);
+                return crate::DrevoMsg::new(crate::DrevoCommand::None);
             }
 
             self.set_page_index(digit).await?;
-            return crate::VizualMsg::none();
+            return crate::DrevoMsg::none();
         }
 
         if let Some(page_index) =
             utils::handle_keys_for_iterable(key, self.pages.len(), self.get_page_index().await?)
         {
             self.set_page_index(page_index).await?;
-            return crate::VizualMsg::none();
+            return crate::DrevoMsg::none();
         }
 
-        crate::VizualMsg::none()
+        crate::DrevoMsg::none()
     }
 
     async fn render(&mut self, RenderInput { .. }: RenderInput<'_, '_>) -> Result<()> {

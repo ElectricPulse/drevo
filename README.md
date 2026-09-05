@@ -1,8 +1,10 @@
 # ![banner](drevo/assets/banner.png)
 
-# Vizual
+# Drevo
 
-Vizual is a component-based Rust UI framework with state tracking and a MILP constraint layouter.
+[![crates.io](https://img.shields.io/crates/v/drevo.svg)](https://crates.io/crates/drevo)
+
+Drevo is a component-based Rust UI framework with state tracking and a MILP constraint layouter.
 
 ## Features
 - Layout containers for alignment, linear axes, and grids.
@@ -29,7 +31,7 @@ Configurator tool showcasing the flexibility of the margins/paddings
 
 ## Quick start
 
-Vizual currently requires a nightly Rust toolchain because it uses
+Drevo currently requires a nightly Rust toolchain because it uses
 `async_fn_track_caller`.
 
 Create a new binary crate and add these dependencies:
@@ -38,7 +40,7 @@ Create a new binary crate and add these dependencies:
 [dependencies]
 color-eyre = "0.6"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-drevo = { git = "https://github.com/ElectricPulse/drevo" }
+drevo = "0.1.6"
 ```
 
 Then replace `src/main.rs` with:
@@ -56,7 +58,7 @@ async fn main() -> Result<()> {
     color_eyre::install()?;
 
     let mut paragraph = Paragraph::new(Direction::Horizontal, 320.0);
-    paragraph.set_styled_content("Hello from Vizual", theme::dark_theme().specific.text.paragraph);
+    paragraph.set_styled_content("Hello from Drevo", theme::dark_theme().specific.text.paragraph);
 
     drevo::run("Drevo example", paragraph)
 }

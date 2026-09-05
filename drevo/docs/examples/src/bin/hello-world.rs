@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use drevo::{
-    VizualMsg,
+    DrevoMsg,
     component::Children,
     event::KeyCode,
     macros::display,
@@ -31,16 +31,16 @@ impl WidgetTrait for Counter {
         Ok(vec![display!(text)])
     }
 
-    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<VizualMsg> {
+    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<DrevoMsg> {
         let current = *self.value.read().await?;
         let value = match input.key.code {
             KeyCode::ArrowUp => current + 1,
             KeyCode::ArrowDown => current - 1,
-            _ => return VizualMsg::none(),
+            _ => return DrevoMsg::none(),
         };
 
         self.value.set(value).await?;
-        VizualMsg::none()
+        DrevoMsg::none()
     }
 }
 
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
     color_eyre::install()?;
 
     drevo::run(
-        "Hello from Vizual",
+        "Hello from Drevo",
         Counter {
             value: Store::new(0),
         },

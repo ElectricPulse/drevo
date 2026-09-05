@@ -24,7 +24,7 @@ use crate::{
     theme::Theme,
 };
 
-use super::{Signal, VizualMsg};
+use super::{Signal, DrevoMsg};
 
 pub type Widget = Box<dyn WidgetTrait>;
 
@@ -142,20 +142,20 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
 
     // Event handling defaults to no action for non-interactive widgets.
 
-    async fn on_all_events(&mut self, _input: AllEvents<'_>) -> Result<VizualMsg> {
-        VizualMsg::none()
+    async fn on_all_events(&mut self, _input: AllEvents<'_>) -> Result<DrevoMsg> {
+        DrevoMsg::none()
     }
 
-    async fn on_mouse_click(&mut self, _input: MouseEvent<'_>) -> Result<VizualMsg> {
-        VizualMsg::none()
+    async fn on_mouse_click(&mut self, _input: MouseEvent<'_>) -> Result<DrevoMsg> {
+        DrevoMsg::none()
     }
 
-    async fn on_key_press(&mut self, _input: KeyPress<'_>) -> Result<VizualMsg> {
-        VizualMsg::none()
+    async fn on_key_press(&mut self, _input: KeyPress<'_>) -> Result<DrevoMsg> {
+        DrevoMsg::none()
     }
 
-    async fn on_other_event(&mut self, _input: OtherEvent<'_>) -> Result<VizualMsg> {
-        VizualMsg::none()
+    async fn on_other_event(&mut self, _input: OtherEvent<'_>) -> Result<DrevoMsg> {
+        DrevoMsg::none()
     }
 
     async fn forward_event(
@@ -163,7 +163,7 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
         event: &Event,
         relayout: Signal,
         window: Arc<Window>,
-    ) -> Result<VizualMsg> {
+    ) -> Result<DrevoMsg> {
         let msg = self
             .on_all_events(AllEvents {
                 event,
@@ -245,19 +245,19 @@ impl WidgetTrait for Widget {
         (**self).render(input).await
     }
 
-    async fn on_all_events(&mut self, input: AllEvents<'_>) -> Result<VizualMsg> {
+    async fn on_all_events(&mut self, input: AllEvents<'_>) -> Result<DrevoMsg> {
         (**self).on_all_events(input).await
     }
 
-    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<VizualMsg> {
+    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
         (**self).on_mouse_click(input).await
     }
 
-    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<VizualMsg> {
+    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<DrevoMsg> {
         (**self).on_key_press(input).await
     }
 
-    async fn on_other_event(&mut self, input: OtherEvent<'_>) -> Result<VizualMsg> {
+    async fn on_other_event(&mut self, input: OtherEvent<'_>) -> Result<DrevoMsg> {
         (**self).on_other_event(input).await
     }
 
@@ -266,7 +266,7 @@ impl WidgetTrait for Widget {
         event: &Event,
         relayout: Signal,
         window: Arc<Window>,
-    ) -> Result<VizualMsg> {
+    ) -> Result<DrevoMsg> {
         (**self).forward_event(event, relayout, window).await
     }
 }
@@ -281,19 +281,19 @@ impl WidgetTrait for SharedComponent {
         self.lock().await?.widget.render(input).await
     }
 
-    async fn on_all_events(&mut self, input: AllEvents<'_>) -> Result<VizualMsg> {
+    async fn on_all_events(&mut self, input: AllEvents<'_>) -> Result<DrevoMsg> {
         self.lock().await?.widget.on_all_events(input).await
     }
 
-    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<VizualMsg> {
+    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
         self.lock().await?.widget.on_mouse_click(input).await
     }
 
-    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<VizualMsg> {
+    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<DrevoMsg> {
         self.lock().await?.widget.on_key_press(input).await
     }
 
-    async fn on_other_event(&mut self, input: OtherEvent<'_>) -> Result<VizualMsg> {
+    async fn on_other_event(&mut self, input: OtherEvent<'_>) -> Result<DrevoMsg> {
         self.lock().await?.widget.on_other_event(input).await
     }
 
@@ -302,7 +302,7 @@ impl WidgetTrait for SharedComponent {
         event: &Event,
         relayout: Signal,
         window: Arc<Window>,
-    ) -> Result<VizualMsg> {
+    ) -> Result<DrevoMsg> {
         self.lock()
             .await?
             .widget
@@ -356,22 +356,22 @@ impl<T: WidgetTrait + ?Sized> WidgetTrait for SharedWidget<T> {
         self.0.lock().await?.render(input).await
     }
 
-    async fn on_all_events(&mut self, input: AllEvents<'_>) -> Result<VizualMsg> {
+    async fn on_all_events(&mut self, input: AllEvents<'_>) -> Result<DrevoMsg> {
         let mut inner = self.0.lock().await?;
         inner.on_all_events(input).await
     }
 
-    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<VizualMsg> {
+    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
         let mut inner = self.0.lock().await?;
         inner.on_mouse_click(input).await
     }
 
-    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<VizualMsg> {
+    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<DrevoMsg> {
         let mut inner = self.0.lock().await?;
         inner.on_key_press(input).await
     }
 
-    async fn on_other_event(&mut self, input: OtherEvent<'_>) -> Result<VizualMsg> {
+    async fn on_other_event(&mut self, input: OtherEvent<'_>) -> Result<DrevoMsg> {
         let mut inner = self.0.lock().await?;
         inner.on_other_event(input).await
     }
@@ -381,7 +381,7 @@ impl<T: WidgetTrait + ?Sized> WidgetTrait for SharedWidget<T> {
         event: &Event,
         relayout: Signal,
         window: Arc<Window>,
-    ) -> Result<VizualMsg> {
+    ) -> Result<DrevoMsg> {
         let mut inner = self.0.lock().await?;
         inner.forward_event(event, relayout, window).await
     }

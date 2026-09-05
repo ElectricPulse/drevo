@@ -67,8 +67,8 @@ impl WidgetTrait for OffsetClick {
         Ok(())
     }
 
-    async fn on_mouse_click(&mut self, _input: crate::widget::MouseEvent<'_>) -> Result<VizualMsg> {
-        VizualMsg::new(VizualCommand::Quit)
+    async fn on_mouse_click(&mut self, _input: crate::widget::MouseEvent<'_>) -> Result<DrevoMsg> {
+        DrevoMsg::new(DrevoCommand::Quit)
     }
 }
 
@@ -127,7 +127,7 @@ async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
             &focus,
         )
         .await?;
-    assert!(matches!(command, VizualCommand::None));
+    assert!(matches!(command, DrevoCommand::None));
     assert!(focus.compare(&focusable).await?);
     assert_eq!(
         render_manager.receiver.0.recv().await,
@@ -144,7 +144,7 @@ async fn clicking_outside_the_focused_component_clears_focus() -> Result<()> {
             &focus,
         )
         .await?;
-    assert!(matches!(command, VizualCommand::None));
+    assert!(matches!(command, DrevoCommand::None));
     assert!(focus.upgrade().await?.is_none());
     assert_eq!(
         render_manager.receiver.0.recv().await,
@@ -291,7 +291,7 @@ async fn scroll_lays_out_content_with_offset() -> Result<()> {
             &focus,
         )
         .await?;
-    assert!(matches!(command, VizualCommand::None));
+    assert!(matches!(command, DrevoCommand::None));
     assert_eq!(
         render_manager.receiver.0.recv().await,
         Some(crate::RenderRequest::Rerender)
@@ -341,7 +341,7 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
             &focus,
         )
         .await?;
-    assert!(matches!(command, VizualCommand::None));
+    assert!(matches!(command, DrevoCommand::None));
     assert_eq!(
         render_manager.receiver.0.recv().await,
         Some(crate::RenderRequest::Rerender)
@@ -366,6 +366,6 @@ async fn scroll_routes_pointer_events_in_transformed_frame_coordinates() -> Resu
         )
         .await?;
 
-    assert!(matches!(command, VizualCommand::Quit));
+    assert!(matches!(command, DrevoCommand::Quit));
     Ok(())
 }

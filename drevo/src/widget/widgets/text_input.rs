@@ -5,7 +5,7 @@ use color_eyre::eyre::Result;
 use super::super::{LayoutInput, WidgetTrait};
 use super::title_block::TitleBlock;
 use crate::{
-    VizualMsg,
+    DrevoMsg,
     component::Children,
     event::{Event, KeyCode, KeyEvent},
     handlers::SubmitHandler,
@@ -126,7 +126,7 @@ impl WidgetTrait for TextInput {
         Ok(vec![display!(block)])
     }
 
-    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
+    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<DrevoMsg> {
         let key = input.key;
         let relayout = input.relayout;
         if matches!(key.code, KeyCode::Escape) {
@@ -136,20 +136,20 @@ impl WidgetTrait for TextInput {
         match self.edit_key(key) {
             true => {
                 relayout.send();
-                VizualMsg::none()
+                DrevoMsg::none()
             }
-            false => VizualMsg::none(),
+            false => DrevoMsg::none(),
         }
     }
 
-    async fn on_other_event(&mut self, input: crate::widget::OtherEvent<'_>) -> Result<VizualMsg> {
+    async fn on_other_event(&mut self, input: crate::widget::OtherEvent<'_>) -> Result<DrevoMsg> {
         let event = input.event;
         let relayout = input.relayout;
         let Event::Text(text) = event else {
-            return VizualMsg::none();
+            return DrevoMsg::none();
         };
         self.insert(text);
         relayout.send();
-        VizualMsg::none()
+        DrevoMsg::none()
     }
 }

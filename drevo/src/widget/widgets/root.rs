@@ -22,12 +22,12 @@ impl WidgetTrait for Root {
     async fn on_key_press(
         &mut self,
         input: crate::widget::KeyPress<'_>,
-    ) -> Result<crate::VizualMsg> {
+    ) -> Result<crate::DrevoMsg> {
         let key = input.key;
         if crate::check_quit_event(key) {
-            return crate::VizualMsg::new(crate::VizualCommand::Quit);
+            return crate::DrevoMsg::new(crate::DrevoCommand::Quit);
         }
 
-        crate::VizualMsg::none()
+        crate::DrevoMsg::none()
     }
 }

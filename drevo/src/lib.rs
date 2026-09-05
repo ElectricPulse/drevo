@@ -3,7 +3,7 @@
 //! An async, solver-driven desktop UI framework.
 //!
 //! Interfaces are [`widget::WidgetTrait`] trees laid out through solver
-//! constraints and painted with Vello. Vizual currently requires nightly Rust.
+//! constraints and painted with Vello. Drevo currently requires nightly Rust.
 
 pub mod component;
 mod config;
@@ -106,20 +106,20 @@ pub fn init_logging(path: Option<impl AsRef<Path>>) -> Result<()> {
 }
 
 #[derive(Clone)]
-pub struct VizualMsg {
+pub struct DrevoMsg {
     pub(crate) propagate: bool,
-    pub(crate) command: VizualCommand,
+    pub(crate) command: DrevoCommand,
 }
 
-impl VizualMsg {
-    pub fn new(command: VizualCommand) -> Result<Self> {
+impl DrevoMsg {
+    pub fn new(command: DrevoCommand) -> Result<Self> {
         Ok(Self {
             propagate: false,
             command,
         })
     }
 
-    pub fn new_propagated(command: VizualCommand) -> Result<Self> {
+    pub fn new_propagated(command: DrevoCommand) -> Result<Self> {
         Ok(Self {
             propagate: true,
             command,
@@ -133,22 +133,22 @@ impl VizualMsg {
     pub fn bare() -> Self {
         Self {
             propagate: true,
-            command: VizualCommand::None,
+            command: DrevoCommand::None,
         }
     }
 
     pub(crate) fn has_command(&self) -> bool {
-        !matches!(self.command, VizualCommand::None)
+        !matches!(self.command, DrevoCommand::None)
     }
 
-    pub(crate) fn join(&mut self, message: VizualMsg) {
+    pub(crate) fn join(&mut self, message: DrevoMsg) {
         self.command = self.command.clone().join(message.command);
         self.propagate = self.propagate && message.propagate;
     }
 }
 
 #[derive(Clone)]
-pub enum VizualCommand {
+pub enum DrevoCommand {
     None,
     Resolve,
     Layout,
@@ -157,7 +157,7 @@ pub enum VizualCommand {
     Quit,
 }
 
-impl VizualCommand {
+impl DrevoCommand {
     fn join(self, command: Self) -> Self {
         match (self, command) {
             (Self::Quit, _) | (_, Self::Quit) => Self::Quit,
@@ -322,7 +322,7 @@ impl AppProblem {
         event: &Event,
         solution: &Solution,
         focus: &Focus,
-    ) -> Result<Option<VizualCommand>> {
+    ) -> Result<Option<DrevoCommand>> {
         let (hits, children) = {
             let node_lock = node.lock().await?;
             (
@@ -356,9 +356,9 @@ impl AppProblem {
         Ok(Some(cmd))
     }
 
-    async fn drill_event(&mut self, event: &Event, focus: &Focus) -> Result<VizualCommand> {
+    async fn drill_event(&mut self, event: &Event, focus: &Focus) -> Result<DrevoCommand> {
         let Some(mut current_node) = focus.upgrade().await? else {
-            return Ok(VizualCommand::None);
+            return Ok(DrevoCommand::None);
         };
         let mut nodes = Vec::new();
 
@@ -382,9 +382,9 @@ impl AppProblem {
         }
 
         let Some(window) = &self.window else {
-            return Ok(VizualCommand::None);
+            return Ok(DrevoCommand::None);
         };
-        let mut message = VizualMsg::none()?;
+        let mut message = DrevoMsg::none()?;
         for node in &nodes {
             let new_message = {
                 let mut node = node.lock().await?;
@@ -506,10 +506,10 @@ impl AppProblem {
         event: &Event,
         solution: &Solution,
         focus: &Focus,
-    ) -> Result<VizualCommand> {
+    ) -> Result<DrevoCommand> {
         if !matches!(event, Event::Pointer(_)) {
             let command = self.drill_event(event, focus).await?;
-            if !matches!(command, VizualCommand::None) {
+            if !matches!(command, DrevoCommand::None) {
                 return Ok(command);
             }
         }
@@ -522,14 +522,14 @@ impl AppProblem {
                         _ => FocusSearchDirection::Left,
                     };
                     let _ = self.move_focus(0, direction, focus).await?;
-                    Ok(VizualCommand::None)
+                    Ok(DrevoCommand::None)
                 }
                 KeyCode::Escape => {
                     focus.reset().await?;
-                    Ok(VizualCommand::None)
+                    Ok(DrevoCommand::None)
                 }
-                _ if check_quit_event(key) => Ok(VizualCommand::Quit),
-                _ => Ok(VizualCommand::None),
+                _ if check_quit_event(key) => Ok(DrevoCommand::Quit),
+                _ => Ok(DrevoCommand::None),
             },
             Event::Pointer(pointer) => {
                 let initial_focus = focus.clone();
@@ -549,14 +549,14 @@ impl AppProblem {
                             .await?
                     {
                         focus.reset().await?;
-                        return Ok(VizualCommand::None);
+                        return Ok(DrevoCommand::None);
                     }
                 }
 
-                Ok(command.unwrap_or(VizualCommand::None))
+                Ok(command.unwrap_or(DrevoCommand::None))
             }
-            Event::CloseRequested => Ok(VizualCommand::Quit),
-            Event::Wheel(_) | Event::Text(_) => Ok(VizualCommand::None),
+            Event::CloseRequested => Ok(DrevoCommand::Quit),
+            Event::Wheel(_) | Event::Text(_) => Ok(DrevoCommand::None),
         }
     }
 
@@ -729,20 +729,20 @@ async fn ui_loop<T: WidgetTrait>(
             UiInput::Resize(size) => {
                 window_size = Some(size);
                 relayout = app_problem.is_none();
-                VizualCommand::Resolve
+                DrevoCommand::Resolve
             }
-            UiInput::Rerender => VizualCommand::Render,
-            UiInput::Layout => VizualCommand::Layout,
+            UiInput::Rerender => DrevoCommand::Render,
+            UiInput::Layout => DrevoCommand::Layout,
             UiInput::Event(event) => match (&mut app_problem, &solution) {
                 (Some(problem), Some(solution)) => {
                     problem.handle_event(&event, solution, &focus).await?
                 }
-                _ if matches!(event, Event::CloseRequested) => VizualCommand::Quit,
-                _ => VizualCommand::None,
+                _ if matches!(event, Event::CloseRequested) => DrevoCommand::Quit,
+                _ => DrevoCommand::None,
             },
         };
 
-        if matches!(command, VizualCommand::Quit) {
+        if matches!(command, DrevoCommand::Quit) {
             let _ = proxy.send_event(UserEvent::Exit);
             break;
         }
@@ -751,12 +751,12 @@ async fn ui_loop<T: WidgetTrait>(
             continue;
         };
 
-        if let VizualCommand::Focus(reference) = &command {
+        if let DrevoCommand::Focus(reference) = &command {
             focus.set_with_reference(reference).await?;
-            command = VizualCommand::None;
+            command = DrevoCommand::None;
         }
 
-        if relayout || matches!(command, VizualCommand::Layout) {
+        if relayout || matches!(command, DrevoCommand::Layout) {
             let problem = layout_problem(
                 root.clone(),
                 rerender.clone(),
@@ -771,15 +771,15 @@ async fn ui_loop<T: WidgetTrait>(
             .await?;
             solution = Some(problem.solve(size).await?);
             app_problem = Some(problem);
-            command = VizualCommand::Render;
-        } else if matches!(command, VizualCommand::Resolve) {
+            command = DrevoCommand::Render;
+        } else if matches!(command, DrevoCommand::Resolve) {
             if let Some(problem) = &app_problem {
                 solution = Some(problem.solve(size).await?);
-                command = VizualCommand::Render;
+                command = DrevoCommand::Render;
             }
         }
 
-        if matches!(command, VizualCommand::Render)
+        if matches!(command, DrevoCommand::Render)
             && let (Some(problem), Some(solution)) = (&mut app_problem, &solution)
         {
             let scene = log_duration(0, "component render()", false, || {
@@ -926,7 +926,7 @@ impl WindowApp {
             Err(error) => {
                 self.fail(
                     event_loop,
-                    format!("Failed to create Vizual window: {error}"),
+                    format!("Failed to create Drevo window: {error}"),
                 );
                 return;
             }
@@ -1211,10 +1211,10 @@ fn map_system_theme(theme: WindowTheme) -> SystemTheme {
     }
 }
 
-/// Runs a Vizual application on the calling thread.
+/// Runs a Drevo application on the calling thread.
 ///
 /// A Tokio runtime must already be active. Winit owns the calling thread until
-/// the window closes; widget tasks continue on the runtime. Vizual creates the
+/// the window closes; widget tasks continue on the runtime. Drevo creates the
 /// render manager used by the root widget.
 pub fn run<T: WidgetTrait>(title: impl Into<String>, root: T) -> Result<()> {
     let RenderManager {

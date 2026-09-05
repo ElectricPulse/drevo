@@ -25,7 +25,7 @@ use super::{
     },
 };
 use crate::{
-    VizualCommand, VizualMsg,
+    DrevoCommand, DrevoMsg,
     component::Children,
     config::COMMAND_WAIT_TIMEOUT,
     geometry::Direction,
@@ -102,7 +102,7 @@ impl WidgetTrait for Terminal {
                     let terminal = terminal.clone();
                     async move {
                         let _ = terminal.restart().await;
-                        VizualMsg::new(VizualCommand::Resolve)
+                        DrevoMsg::new(DrevoCommand::Resolve)
                     }
                 },
             ));

@@ -15,7 +15,7 @@ use super::{
     positioning::anchor::Anchor,
 };
 use crate::{
-    VizualMsg,
+    DrevoMsg,
     component::Children,
     event::KeyCode,
     geometry::Direction,
@@ -66,11 +66,11 @@ impl<Choice: ThreadSafe> Clone for MenuItemContainer<Choice> {
 }
 
 impl<Choice: ThreadSafe> MenuItemContainer<Choice> {
-    async fn submit(&mut self, relayout: crate::Signal) -> Result<VizualMsg> {
+    async fn submit(&mut self, relayout: crate::Signal) -> Result<DrevoMsg> {
         self.selected_store.set(self.index).await?;
         self.submitted.set(self.widget.on_retrieve().await?).await?;
         relayout.send();
-        VizualMsg::none()
+        DrevoMsg::none()
     }
 }
 
@@ -91,17 +91,17 @@ impl<Choice: ThreadSafe> WidgetTrait for MenuItemContainer<Choice> {
         Ok(vec![display!(widget)])
     }
 
-    async fn on_mouse_click(&mut self, input: crate::widget::MouseEvent<'_>) -> Result<VizualMsg> {
+    async fn on_mouse_click(&mut self, input: crate::widget::MouseEvent<'_>) -> Result<DrevoMsg> {
         self.submit(input.relayout).await
     }
 
-    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
+    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<DrevoMsg> {
         let key = input.key;
         if matches!(key.code, KeyCode::Enter) {
             return self.submit(input.relayout).await;
         }
 
-        VizualMsg::none()
+        DrevoMsg::none()
     }
 }
 
@@ -193,7 +193,7 @@ impl<Choice: ThreadSafe> WidgetTrait for Menu<Choice> {
         Ok(vec![display!(Axis::new(Direction::Vertical, rows))])
     }
 
-    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
+    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<DrevoMsg> {
         let key = input.key;
         let relayout = input.relayout;
         match key.code {
@@ -205,9 +205,9 @@ impl<Choice: ThreadSafe> WidgetTrait for Menu<Choice> {
                 };
                 self.set_index(next_index).await?;
                 relayout.send();
-                VizualMsg::none()
+                DrevoMsg::none()
             }
-            _ => VizualMsg::none(),
+            _ => DrevoMsg::none(),
         }
     }
 }

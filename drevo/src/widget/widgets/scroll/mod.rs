@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
 use crate::{
-    VizualMsg,
+    DrevoMsg,
     component::{Children, SharedComponent},
     config::SCROLL_SENSITIVITY,
     constraint,
@@ -238,7 +238,7 @@ impl WidgetTrait for Scroll {
         Ok(())
     }
 
-    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<VizualMsg> {
+    async fn on_key_press(&mut self, input: crate::widget::KeyPress<'_>) -> Result<DrevoMsg> {
         let key = input.key;
         let relayout = input.relayout;
         let delta = match key.code {
@@ -246,26 +246,26 @@ impl WidgetTrait for Scroll {
             KeyCode::ArrowRight => Point::new(SCROLL_SENSITIVITY, 0.0),
             KeyCode::ArrowUp => Point::new(0.0, -SCROLL_SENSITIVITY),
             KeyCode::ArrowDown => Point::new(0.0, SCROLL_SENSITIVITY),
-            _ => return VizualMsg::none(),
+            _ => return DrevoMsg::none(),
         };
 
         match self.scroll_by(delta) {
             true => {
                 relayout.send();
-                VizualMsg::none()
+                DrevoMsg::none()
             }
-            false => VizualMsg::none(),
+            false => DrevoMsg::none(),
         }
     }
 
-    async fn on_other_event(&mut self, input: crate::widget::OtherEvent<'_>) -> Result<VizualMsg> {
+    async fn on_other_event(&mut self, input: crate::widget::OtherEvent<'_>) -> Result<DrevoMsg> {
         let event = input.event;
         let relayout = input.relayout;
         let Event::Wheel(wheel) = event else {
-            return VizualMsg::none();
+            return DrevoMsg::none();
         };
         if !self.viewport.contains(wheel.position) {
-            return VizualMsg::none();
+            return DrevoMsg::none();
         }
 
         let delta = Point::new(-wheel.delta.x, -wheel.delta.y);
@@ -277,9 +277,9 @@ impl WidgetTrait for Scroll {
         match self.scroll_by(delta) {
             true => {
                 relayout.send();
-                VizualMsg::none()
+                DrevoMsg::none()
             }
-            false => VizualMsg::none(),
+            false => DrevoMsg::none(),
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    VizualMsg,
+    DrevoMsg,
     event::PointerButton,
     geometry::Direction,
     macros::display,
@@ -76,13 +76,13 @@ impl WidgetTrait for Header {
         ))])
     }
 
-    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<VizualMsg> {
+    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
         if input.mouse.button == PointerButton::Primary
             && let Some(window) = input.window
         {
             let _ = window.drag_window();
         }
 
-        VizualMsg::none()
+        DrevoMsg::none()
     }
 }

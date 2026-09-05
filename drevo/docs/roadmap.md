@@ -40,8 +40,8 @@ which I haven't implemented because they are complex and make the code even less
 - Implement scaling fonts down for constrained layouts, which is useful on
   mobile screens.
 - a widget shouldn't have to reconcile itself between system theme or override
-- Make the Vizual Configurator save popup work.
-- Create a dedicated demo of `Alignments` capabilities; the current Vizual
+- Make the Drevo Configurator save popup work.
+- Create a dedicated demo of `Alignments` capabilities; the current Drevo
   Configurator does not fit the concept well enough to demonstrate them.
 - Reconcile the different behavior of `Align` and `Space`. `Space` tries to
   push its child and can enlarge the surrounding area, while `Align` only

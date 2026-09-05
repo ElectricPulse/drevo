@@ -1,6 +1,6 @@
 # Getting started
 
-Vizual requires nightly Rust, Tokio, a supported desktop environment, and a
+Drevo requires nightly Rust, Tokio, a supported desktop environment, and a
 GPU supported by Vello.
 
 ```sh

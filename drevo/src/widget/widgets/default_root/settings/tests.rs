@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::*;
 use crate::{
-    AppProblem, KeyEvent, VizualCommand,
+    AppProblem, KeyEvent, DrevoCommand,
     event::{KeyCode, Modifiers, PointerButton, PointerEvent},
     focus::Focus,
     geometry::{Point, Size},
@@ -103,7 +103,7 @@ async fn menu_is_laid_out_only_while_settings_parent_is_focused() -> Result<()> 
             &mut focus,
         )
         .await?;
-    assert!(matches!(command, VizualCommand::None));
+    assert!(matches!(command, DrevoCommand::None));
     assert!(focus.compare(&button_block).await?);
     assert!(focus.focused_path().await?.contains(&settings));
 

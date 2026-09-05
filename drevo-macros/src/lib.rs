@@ -1,5 +1,5 @@
 #![warn(rustdoc::broken_intra_doc_links)]
-//! Procedural macros for Vizual widgets.
+//! Procedural macros for Drevo widgets.
 //!
 //! The widget derive delegates to a single field by default. Use
 //! `#[widget_trait(field = name)]` to select one.
@@ -148,28 +148,28 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
             async fn on_all_events(
                 &mut self,
                 input: ::drevo::widget::AllEvents<'_>,
-            ) -> ::color_eyre::eyre::Result<::drevo::VizualMsg> {
+            ) -> ::color_eyre::eyre::Result<::drevo::DrevoMsg> {
                 ::drevo::widget::WidgetTrait::on_all_events(&mut self.#field, input).await
             }
 
             async fn on_mouse_click(
                 &mut self,
                 input: ::drevo::widget::MouseEvent<'_>,
-            ) -> ::color_eyre::eyre::Result<::drevo::VizualMsg> {
+            ) -> ::color_eyre::eyre::Result<::drevo::DrevoMsg> {
                 ::drevo::widget::WidgetTrait::on_mouse_click(&mut self.#field, input).await
             }
 
             async fn on_key_press(
                 &mut self,
                 input: ::drevo::widget::KeyPress<'_>,
-            ) -> ::color_eyre::eyre::Result<::drevo::VizualMsg> {
+            ) -> ::color_eyre::eyre::Result<::drevo::DrevoMsg> {
                 ::drevo::widget::WidgetTrait::on_key_press(&mut self.#field, input).await
             }
 
             async fn on_other_event(
                 &mut self,
                 input: ::drevo::widget::OtherEvent<'_>,
-            ) -> ::color_eyre::eyre::Result<::drevo::VizualMsg> {
+            ) -> ::color_eyre::eyre::Result<::drevo::DrevoMsg> {
                 ::drevo::widget::WidgetTrait::on_other_event(&mut self.#field, input).await
             }
 
@@ -178,7 +178,7 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 event: &::drevo::event::Event,
                 relayout: ::drevo::Signal,
                 window: ::std::sync::Arc<::drevo::Window>,
-            ) -> ::color_eyre::eyre::Result<::drevo::VizualMsg> {
+            ) -> ::color_eyre::eyre::Result<::drevo::DrevoMsg> {
                 ::drevo::widget::WidgetTrait::forward_event(&mut self.#field, event, relayout, window).await
             }
         }

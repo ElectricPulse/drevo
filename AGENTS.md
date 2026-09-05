@@ -30,7 +30,7 @@ Store<T> tracks which widgets read a value. When the value changes, those widget
 
 over:
 
-Vizual provides fine-grained reactive state management through a sophisticated automatic dependency tracking system.
+Drevo provides fine-grained reactive state management through a sophisticated automatic dependency tracking system.
 
 Do not add adjectives such as "powerful", "flexible", "robust", "elegant", "seamless", "advanced", or "sophisticated" unless they communicate a specific technical fact.
 
