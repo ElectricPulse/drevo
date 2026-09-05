@@ -16,7 +16,7 @@ pub fn display(input: TokenStream) -> TokenStream {
     let child = parse_macro_input!(input as Expr);
 
     quote! {
-        slots.set(::vizual::num_id!(), #child).await?
+        slots.set(::drevo::num_id!(), #child).await?
     }
     .into()
 }
@@ -97,7 +97,7 @@ fn extract_concrete_style(ty: &Type) -> syn::Result<&Type> {
 }
 
 #[proc_macro_derive(WidgetTrait, attributes(widget_trait))]
-/// Derives `vizual::widget::WidgetTrait` by delegating to a field.
+/// Derives `drevo::widget::WidgetTrait` by delegating to a field.
 pub fn derive_widget_trait(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
@@ -114,20 +114,20 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#field_type: ::vizual::widget::WidgetTrait));
+        .push(parse_quote!(#field_type: ::drevo::widget::WidgetTrait));
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     Ok(quote! {
         #[::async_trait::async_trait]
-        impl #impl_generics ::vizual::widget::WidgetTrait
+        impl #impl_generics ::drevo::widget::WidgetTrait
             for #name #ty_generics #where_clause
         {
             async fn layout(
                 &mut self,
-                input: ::vizual::widget::LayoutInput<'_>,
-            ) -> ::color_eyre::eyre::Result<::vizual::component::Children> {
-                ::vizual::widget::WidgetTrait::layout(
+                input: ::drevo::widget::LayoutInput<'_>,
+            ) -> ::color_eyre::eyre::Result<::drevo::component::Children> {
+                ::drevo::widget::WidgetTrait::layout(
                     &mut self.#field,
                     input,
                 )
@@ -136,9 +136,9 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
 
             async fn render(
                 &mut self,
-                input: ::vizual::widget::RenderInput<'_, '_>,
+                input: ::drevo::widget::RenderInput<'_, '_>,
             ) -> ::color_eyre::eyre::Result<()> {
-                ::vizual::widget::WidgetTrait::render(
+                ::drevo::widget::WidgetTrait::render(
                     &mut self.#field,
                     input,
                 )
@@ -147,39 +147,39 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
 
             async fn on_all_events(
                 &mut self,
-                input: ::vizual::widget::AllEvents<'_>,
-            ) -> ::color_eyre::eyre::Result<::vizual::VizualMsg> {
-                ::vizual::widget::WidgetTrait::on_all_events(&mut self.#field, input).await
+                input: ::drevo::widget::AllEvents<'_>,
+            ) -> ::color_eyre::eyre::Result<::drevo::VizualMsg> {
+                ::drevo::widget::WidgetTrait::on_all_events(&mut self.#field, input).await
             }
 
             async fn on_mouse_click(
                 &mut self,
-                input: ::vizual::widget::MouseEvent<'_>,
-            ) -> ::color_eyre::eyre::Result<::vizual::VizualMsg> {
-                ::vizual::widget::WidgetTrait::on_mouse_click(&mut self.#field, input).await
+                input: ::drevo::widget::MouseEvent<'_>,
+            ) -> ::color_eyre::eyre::Result<::drevo::VizualMsg> {
+                ::drevo::widget::WidgetTrait::on_mouse_click(&mut self.#field, input).await
             }
 
             async fn on_key_press(
                 &mut self,
-                input: ::vizual::widget::KeyPress<'_>,
-            ) -> ::color_eyre::eyre::Result<::vizual::VizualMsg> {
-                ::vizual::widget::WidgetTrait::on_key_press(&mut self.#field, input).await
+                input: ::drevo::widget::KeyPress<'_>,
+            ) -> ::color_eyre::eyre::Result<::drevo::VizualMsg> {
+                ::drevo::widget::WidgetTrait::on_key_press(&mut self.#field, input).await
             }
 
             async fn on_other_event(
                 &mut self,
-                input: ::vizual::widget::OtherEvent<'_>,
-            ) -> ::color_eyre::eyre::Result<::vizual::VizualMsg> {
-                ::vizual::widget::WidgetTrait::on_other_event(&mut self.#field, input).await
+                input: ::drevo::widget::OtherEvent<'_>,
+            ) -> ::color_eyre::eyre::Result<::drevo::VizualMsg> {
+                ::drevo::widget::WidgetTrait::on_other_event(&mut self.#field, input).await
             }
 
             async fn forward_event(
                 &mut self,
-                event: &::vizual::event::Event,
-                relayout: ::vizual::Signal,
-                window: ::std::sync::Arc<::vizual::Window>,
-            ) -> ::color_eyre::eyre::Result<::vizual::VizualMsg> {
-                ::vizual::widget::WidgetTrait::forward_event(&mut self.#field, event, relayout, window).await
+                event: &::drevo::event::Event,
+                relayout: ::drevo::Signal,
+                window: ::std::sync::Arc<::drevo::Window>,
+            ) -> ::color_eyre::eyre::Result<::drevo::VizualMsg> {
+                ::drevo::widget::WidgetTrait::forward_event(&mut self.#field, event, relayout, window).await
             }
         }
     })

@@ -1,5 +1,5 @@
 use crate::theme::Theme;
-pub use vizual_macros::Style;
+pub use drevo_macros::Style;
 
 #[cfg(test)]
 mod tests;

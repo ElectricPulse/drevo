@@ -26,7 +26,7 @@ pub mod unicode;
 pub mod utils;
 pub mod widget;
 
-extern crate self as vizual;
+extern crate self as drevo;
 
 use std::{
     fs::OpenOptions,
