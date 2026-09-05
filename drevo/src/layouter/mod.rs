@@ -40,9 +40,7 @@ use self::{
 };
 use crate::{
     component::debug::ComponentTree,
-    config::{
-        BLENDED_GOAL_WEIGHT, COPY_SOLUTION_TO_FORMULA, MODEL_DEBUG, PRIORITIES, Priorities,
-    },
+    config::{BLENDED_GOAL_WEIGHT, COPY_SOLUTION_TO_FORMULA, MODEL_DEBUG, PRIORITIES, Priorities},
     constraint,
     geometry::{Direction, Size},
     log::{log_duration, log_info},
@@ -150,7 +148,7 @@ impl Problem {
     pub(crate) fn add_formula(&mut self, formula: &Formula) {
         self.declared_variables
             .extend(formula.variables.iter().map(|variable| variable.variable));
-        
+
         if COPY_SOLUTION_TO_FORMULA {
             for variable in &formula.variables {
                 if let Some(warm_start) = formula.variable_warm_start(*variable) {
@@ -984,7 +982,6 @@ impl Problem {
         );
 
         log_duration(0, "layouting", true, || async {
-
             let objectives = log_duration(2, "filter objectives", false, async || {
                 objectives_array
                     .iter()

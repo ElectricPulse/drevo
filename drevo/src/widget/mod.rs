@@ -24,7 +24,7 @@ use crate::{
     theme::Theme,
 };
 
-use super::{Signal, DrevoMsg};
+use super::{DrevoMsg, Signal};
 
 pub type Widget = Box<dyn WidgetTrait>;
 
@@ -162,13 +162,13 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
         &mut self,
         event: &Event,
         relayout: Signal,
-        window: Arc<Window>,
+        window: Option<Arc<Window>>,
     ) -> Result<DrevoMsg> {
         let msg = self
             .on_all_events(AllEvents {
                 event,
                 relayout: relayout.clone(),
-                window: Some(Arc::clone(&window)),
+                window: window.clone(),
             })
             .await?;
 
@@ -181,7 +181,7 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
                 .on_key_press(KeyPress {
                     key,
                     relayout,
-                    window: Some(window),
+                    window,
                 })
                 .await;
         }
@@ -191,7 +191,7 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
                 .on_mouse_click(MouseEvent {
                     mouse,
                     relayout,
-                    window: Some(window),
+                    window,
                 })
                 .await;
         }
@@ -199,7 +199,7 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
         self.on_other_event(OtherEvent {
             event,
             relayout,
-            window: Some(window),
+            window,
         })
         .await
     }
@@ -265,7 +265,7 @@ impl WidgetTrait for Widget {
         &mut self,
         event: &Event,
         relayout: Signal,
-        window: Arc<Window>,
+        window: Option<Arc<Window>>,
     ) -> Result<DrevoMsg> {
         (**self).forward_event(event, relayout, window).await
     }
@@ -301,7 +301,7 @@ impl WidgetTrait for SharedComponent {
         &mut self,
         event: &Event,
         relayout: Signal,
-        window: Arc<Window>,
+        window: Option<Arc<Window>>,
     ) -> Result<DrevoMsg> {
         self.lock()
             .await?
@@ -380,7 +380,7 @@ impl<T: WidgetTrait + ?Sized> WidgetTrait for SharedWidget<T> {
         &mut self,
         event: &Event,
         relayout: Signal,
-        window: Arc<Window>,
+        window: Option<Arc<Window>>,
     ) -> Result<DrevoMsg> {
         let mut inner = self.0.lock().await?;
         inner.forward_event(event, relayout, window).await

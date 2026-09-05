@@ -25,9 +25,7 @@ impl WidgetTrait for Linebreak {
     async fn layout(
         &mut self,
         LayoutInput {
-            hitbox,
-            formula,
-            ..
+            hitbox, formula, ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         formula.constrain(

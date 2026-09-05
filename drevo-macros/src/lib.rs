@@ -52,10 +52,7 @@ fn expand_style(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
                 .unwrap_or(false)
         })
         .ok_or_else(|| {
-            syn::Error::new_spanned(
-                &input.ident,
-                "Style derive requires a field named `style`",
-            )
+            syn::Error::new_spanned(&input.ident, "Style derive requires a field named `style`")
         })?;
 
     let concrete_style = extract_concrete_style(&style_field.ty)?;
@@ -177,7 +174,7 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 &mut self,
                 event: &::drevo::event::Event,
                 relayout: ::drevo::Signal,
-                window: ::std::sync::Arc<::drevo::Window>,
+                window: ::std::option::Option<::std::sync::Arc<::drevo::Window>>,
             ) -> ::color_eyre::eyre::Result<::drevo::DrevoMsg> {
                 ::drevo::widget::WidgetTrait::forward_event(&mut self.#field, event, relayout, window).await
             }

@@ -34,7 +34,6 @@ which I haven't implemented because they are complex and make the code even less
   The library should grow on the desktop and if it's momentum becomes big enough should fix microlp to become on par with highs
 - disable default decorations in winit
 - dont use color eyre for everything
-- remove the need for nightly
 - Solve text wrapping by representing the different possible text widths and
   their resulting heights as layout branches for the solver to choose between.
 - Implement scaling fonts down for constrained layouts, which is useful on

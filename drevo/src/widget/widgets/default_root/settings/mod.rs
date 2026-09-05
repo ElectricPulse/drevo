@@ -19,12 +19,14 @@ use super::{
 use crate::{
     component::Children,
     constraint,
+    event::KeyCode,
     geometry::{Direction, Size},
     handlers::RetrieveHandler,
     id,
     layouter::{hitbox::Hitbox, priorities::ALIGNMENT},
     state::{State, Store},
     theme::{SystemTheme, Theme},
+    utils::{get_next_index, get_previous_index},
     widget::{
         LayoutInput, Widget, WidgetTrait,
         custom_widget::CustomWidgetTrait,
@@ -212,11 +214,7 @@ impl WidgetTrait for PositionedMenu {
 
         // The two nonnegative variables model the absolute coordinate differences, so their sum
         // is the Manhattan distance between the requested vertices.
-        formula.minimize(
-            id!(),
-            horizontal_distance + vertical_distance,
-            ALIGNMENT,
-        )?;
+        formula.minimize(id!(), horizontal_distance + vertical_distance, ALIGNMENT)?;
 
         Ok(vec![display!(self.child.clone())])
     }
@@ -288,5 +286,24 @@ impl WidgetTrait for Settings {
         root.lock().await?.children.push(menu.clone());
 
         Ok(vec![button, menu])
+    }
+
+    async fn on_key_press(
+        &mut self,
+        input: crate::widget::KeyPress<'_>,
+    ) -> Result<crate::DrevoMsg> {
+        let current = *self.choice.read().await?;
+        let index = ThemeChoice::ALL
+            .iter()
+            .position(|choice| *choice == current)
+            .expect("selected theme choice must be present in the theme menu");
+        let index = match input.key.code {
+            KeyCode::ArrowUp => get_previous_index(ThemeChoice::ALL.len(), index),
+            KeyCode::ArrowDown => get_next_index(ThemeChoice::ALL.len(), index),
+            _ => return crate::DrevoMsg::none(),
+        };
+
+        self.choice.set(ThemeChoice::ALL[index]).await?;
+        crate::DrevoMsg::none()
     }
 }

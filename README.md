@@ -28,9 +28,6 @@ Configurator tool showcasing the flexibility of the margins/paddings
 
 ## Quick start
 
-Drevo currently requires a nightly Rust toolchain because it uses
-`async_fn_track_caller`.
-
 Create a new binary crate and add these dependencies:
 
 ```toml
@@ -64,7 +61,7 @@ async fn main() -> Result<()> {
 Run it with:
 
 ```sh
-cargo +nightly run
+cargo run
 ```
 
 `drevo::run` is synchronous because Winit owns the calling thread. The Tokio
@@ -76,9 +73,6 @@ See [docs/index.md](drevo/docs/index.md) for documentation and examples.
 ## Performance
 You might think that the layouter is a huge performance bottleneck, but it easily allows 60FPS for very complex layouts
 Compile with `--release` for optimal FPS
-
-## Pre-release notes
-- Currently cargo nightly is required because of `#[track_caller]` usage in the source code
 
 ## Roadmap
 See [docs/roadmap.md](drevo/docs/roadmap.md) for known bugs and planned work.

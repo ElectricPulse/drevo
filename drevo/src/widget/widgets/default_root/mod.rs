@@ -54,8 +54,8 @@ impl WidgetTrait for DefaultRoot {
         let header = Header::new(self.title.clone(), self.theme_choice.clone());
         let header = Block::new(header, theme_value.specific.header);
 
-        let root = axis::Axis::new(Direction::Vertical, (header, body))
-            .style(axis::AxisStyle::Gap(0.0));
+        let root =
+            axis::Axis::new(Direction::Vertical, (header, body)).style(axis::AxisStyle::Gap(0.0));
 
         Ok(vec![display!(root)])
     }

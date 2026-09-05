@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::*;
 use crate::{
-    AppProblem, KeyEvent, DrevoCommand,
+    AppProblem, DrevoCommand, KeyEvent,
     event::{KeyCode, Modifiers, PointerButton, PointerEvent},
     focus::Focus,
     geometry::{Point, Size},

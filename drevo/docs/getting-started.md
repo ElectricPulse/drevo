@@ -1,10 +1,9 @@
 # Getting started
 
-Drevo requires nightly Rust, Tokio, a supported desktop environment, and a
-GPU supported by Vello.
+Drevo requires Rust, Tokio, a supported desktop environment, and a GPU
+supported by Vello.
 
 ```sh
-rustup toolchain install nightly
 cargo new hello-drevo
 cd hello-drevo
 ```
@@ -16,7 +15,7 @@ Add the dependencies:
 async-trait = "0.1"
 color-eyre = "0.6"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-drevo = { git = "https://github.com/ElectricPulse/drevo" }
+drevo = "0.1.7"
 ```
 
 Use the complete
@@ -24,7 +23,7 @@ Use the complete
 then run:
 
 ```sh
-cargo +nightly run
+cargo run
 ```
 
 [`drevo::run`](https://docs.rs/drevo/latest/drevo/fn.run.html) owns the

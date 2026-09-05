@@ -1,6 +1,6 @@
 [package]
 name = "drevo"
-version = "0.1.6"
+version = "0.1.7"
 edition.workspace = true
 description = "An async, solver-driven desktop UI framework rendered with Vello"
 repository.workspace = true

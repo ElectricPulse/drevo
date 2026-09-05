@@ -1,9 +1,8 @@
-#![feature(async_fn_track_caller)]
 #![warn(rustdoc::broken_intra_doc_links)]
 //! An async, solver-driven desktop UI framework.
 //!
 //! Interfaces are [`widget::WidgetTrait`] trees laid out through solver
-//! constraints and painted with Vello. Drevo currently requires nightly Rust.
+//! constraints and painted with Vello.
 
 pub mod component;
 mod config;
@@ -381,16 +380,14 @@ impl AppProblem {
             return Err(eyre!("The last found parent should be the root"));
         }
 
-        let Some(window) = &self.window else {
-            return Ok(DrevoCommand::None);
-        };
+        let window = self.window.clone();
         let mut message = DrevoMsg::none()?;
         for node in &nodes {
             let new_message = {
                 let mut node = node.lock().await?;
                 let message = node
                     .widget
-                    .forward_event(event, self.layout.clone(), Arc::clone(window))
+                    .forward_event(event, self.layout.clone(), window.clone())
                     .await?;
                 message
             };
