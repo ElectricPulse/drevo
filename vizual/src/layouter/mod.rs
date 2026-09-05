@@ -190,7 +190,13 @@ impl Problem {
         variables
     }
 
-    fn constrain_root_to_screen(constraints: &mut Vec<Constraint>, root: &Hitbox, screen: Size) {
+    fn constrain_root_to_screen(
+        constraints: &mut Vec<Constraint>,
+        objectives: &mut [PriorityObjective; PRIORITY_LEVELS],
+        variables: &Arc<Variables>,
+        root: &Hitbox,
+        screen: Size,
+    ) {
         constraints.push(
             constraint!(root.get_start_position(Direction::Horizontal) == 0)
                 .set_name("root_horizontal_start".to_string()),
@@ -207,6 +213,28 @@ impl Problem {
             constraint!(root.get_dimension(Direction::Vertical) >= screen.height)
                 .set_name("root_vertical_min".to_string()),
         );
+
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            let actual_window_size = match direction {
+                Direction::Horizontal => screen.width,
+                Direction::Vertical => screen.height,
+            };
+            let root_dim = root.get_dimension(direction);
+            let extra_root_size = variables.make(
+                format!("extra_root_size.{direction:?}"),
+                "src/layouter/mod.rs",
+                "root",
+            );
+            constraints.push(
+                constraint!(extra_root_size >= 0.0)
+                    .set_name(format!("extra_root_size.{direction:?}:ge_0")),
+            );
+            constraints.push(
+                constraint!(extra_root_size >= root_dim - actual_window_size)
+                    .set_name(format!("extra_root_size.{direction:?}:ge_root_sub_window")),
+            );
+            objectives[ROOT_DIMENSIONS].push(extra_root_size.into());
+        }
     }
 
     fn build_row_problem(
@@ -944,10 +972,16 @@ impl Problem {
         component_tree: &ComponentTree,
     ) -> Result<Solution> {
         let mut constraints = self.constraints.clone();
-        Self::constrain_root_to_screen(&mut constraints, &root, screen);
+        let mut objectives_array = self.objectives.clone();
+        Self::constrain_root_to_screen(
+            &mut constraints,
+            &mut objectives_array,
+            &self.variables,
+            &root,
+            screen,
+        );
 
         log_duration(0, "layouting", true, || async {
-            let objectives_array = self.objectives.clone();
 
             let objectives = log_duration(2, "filter objectives", false, async || {
                 objectives_array

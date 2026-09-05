@@ -147,3 +147,69 @@ async fn scrolled_negative_coordinates_solve_successfully() -> Result<()> {
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn root_dimensions_minimizes_extra_root_size_to_window_size() -> Result<()> {
+    let variables = Arc::new(Variables::new());
+    let mut problem = Problem::new(Arc::clone(&variables));
+    let root = Hitbox::new(
+        &variables,
+        "root".to_string(),
+        "root".to_string(),
+        "test".to_string(),
+    );
+
+    let component_tree = Vec::new();
+    let solution = problem
+        .solve(root.clone(), Size::new(800.0, 600.0), &component_tree)
+        .await?;
+
+    assert_eq!(
+        solution.eval(&root.get_dimension(Direction::Horizontal)),
+        800.0
+    );
+    assert_eq!(
+        solution.eval(&root.get_dimension(Direction::Vertical)),
+        600.0
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn root_dimensions_allows_expansion_and_minimizes_excess() -> Result<()> {
+    let variables = Arc::new(Variables::new());
+    let mut problem = Problem::new(Arc::clone(&variables));
+    let root = Hitbox::new(
+        &variables,
+        "root".to_string(),
+        "root".to_string(),
+        "test".to_string(),
+    );
+    let child = Hitbox::new(
+        &variables,
+        "child".to_string(),
+        "child".to_string(),
+        "test".to_string(),
+    );
+    problem.constrain(constraint!(
+        child.get_dimension(Direction::Horizontal) == 1200.0
+    ));
+    problem.constrain(constraint!(
+        root.get_dimension(Direction::Horizontal) >= child.get_dimension(Direction::Horizontal)
+    ));
+
+    let component_tree = Vec::new();
+    let solution = problem
+        .solve(root.clone(), Size::new(800.0, 600.0), &component_tree)
+        .await?;
+
+    assert_eq!(
+        solution.eval(&root.get_dimension(Direction::Horizontal)),
+        1200.0
+    );
+    assert_eq!(
+        solution.eval(&root.get_dimension(Direction::Vertical)),
+        600.0
+    );
+    Ok(())
+}

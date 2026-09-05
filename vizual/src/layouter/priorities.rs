@@ -9,8 +9,9 @@
 //! - Priority 1 (`EXTRA_CONTENT`): Minimizing child content overflow beyond the parent container in scroll viewports.
 //! - Priority 2 (`CONTENT`): Minimizing content growth slack so parent and child fit content dimensions.
 //! - Priority 3 (`SPACING`): Flexible spacing, margins, padding, gaps, deltas, and window/root minimization.
+//! - Priority 5 (`ROOT_DIMENSIONS`): Minimizing extra root size beyond the actual window size.
 
-pub const PRIORITY_LEVELS: usize = 4;
+pub const PRIORITY_LEVELS: usize = 6;
 
 /// Priority 0: Positioning; anchor minimization of space, edge alignment, and shrink-wrapping.
 pub const POSITIONING: usize = 0;
@@ -31,3 +32,6 @@ pub const MARGIN: usize = 3;
 pub const GAP: usize = 3;
 pub const GAP_PRIORITY: usize = 3;
 pub const ROOT_MINIMIZATION: usize = 3;
+
+/// Priority 5: Minimizing extra root size beyond the actual window size.
+pub const ROOT_DIMENSIONS: usize = 5;
