@@ -6,7 +6,7 @@ use crate::{
     constraint,
     geometry::Direction,
     id,
-    widget::{IntoWidgets, LayoutInput, Widget, WidgetTrait},
+    widget::{Components, IntoComponents, LayoutInput, WidgetTrait},
 };
 
 #[derive(Clone)]
@@ -16,14 +16,14 @@ use crate::{
 /// add their own constraints when they need a tiled grid, overlapping layers, or another
 /// arrangement.
 pub struct Grid {
-    children: Vec<Widget>,
+    children: Components,
 }
 
 impl Grid {
     /// `gap` is retained for source compatibility; spacing is now a caller-owned constraint.
-    pub fn new(children: impl IntoWidgets, _gap: f64) -> Self {
+    pub fn new(children: impl IntoComponents + 'static, _gap: f64) -> Self {
         Self {
-            children: children.into(),
+            children: Box::new(children),
         }
     }
 }
@@ -39,11 +39,9 @@ impl WidgetTrait for Grid {
             ..
         }: LayoutInput<'_>,
     ) -> Result<Children> {
-        let mut children = Vec::with_capacity(self.children.len());
-        for (index, child) in self.children.iter().enumerate() {
-            let child = slots.set(index as u64, child.clone()).await?;
+        let children = self.children.into_components(slots).await?;
+        for child in &children {
             child.lock().await?.hitbox.make_independent();
-            children.push(child);
         }
 
         for child in &children {

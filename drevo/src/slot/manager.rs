@@ -4,9 +4,8 @@ use std::panic::Location;
 use color_eyre::eyre::{Result, eyre};
 
 use crate::{
-    component::{SharedComponent, context::ComponentContext},
+    component::{IntoComponent, SharedComponent, context::ComponentContext},
     layouter::hitbox::Hitbox,
-    widget::WidgetTrait,
 };
 
 use super::ComponentSlot;
@@ -113,13 +112,13 @@ impl Slots<'_> {
     }
 
     #[cfg_attr(drevo_nightly, track_caller)]
-    pub async fn set(&mut self, id: u64, widget: impl WidgetTrait) -> Result<SharedComponent> {
+    pub async fn set(&mut self, id: u64, component: impl IntoComponent) -> Result<SharedComponent> {
         let location = Location::caller();
         self.mark_used(id, location)?;
         let problem = self.slot_manager.problem.clone();
-        self.slot_manager
-            .get_at(id, location)
-            .set_child(widget, problem, &self.parent)
+        let parent = self.parent.clone();
+        component
+            .into_component(self.slot_manager.get_at(id, location), problem, &parent)
             .await
     }
 }

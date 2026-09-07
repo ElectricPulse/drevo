@@ -1,3 +1,11 @@
+//! Scrollbar layout deliberately takes two passes when overflow changes because the
+//! viewport-to-content ratio is nonlinear and cannot be expressed directly in the MILP model.
+//!
+//! The first solve lays out the content without any newly needed bars. After rendering, `Scroll`
+//! measures the resolved content and viewport, updates scrollbar visibility, and requests another
+//! layout. That second solve reserves the bar space and computes the thumb from the measured
+//! viewport-to-content ratio.
+
 use crate::macros::display;
 use crate::{
     DrevoMsg, constraint,

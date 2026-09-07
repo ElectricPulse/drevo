@@ -20,7 +20,7 @@ pub(crate) const MINIMUM_WINDOW_SIZE: Size = Size::new(100.0, 100.0);
 // TODO: solve this some other way
 pub(crate) const MAXIMUM_LAYOUT_VALUE: f64 = 21_000.0;
 
-pub(crate) const MAX_ZOOM: f64 = 10.0;
+pub(crate) const MAX_ZOOM: f64 = 5.0;
 /// At 1× scale, one logical pixel is one physical pixel on the monitor (I choose 4k)
 /// Weights are `BLENDED_GOAL_WEIGHT.powi(priority)`, beginning at priority zero.
 /// Keep the range small enough for HiGHS to solve the blended objective accurately.

@@ -15,7 +15,7 @@ See [docs/architecture.md](drevo/docs/architecture.md) for details.
 
 - **State tracking**: `Store<T>` tracks the component relayout signals supplied through `.affect()`. Updating a store signals those components.
 - **MILP layouter**: Layouting is expressed as linear constraints similar to iOS Auto Layout
-- **Tuple layout**: Multi-child containers like `Axis` and `Grid` accept tuples of different widget types through `Into_widgets`.
+- **Tuple layout**: Multi-child containers accept tuples of widgets or existing components through `IntoComponents`.
 - **Event routing and focus**: Keyboard and pointer events route through the focus hierarchy. A widget must be interactive to receive clicks.
 
 ## Demo
@@ -69,7 +69,7 @@ runtime remains active for asynchronous widget and background work.
 
 ## Documentation
 See [docs/index.md](drevo/docs/index.md) for documentation and examples. The
-[image gallery](drevo/examples/image-gallery.rs) is a runnable reference for
+[drag objective](drevo/examples/drag-objective.rs) is a runnable reference for
 icon widgets, layout constraints, and pointer interaction.
 
 ## Performance

@@ -184,11 +184,7 @@ fn get_command(
     let mut process = tokio::process::Command::new("/bin/bash");
     let _ = process
         .arg("-c")
-        .arg(command)
-        .env("CLICOLOR_FORCE", "1")
-        .env("FORCE_COLOR", "1")
-        .env("TERM", "xterm-256color")
-        .env("COLORTERM", "truecolor");
+        .arg(format!("set -euo pipefail\n{command}"));
 
     for (key, val) in envs {
         let _ = process.env(key, val);

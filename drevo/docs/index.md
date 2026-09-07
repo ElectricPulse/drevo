@@ -6,7 +6,7 @@
 
 ## Examples
 
-- [Image gallery](../examples/image-gallery.rs) lays out constrained icon cards
-  and lets you drag an icon within the gallery.
+- [Drag objective](../examples/drag-objective.rs) lays out constrained icon cards
+  and lets you drag an icon within the objective.
 
 API details are available through `cargo doc --open`.

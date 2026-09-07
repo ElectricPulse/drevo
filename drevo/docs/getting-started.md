@@ -3,17 +3,17 @@
 Drevo requires Rust, Tokio, a supported desktop environment, and a GPU
 supported by Vello.
 
-## Run the image gallery
+## Run the drag objective
 
-The [`image-gallery`](../examples/image-gallery.rs) example is included in the
+The [`drag-objective`](../examples/drag-objective.rs) example is included in the
 Drevo repository. Build and run it in release mode from the repository root:
 
 ```sh
-cargo run -p drevo --release --example image-gallery
+cargo run -p drevo --release --example drag-objective
 ```
 
 It displays a fixed icon card and a draggable icon. Drag the latter without
-letting it leave the gallery or overlap the fixed card.
+letting it leave the objective or overlap the fixed card.
 
 ## Add Drevo to an application
 

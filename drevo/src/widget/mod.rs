@@ -2,7 +2,8 @@ pub mod conversion;
 pub mod custom_widget;
 pub mod widgets;
 
-pub use conversion::IntoWidgets;
+pub use crate::component::IntoComponent;
+pub use conversion::{Components, IntoComponents};
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -11,7 +12,7 @@ use std::sync::{Arc, Weak};
 use winit::window::Window;
 
 use crate::{
-    component::{Children, RenderContext, SharedComponent, context::ComponentContext},
+    component::{Children, RenderContext, context::ComponentContext},
     event::{Event, KeyEvent},
     geometry::Rect,
     graphics::scene::Scene,
@@ -297,50 +298,6 @@ impl WidgetTrait for Widget {
         window: Option<Arc<Window>>,
     ) -> Result<DrevoMsg> {
         (**self).forward_event(event, relayout, window).await
-    }
-}
-
-#[async_trait]
-impl WidgetTrait for SharedComponent {
-    async fn layout(&mut self, input: LayoutInput<'_>) -> Result<Children> {
-        self.lock().await?.widget.layout(input).await
-    }
-
-    async fn render(&mut self, input: RenderInput<'_, '_>) -> Result<()> {
-        self.lock().await?.widget.render(input).await
-    }
-
-    async fn on_all_events(&mut self, input: AllEvents<'_>) -> Result<DrevoMsg> {
-        self.lock().await?.widget.on_all_events(input).await
-    }
-
-    async fn on_mouse_event(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
-        self.lock().await?.widget.on_mouse_event(input).await
-    }
-
-    async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
-        self.lock().await?.widget.on_mouse_click(input).await
-    }
-
-    async fn on_key_press(&mut self, input: KeyPress<'_>) -> Result<DrevoMsg> {
-        self.lock().await?.widget.on_key_press(input).await
-    }
-
-    async fn on_other_event(&mut self, input: OtherEvent<'_>) -> Result<DrevoMsg> {
-        self.lock().await?.widget.on_other_event(input).await
-    }
-
-    async fn forward_event(
-        &mut self,
-        event: &Event,
-        relayout: Signal,
-        window: Option<Arc<Window>>,
-    ) -> Result<DrevoMsg> {
-        self.lock()
-            .await?
-            .widget
-            .forward_event(event, relayout, window)
-            .await
     }
 }
 

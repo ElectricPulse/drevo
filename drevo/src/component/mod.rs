@@ -16,11 +16,11 @@ use crate::{
     id,
     layouter::{Formula, Solution, hitbox::Hitbox},
     log::log_timeout,
-    slot::manager::SlotRecords,
+    slot::{ComponentSlot, manager::SlotRecords},
     state::Store,
-    sync::{Mutex, MutexGuard},
+    sync::{Mutex, MutexGuard, ThreadSafe},
     theme::Theme,
-    widget::{FocusProvider, LayoutInput, RenderInput, Widget},
+    widget::{FocusProvider, LayoutInput, RenderInput, Widget, WidgetTrait},
 };
 
 use self::{context::ComponentContext, debug::ComponentDebug};
@@ -62,6 +62,49 @@ pub struct Component {
 #[derive(Clone)]
 pub struct SharedComponent {
     component: Arc<Mutex<Component>>,
+}
+
+/// Converts a widget or an existing component into a layout child.
+///
+/// Widgets use the supplied slot, context, and parent hitbox to mount a component.
+/// [`SharedComponent`] already is a mounted component, so it returns itself and deliberately
+/// ignores them. This lets a parent retain a child's handle before handing it to another child
+/// container without creating a wrapper component around it.
+#[async_trait::async_trait]
+pub trait IntoComponent: ThreadSafe {
+    async fn into_component(
+        &self,
+        child_slot: &mut ComponentSlot,
+        problem: ComponentContext,
+        parent: &Hitbox,
+    ) -> Result<SharedComponent>;
+}
+
+#[async_trait::async_trait]
+impl<Widget> IntoComponent for Widget
+where
+    Widget: WidgetTrait + Clone + 'static,
+{
+    async fn into_component(
+        &self,
+        child_slot: &mut ComponentSlot,
+        problem: ComponentContext,
+        parent: &Hitbox,
+    ) -> Result<SharedComponent> {
+        child_slot.set_child(self.clone(), problem, parent).await
+    }
+}
+
+#[async_trait::async_trait]
+impl IntoComponent for SharedComponent {
+    async fn into_component(
+        &self,
+        _child_slot: &mut ComponentSlot,
+        _problem: ComponentContext,
+        _parent: &Hitbox,
+    ) -> Result<SharedComponent> {
+        Ok(self.clone())
+    }
 }
 
 pub struct RenderContext<'a> {

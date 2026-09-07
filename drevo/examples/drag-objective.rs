@@ -182,12 +182,12 @@ impl WidgetTrait for DraggableIcon {
 }
 
 #[derive(Clone)]
-struct Gallery {
+struct DragObjective {
     draggable_icon: DraggableIcon,
     grid_hitbox: Store<Rect>,
 }
 
-impl Gallery {
+impl DragObjective {
     fn new() -> Self {
         let grid_hitbox = Store::new(Rect::default());
         Self {
@@ -198,7 +198,7 @@ impl Gallery {
 }
 
 #[async_trait]
-impl WidgetTrait for Gallery {
+impl WidgetTrait for DragObjective {
     async fn layout(
         &mut self,
         LayoutInput {
@@ -212,8 +212,8 @@ impl WidgetTrait for Gallery {
             .set(
                 0,
                 Align::top_left(IconContainer::new(
-                    "Always gonna try to be on the top left",
-                    Icon::new(LucideIcon::MoveLeft).style(TextStyle {
+                    "MILP objective = top left",
+                    Icon::new(LucideIcon::MoveUpLeft).style(TextStyle {
                         size: 128.0,
                         ..TextStyle::default()
                     }),
@@ -223,7 +223,7 @@ impl WidgetTrait for Gallery {
         let draggable_icon = slots.set(1, self.draggable_icon.clone()).await?;
         let items = [static_icon.clone(), draggable_icon.clone()];
 
-        // Keep the draggable card away from the centered static card.
+        // Keep the draggable card away from the fixed card.
         const GAP: f64 = 8.0;
         prohibit_overlap(
             formula,
@@ -266,7 +266,7 @@ async fn main() -> Result<()> {
     drevo::init_logging(None::<PathBuf>)?;
 
     drevo::run(
-        "Drevo image gallery",
-        DefaultRoot::new("Drevo image gallery", Gallery::new()),
+        "Drevo drag objective",
+        DefaultRoot::new("Drevo drag objective", DragObjective::new()),
     )
 }

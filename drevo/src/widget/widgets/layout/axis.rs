@@ -6,7 +6,7 @@ use crate::{
     layouter::priorities::{CROSS_AXIS_LIMIT, INTRINSIC_SPACING},
     style::Style,
     theme::Theme,
-    widget::{IntoWidgets, LayoutInput, Widget, WidgetTrait},
+    widget::{Components, IntoComponents, LayoutInput, WidgetTrait},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -26,16 +26,16 @@ impl From<Theme> for AxisStyle {
 #[derive(Clone, Style)]
 pub struct Axis {
     direction: Direction,
-    elements: Vec<Widget>,
+    elements: Components,
     pub style: Style<AxisStyle>,
     limit_cross: bool,
 }
 
 impl Axis {
-    pub fn new(direction: Direction, elements: impl IntoWidgets) -> Self {
+    pub fn new(direction: Direction, elements: impl IntoComponents + 'static) -> Self {
         Self {
             direction,
-            elements: elements.into(),
+            elements: Box::new(elements),
             style: Style::default(),
             limit_cross: true,
         }
@@ -62,9 +62,9 @@ impl WidgetTrait for Axis {
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         let direction = self.direction;
-        let mut elements = Vec::with_capacity(self.elements.len());
+        let elements = self.elements.into_components(slots).await?;
 
-        if self.elements.is_empty() {
+        if elements.is_empty() {
             return Ok(elements);
         }
 
@@ -74,11 +74,6 @@ impl WidgetTrait for Axis {
                 hitbox.get_dimension(direction.flip()),
                 CROSS_AXIS_LIMIT,
             )?;
-        }
-
-        for (index, element) in self.elements.iter().enumerate() {
-            let element = slots.set(index as u64, element.clone()).await?;
-            elements.push(element);
         }
 
         if elements.len() >= 2 {

@@ -33,13 +33,15 @@ The UI loop coalesces requests over a short debounce window (1 ms). A `Rerender`
 
 # Component
 
-The `display!(child)` macro mounts a child widget into a component. It generates a stable source-location ID using `num_id!()` and calls `slots.set(id, child).await?`.
+The `display!(child)` macro mounts a child into a component. It generates a stable source-location ID using `num_id!()` and calls `slots.set(id, child).await?`.
 
-For dynamic lists of widgets (such as in loops or iterators), call `slots.set(id, child)` directly with unique integer keys, analogous to keys in UI frameworks.
+`slots.set` accepts an `IntoComponent`: pass a normal widget to mount it in that slot, or pass an existing `SharedComponent` to reuse that same component as the child. Reusing a component is useful when a parent needs its hitbox handle before giving it to a layout container; no wrapper component is created.
+
+Layout containers use `IntoComponents`, so their children may likewise be widgets or existing components. Tuple elements and dynamic lists are mounted into consecutive child slots starting at zero. For dynamic lists, supply the collection to the container or call `slots.set(id, child)` directly with unique integer keys, analogous to keys in UI frameworks.
 
 A component tracks the lifetime of a widget instance, its hitbox, its child slots, and focusability across layout passes. Focus is preserved across layout changes as long as the component identity is maintained.
 
-`SharedComponent` wraps `Arc<Mutex<Component>>` and also implements `WidgetTrait` by forwarding calls to its internal widget.
+`SharedComponent` wraps `Arc<Mutex<Component>>` and is a component handle, not a widget. It implements `IntoComponent`, allowing any child-producing API to reuse it without remounting or forwarding through its internal widget.
 
 ## Text
 

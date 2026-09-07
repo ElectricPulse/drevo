@@ -1,6 +1,9 @@
 pub mod bar;
 
-use crate::{layouter::EXCESS_SPACE, macros::display};
+use crate::{
+    layouter::{EXCESS_SPACE, INTRINSIC_CONTENT},
+    macros::display,
+};
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
@@ -12,7 +15,6 @@ use crate::{
     event::{Event, KeyCode},
     geometry::{Direction, Point, Rect, Size},
     id,
-    layouter::priorities::INTRINSIC_CONTENT,
     state::Store,
     widget::{
         LayoutInput, RenderInput, Widget, WidgetTrait,
@@ -88,9 +90,21 @@ impl WidgetTrait for ScrollContent {
             )?;
 
             for direction in [Direction::Horizontal, Direction::Vertical] {
+                let child_dim = child_hitbox.get_dimension(direction);
                 let parent_dim = hitbox.get_dimension(direction);
 
-                formula.maximize(id!(), parent_dim.clone(), EXCESS_SPACE)?;
+                formula.maximize(id!(), parent_dim.clone() - child_dim.clone(), EXCESS_SPACE)?;
+
+                let content_growth = formula.variable(format!("content-growth.{direction:?}"))?;
+                formula.constrain(
+                    format!("{}:{direction:?}:content-growth-ge-0", id!()),
+                    constraint!(content_growth >= 0.0),
+                )?;
+                formula.constrain(
+                    format!("{}:{direction:?}:content-growth-ge-child-sub-parent", id!()),
+                    constraint!(content_growth >= child_dim - parent_dim),
+                )?;
+                formula.minimize(id!(), content_growth, INTRINSIC_CONTENT)?;
             }
         }
 
@@ -168,7 +182,7 @@ impl Scroll {
     }
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct ScrollbarVisibility {
     horizontal: bool,
     vertical: bool,
