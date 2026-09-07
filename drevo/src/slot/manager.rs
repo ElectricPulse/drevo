@@ -112,6 +112,7 @@ impl Slots<'_> {
         }
     }
 
+    #[cfg_attr(drevo_nightly, track_caller)]
     pub async fn set(&mut self, id: u64, widget: impl WidgetTrait) -> Result<SharedComponent> {
         let location = Location::caller();
         self.mark_used(id, location)?;

@@ -1,3 +1,4 @@
+#![cfg_attr(drevo_nightly, feature(async_fn_track_caller))]
 #![warn(rustdoc::broken_intra_doc_links)]
 //! An async, solver-driven desktop UI framework.
 //!
@@ -355,6 +356,28 @@ impl AppProblem {
         Ok(Some(cmd))
     }
 
+    async fn refocus_at_pointer(
+        &mut self,
+        position: Point,
+        event: &Event,
+        solution: &Solution,
+        focus: &Focus,
+    ) -> Result<DrevoCommand> {
+        let initial_focus = focus.clone();
+        let command = self
+            .handle_pointer_press(self.root.clone(), position, event, solution, focus)
+            .await?;
+        if let Some(focused) = initial_focus.upgrade().await?
+            && focus.compare(&focused).await?
+            && !self.component_hit(&focused, position, solution).await?
+        {
+            focus.reset().await?;
+            return Ok(DrevoCommand::None);
+        }
+
+        Ok(command.unwrap_or(DrevoCommand::None))
+    }
+
     async fn drill_event(&mut self, event: &Event, focus: &Focus) -> Result<DrevoCommand> {
         let Some(mut current_node) = focus.upgrade().await? else {
             return Ok(DrevoCommand::None);
@@ -504,7 +527,7 @@ impl AppProblem {
         solution: &Solution,
         focus: &Focus,
     ) -> Result<DrevoCommand> {
-        if !matches!(event, Event::Pointer(_)) {
+        if !matches!(event, Event::Pointer(_) | Event::Wheel(_)) {
             let command = self.drill_event(event, focus).await?;
             if !matches!(command, DrevoCommand::None) {
                 return Ok(command);
@@ -529,31 +552,16 @@ impl AppProblem {
                 _ => Ok(DrevoCommand::None),
             },
             Event::Pointer(pointer) => {
-                let initial_focus = focus.clone();
-                let command = self
-                    .handle_pointer_press(
-                        self.root.clone(),
-                        pointer.position,
-                        event,
-                        solution,
-                        focus,
-                    )
-                    .await?;
-                if let Some(focused) = initial_focus.upgrade().await? {
-                    if focus.compare(&focused).await?
-                        && !self
-                            .component_hit(&focused, pointer.position, solution)
-                            .await?
-                    {
-                        focus.reset().await?;
-                        return Ok(DrevoCommand::None);
-                    }
-                }
-
-                Ok(command.unwrap_or(DrevoCommand::None))
+                self.refocus_at_pointer(pointer.position, event, solution, focus)
+                    .await
             }
+            Event::PointerMoved(_) | Event::PointerReleased(_) => Ok(DrevoCommand::None),
             Event::CloseRequested => Ok(DrevoCommand::Quit),
-            Event::Wheel(_) | Event::Text(_) => Ok(DrevoCommand::None),
+            Event::Wheel(wheel) => {
+                self.refocus_at_pointer(wheel.position, event, solution, focus)
+                    .await
+            }
+            Event::Text(_) => Ok(DrevoCommand::None),
         }
     }
 
@@ -590,6 +598,46 @@ enum UiInput {
     Rerender,
     Layout,
     SystemTheme(SystemTheme),
+}
+
+/// Keeps the most recent value in a contiguous run of inputs that supersede one another.
+///
+/// Stopping at the first different input preserves the ordering of pointer presses, releases,
+/// and all other input around the coalesced movement.
+fn coalesce_queued_input(
+    input: UiInput,
+    input_receiver: &mut mpsc::UnboundedReceiver<UiInput>,
+    buffered_input: &mut Option<UiInput>,
+) -> UiInput {
+    match input {
+        UiInput::Resize(mut latest_size) => {
+            while let Ok(input) = input_receiver.try_recv() {
+                match input {
+                    UiInput::Resize(size) => latest_size = size,
+                    input => {
+                        *buffered_input = Some(input);
+                        break;
+                    }
+                }
+            }
+
+            UiInput::Resize(latest_size)
+        }
+        UiInput::Event(Event::PointerMoved(mut latest_position)) => {
+            while let Ok(input) = input_receiver.try_recv() {
+                match input {
+                    UiInput::Event(Event::PointerMoved(position)) => latest_position = position,
+                    input => {
+                        *buffered_input = Some(input);
+                        break;
+                    }
+                }
+            }
+
+            UiInput::Event(Event::PointerMoved(latest_position))
+        }
+        input => input,
+    }
 }
 
 // TODO: This message-passing layer is probably unnecessary.
@@ -677,24 +725,7 @@ async fn ui_loop<T: WidgetTrait>(
             break;
         };
 
-        // TODO: This resize buffering code is slop.
-        let input = match input {
-            UiInput::Resize(mut latest_size) => {
-                loop {
-                    match input_receiver.try_recv() {
-                        Ok(UiInput::Resize(size)) => latest_size = size,
-                        Ok(input) => {
-                            buffered_input = Some(input);
-                            break;
-                        }
-                        Err(_) => break,
-                    }
-                }
-
-                UiInput::Resize(latest_size)
-            }
-            input => input,
-        };
+        let input = coalesce_queued_input(input, &mut input_receiver, &mut buffered_input);
 
         let mut relayout = false;
         let mut command = match input {
@@ -1080,18 +1111,21 @@ impl ApplicationHandler<UserEvent> for WindowApp {
             WindowEvent::CursorMoved { position, .. } => {
                 let position = position.to_logical::<f64>(self.scale_factor);
                 self.cursor = Point::new(position.x, position.y);
+                let _ = self
+                    .input
+                    .send(UiInput::Event(Event::PointerMoved(self.cursor)));
             }
             WindowEvent::ModifiersChanged(modifiers) => self.modifiers = modifiers.state(),
-            WindowEvent::MouseInput {
-                state: ElementState::Pressed,
-                button,
-                ..
-            } => {
+            WindowEvent::MouseInput { state, button, .. } => {
                 let pointer = PointerEvent {
                     position: self.cursor,
                     button: map_pointer_button(button),
                 };
-                let _ = self.input.send(UiInput::Event(Event::Pointer(pointer)));
+                let event = match state {
+                    ElementState::Pressed => Event::Pointer(pointer),
+                    ElementState::Released => Event::PointerReleased(pointer),
+                };
+                let _ = self.input.send(UiInput::Event(event));
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 let delta = match delta {

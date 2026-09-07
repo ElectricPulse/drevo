@@ -2,7 +2,7 @@ use parley::{Layout, PositionedLayoutItem};
 use vello::{
     Glyph, Scene as VelloScene,
     kurbo::{Affine, Line, Rect as KurboRect, RoundedRect, Stroke},
-    peniko::Fill,
+    peniko::{Fill, ImageData},
 };
 
 use crate::{
@@ -66,6 +66,19 @@ impl<'a> Scene<'a> {
             None,
             &RoundedRect::from_rect(to_kurbo_rect(rect), radius),
         );
+    }
+
+    pub(crate) fn draw_image(&mut self, image: &ImageData, rect: Rect) {
+        if rect.size.is_empty() || image.width == 0 || image.height == 0 {
+            return;
+        }
+
+        let transform = Affine::scale_non_uniform(
+            rect.size.width / f64::from(image.width),
+            rect.size.height / f64::from(image.height),
+        )
+        .then_translate((rect.origin.x, rect.origin.y).into());
+        self.scene.draw_image(image, transform);
     }
 
     pub(crate) fn append_clipped(&mut self, scene: &VelloScene, viewport: Rect, transform: Affine) {

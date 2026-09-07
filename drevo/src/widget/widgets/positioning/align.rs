@@ -31,6 +31,17 @@ impl Align {
         }
     }
 
+    /// Positions the child against the top-left corner of its parent.
+    pub fn top_left(child: impl WidgetTrait) -> Self {
+        Self::new(
+            child,
+            Alignments {
+                horizontal: Some(Objective::Minimize),
+                vertical: Some(Objective::Minimize),
+            },
+        )
+    }
+
     async fn align(
         formula: &mut Formula,
         parent: &Hitbox,

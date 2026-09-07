@@ -11,15 +11,33 @@ struct Empty;
 impl WidgetTrait for Empty {}
 
 #[test]
-fn offset_is_clamped_to_content_edge() {
+fn scrollbars_are_hidden_when_content_fits() {
+    let scrollbars =
+        ScrollbarVisibility::for_content(Size::new(100.0, 80.0), Rect::new(0.0, 0.0, 100.0, 80.0));
+
+    assert_eq!(scrollbars, ScrollbarVisibility::default());
+}
+
+#[test]
+fn scrollbars_appear_only_on_overflowing_axes() {
+    let scrollbars =
+        ScrollbarVisibility::for_content(Size::new(120.0, 80.0), Rect::new(0.0, 0.0, 100.0, 80.0));
+
+    assert!(scrollbars.horizontal);
+    assert!(!scrollbars.vertical);
+}
+
+#[tokio::test]
+async fn offset_is_clamped_to_content_edge() -> Result<()> {
     let mut scroll = Scroll::new(Empty);
     scroll.content_size = Size::new(300.0, 200.0);
     scroll.viewport = Rect::new(0.0, 0.0, 100.0, 80.0);
-    scroll.offset = Point::new(500.0, -20.0);
+    scroll.offset.set(Point::new(500.0, -20.0)).await?;
 
-    scroll.clamp_offset();
+    let _ = scroll.clamp_offset().await?;
 
-    assert_eq!(scroll.offset, Point::new(200.0, 0.0));
+    assert_eq!(*scroll.offset.read().await?, Point::new(200.0, 0.0));
+    Ok(())
 }
 
 #[tokio::test]
@@ -45,7 +63,7 @@ async fn arrow_scrolling_stops_at_content_edge() -> Result<()> {
             .await?;
     }
 
-    assert_eq!(scroll.offset, Point::new(60.0, 0.0));
+    assert_eq!(*scroll.offset.read().await?, Point::new(60.0, 0.0));
     Ok(())
 }
 
@@ -61,16 +79,20 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
         modifiers: Modifiers::default(),
     };
 
+    let _ = scroll.offset.affect(manager.layout.clone()).await?;
     let event = Event::Wheel(wheel);
     let message = scroll
-        .on_other_event(crate::widget::OtherEvent {
+        .on_mouse_event(crate::widget::MouseEvent {
             event: &event,
             relayout: manager.layout.clone(),
             window: None,
         })
         .await?;
     assert!(!message.has_command());
-    assert_eq!(scroll.offset, Point::new(0.0, SCROLL_SENSITIVITY));
+    assert_eq!(
+        *scroll.offset.read().await?,
+        Point::new(0.0, SCROLL_SENSITIVITY)
+    );
     assert_eq!(
         manager.receiver.0.recv().await,
         Some(crate::RenderRequest::Layout)
@@ -79,7 +101,7 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
     wheel.modifiers.shift = true;
     let event = Event::Wheel(wheel);
     let message = scroll
-        .on_other_event(crate::widget::OtherEvent {
+        .on_mouse_event(crate::widget::MouseEvent {
             event: &event,
             relayout: manager.layout.clone(),
             window: None,
@@ -87,7 +109,7 @@ async fn wheel_scrolls_vertically_and_shift_wheel_scrolls_horizontally() -> Resu
         .await?;
     assert!(!message.has_command());
     assert_eq!(
-        scroll.offset,
+        *scroll.offset.read().await?,
         Point::new(SCROLL_SENSITIVITY, SCROLL_SENSITIVITY)
     );
     assert_eq!(

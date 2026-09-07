@@ -107,6 +107,16 @@ impl Anchor {
         )
     }
 
+    pub fn h_middle(child: impl WidgetTrait) -> Self {
+        Self::new(
+            child,
+            Anchors {
+                horizontal: Some(AnchorPosition::Middle),
+                vertical: None,
+            },
+        )
+    }
+
     /// Applies the selected anchor to this hitbox within its parent.
     fn anchor(
         formula: &mut Formula,

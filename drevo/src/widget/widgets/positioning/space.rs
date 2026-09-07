@@ -4,7 +4,12 @@ use crate::{
     constraint,
     geometry::Direction,
     id,
-    layouter::{Formula, expression::Expression, objective::Delta},
+    layouter::{
+        Formula,
+        expression::Expression,
+        objective::Delta,
+        priorities::{EXCESS_SPACE, INTRINSIC_SPACING},
+    },
     widget::{LayoutInput, Widget, WidgetTrait},
 };
 use async_trait::async_trait;
@@ -34,7 +39,27 @@ impl Spaces {
     }
 }
 
-/// Adds preferred spacing between a child and its parent.
+/// Chooses how readily a [`Space`] may shrink when layout is constrained.
+///
+/// Padding is part of its child's visual surface and is retained ahead of margins. Margins are
+/// outer spacing, so they give way before content and padding.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SpaceMode {
+    #[default]
+    Padding,
+    Margin,
+}
+
+impl SpaceMode {
+    fn priority(self) -> usize {
+        match self {
+            Self::Padding => INTRINSIC_SPACING,
+            Self::Margin => EXCESS_SPACE,
+        }
+    }
+}
+
+/// Adds padding or margin between a child and its parent.
 ///
 /// TODO: Widget composition sometimes creates nested `Space` wrappers. Consider detecting and
 /// combining adjacent spaces so redundant layout variables and component levels are optimized out.
@@ -44,8 +69,7 @@ pub struct Space {
     spaces: Spaces,
     pub delta: Option<Delta>,
     pub minimum: f64,
-    // TODO: Keep priority manual until there is a way to set it automatically.
-    priority: usize,
+    pub mode: SpaceMode,
 }
 
 impl Space {
@@ -55,7 +79,7 @@ impl Space {
         right: Option<f64>,
         top: Option<f64>,
         bottom: Option<f64>,
-        priority: usize,
+        mode: SpaceMode,
     ) -> Self {
         Self {
             child: child.as_any(),
@@ -67,43 +91,43 @@ impl Space {
             },
             delta: None,
             minimum: 0.0,
-            priority,
+            mode,
         }
     }
 
-    pub fn inline(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
-        Self::new(child, Some(value), Some(value), None, None, priority)
+    pub fn inline(child: impl WidgetTrait, value: f64, mode: SpaceMode) -> Self {
+        Self::new(child, Some(value), Some(value), None, None, mode)
     }
 
-    pub fn left(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
-        Self::new(child, Some(value), None, None, None, priority)
+    pub fn left(child: impl WidgetTrait, value: f64, mode: SpaceMode) -> Self {
+        Self::new(child, Some(value), None, None, None, mode)
     }
 
-    pub fn right(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
-        Self::new(child, None, Some(value), None, None, priority)
+    pub fn right(child: impl WidgetTrait, value: f64, mode: SpaceMode) -> Self {
+        Self::new(child, None, Some(value), None, None, mode)
     }
 
-    pub fn top(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
-        Self::new(child, None, None, Some(value), None, priority)
+    pub fn top(child: impl WidgetTrait, value: f64, mode: SpaceMode) -> Self {
+        Self::new(child, None, None, Some(value), None, mode)
     }
 
-    pub fn bottom(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
-        Self::new(child, None, None, None, Some(value), priority)
+    pub fn bottom(child: impl WidgetTrait, value: f64, mode: SpaceMode) -> Self {
+        Self::new(child, None, None, None, Some(value), mode)
     }
 
-    pub fn uniform(child: impl WidgetTrait, value: f64, priority: usize) -> Self {
+    pub fn uniform(child: impl WidgetTrait, value: f64, mode: SpaceMode) -> Self {
         Self::new(
             child,
             Some(value),
             Some(value),
             Some(value),
             Some(value),
-            priority,
+            mode,
         )
     }
 
-    pub fn full(child: impl WidgetTrait, priority: usize) -> Self {
-        Self::new(child, None, None, None, None, priority)
+    pub fn full(child: impl WidgetTrait, mode: SpaceMode) -> Self {
+        Self::new(child, None, None, None, None, mode)
     }
 
     async fn expression(
@@ -116,7 +140,7 @@ impl Space {
         let delta = match delta.as_ref() {
             Some(delta) => delta.clone(),
             None => {
-                let new_delta = formula.add_delta(id!(), self.priority)?;
+                let new_delta = formula.add_delta(id!(), self.mode.priority())?;
                 *delta = Some(new_delta.clone());
                 new_delta
             }
@@ -124,7 +148,7 @@ impl Space {
         let space: Expression = target * (1.0 - delta.clone());
 
         formula.constrain(id!(), constraint!(space.clone() >= self.minimum))?;
-        formula.minimize(id!(), delta, self.priority)?;
+        formula.minimize(id!(), delta, self.mode.priority())?;
 
         Ok(space)
     }

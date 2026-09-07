@@ -3,7 +3,15 @@ use crate::geometry::Point;
 #[derive(Clone, Debug)]
 pub enum Event {
     Key(KeyEvent),
+    /// A pointer button was pressed.
     Pointer(PointerEvent),
+    /// The pointer moved in logical-pixel coordinates.
+    ///
+    /// Movement is delivered to the focused widget, which lets an interaction continue after the
+    /// pointer leaves the widget that started it.
+    PointerMoved(Point),
+    /// A pointer button was released.
+    PointerReleased(PointerEvent),
     Wheel(WheelEvent),
     Text(String),
     CloseRequested,

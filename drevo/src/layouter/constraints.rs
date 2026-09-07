@@ -1,44 +1,9 @@
-use super::{hitbox::Hitbox, priorities::SHRINK_WRAP};
-use crate::{
-    component::Child, config::MAXIMUM_LAYOUT_VALUE, constraint, geometry::Direction, id,
-    layouter::Formula,
-};
+use super::hitbox::Hitbox;
+use crate::{config::MAXIMUM_LAYOUT_VALUE, constraint, geometry::Direction, id, layouter::Formula};
 use color_eyre::eyre::Result;
 
-/// Shrink-wraps each component edge around the corresponding child edges.
-// I dont believe this is needed anymore
-pub async fn shrink_wrap(
-    formula: &mut Formula,
-    hitbox: Hitbox,
-    children: &[Child],
-    direction: Direction,
-) -> Result<()> {
-    if children.is_empty() {
-        return Ok(());
-    }
-
-    let mut child_hitboxes = Vec::with_capacity(children.len());
-    for child in children {
-        child_hitboxes.push(child.get_hitbox().await?);
-    }
-    for child_hitbox in child_hitboxes {
-        formula.constrain(
-            id!(),
-            constraint!(
-                hitbox.get_start_position(direction) <= child_hitbox.get_start_position(direction)
-            ),
-        )?;
-        formula.constrain(
-            id!(),
-            constraint!(
-                hitbox.get_end_position(direction) >= child_hitbox.get_end_position(direction)
-            ),
-        )?;
-    }
-    formula.maximize(id!(), hitbox.get_start_position(direction), SHRINK_WRAP)?;
-    formula.minimize(id!(), hitbox.get_end_position(direction), SHRINK_WRAP)?;
-    Ok(())
-}
+#[cfg(test)]
+mod tests;
 
 pub fn prohibit_overlap(
     formula: &mut Formula,
@@ -46,20 +11,17 @@ pub fn prohibit_overlap(
     second: Hitbox,
     gap: f64,
 ) -> Result<()> {
-    let first_left = formula.binary_variable("prohibit-overlap-first-left")?;
-    let second_left = formula.binary_variable("prohibit-overlap-second-left")?;
-    let first_above = formula.binary_variable("prohibit-overlap-first-above")?;
-    let second_above = formula.binary_variable("prohibit-overlap-second-above")?;
-    formula.constrain(
-        id!(),
-        constraint!(first_left + second_left + first_above + second_above == 1),
-    )?;
+    // The bits select exactly one separating direction:
+    // 00: first is left of second; 01: second is left of first;
+    // 10: first is above second; 11: second is above first.
+    let horizontal = formula.binary_variable("prohibit-overlap-horizontal")?;
+    let vertical = formula.binary_variable("prohibit-overlap-vertical")?;
     formula.constrain(
         id!(),
         constraint!(
             first.get_end_position(Direction::Horizontal) + gap
                 <= second.get_start_position(Direction::Horizontal)
-                    + MAXIMUM_LAYOUT_VALUE * (1 - first_left)
+                    + MAXIMUM_LAYOUT_VALUE * (horizontal + vertical)
         ),
     )?;
     formula.constrain(
@@ -67,7 +29,7 @@ pub fn prohibit_overlap(
         constraint!(
             second.get_end_position(Direction::Horizontal) + gap
                 <= first.get_start_position(Direction::Horizontal)
-                    + MAXIMUM_LAYOUT_VALUE * (1 - second_left)
+                    + MAXIMUM_LAYOUT_VALUE * (horizontal + (1 - vertical))
         ),
     )?;
     formula.constrain(
@@ -75,7 +37,7 @@ pub fn prohibit_overlap(
         constraint!(
             first.get_end_position(Direction::Vertical) + gap
                 <= second.get_start_position(Direction::Vertical)
-                    + MAXIMUM_LAYOUT_VALUE * (1 - first_above)
+                    + MAXIMUM_LAYOUT_VALUE * ((1 - horizontal) + vertical)
         ),
     )?;
     formula.constrain(
@@ -83,7 +45,7 @@ pub fn prohibit_overlap(
         constraint!(
             second.get_end_position(Direction::Vertical) + gap
                 <= first.get_start_position(Direction::Vertical)
-                    + MAXIMUM_LAYOUT_VALUE * (1 - second_above)
+                    + MAXIMUM_LAYOUT_VALUE * ((1 - horizontal) + (1 - vertical))
         ),
     )
 }

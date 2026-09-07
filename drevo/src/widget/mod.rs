@@ -12,7 +12,7 @@ use winit::window::Window;
 
 use crate::{
     component::{Children, RenderContext, SharedComponent, context::ComponentContext},
-    event::{Event, KeyEvent, PointerEvent},
+    event::{Event, KeyEvent},
     geometry::Rect,
     graphics::scene::Scene,
     graphics::text::TextContext,
@@ -92,7 +92,9 @@ pub struct AllEvents<'a> {
 }
 
 pub struct MouseEvent<'a> {
-    pub mouse: &'a PointerEvent,
+    /// The pointer-related event being dispatched. This can be a button press, pointer movement,
+    /// button release, or wheel event.
+    pub event: &'a Event,
     pub relayout: Signal,
     pub window: Option<Arc<Window>>,
 }
@@ -146,6 +148,23 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
         DrevoMsg::none()
     }
 
+    /// Handles pointer-related input after hit testing has selected this widget.
+    ///
+    /// Pointer movement and releases continue to be sent to the focused widget, which lets a
+    /// drag continue after the pointer has left the original hitbox. The default preserves the
+    /// previous click-only behavior for existing widgets.
+    async fn on_mouse_event(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
+        if matches!(input.event, Event::Pointer(_)) {
+            return self.on_mouse_click(input).await;
+        }
+
+        DrevoMsg::none()
+    }
+
+    /// Handles a pointer button press.
+    ///
+    /// Prefer [`WidgetTrait::on_mouse_event`] for interactions that also handle movement,
+    /// releases, or wheel input.
     async fn on_mouse_click(&mut self, _input: MouseEvent<'_>) -> Result<DrevoMsg> {
         DrevoMsg::none()
     }
@@ -186,10 +205,16 @@ pub trait WidgetTrait: ThreadSafe + dyn_clone::DynClone {
                 .await;
         }
 
-        if let Event::Pointer(mouse) = event {
+        if matches!(
+            event,
+            Event::Pointer(_)
+                | Event::PointerMoved(_)
+                | Event::PointerReleased(_)
+                | Event::Wheel(_)
+        ) {
             return self
-                .on_mouse_click(MouseEvent {
-                    mouse,
+                .on_mouse_event(MouseEvent {
+                    event,
                     relayout,
                     window,
                 })
@@ -249,6 +274,10 @@ impl WidgetTrait for Widget {
         (**self).on_all_events(input).await
     }
 
+    async fn on_mouse_event(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
+        (**self).on_mouse_event(input).await
+    }
+
     async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
         (**self).on_mouse_click(input).await
     }
@@ -283,6 +312,10 @@ impl WidgetTrait for SharedComponent {
 
     async fn on_all_events(&mut self, input: AllEvents<'_>) -> Result<DrevoMsg> {
         self.lock().await?.widget.on_all_events(input).await
+    }
+
+    async fn on_mouse_event(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
+        self.lock().await?.widget.on_mouse_event(input).await
     }
 
     async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
@@ -359,6 +392,11 @@ impl<T: WidgetTrait + ?Sized> WidgetTrait for SharedWidget<T> {
     async fn on_all_events(&mut self, input: AllEvents<'_>) -> Result<DrevoMsg> {
         let mut inner = self.0.lock().await?;
         inner.on_all_events(input).await
+    }
+
+    async fn on_mouse_event(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {
+        let mut inner = self.0.lock().await?;
+        inner.on_mouse_event(input).await
     }
 
     async fn on_mouse_click(&mut self, input: MouseEvent<'_>) -> Result<DrevoMsg> {

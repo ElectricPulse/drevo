@@ -9,7 +9,7 @@
 //! Positioning widgets mark the parts of their inherited hitbox which need independent layout.
 //!
 //! Under normal widget composition, these are the only widgets allowed to make hitbox variables
-//! independent or to perform manual shrink-wrapping. The layout infrastructure in
+//! independent. The layout infrastructure in
 //! `widgets::layout` and its internal `Container` are structural exceptions, `Linebreak` owns one
 //! intrinsic edge variable, and the header's popup menu is the deliberate UI exception.
 

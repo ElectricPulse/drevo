@@ -1,20 +1,101 @@
 use super::*;
 use crate::widget::widgets::{
-    default_root::DefaultRoot, layout::grid::Grid, paragraph::Paragraph,
-    positioning::anchor::Anchor, scroll::Scroll, text::Text,
+    button::Button,
+    default_root::DefaultRoot,
+    image::Image,
+    layout::{axis::Axis, grid::Grid},
+    paragraph::Paragraph,
+    positioning::anchor::Anchor,
+    scroll::Scroll,
+    text::Text,
 };
 use crate::{
     geometry::{Direction, Rect},
     graphics::text::StyledText,
 };
 
-use crate::widget::{LayoutInput, RenderInput};
+use crate::widget::{LayoutInput, RenderInput, Widget};
+
+#[test]
+fn coalescing_pointer_moves_preserves_input_order() {
+    let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+    sender
+        .send(UiInput::Event(Event::PointerMoved(Point::new(10.0, 20.0))))
+        .unwrap();
+    sender
+        .send(UiInput::Event(Event::PointerMoved(Point::new(30.0, 40.0))))
+        .unwrap();
+    sender
+        .send(UiInput::Event(Event::Pointer(PointerEvent {
+            position: Point::new(30.0, 40.0),
+            button: PointerButton::Primary,
+        })))
+        .unwrap();
+    sender
+        .send(UiInput::Event(Event::PointerMoved(Point::new(50.0, 60.0))))
+        .unwrap();
+
+    let mut buffered = None;
+    let input = coalesce_queued_input(receiver.try_recv().unwrap(), &mut receiver, &mut buffered);
+
+    assert!(matches!(
+        input,
+        UiInput::Event(Event::PointerMoved(position)) if position == Point::new(30.0, 40.0)
+    ));
+    assert!(matches!(
+        buffered,
+        Some(UiInput::Event(Event::Pointer(PointerEvent {
+            button: PointerButton::Primary,
+            ..
+        })))
+    ));
+    assert!(matches!(
+        receiver.try_recv(),
+        Ok(UiInput::Event(Event::PointerMoved(position))) if position == Point::new(50.0, 60.0)
+    ));
+}
 
 #[derive(Clone)]
 struct OffsetClick;
 
 #[derive(Clone)]
 struct FocusableBox;
+
+#[derive(Clone)]
+struct ContentSizedImage {
+    child: Widget,
+}
+
+impl ContentSizedImage {
+    fn new(child: impl WidgetTrait) -> Self {
+        Self {
+            child: child.as_any(),
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl WidgetTrait for ContentSizedImage {
+    async fn layout(
+        &mut self,
+        LayoutInput {
+            hitbox,
+            formula,
+            slots,
+            ..
+        }: LayoutInput<'_>,
+    ) -> Result<component::Children> {
+        let width = hitbox.get_dimension(Direction::Horizontal);
+        formula.constrain("minimum width", crate::constraint!(width.clone() >= 50.0))?;
+        formula.constrain("maximum width", crate::constraint!(width.clone() <= 100.0))?;
+        formula.maximize(
+            "content size",
+            width + hitbox.get_dimension(Direction::Vertical),
+            crate::layouter::priorities::INTRINSIC_CONTENT,
+        )?;
+        Ok(vec![slots.set(0, self.child.clone()).await?])
+    }
+}
 
 #[async_trait::async_trait]
 impl WidgetTrait for FocusableBox {
@@ -73,13 +154,83 @@ impl WidgetTrait for OffsetClick {
 }
 
 #[tokio::test]
-async fn default_root_solves_without_implicit_component_shrink_wrapping() -> Result<()> {
+async fn default_root_solves_without_implicit_component_sizing() -> Result<()> {
     let render_manager = RenderManager::new();
     let rerender = render_manager.rerender.clone();
     let theme = Store::new(theme::dark_theme());
     let body = Anchor::top_left(Text::new("Body"));
     let application = DefaultRoot::new("Test", Grid::new((body,), 0.0)).into_shared();
     let root = Root::new(application).into_shared();
+    let mut root_slot = ComponentSlot::new();
+    let variables = Arc::new(Variables::new());
+    let mut text_context = TextContext::new();
+    let focus = Focus::new();
+    let mut problem = AppProblem::new(root, &mut root_slot, variables, rerender.clone()).await?;
+
+    problem
+        .layout(rerender, theme, &focus, &mut text_context)
+        .await?;
+    let _ = problem.solve(Size::new(800.0, 600.0)).await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn grid_bounds_fixed_size_images() -> Result<()> {
+    let render_manager = RenderManager::new();
+    let rerender = render_manager.rerender.clone();
+    let theme = Store::new(theme::dark_theme());
+    let image = include_bytes!("../assets/logo.png");
+    let root = Root::new(Grid::new((Image::new(image)?, Image::new(image)?), 8.0)).into_shared();
+    let mut root_slot = ComponentSlot::new();
+    let variables = Arc::new(Variables::new());
+    let mut text_context = TextContext::new();
+    let focus = Focus::new();
+    let mut problem = AppProblem::new(root, &mut root_slot, variables, rerender.clone()).await?;
+
+    problem
+        .layout(rerender, theme, &focus, &mut text_context)
+        .await?;
+    let solution = problem.solve(Size::new(800.0, 600.0)).await?;
+    let grid = problem.root.lock().await?.children[0].clone();
+    let images = grid.lock().await?.children.clone();
+    let grid = grid.get_hitbox().await?.get_resolved(&solution);
+    let first = images[0].get_hitbox().await?.get_resolved(&solution);
+    let second = images[1].get_hitbox().await?.get_resolved(&solution);
+
+    for image in [first, second] {
+        assert!(image.origin.x >= grid.origin.x);
+        assert!(image.origin.y >= grid.origin.y);
+        assert!(image.right() <= grid.right());
+        assert!(image.bottom() <= grid.bottom());
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn axis_stacks_an_anchored_row_above_a_grid() -> Result<()> {
+    let render_manager = RenderManager::new();
+    let rerender = render_manager.rerender.clone();
+    let theme = Store::new(theme::dark_theme());
+    let controls = Axis::new(
+        Direction::Horizontal,
+        (
+            Anchor::v_middle(Button::around(Text::new("−"))),
+            Anchor::v_middle(Text::new("1 image")),
+            Anchor::v_middle(Button::around(Text::new("+"))),
+        ),
+    );
+    let grid = Grid::new(
+        (ContentSizedImage::new(Image::new(include_bytes!(
+            "../assets/logo.png"
+        ))?),),
+        8.0,
+    );
+    let root = Root::new(DefaultRoot::new(
+        "Test",
+        Axis::new(Direction::Vertical, (Anchor::middle(controls), grid)),
+    ))
+    .into_shared();
     let mut root_slot = ComponentSlot::new();
     let variables = Arc::new(Variables::new());
     let mut text_context = TextContext::new();

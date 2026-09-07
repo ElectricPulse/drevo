@@ -108,6 +108,15 @@ impl SharedComponent {
         Ok(self.lock().await?.hitbox.clone())
     }
 
+    /// Makes this component responsible for constraining all four hitbox edges.
+    ///
+    /// Call this before the component's layout runs when a parent provides custom positioning
+    /// constraints instead of sharing the corresponding edges.
+    pub async fn make_hitbox_independent(&self) -> Result<()> {
+        self.lock().await?.hitbox.make_independent();
+        Ok(())
+    }
+
     #[async_recursion]
     pub(crate) async fn add_formulas(&self, problem: &mut crate::layouter::Problem) -> Result<()> {
         let (formula, children) = {

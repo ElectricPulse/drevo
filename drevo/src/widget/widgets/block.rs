@@ -1,15 +1,11 @@
 use super::{
     super::{LayoutInput, RenderInput, WidgetTrait},
-    positioning::space::Space,
+    positioning::space::{Space, SpaceMode},
 };
 use crate::macros::display;
 use crate::{
-    component::Children,
-    geometry::Rect,
-    graphics::scene::Scene,
-    layouter::{objective::Delta, priorities::INTRINSIC_SPACING},
-    style::Color,
-    widget::Widget,
+    component::Children, geometry::Rect, graphics::scene::Scene, layouter::objective::Delta,
+    style::Color, widget::Widget,
 };
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -74,7 +70,7 @@ impl WidgetTrait for Block {
         let mut space = Space::uniform(
             self.child.clone(),
             style.padding + border_thickness,
-            INTRINSIC_SPACING,
+            SpaceMode::Padding,
         );
         space.delta = self.delta.clone();
         space.minimum = border_thickness;

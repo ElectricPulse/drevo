@@ -20,7 +20,7 @@ pub(crate) const MINIMUM_WINDOW_SIZE: Size = Size::new(100.0, 100.0);
 // TODO: solve this some other way
 pub(crate) const MAXIMUM_LAYOUT_VALUE: f64 = 21_000.0;
 
-pub(crate) const MAX_ZOOM: f64 = 1.0;
+pub(crate) const MAX_ZOOM: f64 = 10.0;
 /// At 1× scale, one logical pixel is one physical pixel on the monitor (I choose 4k)
 /// Weights are `BLENDED_GOAL_WEIGHT.powi(priority)`, beginning at priority zero.
 /// Keep the range small enough for HiGHS to solve the blended objective accurately.
@@ -46,9 +46,9 @@ pub(crate) const SCROLL_SENSITIVITY: f64 = 124.0;
 pub(crate) const COMMAND_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Coalesces render and layout invalidations before work starts.
-pub(crate) const REQUEST_DEBOUNCE: Duration = Duration::from_millis(1);
+pub(crate) const REQUEST_DEBOUNCE: Duration = Duration::from_millis(50);
 
-pub(crate) const LAYOUT_TIMEOUT: Duration = Duration::from_millis(1);
+pub(crate) const LAYOUT_TIMEOUT: Duration = Duration::from_millis(50);
 
 /// Retains the last solved values and duals on formulas so the next rebuilt layout model can use
 /// them as a HiGHS warm start. Disable this to compare cold layout solves.

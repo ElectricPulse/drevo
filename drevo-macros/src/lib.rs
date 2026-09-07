@@ -149,6 +149,13 @@ fn expand_widget_trait(input: DeriveInput) -> syn::Result<proc_macro2::TokenStre
                 ::drevo::widget::WidgetTrait::on_all_events(&mut self.#field, input).await
             }
 
+            async fn on_mouse_event(
+                &mut self,
+                input: ::drevo::widget::MouseEvent<'_>,
+            ) -> ::color_eyre::eyre::Result<::drevo::DrevoMsg> {
+                ::drevo::widget::WidgetTrait::on_mouse_event(&mut self.#field, input).await
+            }
+
             async fn on_mouse_click(
                 &mut self,
                 input: ::drevo::widget::MouseEvent<'_>,
