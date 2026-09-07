@@ -77,7 +77,7 @@ You might think that the layouter is a huge performance bottleneck, but it easil
 Compile with `--release` for optimal FPS
 
 ## Debugging
-If you want to debug underconstrained/overconstrained layouts use +nightly as that enables track async caller which can identify which component added which constraint
+If you want to debug underconstrained/overconstrained layouts use `+nightly` as that enables track async caller which can identify which component added which constraint
 
 ## Roadmap
 See [docs/roadmap.md](drevo/docs/roadmap.md) for known bugs and planned work.
