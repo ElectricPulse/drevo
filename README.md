@@ -23,6 +23,9 @@ See [docs/architecture.md](drevo/docs/architecture.md) for details.
 Build tool [PatMat](https://github.com/ElectricPulse/patmat)
 ![patmat](drevo/assets/demo/patmat.gif)
 
+Drag example with objective
+![drag](drevo/assets/demo/drag.gif)
+
 Configurator tool showcasing the flexibility of the margins/paddings
 ![configurator](drevo/assets/demo/configurator.gif)
 
