@@ -6,25 +6,34 @@ use crate::{
     constraint,
     geometry::Direction,
     id,
+    layouter::constraints::prohibit_overlap,
     widget::{Components, IntoComponents, LayoutInput, WidgetTrait},
 };
 
 #[derive(Clone)]
-/// Gives each child an independent hitbox bounded by this grid.
+/// Bounds each child within this grid.
 ///
-/// This widget deliberately does not choose how its children relate to one another. Callers can
-/// add their own constraints when they need a tiled grid, overlapping layers, or another
-/// arrangement.
+/// By default, children receive independent hitboxes. [`Grid::prohibit_overlap`] instead
+/// preserves each child's existing hitbox sharing so its positioning widget controls which edges
+/// may move while resolving overlap.
 pub struct Grid {
     children: Components,
+    gap: f64,
+    prohibit_overlap: bool,
 }
 
 impl Grid {
-    /// `gap` is retained for source compatibility; spacing is now a caller-owned constraint.
-    pub fn new(children: impl IntoComponents + 'static, _gap: f64) -> Self {
+    pub fn new(children: impl IntoComponents + 'static, gap: f64) -> Self {
         Self {
             children: Box::new(children),
+            gap,
+            prohibit_overlap: false,
         }
+    }
+
+    pub fn prohibit_overlap(mut self) -> Self {
+        self.prohibit_overlap = true;
+        self
     }
 }
 
@@ -40,8 +49,10 @@ impl WidgetTrait for Grid {
         }: LayoutInput<'_>,
     ) -> Result<Children> {
         let children = self.children.into_components(slots).await?;
-        for child in &children {
-            child.lock().await?.hitbox.make_independent();
+        if !self.prohibit_overlap {
+            for child in &children {
+                child.lock().await?.hitbox.make_independent();
+            }
         }
 
         for child in &children {
@@ -61,6 +72,19 @@ impl WidgetTrait for Grid {
                             <= hitbox.get_end_position(direction)
                     ),
                 )?;
+            }
+        }
+
+        if self.prohibit_overlap {
+            for (index, first) in children.iter().enumerate() {
+                for second in &children[index + 1..] {
+                    prohibit_overlap(
+                        formula,
+                        first.get_hitbox().await?,
+                        second.get_hitbox().await?,
+                        self.gap,
+                    )?;
+                }
             }
         }
 

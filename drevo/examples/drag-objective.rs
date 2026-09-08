@@ -9,7 +9,6 @@ use drevo::{
     event::{Event, PointerButton},
     geometry::{Direction, Point, Rect},
     id,
-    layouter::constraints::prohibit_overlap,
     macros::display,
     state::Store,
     widget::{
@@ -17,7 +16,7 @@ use drevo::{
         widgets::{
             default_root::DefaultRoot,
             icon::Icon,
-            layout::axis::Axis,
+            layout::{axis::Axis, grid::Grid},
             paper::Paper,
             positioning::{
                 align::Align,
@@ -199,18 +198,10 @@ impl DragObjective {
 
 #[async_trait]
 impl WidgetTrait for DragObjective {
-    async fn layout(
-        &mut self,
-        LayoutInput {
-            hitbox,
-            formula,
-            slots,
-            ..
-        }: LayoutInput<'_>,
-    ) -> Result<Children> {
-        let static_icon = slots
-            .set(
-                0,
+    async fn layout(&mut self, LayoutInput { slots, .. }: LayoutInput<'_>) -> Result<Children> {
+        const GAP: f64 = 8.0;
+        let grid = Grid::new(
+            (
                 Align::top_left(IconContainer::new(
                     "MILP objective = top left",
                     Icon::new(LucideIcon::MoveUpLeft).style(TextStyle {
@@ -218,41 +209,13 @@ impl WidgetTrait for DragObjective {
                         ..TextStyle::default()
                     }),
                 )),
-            )
-            .await?;
-        let draggable_icon = slots.set(1, self.draggable_icon.clone()).await?;
-        let items = [static_icon.clone(), draggable_icon.clone()];
-
-        // Keep the draggable card away from the fixed card.
-        const GAP: f64 = 8.0;
-        prohibit_overlap(
-            formula,
-            draggable_icon.get_hitbox().await?,
-            static_icon.get_hitbox().await?,
+                self.draggable_icon.clone(),
+            ),
             GAP,
-        )?;
+        )
+        .prohibit_overlap();
 
-        for item in &items {
-            let item_hitbox = item.get_hitbox().await?;
-            for direction in [Direction::Horizontal, Direction::Vertical] {
-                formula.constrain(
-                    id!(),
-                    constraint!(
-                        item_hitbox.get_start_position(direction)
-                            >= hitbox.get_start_position(direction)
-                    ),
-                )?;
-                formula.constrain(
-                    id!(),
-                    constraint!(
-                        item_hitbox.get_end_position(direction)
-                            <= hitbox.get_end_position(direction)
-                    ),
-                )?;
-            }
-        }
-
-        Ok(items.into())
+        Ok(vec![slots.set(0, grid).await?])
     }
 
     async fn render(&mut self, RenderInput { hitbox, .. }: RenderInput<'_, '_>) -> Result<()> {

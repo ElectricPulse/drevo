@@ -1,4 +1,5 @@
 use std::{
+    ffi::{OsStr, OsString},
     path::{Path, PathBuf},
     process::ExitStatus,
     sync::Arc,
@@ -39,14 +40,46 @@ use lucide_icons::Icon as LucideIcon;
 #[derive(Clone)]
 pub struct Terminal {
     directory: Store<String>,
-    shell: Store<String>,
     command: Store<String>,
     text: Store<Content>,
     scroll: SharedWidget<Scroll>,
     pub restart: bool,
     current_handle: Arc<Mutex<Option<CommandHandle>>>,
-    working_dir: Arc<Mutex<Option<PathBuf>>>,
-    envs: Arc<Mutex<Vec<(String, String)>>>,
+    run: Arc<Mutex<Option<Run>>>,
+}
+
+#[derive(Clone)]
+struct Run {
+    environment: Vec<(String, String)>,
+    program: OsString,
+    arguments: Vec<OsString>,
+    working_dir: Option<PathBuf>,
+}
+
+impl Run {
+    fn command(&self) -> tokio::process::Command {
+        let mut command = tokio::process::Command::new(&self.program);
+        let _ = command
+            .args(&self.arguments)
+            .envs(self.environment.iter().map(|(key, value)| (key, value)));
+
+        if let Some(working_dir) = &self.working_dir {
+            let _ = command.current_dir(working_dir);
+        }
+
+        command
+    }
+
+    fn display(&self) -> String {
+        std::iter::once(self.program.to_string_lossy())
+            .chain(
+                self.arguments
+                    .iter()
+                    .map(|argument| argument.to_string_lossy()),
+            )
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
 }
 
 #[async_trait]
@@ -62,7 +95,6 @@ impl WidgetTrait for Terminal {
     ) -> Result<Children> {
         let theme = theme.affect(relayout.clone()).await?;
         let directory = self.directory.affect(relayout.clone()).await?.clone();
-        let shell = self.shell.affect(relayout.clone()).await?.clone();
         let command = self.command.affect(relayout.clone()).await?.clone();
 
         let paragraph_width = theme.units.em * 30.0;
@@ -70,9 +102,6 @@ impl WidgetTrait for Terminal {
 
         let mut directory_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
         directory_paragraph.set_styled_content(directory, theme.specific.text.paragraph);
-
-        let mut shell_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
-        shell_paragraph.set_styled_content(shell, theme.specific.text.paragraph);
 
         let mut command_paragraph = Paragraph::new(Direction::Horizontal, paragraph_width);
         command_paragraph.set_styled_content(command, theme.specific.text.paragraph);
@@ -85,15 +114,6 @@ impl WidgetTrait for Terminal {
                 Anchor::v_middle(directory_paragraph),
             ),
         ));
-        let shell_row = Anchor::left(Axis::new(
-            Direction::Horizontal,
-            (
-                Anchor::v_middle(Icon::new(LucideIcon::Terminal)),
-                Anchor::v_middle(Text::new("Shell:").style(label_style)),
-                Anchor::v_middle(shell_paragraph),
-            ),
-        ));
-
         let command_row = if self.restart {
             let terminal = self.clone();
             let restart_button = Anchor::v_middle(Button::new(
@@ -130,7 +150,6 @@ impl WidgetTrait for Terminal {
             Direction::Vertical,
             (
                 directory_row,
-                shell_row,
                 command_row,
                 Linebreak::new(Direction::Horizontal),
                 self.scroll.clone(),
@@ -173,28 +192,6 @@ async fn read(mut output: io::PipeReader, text: Store<Content>) -> Result<()> {
     }
 
     Ok(())
-}
-
-#[cfg(unix)]
-fn get_command(
-    command: &str,
-    working_dir: Option<impl AsRef<Path>>,
-    envs: &[(String, String)],
-) -> tokio::process::Command {
-    let mut process = tokio::process::Command::new("/bin/bash");
-    let _ = process
-        .arg("-c")
-        .arg(format!("set -euo pipefail\n{command}"));
-
-    for (key, val) in envs {
-        let _ = process.env(key, val);
-    }
-
-    if let Some(directory) = working_dir {
-        let _ = process.current_dir(directory);
-    }
-
-    process
 }
 
 pub struct CommandHandleInner {
@@ -313,7 +310,6 @@ impl Terminal {
                 .map(crate::utils::normalize_path)
                 .unwrap_or_default(),
         );
-        let shell = Store::new("/bin/bash".to_string());
         let command = Store::new(String::new());
         let text = Store::new(Content::default());
         let dark_style = crate::theme::dark_theme().specific.paper.block;
@@ -322,158 +318,102 @@ impl Terminal {
         let scroll = scroll.into_shared();
         Self {
             directory,
-            shell,
             command,
             text,
             scroll,
             restart: false,
             current_handle: Arc::new(Mutex::new(None)),
-            working_dir: Arc::new(Mutex::new(None)),
-            envs: Arc::new(Mutex::new(Vec::new())),
+            run: Arc::new(Mutex::new(None)),
         }
     }
 
-    pub fn with_restart(mut self, restart: bool) -> Self {
-        self.restart = restart;
-        self
-    }
-
-    pub fn with_env(self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        if let Ok(mut envs) = self.envs.try_lock() {
-            envs.push((key.into(), value.into()));
-        }
-        self
-    }
-
-    pub fn env(self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.with_env(key, value)
-    }
-
-    pub fn with_envs<I, K, V>(self, iter: I) -> Self
-    where
-        I: IntoIterator<Item = (K, V)>,
-        K: Into<String>,
-        V: Into<String>,
-    {
-        if let Ok(mut envs) = self.envs.try_lock() {
-            for (k, v) in iter {
-                envs.push((k.into(), v.into()));
-            }
-        }
-        self
-    }
-
-    pub fn envs<I, K, V>(self, iter: I) -> Self
-    where
-        I: IntoIterator<Item = (K, V)>,
-        K: Into<String>,
-        V: Into<String>,
-    {
-        self.with_envs(iter)
-    }
-
-    pub async fn set_env(&self, key: impl Into<String>, value: impl Into<String>) -> Result<()> {
-        let mut envs = self.envs.lock().await?;
-        envs.push((key.into(), value.into()));
-        Ok(())
-    }
-
-    pub async fn run(&self, args: impl Into<String>) -> Result<CommandHandle> {
-        let command = args.into();
+    async fn start(&self, run: Run) -> Result<CommandHandle> {
         #[cfg(unix)]
         {
-            let current_dir = std::env::current_dir()
+            let working_dir = run
+                .working_dir
+                .as_deref()
+                .map_or_else(std::env::current_dir, |working_dir| {
+                    Ok(working_dir.to_path_buf())
+                })
                 .map(|path| std::fs::canonicalize(&path).unwrap_or(path))
                 .map(crate::utils::normalize_path)
                 .unwrap_or_default();
-            self.directory.set(current_dir).await?;
-            self.shell.set("/bin/bash".to_string()).await?;
-            self.command.set(command.clone()).await?;
-            *self.working_dir.lock().await? = None;
-            let envs = self.envs.lock().await?.clone();
-            let handle = run_command(
-                get_command(&command, None::<&Path>, &envs),
-                self.text.clone(),
-            )?;
+            self.directory.set(working_dir).await?;
+            self.command.set(run.display()).await?;
+            let handle = run_command(run.command(), self.text.clone())?;
             *self.current_handle.lock().await? = Some(handle.clone());
+            *self.run.lock().await? = Some(run);
             Ok(handle)
         }
         #[cfg(not(unix))]
         {
-            let _ = command;
+            let _ = run;
             bail!("Terminal command execution is unsupported on this platform")
         }
     }
 
-    pub async fn run_in_dir(
+    pub async fn run<Environment, Program, Arguments, Argument, WorkingDir>(
         &self,
-        args: impl Into<String>,
-        working_dir: impl AsRef<Path>,
-    ) -> Result<CommandHandle> {
-        let command = args.into();
-        #[cfg(unix)]
-        {
-            let canonical_dir = std::fs::canonicalize(working_dir.as_ref())
-                .unwrap_or_else(|_| working_dir.as_ref().to_path_buf());
-            let dir_str = crate::utils::normalize_path(&canonical_dir);
-            self.directory.set(dir_str).await?;
-            self.shell.set("/bin/bash".to_string()).await?;
-            self.command.set(command.clone()).await?;
-            *self.working_dir.lock().await? = Some(canonical_dir.clone());
-            let envs = self.envs.lock().await?.clone();
-            let handle = run_command(
-                get_command(&command, Some(&canonical_dir), &envs),
-                self.text.clone(),
-            )?;
-            *self.current_handle.lock().await? = Some(handle.clone());
-            Ok(handle)
-        }
-        #[cfg(not(unix))]
-        {
-            let _ = (command, working_dir);
-            bail!("Terminal command execution is unsupported on this platform")
-        }
+        environment: Environment,
+        program: Program,
+        arguments: Arguments,
+        working_dir: Option<WorkingDir>,
+    ) -> Result<CommandHandle>
+    where
+        Environment: IntoIterator<Item = (String, String)>,
+        Program: AsRef<OsStr>,
+        Arguments: IntoIterator<Item = Argument>,
+        Argument: AsRef<OsStr>,
+        WorkingDir: AsRef<Path>,
+    {
+        self.start(Run {
+            environment: environment.into_iter().collect(),
+            program: program.as_ref().to_os_string(),
+            arguments: arguments
+                .into_iter()
+                .map(|argument| argument.as_ref().to_os_string())
+                .collect(),
+            working_dir: working_dir.map(|working_dir| working_dir.as_ref().to_path_buf()),
+        })
+        .await
     }
 
-    pub async fn run_command(&self, command: tokio::process::Command) -> Result<CommandHandle> {
-        #[cfg(unix)]
-        {
-            let handle = run_command(command, self.text.clone())?;
-            *self.current_handle.lock().await? = Some(handle.clone());
-            Ok(handle)
-        }
-        #[cfg(not(unix))]
-        {
-            let _ = command;
-            bail!("Terminal command execution is unsupported on this platform")
-        }
+    pub async fn run_shell<Environment, Command, WorkingDir>(
+        &self,
+        environment: Environment,
+        command: Command,
+        working_dir: Option<WorkingDir>,
+    ) -> Result<CommandHandle>
+    where
+        Environment: IntoIterator<Item = (String, String)>,
+        Command: AsRef<OsStr>,
+        WorkingDir: AsRef<Path>,
+    {
+        self.run(
+            environment,
+            "/bin/bash",
+            vec![
+                "-c".to_string(),
+                format!("set -euo pipefail\n{}", command.as_ref().to_string_lossy()),
+            ],
+            working_dir,
+        )
+        .await
     }
 
-    pub async fn restart(&self) -> Result<CommandHandle> {
-        let mut handle_lock = self.current_handle.lock().await?;
-        if let Some(handle) = handle_lock.take() {
+    async fn restart(&self) -> Result<CommandHandle> {
+        if let Some(handle) = self.current_handle.lock().await?.take() {
             let _ = handle.ensure_stopped().await;
         }
 
         self.text.set(Content::default()).await?;
-
-        let command = self.command.read().await?.clone();
-        let working_dir = self.working_dir.lock().await?.clone();
-        let envs = self.envs.lock().await?.clone();
-
-        #[cfg(unix)]
-        {
-            let handle = run_command(
-                get_command(&command, working_dir.as_deref(), &envs),
-                self.text.clone(),
-            )?;
-            *handle_lock = Some(handle.clone());
-            Ok(handle)
-        }
-        #[cfg(not(unix))]
-        {
-            let _ = (command, working_dir);
-            bail!("Terminal command execution is unsupported on this platform")
-        }
+        let run = self
+            .run
+            .lock()
+            .await?
+            .clone()
+            .ok_or_else(|| color_eyre::eyre::eyre!("No command has been run"))?;
+        self.start(run).await
     }
 }

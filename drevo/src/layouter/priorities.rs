@@ -7,18 +7,18 @@
 //! - (`ROOT_DIMENSIONS`): Minimizing extra root size beyond the actual window size.
 
 // Higher values have higher precedence:
-pub const PRIORITY_LEVELS: usize = 7;
+pub const PRIORITY_LEVELS: usize = 6;
 
 pub const ALIGNMENT: usize = 0;
 
-pub const CROSS_AXIS_LIMIT: usize = 1;
+pub const CROSS_AXIS_LIMIT: usize = 0;
 
-pub const EXCESS_SPACE: usize = 2;
+pub const EXCESS_SPACE: usize = 1;
 
-pub const ABOVE_EXCESS_SPACE: usize = 3;
+pub const ABOVE_EXCESS_SPACE: usize = 2;
 
-pub const INTRINSIC_CONTENT: usize = 4;
+pub const INTRINSIC_CONTENT: usize = 3;
 
-pub const INTRINSIC_SPACING: usize = 5;
+pub const INTRINSIC_SPACING: usize = 4;
 
-pub const ROOT_DIMENSIONS: usize = 6;
+pub const ROOT_DIMENSIONS: usize = 5;
